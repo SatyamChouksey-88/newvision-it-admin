@@ -5,6 +5,8 @@ import 'react-resizable/css/styles.css';
 interface Props extends React.HTMLAttributes<HTMLTableCellElement> {
   width?: number;
   onResize?: (width: number) => void;
+  /** Double-click on the resize handle → size column to its content (Excel behaviour). */
+  onAutoFit?: () => void;
   children?: ReactNode;
   draggable?: boolean;
   onDragStart?: () => void;
@@ -12,7 +14,16 @@ interface Props extends React.HTMLAttributes<HTMLTableCellElement> {
 }
 
 export function ResizableTitle(props: Props) {
-  const { width = 0, onResize, children, draggable, onDragStart, onDrop, ...rest } = props;
+  const {
+    width = 0,
+    onResize,
+    onAutoFit,
+    children,
+    draggable,
+    onDragStart,
+    onDrop,
+    ...rest
+  } = props;
 
   if (!width || !onResize) {
     return <th {...rest}>{children}</th>;
@@ -26,6 +37,11 @@ export function ResizableTitle(props: Props) {
         <span
           className="react-resizable-handle"
           onClick={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            onAutoFit?.();
+          }}
+          title="Drag to resize · double-click to auto-fit"
           aria-hidden
         />
       }

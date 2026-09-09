@@ -12,14 +12,15 @@ import {
   WarningOutlined,
 } from '@ant-design/icons';
 import { useCustom } from '@refinedev/core';
-import { Card, Col, List, Row, Select, Space, Table, Typography } from 'antd';
+import { Alert, Button, Card, Col, List, Row, Select, Space, Typography } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { WarrantyDays } from '../components/Cells';
-import { KpiCard } from '../components/KpiCard';
+import { DataGrid } from '../components/DataGrid/DataGrid';
 import { AssetTrendChart } from '../components/charts/AssetTrendChart';
 import { LocationBarChart } from '../components/charts/LocationBarChart';
 import { StatusDonutChart } from '../components/charts/StatusDonutChart';
+import { KpiCard } from '../components/KpiCard';
 import { httpClient } from '../providers/axios';
 import {
   COLOR_ACCENT,
@@ -50,20 +51,42 @@ interface WarrantyRow {
   daysRemaining: number | null;
 }
 
-function locationQuerySuffix(locationId?: number) {
-  return locationId
-    ? `?filters[0][field]=locationId&filters[0][operator]=eq&filters[0][value]=${locationId}`
-    : '';
+/** Build a Refine-compatible `/assets` drill-down URL for a set of eq filters. */
+function assetsHref(filters: Record<string, string | number | undefined>) {
+  const parts: string[] = [];
+  let i = 0;
+  for (const [field, value] of Object.entries(filters)) {
+    if (value === undefined || value === '') continue;
+    parts.push(
+      `filters[${i}][field]=${field}&filters[${i}][operator]=eq&filters[${i}][value]=${encodeURIComponent(String(value))}`,
+    );
+    i += 1;
+  }
+  return parts.length ? `/assets?${parts.join('&')}` : '/assets';
 }
 
 export function DashboardPage() {
-  const [locationId, setLocationId] = useState<number | undefined>(undefined);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const locationParam = Number(searchParams.get('locationId'));
+  const locationId =
+    Number.isFinite(locationParam) && locationParam > 0 ? locationParam : undefined;
+  const setLocationId = (v?: number) =>
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (v) next.set('locationId', String(v));
+        else next.delete('locationId');
+        return next;
+      },
+      { replace: true },
+    );
   const [locations, setLocations] = useState<Location[]>([]);
 
   useEffect(() => {
-    httpClient.get('/locations', { params: { _start: 0, _end: 100 } }).then(({ data }) => {
-      setLocations(data.data ?? []);
-    });
+    httpClient
+      .get('/locations', { params: { _start: 0, _end: 100 } })
+      .then(({ data }) => setLocations(data.data ?? []))
+      .catch(() => setLocations([]));
   }, []);
 
   const { query: metricsQuery } = useCustom<DashboardMetrics>({
@@ -113,10 +136,30 @@ export function DashboardPage() {
   const byLocation = byLocationQuery.data?.data ?? [];
 
   const sparklineTrend = useMemo(() => trends.slice(-6), [trends]);
-  const locSuffix = locationQuerySuffix(locationId);
+  const loadFailed =
+    metricsQuery.isError || warrantyQuery.isError || attentionQuery.isError || trendsQuery.isError;
+  const retryAll = () => {
+    void metricsQuery.refetch();
+    void warrantyQuery.refetch();
+    void attentionQuery.refetch();
+    void trendsQuery.refetch();
+    if (!locationId) void byLocationQuery.refetch();
+  };
 
   return (
     <Space direction="vertical" size={20} style={{ width: '100%' }}>
+      {loadFailed && (
+        <Alert
+          type="error"
+          showIcon
+          message="Some dashboard data could not be loaded"
+          action={
+            <Button size="small" onClick={retryAll}>
+              Retry
+            </Button>
+          }
+        />
+      )}
       <Row justify="space-between" align="middle" gutter={[16, 12]}>
         <Col>
           <Typography.Title level={3} style={{ margin: 0, fontWeight: 600, fontSize: 24 }}>
@@ -169,7 +212,9 @@ export function DashboardPage() {
                     <Typography.Text strong style={{ fontSize: 13, color: 'inherit' }}>
                       {item.label}
                     </Typography.Text>
-                    <Typography.Text style={{ fontSize: 12, marginLeft: 8, color: COLOR_TEXT_SECONDARY }}>
+                    <Typography.Text
+                      style={{ fontSize: 12, marginLeft: 8, color: COLOR_TEXT_SECONDARY }}
+                    >
                       {item.detail}
                     </Typography.Text>
                   </Link>
@@ -187,7 +232,7 @@ export function DashboardPage() {
             value={m?.total ?? 0}
             icon={<DatabaseOutlined />}
             accentColor={KPI_TOTAL}
-            href={`/assets${locSuffix}`}
+            href={assetsHref({ locationId })}
             sparkline={
               sparklineTrend.length > 0 ? (
                 <AssetTrendChart data={sparklineTrend} height={48} compact />
@@ -202,7 +247,7 @@ export function DashboardPage() {
             icon={<CheckCircleOutlined />}
             accentColor={KPI_ASSIGNED}
             valueColor="#15803D"
-            href={`/assets?filters[0][field]=status&filters[0][operator]=eq&filters[0][value]=assigned${locationId ? `&filters[1][field]=locationId&filters[1][operator]=eq&filters[1][value]=${locationId}` : ''}`}
+            href={assetsHref({ status: 'assigned', locationId })}
           />
         </Col>
         <Col xs={12} sm={8} lg={4}>
@@ -211,7 +256,7 @@ export function DashboardPage() {
             value={m?.available ?? 0}
             icon={<MinusCircleOutlined />}
             accentColor={KPI_AVAILABLE}
-            href={`/assets?filters[0][field]=status&filters[0][operator]=eq&filters[0][value]=available${locationId ? `&filters[1][field]=locationId&filters[1][operator]=eq&filters[1][value]=${locationId}` : ''}`}
+            href={assetsHref({ status: 'available', locationId })}
           />
         </Col>
         <Col xs={12} sm={8} lg={4}>
@@ -221,7 +266,7 @@ export function DashboardPage() {
             icon={<ToolOutlined />}
             accentColor={KPI_REPAIR}
             valueColor="#B45309"
-            href={`/assets?filters[0][field]=status&filters[0][operator]=eq&filters[0][value]=under_repair${locationId ? `&filters[1][field]=locationId&filters[1][operator]=eq&filters[1][value]=${locationId}` : ''}`}
+            href={assetsHref({ status: 'under_repair', locationId })}
           />
         </Col>
         <Col xs={12} sm={8} lg={4}>
@@ -230,7 +275,7 @@ export function DashboardPage() {
             value={m?.retired ?? 0}
             icon={<InboxOutlined />}
             accentColor={KPI_RETIRED}
-            href={`/assets?filters[0][field]=status&filters[0][operator]=eq&filters[0][value]=retired${locationId ? `&filters[1][field]=locationId&filters[1][operator]=eq&filters[1][value]=${locationId}` : ''}`}
+            href={assetsHref({ status: 'retired', locationId })}
           />
         </Col>
         <Col xs={12} sm={8} lg={4}>
@@ -240,7 +285,7 @@ export function DashboardPage() {
             icon={<WarningOutlined />}
             accentColor={KPI_WARRANTY}
             valueColor="#B91C1C"
-            href={`/assets?filters[0][field]=warrantyExpiringInDays&filters[0][operator]=eq&filters[0][value]=90${locationId ? `&filters[1][field]=locationId&filters[1][operator]=eq&filters[1][value]=${locationId}` : ''}`}
+            href={assetsHref({ warrantyExpiringInDays: 90, locationId })}
           />
         </Col>
       </Row>
@@ -309,11 +354,12 @@ export function DashboardPage() {
         }
         loading={isFetching}
       >
-        <Table<WarrantyRow>
+        <DataGrid<WarrantyRow>
+          tableKey="dashboard-warranty"
           dataSource={warrantyRows}
           rowKey="id"
-          size="small"
-          pagination={{ pageSize: 8, size: 'small' }}
+          density="Compact"
+          pagination={{ pageSize: 8, size: 'small', hideOnSinglePage: true }}
           columns={[
             {
               title: 'Asset',
@@ -322,7 +368,9 @@ export function DashboardPage() {
             },
             {
               title: 'Item',
+              gridKey: 'item',
               render: (_, r) => `${r.brand ?? ''} ${r.model ?? ''}`.trim() || '—',
+              getExportValue: (r) => `${r.brand ?? ''} ${r.model ?? ''}`.trim(),
             },
             { title: 'Location', dataIndex: 'location' },
             {

@@ -10,7 +10,7 @@ test('employee submits request; manager approves; IT marks fulfilled', async ({ 
   const modal = page.getByRole('dialog');
   await selectFirstOption(page, modal, 1);
   await modal.getByLabel('Reason').fill('Need laptop for new project');
-  await modal.getByRole('button', { name: 'OK' }).click();
+  await modal.getByRole('button', { name: 'Submit request' }).click();
   await expect(page.getByText('pending').first()).toBeVisible({ timeout: 20_000 });
 
   const managerCtx = await browser.newContext();

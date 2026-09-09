@@ -15,11 +15,11 @@ import {
   Space,
   Typography,
 } from 'antd';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { AssetSelect } from '../components/AssetSelect';
 import { CopyButton } from '../components/CopyButton';
 import { DataGrid, type TableDensity } from '../components/DataGrid/DataGrid';
-import { AssetSelect } from '../components/AssetSelect';
 import { EmployeeSelect } from '../components/EmployeeSelect';
 import { EmptyState } from '../components/EmptyState';
 import {
@@ -31,7 +31,7 @@ import { TablePagination } from '../components/TablePagination';
 import { TableSkeleton } from '../components/TableSkeleton';
 import { useRefinePagination } from '../hooks/useRefinePagination';
 import type { Identity } from '../providers/authProvider';
-import { httpClient } from '../providers/axios';
+import { apiErrorMessage, httpClient } from '../providers/axios';
 import { tabularNums } from '../theme';
 import type { Maintenance, MaintenanceStatus } from '../types';
 import { formatCurrency, formatDate } from '../utils/format';
@@ -44,12 +44,21 @@ export function MaintenancePage() {
   const { data: identity } = useGetIdentity<Identity>();
   const canView = VIEW_ROLES.includes(identity?.role ?? '');
 
-  const { tableProps, setFilters, tableQuery } = useTable<Maintenance>({
+  const { tableProps, setFilters, filters, tableQuery } = useTable<Maintenance>({
     resource: 'maintenance',
     syncWithLocation: true,
     pagination: { pageSize: 25 },
     queryOptions: { enabled: canView },
   });
+  const statusFilter = useMemo(() => {
+    const f = filters.find((x) => 'field' in x && x.field === 'status');
+    const v = f && 'value' in f ? f.value : undefined;
+    return v ? (String(v) as MaintenanceStatus) : undefined;
+  }, [filters]);
+  const qFilter = useMemo(() => {
+    const f = filters.find((x) => 'field' in x && x.field === 'q');
+    return f && 'value' in f ? String(f.value ?? '') : '';
+  }, [filters]);
 
   const [reportOpen, setReportOpen] = useState(false);
   const [completeTarget, setCompleteTarget] = useState<Maintenance | null>(null);
@@ -70,8 +79,8 @@ export function MaintenancePage() {
       await httpClient.patch(`/maintenance/${row.id}/transition`, { status, ...body });
       message.success(`Ticket #${row.id} → ${status.replace('_', ' ')}`);
       refetch();
-    } catch {
-      message.error('Could not update the ticket');
+    } catch (e) {
+      message.error(apiErrorMessage(e, 'Could not update the ticket'));
     }
   };
 
@@ -82,15 +91,32 @@ export function MaintenancePage() {
           <Typography.Text strong>Maintenance &amp; Repairs</Typography.Text>
           <StatusLegend kind="maintenance" />
           {canView && (
-            <Select
-              allowClear
-              placeholder="Status"
-              style={{ width: 180 }}
-              options={MAINTENANCE_STATUS_OPTIONS}
-              onChange={(v) =>
-                setFilters([{ field: 'status', operator: 'eq', value: v ?? undefined }], 'merge')
-              }
-            />
+            <>
+              <Input.Search
+                allowClear
+                placeholder="Search issue, vendor, ticket #…"
+                aria-label="Search tickets"
+                style={{ width: 260 }}
+                key={qFilter}
+                defaultValue={qFilter}
+                onSearch={(v) =>
+                  setFilters(
+                    [{ field: 'q', operator: 'contains', value: v.trim() || undefined }],
+                    'merge',
+                  )
+                }
+              />
+              <Select
+                allowClear
+                placeholder="Status"
+                style={{ width: 180 }}
+                options={MAINTENANCE_STATUS_OPTIONS}
+                value={statusFilter}
+                onChange={(v) =>
+                  setFilters([{ field: 'status', operator: 'eq', value: v ?? undefined }], 'merge')
+                }
+              />
+            </>
           )}
         </Space>
       }
@@ -103,160 +129,185 @@ export function MaintenancePage() {
       {canView ? (
         tableQuery.isLoading ? (
           <TableSkeleton columns={8} />
+        ) : tableQuery.isError ? (
+          <EmptyState
+            description="Could not load tickets."
+            actionLabel="Retry"
+            onAction={() => void refetch()}
+          />
         ) : rows.length === 0 ? (
-          <EmptyState description="No maintenance tickets" actionLabel="Report issue" onAction={() => setReportOpen(true)} />
+          statusFilter ? (
+            <EmptyState
+              description={`No ${statusFilter.replace('_', ' ')} tickets`}
+              actionLabel="Clear filter"
+              onAction={() =>
+                setFilters([{ field: 'status', operator: 'eq', value: undefined }], 'merge')
+              }
+            />
+          ) : (
+            <EmptyState
+              description="No maintenance tickets"
+              actionLabel="Report issue"
+              onAction={() => setReportOpen(true)}
+            />
+          )
         ) : (
-        <>
-        <DataGrid<Maintenance>
-          tableKey="maintenance"
-          searchInputId="maintenance-grid-search"
-          rowKey="id"
-          dataSource={rows}
-          loading={tableQuery.isFetching}
-          density={density}
-          onDensityChange={setDensity}
-          fixFirstColumn
-          serverSide
-          onChange={tableProps.onChange}
-          scroll={{ x: 1000 }}
-          expandable={{
-            expandedRowKeys: expanded,
-            onExpandedRowsChange: (keys) => setExpanded(keys as number[]),
-            expandedRowRender: (r) => (
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                Notes: {r.notes ?? '—'} · Completed: {formatDate(r.completedAt)} · Reported by:{' '}
-                {r.reportedBy?.fullName ?? '—'}
-              </Typography.Text>
-            ),
-          }}
-          columns={[
-            {
-              title: 'ID',
-              dataIndex: 'id',
-              defaultWidth: 72,
-              render: (v: number) => (
-                <Space size={4}>
-                  {v}
-                  <CopyButton value={String(v)} label="ticket id" />
-                </Space>
-              ),
-            },
-            {
-              title: 'Asset',
-              gridKey: 'asset',
-              render: (_, r) =>
-                r.asset ? (
-                  <Space size={4}>
-                    <Button
-                      type="link"
-                      style={{ padding: 0 }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/assets/show/${r.asset?.id}`);
-                      }}
-                    >
-                      {r.asset.assetCode}
-                    </Button>
-                    <CopyButton value={r.asset.assetCode} label="asset code" />
-                  </Space>
-                ) : (
-                  '—'
+          <>
+            <DataGrid<Maintenance>
+              tableKey="maintenance"
+              searchInputId="maintenance-grid-search"
+              rowKey="id"
+              dataSource={rows}
+              loading={tableQuery.isFetching}
+              density={density}
+              onDensityChange={setDensity}
+              fixFirstColumn
+              serverSide
+              onChange={tableProps.onChange}
+              scroll={{ x: 1000 }}
+              expandable={{
+                expandedRowKeys: expanded,
+                onExpandedRowsChange: (keys) => setExpanded(keys as number[]),
+                expandedRowRender: (r) => (
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                    Notes: {r.notes ?? '—'} · Completed: {formatDate(r.completedAt)} · Reported by:{' '}
+                    {r.reportedBy?.fullName ?? '—'}
+                  </Typography.Text>
                 ),
-            },
-            { title: 'Issue', dataIndex: 'issue', ellipsis: true },
-            {
-              title: 'Status',
-              dataIndex: 'status',
-              render: (_, r) => <MaintenanceStatusTag status={r.status} />,
-            },
-            { title: 'Vendor', dataIndex: 'vendor', render: (v) => v || '—' },
-            {
-              title: 'Est. Cost',
-              dataIndex: 'estimatedCost',
-              align: 'right',
-              render: (v) => <span style={tabularNums}>{formatCurrency(v)}</span>,
-            },
-            {
-              title: 'Actual Cost',
-              dataIndex: 'actualCost',
-              align: 'right',
-              render: (v) => <span style={tabularNums}>{formatCurrency(v)}</span>,
-            },
-            {
-              title: 'Reported',
-              dataIndex: 'reportedAt',
-              render: (v) => formatDate(v),
-            },
-            {
-              title: 'Expected',
-              dataIndex: 'expectedCompletionDate',
-              render: (v) => formatDate(v),
-            },
-            {
-              title: 'Actions',
-              gridKey: 'actions',
-              exportable: false,
-              fixed: 'right',
-              defaultWidth: 230,
-              render: (_, r) => (
-                <Space size={4}>
-                  {r.status === 'reported' && (
-                    <Button
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void transition(r, 'under_repair');
-                      }}
-                    >
-                      Start Repair
-                    </Button>
-                  )}
-                  {r.status === 'under_repair' && (
-                    <Button
-                      size="small"
-                      type="primary"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setCompleteTarget(r);
-                      }}
-                    >
-                      Mark Repaired
-                    </Button>
-                  )}
-                  {r.status === 'repaired' && (
-                    <Button
-                      size="small"
-                      type="primary"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setReassignTarget(r);
-                      }}
-                    >
-                      Reassign
-                    </Button>
-                  )}
-                  {(r.status === 'reported' || r.status === 'under_repair') && (
-                    <Popconfirm
-                      title="Cancel this ticket?"
-                      onConfirm={() => transition(r, 'cancelled')}
-                    >
-                      <Button size="small" danger onClick={(e) => e.stopPropagation()}>
-                        Cancel
-                      </Button>
-                    </Popconfirm>
-                  )}
-                </Space>
-              ),
-            },
-          ]}
-        />
-        <TablePagination total={total} page={page} pageSize={pageSize} onChange={onPageChange} />
-        </>
+              }}
+              columns={[
+                {
+                  title: 'ID',
+                  dataIndex: 'id',
+                  defaultWidth: 72,
+                  render: (v: number) => (
+                    <Space size={4}>
+                      {v}
+                      <CopyButton value={String(v)} label="ticket id" />
+                    </Space>
+                  ),
+                },
+                {
+                  title: 'Asset',
+                  gridKey: 'asset',
+                  render: (_, r) =>
+                    r.asset ? (
+                      <Space size={4}>
+                        <Button
+                          type="link"
+                          style={{ padding: 0 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/assets/show/${r.asset?.id}`);
+                          }}
+                        >
+                          {r.asset.assetCode}
+                        </Button>
+                        <CopyButton value={r.asset.assetCode} label="asset code" />
+                      </Space>
+                    ) : (
+                      '—'
+                    ),
+                },
+                { title: 'Issue', dataIndex: 'issue', ellipsis: true, defaultWidth: 260 },
+                {
+                  title: 'Status',
+                  dataIndex: 'status',
+                  render: (_, r) => <MaintenanceStatusTag status={r.status} />,
+                },
+                { title: 'Vendor', dataIndex: 'vendor', render: (v) => v || '—' },
+                {
+                  title: 'Est. Cost',
+                  dataIndex: 'estimatedCost',
+                  align: 'right',
+                  render: (v) => <span style={tabularNums}>{formatCurrency(v)}</span>,
+                },
+                {
+                  title: 'Actual Cost',
+                  dataIndex: 'actualCost',
+                  align: 'right',
+                  render: (v) => <span style={tabularNums}>{formatCurrency(v)}</span>,
+                },
+                {
+                  title: 'Reported',
+                  dataIndex: 'reportedAt',
+                  render: (v) => formatDate(v),
+                },
+                {
+                  title: 'Expected',
+                  dataIndex: 'expectedCompletionDate',
+                  render: (v) => formatDate(v),
+                },
+                {
+                  title: 'Actions',
+                  gridKey: 'actions',
+                  exportable: false,
+                  fixed: 'right',
+                  defaultWidth: 230,
+                  render: (_, r) => (
+                    <Space size={4}>
+                      {r.status === 'reported' && (
+                        <Button
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void transition(r, 'under_repair');
+                          }}
+                        >
+                          Start Repair
+                        </Button>
+                      )}
+                      {r.status === 'under_repair' && (
+                        <Button
+                          size="small"
+                          type="primary"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCompleteTarget(r);
+                          }}
+                        >
+                          Mark Repaired
+                        </Button>
+                      )}
+                      {r.status === 'repaired' && (
+                        <Button
+                          size="small"
+                          type="primary"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setReassignTarget(r);
+                          }}
+                        >
+                          Reassign
+                        </Button>
+                      )}
+                      {(r.status === 'reported' || r.status === 'under_repair') && (
+                        <Popconfirm
+                          title="Cancel this ticket?"
+                          onConfirm={() => transition(r, 'cancelled')}
+                        >
+                          <Button size="small" danger onClick={(e) => e.stopPropagation()}>
+                            Cancel
+                          </Button>
+                        </Popconfirm>
+                      )}
+                    </Space>
+                  ),
+                },
+              ]}
+            />
+            <TablePagination
+              total={total}
+              page={page}
+              pageSize={pageSize}
+              onChange={onPageChange}
+            />
+          </>
         )
       ) : (
         <Typography.Paragraph type="secondary">
-          <ToolOutlined /> Use <b>Report Issue</b> to raise a repair request for an asset assigned to
-          you. The IT team will triage and track it here.
+          <ToolOutlined /> Use <b>Report Issue</b> to raise a repair request for an asset assigned
+          to you. The IT team will triage and track it here.
         </Typography.Paragraph>
       )}
 
@@ -323,7 +374,7 @@ function ReportIssueModal({
       onDone();
     } catch (e) {
       if ((e as { errorFields?: unknown }).errorFields) return; // validation
-      message.error('Could not report the issue');
+      message.error(apiErrorMessage(e, 'Could not report the issue'));
     } finally {
       setLoading(false);
     }
@@ -429,7 +480,11 @@ function ReassignModal({
       </Typography.Paragraph>
       <Form layout="vertical">
         <Form.Item label="Assign to">
-          <EmployeeSelect value={employeeId} onChange={setEmployeeId} placeholder="Previous holder" />
+          <EmployeeSelect
+            value={employeeId}
+            onChange={setEmployeeId}
+            placeholder="Previous holder"
+          />
         </Form.Item>
       </Form>
     </Modal>

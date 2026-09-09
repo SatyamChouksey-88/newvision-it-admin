@@ -15,7 +15,10 @@ export function SettingsPage() {
   const canGovern = GOVERNANCE_ROLES.includes(identity?.role ?? '');
 
   useEffect(() => {
-    httpClient.get('/auth/me').then(({ data }) => setPermissions(data.permissions ?? []));
+    httpClient
+      .get('/auth/me')
+      .then(({ data }) => setPermissions(data.permissions ?? []))
+      .catch(() => setPermissions([]));
   }, []);
 
   const items = [
@@ -35,9 +38,13 @@ export function SettingsPage() {
           </Card>
           <Card size="small" title="Your permissions">
             <Space wrap>
-              {permissions.map((p) => (
-                <Tag key={p}>{p}</Tag>
-              ))}
+              {permissions.length === 0 ? (
+                <Typography.Text type="secondary">
+                  No explicit permissions listed for this role.
+                </Typography.Text>
+              ) : (
+                permissions.map((p) => <Tag key={p}>{p}</Tag>)
+              )}
             </Space>
           </Card>
         </Space>

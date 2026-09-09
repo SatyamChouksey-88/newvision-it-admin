@@ -77,7 +77,9 @@ export function KpiCard({
               {value.toLocaleString()}
             </div>
           </div>
-          <span style={{ color: accentColor, fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{icon}</span>
+          <span style={{ color: accentColor, fontSize: 20, lineHeight: 1, flexShrink: 0 }}>
+            {icon}
+          </span>
         </div>
         {sparkline ? <div style={{ marginTop: 10 }}>{sparkline}</div> : null}
       </div>

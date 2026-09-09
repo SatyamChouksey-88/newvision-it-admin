@@ -15,8 +15,11 @@ test('saves the current asset filters as a named view', async ({ page }) => {
   await page.goto('/assets');
   await selectByPlaceholder(page, 'Status', 'Available');
 
-  page.once('dialog', (d) => d.accept(`E2E view ${Date.now()}`));
   await page.getByRole('button', { name: 'Save view' }).click();
+  const dialog = page.getByRole('dialog', { name: /Save current filters/i });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('textbox').fill(`E2E view ${Date.now()}`);
+  await dialog.getByRole('button', { name: 'Save view' }).click();
   await expectSuccess(page, /Saved view/i);
 });
 

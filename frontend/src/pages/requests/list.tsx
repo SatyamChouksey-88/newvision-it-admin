@@ -2,15 +2,15 @@ import { CheckOutlined, CloseOutlined, FormOutlined } from '@ant-design/icons';
 import { useGetIdentity } from '@refinedev/core';
 import { Button, Card, Form, Input, Modal, Select, Space, Tag, Typography } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
-import { CopyButton } from '../../components/CopyButton';
 import { PrimaryWithSub } from '../../components/Cells';
+import { CopyButton } from '../../components/CopyButton';
 import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid';
 import { EmptyState } from '../../components/EmptyState';
 import { TablePagination } from '../../components/TablePagination';
 import { TableSkeleton } from '../../components/TableSkeleton';
 import { useToast } from '../../components/Toast';
 import type { Identity } from '../../providers/authProvider';
-import { httpClient } from '../../providers/axios';
+import { apiErrorMessage, httpClient } from '../../providers/axios';
 import type { AssetCategory, AssetRequest } from '../../types';
 
 export function RequestsPage() {
@@ -29,19 +29,31 @@ export function RequestsPage() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [form] = Form.useForm();
   const [density, setDensity] = useState<TableDensity>('Compact');
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [kindFilter, setKindFilter] = useState<string | undefined>();
+  const [loadError, setLoadError] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const { data } = await httpClient.get('/asset-requests', {
-        params: { _start: (page - 1) * pageSize, _end: page * pageSize },
+        params: {
+          _start: (page - 1) * pageSize,
+          _end: page * pageSize,
+          ...(statusFilter.length ? { status: statusFilter.join(',') } : {}),
+          ...(kindFilter ? { kind: kindFilter } : {}),
+        },
       });
       setRows(data.data ?? []);
       setTotal(data.total ?? 0);
+    } catch {
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize]);
+  }, [page, pageSize, statusFilter, kindFilter]);
 
   useEffect(() => {
     void load();
@@ -50,7 +62,8 @@ export function RequestsPage() {
   useEffect(() => {
     httpClient
       .get('/asset-categories', { params: { _start: 0, _end: 100 } })
-      .then(({ data }) => setCategories(data.data ?? []));
+      .then(({ data }) => setCategories(data.data ?? []))
+      .catch(() => setCategories([]));
   }, []);
 
   const submitRequest = async (values: {
@@ -59,29 +72,57 @@ export function RequestsPage() {
     accessoryName?: string;
     reason: string;
   }) => {
-    await httpClient.post('/asset-requests', values);
-    toast.success('Request submitted');
-    setCreateOpen(false);
-    form.resetFields();
-    void load();
+    setSubmitting(true);
+    try {
+      await httpClient.post('/asset-requests', values);
+      toast.success('Request submitted — your manager has been notified');
+      setCreateOpen(false);
+      form.resetFields();
+      void load();
+    } catch (e) {
+      toast.error(apiErrorMessage(e, 'Could not submit the request'));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const review = async (decision: 'approved' | 'rejected', comment?: string, rejectionReason?: string) => {
-    if (!reviewTarget) return;
-    await httpClient.patch(`/asset-requests/${reviewTarget.id}/review`, {
-      decision,
-      comment,
-      rejectionReason,
-    });
-    toast.success(decision === 'approved' ? 'Request approved' : 'Request rejected');
+  const closeReview = () => {
     setReviewTarget(null);
-    void load();
+    setReviewComment('');
+    setRejectionReason('');
+  };
+
+  const review = async (
+    decision: 'approved' | 'rejected',
+    comment?: string,
+    rejectionReason?: string,
+  ) => {
+    if (!reviewTarget) return;
+    setSubmitting(true);
+    try {
+      await httpClient.patch(`/asset-requests/${reviewTarget.id}/review`, {
+        decision,
+        comment,
+        rejectionReason,
+      });
+      toast.success(decision === 'approved' ? 'Request approved' : 'Request rejected');
+      closeReview();
+      void load();
+    } catch (e) {
+      toast.error(apiErrorMessage(e, 'Could not review the request'));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const fulfill = async (id: number) => {
-    await httpClient.patch(`/asset-requests/${id}/fulfill`);
-    toast.success('Marked fulfilled — assign the asset manually');
-    void load();
+    try {
+      await httpClient.patch(`/asset-requests/${id}/fulfill`);
+      toast.success('Marked fulfilled — assign the asset from the Assets page');
+      void load();
+    } catch (e) {
+      toast.error(apiErrorMessage(e, 'Could not mark the request fulfilled'));
+    }
   };
 
   const statusColor: Record<string, string> = {
@@ -102,13 +143,39 @@ export function RequestsPage() {
         ) : null
       }
     >
-      {loading ? (
+      {loading && rows.length === 0 ? (
         <TableSkeleton columns={5} />
+      ) : loadError ? (
+        <EmptyState
+          description="Could not load requests. Check your connection and try again."
+          actionLabel="Retry"
+          onAction={() => void load()}
+        />
       ) : rows.length === 0 ? (
         <EmptyState
-          description="No requests yet"
-          actionLabel={role === 'EMPLOYEE' ? 'Submit a request' : undefined}
-          onAction={role === 'EMPLOYEE' ? () => setCreateOpen(true) : undefined}
+          description={
+            statusFilter.length || kindFilter
+              ? 'No requests match the current filters'
+              : 'No requests yet'
+          }
+          actionLabel={
+            statusFilter.length || kindFilter
+              ? 'Clear filters'
+              : role === 'EMPLOYEE'
+                ? 'Submit a request'
+                : undefined
+          }
+          onAction={
+            statusFilter.length || kindFilter
+              ? () => {
+                  setStatusFilter([]);
+                  setKindFilter(undefined);
+                  setPage(1);
+                }
+              : role === 'EMPLOYEE'
+                ? () => setCreateOpen(true)
+                : undefined
+          }
         />
       ) : (
         <>
@@ -121,6 +188,14 @@ export function RequestsPage() {
             density={density}
             onDensityChange={setDensity}
             fixFirstColumn
+            serverSide
+            onChange={(_p, tableFilters) => {
+              const next = (tableFilters.status as string[] | null) ?? [];
+              const kind = (tableFilters.kind as string[] | null)?.[0];
+              setStatusFilter(next);
+              setKindFilter(kind);
+              setPage(1);
+            }}
             columns={[
               {
                 title: 'ID',
@@ -150,14 +225,31 @@ export function RequestsPage() {
               },
               {
                 title: 'Type',
+                dataIndex: 'kind',
+                filters: [
+                  { text: 'Asset', value: 'asset' },
+                  { text: 'Accessory', value: 'accessory' },
+                ],
+                filterMultiple: false,
+                filteredValue: kindFilter ? [kindFilter] : null,
                 render: (_, r) =>
-                  r.kind === 'asset' ? r.category?.name ?? 'Asset' : r.accessoryName ?? 'Accessory',
+                  r.kind === 'asset'
+                    ? (r.category?.name ?? 'Asset')
+                    : (r.accessoryName ?? 'Accessory'),
+                getExportValue: (r) =>
+                  r.kind === 'asset'
+                    ? (r.category?.name ?? 'Asset')
+                    : (r.accessoryName ?? 'Accessory'),
               },
-              { title: 'Reason', dataIndex: 'reason', ellipsis: true },
+              { title: 'Reason', dataIndex: 'reason', ellipsis: true, defaultWidth: 280 },
               {
                 title: 'Status',
                 dataIndex: 'status',
-                sorter: (a, b) => a.status.localeCompare(b.status),
+                filters: ['pending', 'approved', 'rejected', 'fulfilled'].map((s) => ({
+                  text: s,
+                  value: s,
+                })),
+                filteredValue: statusFilter.length ? statusFilter : null,
                 render: (s, r) => (
                   <Space direction="vertical" size={0}>
                     <Tag color={statusColor[s]}>{s}</Tag>
@@ -221,8 +313,15 @@ export function RequestsPage() {
         title="Request asset or accessory"
         onCancel={() => setCreateOpen(false)}
         onOk={() => form.submit()}
+        okText="Submit request"
+        confirmLoading={submitting}
       >
-        <Form form={form} layout="vertical" onFinish={submitRequest} initialValues={{ kind: 'asset' }}>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={submitRequest}
+          initialValues={{ kind: 'asset' }}
+        >
           <Form.Item name="kind" label="Request type" rules={[{ required: true }]}>
             <Select
               options={[
@@ -252,24 +351,16 @@ export function RequestsPage() {
 
       <Modal
         open={!!reviewTarget}
-        title="Review request"
-        onCancel={() => {
-          setReviewTarget(null);
-          setReviewComment('');
-          setRejectionReason('');
-        }}
+        title={`Review request #${reviewTarget?.id ?? ''}`}
+        onCancel={closeReview}
         footer={[
           <Button
             key="reject"
             danger
             icon={<CloseOutlined />}
             disabled={!rejectionReason.trim()}
-            onClick={() => {
-              void review('rejected', undefined, rejectionReason);
-              setReviewTarget(null);
-              setRejectionReason('');
-              setReviewComment('');
-            }}
+            loading={submitting}
+            onClick={() => void review('rejected', undefined, rejectionReason.trim())}
           >
             Reject
           </Button>,
@@ -277,18 +368,22 @@ export function RequestsPage() {
             key="approve"
             type="primary"
             icon={<CheckOutlined />}
-            onClick={() => {
-              void review('approved', reviewComment || undefined);
-              setReviewTarget(null);
-              setRejectionReason('');
-              setReviewComment('');
-            }}
+            loading={submitting}
+            onClick={() => void review('approved', reviewComment.trim() || undefined)}
           >
             Approve
           </Button>,
         ]}
       >
-        <Typography.Paragraph>{reviewTarget?.reason}</Typography.Paragraph>
+        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+          {reviewTarget?.requester
+            ? `${reviewTarget.requester.firstName} ${reviewTarget.requester.lastName} (${reviewTarget.requester.employeeCode}) requests `
+            : ''}
+          {reviewTarget?.kind === 'asset'
+            ? (reviewTarget.category?.name ?? 'an asset')
+            : (reviewTarget?.accessoryName ?? 'an accessory')}
+        </Typography.Text>
+        <Typography.Paragraph style={{ marginTop: 8 }}>{reviewTarget?.reason}</Typography.Paragraph>
         <Form layout="vertical">
           <Form.Item label="Comment (optional, for approval)">
             <Input value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} />

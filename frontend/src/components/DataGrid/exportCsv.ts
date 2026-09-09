@@ -10,9 +10,7 @@ export function exportToCsv(
     return s;
   };
   const header = columns.map((c) => escapeCell(c.title)).join(',');
-  const body = rows
-    .map((row) => columns.map((c) => escapeCell(row[c.key])).join(','))
-    .join('\n');
+  const body = rows.map((row) => columns.map((c) => escapeCell(row[c.key])).join(',')).join('\n');
   const blob = new Blob([`${header}\n${body}`], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

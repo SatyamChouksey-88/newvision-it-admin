@@ -1,15 +1,16 @@
 import {
   ColumnHeightOutlined,
   DownloadOutlined,
+  ReloadOutlined,
   SettingOutlined,
 } from '@ant-design/icons';
 import type { TableProps } from 'antd';
-import { Button, Checkbox, Dropdown, Input, Segmented, Space, Table } from 'antd';
+import { Button, Checkbox, Dropdown, Input, Segmented, Space, Table, Tooltip } from 'antd';
 import type { ColumnType } from 'antd/es/table';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTableKeyboard } from '../../hooks/useTableKeyboard';
-import { ResizableTitle } from './ResizableTitle';
 import { exportToCsv } from './exportCsv';
+import { ResizableTitle } from './ResizableTitle';
 import { useColumnPrefs } from './useColumnPrefs';
 
 export type GridColumn<T> = ColumnType<T> & {
@@ -41,13 +42,13 @@ export interface DataGridProps<T extends object> {
   fixFirstColumn?: boolean;
   rowSelection?: TableProps<T>['rowSelection'];
   bulkActions?: React.ReactNode;
-  /** Quick-filter searches stringified row values client-side. */
+  /** Quick-filter searches stringified row values client-side (always on the loaded rows). */
   quickFilter?: boolean;
   quickFilterPlaceholder?: string;
   /** Custom export handler; if omitted, exports visible columns client-side. */
   onExport?: () => void;
   exportFilename?: string;
-  /** Server-side: parent handles sort/filter; grid still manages column prefs. */
+  /** Server-side: parent handles sort/filter/pagination; the quick filter narrows the loaded page. */
   serverSide?: boolean;
   pagination?: false | TableProps<T>['pagination'];
   scroll?: TableProps<T>['scroll'];
@@ -59,6 +60,9 @@ export interface DataGridProps<T extends object> {
   toolbarExtra?: React.ReactNode;
   onChange?: TableProps<T>['onChange'];
 }
+
+const MIN_COL_WIDTH = 60;
+const MAX_AUTOFIT_WIDTH = 640;
 
 function colKey<T>(col: GridColumn<T>): string {
   if (col.gridKey) return col.gridKey;
@@ -80,6 +84,71 @@ function cellText<T>(col: GridColumn<T>, record: T): string {
     return String(v ?? '');
   }
   return '';
+}
+
+/** Full-text tooltip for a truncated cell so no data is hidden behind an ellipsis. */
+/** antd's RenderedCell shape (`{ children, props }`) — distinct from a React element, which has `type`. */
+function isRenderedCell(v: unknown): boolean {
+  return (
+    v !== null &&
+    typeof v === 'object' &&
+    !Array.isArray(v) &&
+    'props' in (v as object) &&
+    !('type' in (v as object)) &&
+    !('$$typeof' in (v as object))
+  );
+}
+
+/** Tooltip only when the cell actually overflows, so no data is hidden behind an ellipsis. */
+function OverflowCell({
+  text,
+  children,
+  wrap,
+}: {
+  text: string;
+  children: React.ReactNode;
+  wrap: boolean;
+}) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [overflowed, setOverflowed] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || wrap || !text) {
+      setOverflowed(false);
+      return;
+    }
+    const check = () => setOverflowed(el.scrollWidth > el.clientWidth + 1);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [text, wrap]);
+
+  const inner = (
+    <span
+      ref={ref}
+      className="nv-cell-ellipsis"
+      style={
+        wrap
+          ? { display: 'block', whiteSpace: 'normal', wordBreak: 'break-word' }
+          : {
+              display: 'block',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }
+      }
+    >
+      {children}
+    </span>
+  );
+  if (wrap || !text || !overflowed) return inner;
+  return (
+    <Tooltip title={text} mouseEnterDelay={0.25} placement="topLeft">
+      {inner}
+    </Tooltip>
+  );
 }
 
 export function DataGrid<T extends object>(props: DataGridProps<T>) {
@@ -120,24 +189,38 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
     return v;
   }, [columnDefs]);
 
-  const { order, widths, visible, setColumnWidth, toggleColumn, reorderColumn } = useColumnPrefs(
-    tableKey,
-    defaultKeys,
-    defaultVisible,
-  );
+  const {
+    order,
+    widths,
+    visible,
+    wrapText,
+    setColumnWidth,
+    toggleColumn,
+    reorderColumn,
+    setWrapText,
+    resetPrefs,
+    isCustomised,
+  } = useColumnPrefs(tableKey, defaultKeys, defaultVisible);
 
   const [quickQ, setQuickQ] = useState('');
   const [focusedRow, setFocusedRow] = useState(-1);
   const [dragKey, setDragKey] = useState<string | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
 
+  // Row focus is positional; reset it whenever the underlying rows change so it never
+  // points at a row that has scrolled away (page change, refetch, filter).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: dataSource identity is the trigger
+  useEffect(() => {
+    setFocusedRow(-1);
+  }, [dataSource]);
+
   const filteredData = useMemo(() => {
-    if (serverSide || !quickQ.trim()) return dataSource;
+    if (!quickQ.trim()) return dataSource;
     const q = quickQ.toLowerCase();
     return dataSource.filter((row) =>
       columnDefs.some((col) => cellText(col, row).toLowerCase().includes(q)),
     );
-  }, [dataSource, quickQ, columnDefs, serverSide]);
+  }, [dataSource, quickQ, columnDefs]);
 
   const orderedVisibleCols = useMemo(() => {
     const map = new Map(columnDefs.map((c) => [colKey(c), c]));
@@ -147,17 +230,59 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
       .filter(Boolean) as GridColumn<T>[];
   }, [order, visible, columnDefs]);
 
+  /** Excel-style "auto fit": size the column to its longest visible value. */
+  const autoFitColumn = useCallback(
+    (key: string) => {
+      const col = columnDefs.find((c) => colKey(c) === key);
+      if (!col) return;
+      const measure = document.createElement('span');
+      measure.style.cssText =
+        'position:absolute;visibility:hidden;white-space:nowrap;font-size:13px;font-family:inherit';
+      document.body.appendChild(measure);
+      let max = 0;
+      measure.textContent = String(col.title ?? key);
+      max = measure.offsetWidth + 40; // sorter / filter icons
+      for (const row of filteredData) {
+        measure.textContent = cellText(col, row);
+        max = Math.max(max, measure.offsetWidth + 32);
+      }
+      document.body.removeChild(measure);
+      setColumnWidth(key, Math.min(Math.max(max, MIN_COL_WIDTH), MAX_AUTOFIT_WIDTH));
+    },
+    [columnDefs, filteredData, setColumnWidth],
+  );
+
   const antColumns: ColumnType<T>[] = useMemo(() => {
     return orderedVisibleCols.map((col, idx) => {
       const key = colKey(col);
       const width = widths[key] ?? col.defaultWidth ?? col.width ?? 140;
+      const { ellipsis: _ellipsis, render, ...rest } = col;
+      // Server-side grids must not double-filter the page client-side; the parent sends the
+      // filter to the API through `onChange`.
+      const onFilter = serverSide ? undefined : col.onFilter;
       return {
-        ...col,
+        ...rest,
+        onFilter,
         width,
+        ellipsis: false,
         fixed: fixFirstColumn && idx === 0 ? ('left' as const) : col.fixed,
+        showSorterTooltip: col.sorter ? { title: 'Click to sort' } : false,
+        render: (value: unknown, record: T, index: number) => {
+          const content: unknown = render ? render(value as never, record, index) : value;
+          // antd `render` may return a RenderedCell ({ children, props }) for row/col spans; leave those alone.
+          if (isRenderedCell(content)) return content as React.ReactNode;
+          const node = content as React.ReactNode;
+          const text = cellText(col, record) || (typeof node === 'string' ? node : '');
+          return (
+            <OverflowCell text={text} wrap={wrapText}>
+              {node}
+            </OverflowCell>
+          );
+        },
         onHeaderCell: () => ({
           width,
-          onResize: (w: number) => setColumnWidth(key, w),
+          onResize: (w: number) => setColumnWidth(key, Math.max(w, MIN_COL_WIDTH)),
+          onAutoFit: () => autoFitColumn(key),
           draggable: true,
           onDragStart: () => setDragKey(key),
           onDrop: () => {
@@ -167,7 +292,17 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
         }),
       };
     });
-  }, [orderedVisibleCols, widths, fixFirstColumn, setColumnWidth, dragKey, reorderColumn]);
+  }, [
+    orderedVisibleCols,
+    widths,
+    wrapText,
+    serverSide,
+    fixFirstColumn,
+    setColumnWidth,
+    autoFitColumn,
+    dragKey,
+    reorderColumn,
+  ]);
 
   const components = useMemo(
     () => ({
@@ -211,10 +346,17 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
   const handleCopy = useCallback(
     (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'c') return;
+      // Never hijack copy while the user has text selected or is typing in a field.
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (window.getSelection()?.toString()) return;
       if (focusedRow < 0 || focusedRow >= filteredData.length) return;
       const record = filteredData[focusedRow];
-      const text = orderedVisibleCols.map((c) => cellText(c, record)).join('\t');
-      void navigator.clipboard.writeText(text);
+      const text = orderedVisibleCols
+        .filter((c) => c.exportable !== false)
+        .map((c) => cellText(c, record))
+        .join('\t');
+      void navigator.clipboard.writeText(text).catch(() => undefined);
     },
     [focusedRow, filteredData, orderedVisibleCols],
   );
@@ -225,7 +367,17 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
   }, [handleCopy]);
 
   const columnMenu = (
-    <div style={{ padding: 8, maxHeight: 320, overflow: 'auto' }}>
+    <div
+      style={{
+        padding: 8,
+        maxHeight: 360,
+        overflow: 'auto',
+        background: '#fff',
+        borderRadius: 8,
+        boxShadow: '0 6px 16px rgba(15, 23, 42, 0.12)',
+        minWidth: 200,
+      }}
+    >
       {defaultKeys.map((k) => {
         const col = columnDefs.find((c) => colKey(c) === k);
         return (
@@ -234,13 +386,32 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
               checked={visible[k] !== false}
               onChange={(e) => toggleColumn(k, e.target.checked)}
             >
-              {String(col?.title ?? k)}
+              {String(col?.title ?? k) || k}
             </Checkbox>
           </div>
         );
       })}
+      <div style={{ borderTop: '1px solid #e9edf2', marginTop: 8, paddingTop: 8 }}>
+        <Checkbox checked={wrapText} onChange={(e) => setWrapText(e.target.checked)}>
+          Wrap long text
+        </Checkbox>
+      </div>
+      <div style={{ marginTop: 8 }}>
+        <Button
+          size="small"
+          icon={<ReloadOutlined />}
+          disabled={!isCustomised}
+          onClick={resetPrefs}
+          block
+        >
+          Reset layout
+        </Button>
+      </div>
     </div>
   );
+
+  const rowsShown = filteredData.length;
+  const rowsTotal = dataSource.length;
 
   return (
     <Space direction="vertical" size={8} style={{ width: '100%' }} ref={tableRef}>
@@ -257,6 +428,12 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
               onChange={(e) => setQuickQ(e.target.value)}
             />
           )}
+          {quickQ.trim() ? (
+            <span style={{ fontSize: 12, color: '#64748B' }} aria-live="polite">
+              {rowsShown} of {rowsTotal} loaded row{rowsTotal === 1 ? '' : 's'}
+              {serverSide ? ' on this page' : ''}
+            </span>
+          ) : null}
           {toolbarExtra}
           {bulkActions}
         </Space>
@@ -272,7 +449,7 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
               ]}
             />
           )}
-          <Dropdown dropdownRender={() => columnMenu} trigger={['click']}>
+          <Dropdown popupRender={() => columnMenu} trigger={['click']}>
             <Button size="small" icon={<SettingOutlined />} aria-label="Show or hide columns">
               Columns
             </Button>
@@ -284,9 +461,10 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
       </Space>
 
       <Table<T>
+        className={wrapText ? 'nv-grid nv-grid--wrap' : 'nv-grid'}
         components={components}
         columns={antColumns}
-        dataSource={filteredData}
+        dataSource={filteredData as T[]}
         rowKey={rowKey as never}
         loading={loading}
         size={density === 'Compact' ? 'small' : 'middle'}
@@ -299,7 +477,9 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
         rowClassName={(record, index) => {
           const base = index === focusedRow ? 'nv-row-focused' : '';
           const extra =
-            typeof rowClassName === 'function' ? rowClassName(record, index, 0) : rowClassName ?? '';
+            typeof rowClassName === 'function'
+              ? rowClassName(record, index, 0)
+              : (rowClassName ?? '');
           return [base, extra].filter(Boolean).join(' ');
         }}
         onRow={(record, index) => {
@@ -310,6 +490,13 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
             onClick: (e) => {
               setFocusedRow(index ?? -1);
               parent.onClick?.(e as never);
+            },
+            onKeyDown: (e) => {
+              // Enter on a focused row triggers its click action (open detail) for keyboard users.
+              if (e.key === 'Enter' && parent.onClick) {
+                parent.onClick(e as never);
+              }
+              parent.onKeyDown?.(e as never);
             },
           };
         }}
