@@ -81,3 +81,12 @@ Every judgment call made while building NewVision, and why. Newest at the bottom
 - **Import errors carry structured `ImportErrorCode`** on each `ImportRowError`; frontend charts bucket by `code` first, message heuristics as fallback only.
 - **Help = dedicated `/help` route** with sidebar nav, landing card grid, client-side search, and articles in `frontend/src/help/articles.ts`. Screenshots via `npm run screenshots` → `docs/screenshots/`.
 - **Accessories/consumables seeded** in `prisma/seed.ts` so catalog pages are populated on fresh install.
+
+## Prompt 8 — Self-audit, offboarding, full DataGrid sweep
+
+- **Offboarding is the supported employee exit path** — `POST /employees/:id/offboard` returns assigned assets (or reassigns them), checks in open accessory checkouts, sets `Employee.isActive=false`, deactivates the linked `User`, and writes an audit entry. Consumable issue rows are never deleted (historical). Hard `DELETE /employees/:id` is blocked when any assignment/checkout/issue/request history exists.
+- **Employee history is a merged timeline** — `GET /employees/:id/history` combines assignments, transfers, accessory checkouts/check-ins, consumable issues, asset requests, and audit rows, sorted newest-first (capped at 200 events). The profile UI exposes this on a **History** tab.
+- **Employee list scoping enforced at API layer** — IT roles see everyone; managers see self + direct reports; employees see only themselves. `GET /employees/:id` now uses the same visibility rules as profile.
+- **All primary list screens use `DataGrid`** — consumables, requests, maintenance, locations, and import jobs migrated in Prompt 8; assets/employees/audit/accessories were already on the component from Prompt 6.
+- **Dashboard KPI cards drill down** — each metric card navigates to the assets list with the matching status (or warranty) filter pre-applied.
+- **Help screenshots committed under `frontend/public/docs/screenshots/`** — captured via `npm run screenshots` (Playwright) against a running seeded stack; served by Vite at `/docs/screenshots/…`.

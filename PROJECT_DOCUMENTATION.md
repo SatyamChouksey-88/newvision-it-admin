@@ -1,6 +1,6 @@
 # NewVision — Project Documentation
 
-> Internal reference for developers and operators. Last aligned with the codebase after **Prompt 4** (dashboard/import charts). Everything below is verified against the actual repo — not the original build prompts.
+> Internal reference for developers and operators. Last aligned with the codebase after **Prompt 8** (self-audit, offboarding, full DataGrid). Everything below is verified against the actual repo — not the original build prompts.
 
 ---
 
@@ -24,11 +24,13 @@ The stack is a **React + Refine + Ant Design** frontend talking to a **NestJS + 
 | **Phase 3** — Scale & governance | Background import jobs, saved views, bulk actions, HR reconciliation | **Done** |
 | **Phase 4** — QR & webhooks | QR PNG, public scan page, webhook subscriptions | **Done** |
 | **Prompt 2** — Review, accessories, UX | Asset requests, accessories/consumables, attention panel, pagination, a11y tests, branding | **Done** |
-| **Prompt 3** — Premium UI pass | Logo fix, `#1F1F1F` text hierarchy, help launcher, depth/shadow system, copy-button polish, consistency sweep | **Partially done** — see §7 |
+| **Prompt 3** — Premium UI pass | `#1F1F1F` text hierarchy, depth/shadow system, accent `#2f54eb`, copy-button polish | **Done** |
 | **Prompt 4** — Dashboard & import charts | Status donut, location bar, trend line, import outcome charts, `chartColors.ts` | **Done** |
 | **Prompt 5** — This document | Full project documentation | **Done** (this file) |
+| **Prompt 6** — DataGrid, Help, ship | Shared `DataGrid`, `/help` section, structured import errors, seed accessories/consumables | **Done** |
+| **Prompt 8** — Self-audit | Offboarding, employee history, full DataGrid sweep, dashboard drill-down, RBAC hardening | **Done** |
 
-**Test counts (current):** 46 backend unit + 47 backend integration = **93**; **19** Playwright e2e tests passing.
+**Test counts (current):** 49 backend unit + 50 backend integration = **99**; **24** Playwright e2e tests passing.
 
 ---
 

@@ -89,7 +89,7 @@ npm test              # unit tests
 npm run test:e2e      # integration/API tests (needs Postgres reachable)
 ```
 
-Current status: **49 unit + 47 integration = 96 passing.**
+Current status: **49 unit + 50 integration = 99 passing.**
 
 ### Frontend — lint, type-check, build
 
@@ -111,7 +111,7 @@ cd backend && npm run start:dev
 # 2) In another terminal, run the e2e suite
 cd frontend
 npx playwright install chromium   # first time only
-npm run test:e2e                  # 22 tests
+npm run test:e2e                  # 24 tests
 npm run test:e2e:report           # open the last HTML report
 ```
 

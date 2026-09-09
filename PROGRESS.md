@@ -125,7 +125,24 @@ Definition of Done: Prompt 4 features implemented; tests green; PROJECT_STATUS/P
 - [x] Full `/help` documentation section with search, nav, Getting Started, Keyboard Shortcuts articles.
 - [x] Seed accessories + consumables demo catalog.
 - [x] Tests: **49 unit + 47 integration = 96** backend; **22 Playwright** (added help.spec.ts).
-Definition of Done: Prompt 6 core features implemented; tests green; docs updated. ✅ (Git push pending user approval in this environment.)
+- [x] Pushed to GitHub: https://github.com/SatyamChouksey-88/newvision-it-admin
+
+Definition of Done: Prompt 6 core features implemented; tests green; docs updated; pushed. ✅
+
+## Prompt 8 — Self-audit & enhancements ✅ COMPLETE
+
+- [x] Full codebase audit → `ENHANCEMENTS.md` (every item resolved).
+- [x] Employee offboarding API + UI (asset return/reassign, accessory check-in, deactivate user, preserve history).
+- [x] Employee History tab — merged timeline from assignments, transfers, accessories, consumables, requests, audit.
+- [x] RBAC: employee list scoped by role; `GET /employees/:id` visibility enforced; delete blocked when history exists.
+- [x] DataGrid on **all** list screens (consumables, requests, maintenance, locations, import jobs added).
+- [x] Dashboard KPI cards link to filtered assets list; CopyButton on asset detail + maintenance + grids.
+- [x] Help screenshots captured and committed (`frontend/public/docs/screenshots/`).
+- [x] Prisma indexes on `Employee.isActive`, `Employee.managerId`.
+- [x] Tests: **49 unit + 50 integration = 99** backend; **24 Playwright** (history + dashboard drill-down).
+- [x] Docs updated; pushed to GitHub.
+
+Definition of Done: Prompt 8 audit complete; Section 3 re-verification confirmed in code; all tests green; pushed. ✅
 
 ## Known issues
 
