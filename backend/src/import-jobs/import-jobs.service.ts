@@ -189,7 +189,7 @@ export class ImportJobsService {
           status: 'failed',
           errors: [
             importRowError(0, ImportErrorCode.UNKNOWN, (e as Error).message),
-          ],
+          ] as unknown as Prisma.InputJsonValue,
           finishedAt: new Date(),
         },
       });

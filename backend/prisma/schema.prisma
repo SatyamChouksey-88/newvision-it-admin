@@ -229,6 +229,8 @@ model Employee {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  @@index([isActive])
+  @@index([managerId])
   @@map("employees")
 }
 

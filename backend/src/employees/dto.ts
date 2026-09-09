@@ -16,3 +16,19 @@ export class CreateEmployeeDto {
 }
 
 export class UpdateEmployeeDto extends PartialType(CreateEmployeeDto) {}
+
+export class OffboardEmployeeDto {
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
+  /** Return assigned assets to the available pool (default). */
+  @IsOptional()
+  @IsBoolean()
+  returnAssets?: boolean;
+
+  /** Reassign all assigned assets to this employee instead of returning them. */
+  @IsOptional()
+  @IsInt()
+  reassignAssetsToId?: number;
+}
