@@ -39,6 +39,7 @@ export interface Employee {
   email: string;
   phone?: string;
   designation?: string;
+  isActive?: boolean;
   locationId: number;
   departmentId?: number;
   location?: Location;

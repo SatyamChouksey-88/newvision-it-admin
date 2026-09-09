@@ -3,6 +3,7 @@ import { useShow } from '@refinedev/core';
 import { Button, Card, Descriptions, Space, Table, Tag, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
+import { CopyButton } from '../../components/CopyButton';
 import { WarrantyDays } from '../../components/Cells';
 import { StatusTag } from '../../components/StatusTag';
 import { httpClient } from '../../providers/axios';
@@ -32,7 +33,12 @@ export function AssetShow() {
     <Show isLoading={query.isFetching} title={asset?.assetCode ?? 'Asset'}>
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
         <Descriptions bordered column={2} size="small">
-          <Descriptions.Item label="Asset Code">{asset?.assetCode}</Descriptions.Item>
+          <Descriptions.Item label="Asset Code">
+            <Space size={4}>
+              {asset?.assetCode}
+              {asset?.assetCode ? <CopyButton value={asset.assetCode} label="asset code" /> : null}
+            </Space>
+          </Descriptions.Item>
           <Descriptions.Item label="Status">
             {asset ? <StatusTag status={asset.status} /> : null}
           </Descriptions.Item>
@@ -43,7 +49,16 @@ export function AssetShow() {
           <Descriptions.Item label="Brand / Model">
             {`${asset?.brand ?? ''} ${asset?.model ?? ''}`.trim() || '—'}
           </Descriptions.Item>
-          <Descriptions.Item label="Serial Number">{asset?.serialNumber ?? '—'}</Descriptions.Item>
+          <Descriptions.Item label="Serial Number">
+            {asset?.serialNumber ? (
+              <Space size={4}>
+                {asset.serialNumber}
+                <CopyButton value={asset.serialNumber} label="serial number" />
+              </Space>
+            ) : (
+              '—'
+            )}
+          </Descriptions.Item>
           <Descriptions.Item label="Location">{asset?.location?.name}</Descriptions.Item>
           <Descriptions.Item label="Department">{asset?.department?.name ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="Assigned To">

@@ -1,6 +1,9 @@
 import { CreateButton, DeleteButton, EditButton, List, useTable } from '@refinedev/antd';
 import { useGetIdentity } from '@refinedev/core';
-import { Space, Table } from 'antd';
+import { Space } from 'antd';
+import { useState } from 'react';
+import { CopyButton } from '../../components/CopyButton';
+import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid';
 import { EmptyState } from '../../components/EmptyState';
 import { TablePagination } from '../../components/TablePagination';
 import { TableSkeleton } from '../../components/TableSkeleton';
@@ -9,6 +12,7 @@ import type { Identity } from '../../providers/authProvider';
 import type { Location } from '../../types';
 
 export function LocationList() {
+  const [density, setDensity] = useState<TableDensity>('Compact');
   const { tableProps, tableQuery } = useTable<Location>({
     resource: 'locations',
     pagination: { pageSize: 25 },
@@ -30,24 +34,52 @@ export function LocationList() {
         />
       ) : (
         <>
-          <Table<Location> {...tableProps} rowKey="id" size="small" pagination={false}>
-            <Table.Column dataIndex="code" title="Code" />
-            <Table.Column dataIndex="name" title="Name" />
-            <Table.Column dataIndex="city" title="City" />
-            <Table.Column dataIndex="address" title="Address" render={(v) => v ?? '—'} />
-            {canManage && (
-              <Table.Column<Location>
-                title="Actions"
-                width={140}
-                render={(_, record) => (
-                  <Space>
-                    <EditButton hideText size="small" recordItemId={record.id} />
-                    <DeleteButton hideText size="small" recordItemId={record.id} />
+          <DataGrid<Location>
+            tableKey="locations"
+            rowKey="id"
+            dataSource={rows}
+            loading={tableQuery.isFetching}
+            density={density}
+            onDensityChange={setDensity}
+            fixFirstColumn
+            serverSide
+            onChange={tableProps.onChange}
+            columns={[
+              {
+                title: 'Code',
+                dataIndex: 'code',
+                sorter: true,
+                render: (v: string) => (
+                  <Space size={4}>
+                    {v}
+                    <CopyButton value={v} label="location code" />
                   </Space>
-                )}
-              />
-            )}
-          </Table>
+                ),
+              },
+              { title: 'Name', dataIndex: 'name', sorter: true },
+              { title: 'City', dataIndex: 'city', sorter: true },
+              {
+                title: 'Address',
+                dataIndex: 'address',
+                render: (v) => v ?? '—',
+              },
+              ...(canManage
+                ? [
+                    {
+                      title: 'Actions',
+                      gridKey: 'actions',
+                      exportable: false,
+                      render: (_: unknown, record: Location) => (
+                        <Space>
+                          <EditButton hideText size="small" recordItemId={record.id} />
+                          <DeleteButton hideText size="small" recordItemId={record.id} />
+                        </Space>
+                      ),
+                    },
+                  ]
+                : []),
+            ]}
+          />
           <TablePagination total={total} page={page} pageSize={pageSize} onChange={onPageChange} />
         </>
       )}

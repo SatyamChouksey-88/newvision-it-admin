@@ -1,8 +1,10 @@
 import { PlusOutlined, UserAddOutlined, WarningOutlined } from '@ant-design/icons';
 import { useGetIdentity } from '@refinedev/core';
-import { Button, Card, Form, Input, InputNumber, Modal, Space, Table, Tag } from 'antd';
+import { Button, Card, Form, Input, InputNumber, Modal, Space, Tag, Typography } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
+import { CopyButton } from '../../components/CopyButton';
 import { PrimaryWithSub } from '../../components/Cells';
+import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid';
 import { EmployeeSelect } from '../../components/EmployeeSelect';
 import { EmptyState } from '../../components/EmptyState';
 import { TablePagination } from '../../components/TablePagination';
@@ -26,6 +28,7 @@ export function ConsumablesPage() {
   const [pageSize, setPageSize] = useState(25);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<number[]>([]);
+  const [density, setDensity] = useState<TableDensity>('Compact');
   const [createOpen, setCreateOpen] = useState(false);
   const [issueTarget, setIssueTarget] = useState<Consumable | null>(null);
   const [employeeId, setEmployeeId] = useState<number>();
@@ -91,16 +94,20 @@ export function ConsumablesPage() {
         />
       ) : (
         <>
-          <Table<Consumable>
+          <DataGrid<Consumable>
+            tableKey="consumables"
+            searchInputId="consumables-grid-search"
             rowKey="id"
-            size="small"
             dataSource={rows}
-            pagination={false}
+            loading={loading}
+            density={density}
+            onDensityChange={setDensity}
+            fixFirstColumn
             expandable={{
               expandedRowKeys: expanded,
               onExpandedRowsChange: (keys) => setExpanded(keys as number[]),
               expandedRowRender: (r) => (
-                <div style={{ fontSize: 12, color: '#8c8c8c' }}>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                   Recent issues:{' '}
                   {(r.issues ?? [])
                     .slice(0, 5)
@@ -109,15 +116,28 @@ export function ConsumablesPage() {
                         `${i.quantity}× → ${i.employee?.firstName} ${i.employee?.lastName}`,
                     )
                     .join(' · ') || 'None yet'}
-                </div>
+                </Typography.Text>
               ),
             }}
             columns={[
               {
+                title: 'ID',
+                dataIndex: 'id',
+                defaultWidth: 72,
+                render: (v: number) => (
+                  <Space size={4}>
+                    {v}
+                    <CopyButton value={String(v)} label="consumable id" />
+                  </Space>
+                ),
+              },
+              {
                 title: 'Item',
+                gridKey: 'item',
                 render: (_, r) => (
                   <Space>
                     <PrimaryWithSub primary={r.name} sub={r.category} />
+                    <CopyButton value={r.name} label="item name" />
                     {r.quantityAvailable <= r.lowStockThreshold ? (
                       <Tag icon={<WarningOutlined />} color="error">
                         Low stock
@@ -130,12 +150,14 @@ export function ConsumablesPage() {
                 title: 'Available',
                 dataIndex: 'quantityAvailable',
                 align: 'right',
+                sorter: (a, b) => a.quantityAvailable - b.quantityAvailable,
                 render: (v) => <span style={tabularNums}>{v}</span>,
               },
               {
                 title: 'Total',
                 dataIndex: 'quantityTotal',
                 align: 'right',
+                sorter: (a, b) => a.quantityTotal - b.quantityTotal,
                 render: (v) => <span style={tabularNums}>{v}</span>,
               },
               {
@@ -146,12 +168,17 @@ export function ConsumablesPage() {
               },
               {
                 title: 'Actions',
+                gridKey: 'actions',
+                exportable: false,
                 render: (_, r) =>
                   canIssue && r.quantityAvailable > 0 ? (
                     <Button
                       size="small"
                       icon={<UserAddOutlined />}
-                      onClick={() => setIssueTarget(r)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIssueTarget(r);
+                      }}
                     >
                       Issue
                     </Button>

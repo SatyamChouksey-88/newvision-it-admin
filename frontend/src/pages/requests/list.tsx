@@ -1,8 +1,10 @@
 import { CheckOutlined, CloseOutlined, FormOutlined } from '@ant-design/icons';
 import { useGetIdentity } from '@refinedev/core';
-import { Button, Card, Form, Input, Modal, Select, Space, Table, Tag, Typography } from 'antd';
+import { Button, Card, Form, Input, Modal, Select, Space, Tag, Typography } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
+import { CopyButton } from '../../components/CopyButton';
 import { PrimaryWithSub } from '../../components/Cells';
+import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid';
 import { EmptyState } from '../../components/EmptyState';
 import { TablePagination } from '../../components/TablePagination';
 import { TableSkeleton } from '../../components/TableSkeleton';
@@ -26,6 +28,7 @@ export function RequestsPage() {
   const [reviewComment, setReviewComment] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [form] = Form.useForm();
+  const [density, setDensity] = useState<TableDensity>('Compact');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -109,19 +112,40 @@ export function RequestsPage() {
         />
       ) : (
         <>
-          <Table<AssetRequest>
+          <DataGrid<AssetRequest>
+            tableKey="requests"
+            searchInputId="requests-grid-search"
             rowKey="id"
-            size="small"
             dataSource={rows}
-            pagination={false}
+            loading={loading}
+            density={density}
+            onDensityChange={setDensity}
+            fixFirstColumn
             columns={[
               {
+                title: 'ID',
+                dataIndex: 'id',
+                defaultWidth: 72,
+                render: (v: number) => (
+                  <Space size={4}>
+                    {v}
+                    <CopyButton value={String(v)} label="request id" />
+                  </Space>
+                ),
+              },
+              {
                 title: 'Requester',
+                gridKey: 'requester',
                 render: (_, r) => (
-                  <PrimaryWithSub
-                    primary={`${r.requester?.firstName ?? ''} ${r.requester?.lastName ?? ''}`}
-                    sub={r.requester?.employeeCode}
-                  />
+                  <Space size={4}>
+                    <PrimaryWithSub
+                      primary={`${r.requester?.firstName ?? ''} ${r.requester?.lastName ?? ''}`}
+                      sub={r.requester?.employeeCode}
+                    />
+                    {r.requester?.employeeCode ? (
+                      <CopyButton value={r.requester.employeeCode} label="employee code" />
+                    ) : null}
+                  </Space>
                 ),
               },
               {
@@ -133,6 +157,7 @@ export function RequestsPage() {
               {
                 title: 'Status',
                 dataIndex: 'status',
+                sorter: (a, b) => a.status.localeCompare(b.status),
                 render: (s, r) => (
                   <Space direction="vertical" size={0}>
                     <Tag color={statusColor[s]}>{s}</Tag>
@@ -146,19 +171,31 @@ export function RequestsPage() {
               },
               {
                 title: 'Actions',
+                gridKey: 'actions',
+                exportable: false,
                 render: (_, r) => (
                   <Space size={4}>
                     {role === 'MANAGER' && r.status === 'pending' && (
                       <Button
                         size="small"
                         icon={<CheckOutlined />}
-                        onClick={() => setReviewTarget(r)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setReviewTarget(r);
+                        }}
                       >
                         Review
                       </Button>
                     )}
                     {['SUPER_ADMIN', 'IT_ADMIN'].includes(role) && r.status === 'approved' && (
-                      <Button size="small" type="primary" onClick={() => void fulfill(r.id)}>
+                      <Button
+                        size="small"
+                        type="primary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void fulfill(r.id);
+                        }}
+                      >
                         Mark fulfilled
                       </Button>
                     )}

@@ -1,6 +1,8 @@
 import { UploadOutlined } from '@ant-design/icons';
 import { App as AntdApp, Button, Descriptions, Select, Space, Table, Tag, Typography, Upload } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
+import { CopyButton } from '../../components/CopyButton';
+import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid';
 import { ImportResultChart } from '../../components/charts/ImportResultChart';
 import { TablePagination } from '../../components/TablePagination';
 import { useToast } from '../../components/Toast';
@@ -28,6 +30,7 @@ export function ImportJobsPanel() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [expanded, setExpanded] = useState<number[]>([]);
+  const [density, setDensity] = useState<TableDensity>('Compact');
 
   const reload = useCallback(async () => {
     const { data } = await httpClient.get('/import-jobs', { params: { _start: 0, _end: 50 } });
@@ -205,11 +208,14 @@ export function ImportJobsPanel() {
         </Space>
       )}
 
-      <Table<ImportJob>
-        size="small"
+      <DataGrid<ImportJob>
+        tableKey="import-jobs"
+        searchInputId="import-jobs-grid-search"
         rowKey="id"
         dataSource={jobs.slice((page - 1) * pageSize, page * pageSize)}
-        pagination={false}
+        density={density}
+        onDensityChange={setDensity}
+        fixFirstColumn
         expandable={{
           expandedRowKeys: expanded,
           onExpandedRowsChange: (keys) => setExpanded(keys as number[]),
@@ -236,7 +242,17 @@ export function ImportJobsPanel() {
         }}
         onRow={(r) => ({ onClick: () => openJob(r) })}
         columns={[
-          { title: 'ID', dataIndex: 'id', width: 60 },
+          {
+            title: 'ID',
+            dataIndex: 'id',
+            defaultWidth: 72,
+            render: (v: number) => (
+              <Space size={4}>
+                {v}
+                <CopyButton value={String(v)} label="job id" />
+              </Space>
+            ),
+          },
           { title: 'File', dataIndex: 'filename' },
           { title: 'Kind', dataIndex: 'kind' },
           {
@@ -257,6 +273,8 @@ export function ImportJobsPanel() {
           { title: 'Failed', dataIndex: 'failedCount' },
           {
             title: '',
+            gridKey: 'actions',
+            exportable: false,
             render: (_, r) =>
               r.status === 'completed' ? (
                 <Button

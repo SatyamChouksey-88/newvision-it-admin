@@ -1,5 +1,5 @@
 import { useTable } from '@refinedev/antd';
-import { Card, Input, Space, Typography } from 'antd';
+import { Card, Input, Space, Tag, Typography } from 'antd';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { CopyButton } from '../../components/CopyButton';
@@ -64,7 +64,15 @@ export function EmployeeList() {
                 sorter: true,
                 render: (_, r) => (
                   <Space size={4}>
-                    <PrimaryWithSub primary={`${r.firstName} ${r.lastName}`} sub={r.employeeCode} />
+                    <PrimaryWithSub
+                      primary={
+                        <Space size={4}>
+                          {`${r.firstName} ${r.lastName}`}
+                          {r.isActive === false ? <Tag>Inactive</Tag> : null}
+                        </Space>
+                      }
+                      sub={r.employeeCode}
+                    />
                     <CopyButton value={r.employeeCode} label="employee code" />
                   </Space>
                 ),

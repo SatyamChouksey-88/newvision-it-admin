@@ -46,6 +46,7 @@ function MetricCard({
   color,
   accent,
   sparkline,
+  href,
 }: {
   title: string;
   value: number;
@@ -53,9 +54,10 @@ function MetricCard({
   color?: string;
   accent?: string;
   sparkline?: React.ReactNode;
+  href?: string;
 }) {
-  return (
-    <Card size="small" style={accent ? { borderTop: `3px solid ${accent}` } : undefined} styles={{ body: { padding: 16 } }}>
+  const body = (
+    <>
       <Statistic
         title={
           <Space size={6} style={{ color: '#595959' }}>
@@ -67,6 +69,17 @@ function MetricCard({
         valueStyle={{ ...tabularNums, color, fontWeight: 600 }}
       />
       {sparkline}
+    </>
+  );
+  return (
+    <Card
+      size="small"
+      style={accent ? { borderTop: `3px solid ${accent}`, cursor: href ? 'pointer' : undefined } : undefined}
+      styles={{ body: { padding: 16 } }}
+      hoverable={!!href}
+      onClick={href ? () => { window.location.href = href; } : undefined}
+    >
+      {body}
     </Card>
   );
 }
@@ -188,9 +201,10 @@ export function DashboardPage() {
             value={m?.total ?? 0}
             icon={<DatabaseOutlined />}
             accent="#2f54eb"
+            href={`/assets${locationId ? `?filters[0][field]=locationId&filters[0][operator]=eq&filters[0][value]=${locationId}` : ''}`}
             sparkline={
               sparklineTrend.length > 0 ? (
-                <div style={{ marginTop: 8, height: 48 }}>
+                <div style={{ marginTop: 8, height: 48 }} onClick={(e) => e.stopPropagation()}>
                   <AssetTrendChart data={sparklineTrend} height={48} compact />
                 </div>
               ) : null
@@ -204,10 +218,17 @@ export function DashboardPage() {
             icon={<CheckCircleOutlined />}
             color="#389e0d"
             accent="#389e0d"
+            href="/assets?filters[0][field]=status&filters[0][operator]=eq&filters[0][value]=assigned"
           />
         </Col>
         <Col xs={12} sm={8} lg={4}>
-          <MetricCard title="Available" value={m?.available ?? 0} icon={<MinusCircleOutlined />} accent="#8c8c8c" />
+          <MetricCard
+            title="Available"
+            value={m?.available ?? 0}
+            icon={<MinusCircleOutlined />}
+            accent="#8c8c8c"
+            href="/assets?filters[0][field]=status&filters[0][operator]=eq&filters[0][value]=available"
+          />
         </Col>
         <Col xs={12} sm={8} lg={4}>
           <MetricCard
@@ -216,10 +237,17 @@ export function DashboardPage() {
             icon={<ToolOutlined />}
             color="#d46b08"
             accent="#d46b08"
+            href="/assets?filters[0][field]=status&filters[0][operator]=eq&filters[0][value]=under_repair"
           />
         </Col>
         <Col xs={12} sm={8} lg={4}>
-          <MetricCard title="Retired" value={m?.retired ?? 0} icon={<InboxOutlined />} accent="#595959" />
+          <MetricCard
+            title="Retired"
+            value={m?.retired ?? 0}
+            icon={<InboxOutlined />}
+            accent="#595959"
+            href="/assets?filters[0][field]=status&filters[0][operator]=eq&filters[0][value]=retired"
+          />
         </Col>
         <Col xs={12} sm={8} lg={4}>
           <MetricCard
@@ -228,6 +256,7 @@ export function DashboardPage() {
             icon={<WarningOutlined />}
             color="#cf1322"
             accent="#cf1322"
+            href="/assets?filters[0][field]=warrantyExpiringInDays&filters[0][operator]=eq&filters[0][value]=90"
           />
         </Col>
       </Row>

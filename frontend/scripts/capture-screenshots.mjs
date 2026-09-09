@@ -10,12 +10,31 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const outDir = path.join(__dirname, '../../docs/screenshots');
+const outDir = path.join(__dirname, '../public/docs/screenshots');
 const base = 'http://localhost:5173';
 const password = 'Password123!';
 
-async function login(page, email) {
+async function logoutIfNeeded(page) {
   await page.goto(`${base}/login`);
+  const emailInput = page.locator('#email');
+  if (await emailInput.isVisible({ timeout: 2000 }).catch(() => false)) return;
+  await page.goto(`${base}/`);
+  const logoutBtn = page.getByTestId('logout-button');
+  if (await logoutBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+    await logoutBtn.click();
+    await emailInput.waitFor({ state: 'visible', timeout: 10_000 });
+    return;
+  }
+  await page.evaluate(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+  await page.context().clearCookies();
+  await page.goto(`${base}/login`);
+}
+
+async function login(page, email) {
+  await logoutIfNeeded(page);
   await page.locator('#email').fill(email);
   await page.locator('#password').fill(password);
   await page.getByRole('button', { name: /sign in/i }).click();
@@ -49,8 +68,15 @@ const shots = [
   }},
   { name: 'assign-modal.png', fn: async (page) => {
     await login(page, 'itadmin@newvision.local');
-    await page.goto(`${base}/assets`);
-    await page.getByRole('button', { name: /assign/i }).first().click();
+    await page.goto(
+      `${base}/assets?filters[0][field]=status&filters[0][operator]=eq&filters[0][value]=available`,
+    );
+    await page.waitForTimeout(1200);
+    const assignBtn = page.locator('button:not([disabled])').filter({ hasText: /^Assign$/i }).first();
+    if (await assignBtn.count()) {
+      await assignBtn.click({ timeout: 15_000 });
+      await page.getByRole('dialog').waitFor({ state: 'visible' });
+    }
   }},
   { name: 'scan-page.png', fn: async (page) => { await page.goto(`${base}/scan/AST-PUN-LAP-0001`); } },
 ];

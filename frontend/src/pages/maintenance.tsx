@@ -13,11 +13,12 @@ import {
   Popconfirm,
   Select,
   Space,
-  Table,
   Typography,
 } from 'antd';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
+import { CopyButton } from '../components/CopyButton';
+import { DataGrid, type TableDensity } from '../components/DataGrid/DataGrid';
 import { AssetSelect } from '../components/AssetSelect';
 import { EmployeeSelect } from '../components/EmployeeSelect';
 import { EmptyState } from '../components/EmptyState';
@@ -54,6 +55,7 @@ export function MaintenancePage() {
   const [completeTarget, setCompleteTarget] = useState<Maintenance | null>(null);
   const [reassignTarget, setReassignTarget] = useState<Maintenance | null>(null);
   const [expanded, setExpanded] = useState<number[]>([]);
+  const [density, setDensity] = useState<TableDensity>('Compact');
   const { page, pageSize, total, onPageChange } = useRefinePagination(tableProps);
   const rows = tableProps.dataSource ?? [];
 
@@ -105,34 +107,58 @@ export function MaintenancePage() {
           <EmptyState description="No maintenance tickets" actionLabel="Report issue" onAction={() => setReportOpen(true)} />
         ) : (
         <>
-        <Table<Maintenance>
-          {...tableProps}
+        <DataGrid<Maintenance>
+          tableKey="maintenance"
+          searchInputId="maintenance-grid-search"
           rowKey="id"
-          size="small"
+          dataSource={rows}
+          loading={tableQuery.isFetching}
+          density={density}
+          onDensityChange={setDensity}
+          fixFirstColumn
+          serverSide
+          onChange={tableProps.onChange}
           scroll={{ x: 1000 }}
-          pagination={false}
           expandable={{
             expandedRowKeys: expanded,
             onExpandedRowsChange: (keys) => setExpanded(keys as number[]),
             expandedRowRender: (r) => (
-              <div style={{ fontSize: 12, color: '#595959' }}>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                 Notes: {r.notes ?? '—'} · Completed: {formatDate(r.completedAt)} · Reported by:{' '}
                 {r.reportedBy?.fullName ?? '—'}
-              </div>
+              </Typography.Text>
             ),
           }}
           columns={[
             {
+              title: 'ID',
+              dataIndex: 'id',
+              defaultWidth: 72,
+              render: (v: number) => (
+                <Space size={4}>
+                  {v}
+                  <CopyButton value={String(v)} label="ticket id" />
+                </Space>
+              ),
+            },
+            {
               title: 'Asset',
+              gridKey: 'asset',
               render: (_, r) =>
                 r.asset ? (
-                  <Button
-                    type="link"
-                    style={{ padding: 0 }}
-                    onClick={() => navigate(`/assets/show/${r.asset?.id}`)}
-                  >
-                    {r.asset.assetCode}
-                  </Button>
+                  <Space size={4}>
+                    <Button
+                      type="link"
+                      style={{ padding: 0 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/assets/show/${r.asset?.id}`);
+                      }}
+                    >
+                      {r.asset.assetCode}
+                    </Button>
+                    <CopyButton value={r.asset.assetCode} label="asset code" />
+                  </Space>
                 ) : (
                   '—'
                 ),
@@ -168,22 +194,44 @@ export function MaintenancePage() {
             },
             {
               title: 'Actions',
+              gridKey: 'actions',
+              exportable: false,
               fixed: 'right',
-              width: 230,
+              defaultWidth: 230,
               render: (_, r) => (
                 <Space size={4}>
                   {r.status === 'reported' && (
-                    <Button size="small" onClick={() => transition(r, 'under_repair')}>
+                    <Button
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void transition(r, 'under_repair');
+                      }}
+                    >
                       Start Repair
                     </Button>
                   )}
                   {r.status === 'under_repair' && (
-                    <Button size="small" type="primary" onClick={() => setCompleteTarget(r)}>
+                    <Button
+                      size="small"
+                      type="primary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCompleteTarget(r);
+                      }}
+                    >
                       Mark Repaired
                     </Button>
                   )}
                   {r.status === 'repaired' && (
-                    <Button size="small" type="primary" onClick={() => setReassignTarget(r)}>
+                    <Button
+                      size="small"
+                      type="primary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setReassignTarget(r);
+                      }}
+                    >
                       Reassign
                     </Button>
                   )}
@@ -192,7 +240,7 @@ export function MaintenancePage() {
                       title="Cancel this ticket?"
                       onConfirm={() => transition(r, 'cancelled')}
                     >
-                      <Button size="small" danger>
+                      <Button size="small" danger onClick={(e) => e.stopPropagation()}>
                         Cancel
                       </Button>
                     </Popconfirm>
