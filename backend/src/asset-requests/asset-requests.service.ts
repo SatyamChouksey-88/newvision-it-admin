@@ -33,11 +33,31 @@ export class AssetRequestsService {
     private readonly audit: AuditService,
   ) {}
 
-  async list(query: ListQuery & { status?: string }, actor: AuthUser) {
-    const { skip, take, orderBy } = parseListQuery(query, ['id', 'createdAt', 'status']);
+  async list(query: ListQuery & { status?: string; kind?: string }, actor: AuthUser) {
+    const { skip, take, orderBy } = parseListQuery(query, ['id', 'createdAt', 'status', 'kind']);
+    const statuses = (query.status ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s): s is AssetRequestStatus =>
+        (['pending', 'approved', 'rejected', 'fulfilled'] as string[]).includes(s),
+      );
     const where: Prisma.AssetRequestWhereInput = {
       ...this.scopeWhere(actor),
-      ...(query.status ? { status: query.status as AssetRequestStatus } : {}),
+      ...(statuses.length === 1 ? { status: statuses[0] } : {}),
+      ...(statuses.length > 1 ? { status: { in: statuses } } : {}),
+      ...(query.kind === 'asset' || query.kind === 'accessory' ? { kind: query.kind } : {}),
+      ...(query.q
+        ? {
+            OR: [
+              { reason: { contains: query.q, mode: 'insensitive' } },
+              { accessoryName: { contains: query.q, mode: 'insensitive' } },
+              { category: { name: { contains: query.q, mode: 'insensitive' } } },
+              { requester: { firstName: { contains: query.q, mode: 'insensitive' } } },
+              { requester: { lastName: { contains: query.q, mode: 'insensitive' } } },
+              { requester: { employeeCode: { contains: query.q, mode: 'insensitive' } } },
+            ],
+          }
+        : {}),
     };
     const [data, total] = await Promise.all([
       this.prisma.assetRequest.findMany({ where, skip, take, orderBy, include: requestInclude }),

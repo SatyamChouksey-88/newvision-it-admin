@@ -13,9 +13,8 @@ import { ApiTags } from '@nestjs/swagger';
 import { RoleName } from '@prisma/client';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
-import { ListQuery } from '../common/query';
 import { CreateEmployeeDto, OffboardEmployeeDto, UpdateEmployeeDto } from './dto';
-import { EmployeesService } from './employees.service';
+import { EmployeeListQuery, EmployeesService } from './employees.service';
 
 @ApiTags('employees')
 @Controller('employees')
@@ -23,10 +22,7 @@ export class EmployeesController {
   constructor(private readonly employees: EmployeesService) {}
 
   @Get()
-  list(
-    @Query() query: ListQuery & { locationId?: string; departmentId?: string },
-    @CurrentUser() user: AuthUser,
-  ) {
+  list(@Query() query: EmployeeListQuery, @CurrentUser() user: AuthUser) {
     return this.employees.list(query, user);
   }
 
@@ -53,6 +49,12 @@ export class EmployeesController {
     @CurrentUser() user: AuthUser,
   ) {
     return this.employees.offboard(id, dto, user);
+  }
+
+  @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
+  @Post(':id/reinstate')
+  reinstate(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
+    return this.employees.reinstate(id, user);
   }
 
   @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)

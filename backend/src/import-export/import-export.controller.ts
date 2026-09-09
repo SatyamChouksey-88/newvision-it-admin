@@ -35,6 +35,8 @@ export class ImportExportController {
     @Query('categoryId') categoryId?: string,
     @Query('departmentId') departmentId?: string,
     @Query('q') q?: string,
+    @Query('warrantyExpiringInDays') warrantyExpiringInDays?: string,
+    @Query('assignedEmployeeId') assignedEmployeeId?: string,
   ) {
     const fmt = format === 'xlsx' ? 'xlsx' : 'csv';
     const { buffer, rowCount, filename } = await this.svc.exportAssets(fmt, {
@@ -42,10 +44,14 @@ export class ImportExportController {
       locationId: locationId ? Number(locationId) : undefined,
       categoryId: categoryId ? Number(categoryId) : undefined,
       departmentId: departmentId ? Number(departmentId) : undefined,
+      assignedEmployeeId: assignedEmployeeId ? Number(assignedEmployeeId) : undefined,
+      warrantyExpiringInDays: warrantyExpiringInDays ? Number(warrantyExpiringInDays) : undefined,
       q,
     });
     if (rowCount === 0) {
-      throw new BadRequestException('No rows match the current filters — adjust filters and try again');
+      throw new BadRequestException(
+        'No rows match the current filters — adjust filters and try again',
+      );
     }
     res.setHeader('X-Row-Count', String(rowCount));
     this.send(res, buffer, filename, fmt);

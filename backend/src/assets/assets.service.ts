@@ -1,10 +1,18 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Asset, AssetStatus, Prisma, RoleName } from '@prisma/client';
+import { AccessoriesService } from '../accessories/accessories.service';
 import { AuditService } from '../audit/audit.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { ListQuery, parseListQuery } from '../common/query';
 import { PrismaService } from '../prisma/prisma.service';
-import { formatAssetCode, parseAssetCode } from './asset-code';
+import { QrService } from '../qr/qr.service';
+import { WebhooksService } from '../webhooks/webhooks.service';
+import { assetCodePrefix, formatAssetCode, parseAssetCode } from './asset-code';
 import {
   AssignAssetDto,
   BulkAssetsDto,
@@ -13,18 +21,21 @@ import {
   TransferAssetDto,
   UpdateAssetDto,
 } from './dto';
-import { AccessoriesService } from '../accessories/accessories.service';
-import { QrService } from '../qr/qr.service';
-import { WebhooksService } from '../webhooks/webhooks.service';
 import { assertTransition, InvalidTransitionError } from './lifecycle';
+
+const employeeSummary = {
+  id: true,
+  employeeCode: true,
+  firstName: true,
+  lastName: true,
+  email: true,
+} satisfies Prisma.EmployeeSelect;
 
 const assetInclude = {
   category: true,
   location: true,
   department: true,
-  assignedEmployee: {
-    select: { id: true, employeeCode: true, firstName: true, lastName: true, email: true },
-  },
+  assignedEmployee: { select: employeeSummary },
 } satisfies Prisma.AssetInclude;
 
 export interface AssetListQuery extends ListQuery {
@@ -63,8 +74,11 @@ export class AssetsService {
       'brand',
       'model',
       'purchaseDate',
+      'purchaseCost',
       'warrantyEnd',
       'createdAt',
+      'serialNumber',
+      'condition',
     ]);
 
     const where: Prisma.AssetWhereInput = {
@@ -97,9 +111,24 @@ export class AssetsService {
       where: { id, ...this.scopeWhere(actor) },
       include: {
         ...assetInclude,
-        assignments: { orderBy: { assignedAt: 'desc' }, take: 10 },
-        transfers: { orderBy: { transferredAt: 'desc' }, take: 10 },
-        maintenance: { orderBy: { reportedAt: 'desc' }, take: 10 },
+        assignments: {
+          orderBy: { assignedAt: 'desc' },
+          include: {
+            employee: { select: employeeSummary },
+            assignedBy: { select: { id: true, fullName: true } },
+          },
+        },
+        transfers: {
+          orderBy: { transferredAt: 'desc' },
+          include: {
+            fromEmployee: { select: employeeSummary },
+            toEmployee: { select: employeeSummary },
+            fromLocation: { select: { id: true, code: true, name: true } },
+            toLocation: { select: { id: true, code: true, name: true } },
+            transferredBy: { select: { id: true, fullName: true } },
+          },
+        },
+        maintenance: { orderBy: { reportedAt: 'desc' } },
       },
     });
     if (!asset) {
@@ -113,6 +142,33 @@ export class AssetsService {
   // -------------------------------------------------------------------------
 
   async create(dto: CreateAssetDto, actor: AuthUser): Promise<Asset> {
+    // Two admins creating in the same location+category at once can both compute the same
+    // next sequence; the unique index catches it and we simply recompute and retry.
+    const MAX_ATTEMPTS = 3;
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await this.createOnce(dto, actor);
+      } catch (e) {
+        const isCodeCollision =
+          !dto.assetCode &&
+          e instanceof Prisma.PrismaClientKnownRequestError &&
+          e.code === 'P2002' &&
+          attempt < MAX_ATTEMPTS;
+        if (!isCodeCollision) {
+          if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+            throw new ConflictException(
+              dto.assetCode
+                ? `Asset code ${dto.assetCode} already exists`
+                : 'Could not allocate a unique asset code — please retry',
+            );
+          }
+          throw e;
+        }
+      }
+    }
+  }
+
+  private async createOnce(dto: CreateAssetDto, actor: AuthUser): Promise<Asset> {
     const asset = await this.prisma.$transaction(async (tx) => {
       const code =
         dto.assetCode ?? (await this.generateAssetCode(tx, dto.locationId, dto.categoryId));
@@ -250,6 +306,11 @@ export class AssetsService {
       if (!employee) {
         throw new BadRequestException(`Employee ${dto.employeeId} not found`);
       }
+      if (!employee.isActive) {
+        throw new BadRequestException(
+          `${employee.employeeCode} is inactive (offboarded) — assets cannot be assigned to them`,
+        );
+      }
       // close any currently open assignment
       await tx.assetAssignment.updateMany({
         where: { assetId: id, returnedAt: null },
@@ -308,6 +369,15 @@ export class AssetsService {
         const emp = await tx.employee.findUnique({ where: { id: dto.toEmployeeId } });
         if (!emp) {
           throw new BadRequestException(`Employee ${dto.toEmployeeId} not found`);
+        }
+        if (!emp.isActive) {
+          throw new BadRequestException(
+            `${emp.employeeCode} is inactive (offboarded) — assets cannot be transferred to them`,
+          );
+        }
+        // Handing a spare/retired asset to a person is a status change and must obey the lifecycle.
+        if (asset.status !== 'assigned') {
+          this.assertValidTransition(asset.status, 'assigned');
         }
       }
       await tx.assetTransfer.create({
@@ -525,8 +595,12 @@ export class AssetsService {
     if (!category) {
       throw new BadRequestException(`Category ${categoryId} not found`);
     }
+    // Sequence by code *prefix*, not by current location/category: a transferred asset keeps
+    // its original AST-{LOC}-{CAT}- code, so filtering on today's locationId would both miss
+    // codes that moved away and count codes that moved in — either way producing duplicates.
+    const prefix = assetCodePrefix(location.code, category.code);
     const existing = await tx.asset.findMany({
-      where: { locationId, categoryId },
+      where: { assetCode: { startsWith: prefix } },
       select: { assetCode: true },
     });
     let maxSeq = 0;

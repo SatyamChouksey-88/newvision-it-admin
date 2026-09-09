@@ -10,6 +10,8 @@ async function bootstrap() {
   app.enableCors({
     origin: (process.env.CORS_ORIGIN ?? 'http://localhost:5173').split(','),
     credentials: true,
+    // The frontend reads these on export/download responses; browsers hide them unless exposed.
+    exposedHeaders: ['Content-Disposition', 'X-Row-Count', 'X-Total-Count'],
   });
   app.useGlobalPipes(
     new ValidationPipe({

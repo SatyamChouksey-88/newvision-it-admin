@@ -6,10 +6,21 @@ import { PrismaService } from '../prisma/prisma.service';
 import {
   classifyImportMessage,
   ImportErrorCode,
-  importRowError,
   type ImportRowError,
+  importRowError,
 } from './import-errors';
 import { parseTabular, Row } from './parse';
+
+export interface AssetExportFilters {
+  status?: string;
+  locationId?: number;
+  categoryId?: number;
+  departmentId?: number;
+  assignedEmployeeId?: number;
+  /** Only assets whose warranty ends within the next N days (matches the list filter). */
+  warrantyExpiringInDays?: number;
+  q?: string;
+}
 
 export interface ImportResult {
   total: number;
@@ -63,20 +74,20 @@ export class ImportExportService {
 
   async exportAssets(
     format: 'csv' | 'xlsx',
-    filters: {
-      status?: string;
-      locationId?: number;
-      categoryId?: number;
-      departmentId?: number;
-      q?: string;
-    } = {},
+    filters: AssetExportFilters = {},
   ): Promise<{ buffer: Buffer; rowCount: number; filename: string }> {
+    const now = new Date();
+    const warrantyLimit = filters.warrantyExpiringInDays
+      ? new Date(now.getTime() + filters.warrantyExpiringInDays * 86_400_000)
+      : undefined;
     const assets = await this.prisma.asset.findMany({
       where: {
         ...(filters.status ? { status: filters.status as never } : {}),
         ...(filters.locationId ? { locationId: filters.locationId } : {}),
         ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
         ...(filters.departmentId ? { departmentId: filters.departmentId } : {}),
+        ...(filters.assignedEmployeeId ? { assignedEmployeeId: filters.assignedEmployeeId } : {}),
+        ...(warrantyLimit ? { warrantyEnd: { gte: now, lte: warrantyLimit } } : {}),
         ...(filters.q
           ? {
               OR: [
@@ -115,24 +126,23 @@ export class ImportExportService {
     return { buffer, rowCount: rows.length, filename: `${base}.${ext}` };
   }
 
-  private scopeFilename(
-    filters: {
-      status?: string;
-      locationId?: number;
-      categoryId?: number;
-      departmentId?: number;
-      q?: string;
-    },
-    prefix: string,
-  ): string {
+  private scopeFilename(filters: AssetExportFilters, prefix: string): string {
     const parts = [prefix];
     const hasFilter = Boolean(
-      filters.status || filters.locationId || filters.categoryId || filters.departmentId || filters.q,
+      filters.status ||
+        filters.locationId ||
+        filters.categoryId ||
+        filters.departmentId ||
+        filters.assignedEmployeeId ||
+        filters.warrantyExpiringInDays ||
+        filters.q,
     );
     if (filters.locationId) parts.push(`loc${filters.locationId}`);
     if (filters.status) parts.push(String(filters.status));
     if (filters.categoryId) parts.push(`cat${filters.categoryId}`);
     if (filters.departmentId) parts.push(`dept${filters.departmentId}`);
+    if (filters.assignedEmployeeId) parts.push(`emp${filters.assignedEmployeeId}`);
+    if (filters.warrantyExpiringInDays) parts.push(`warranty${filters.warrantyExpiringInDays}d`);
     if (filters.q) parts.push('search');
     parts.push(hasFilter ? 'filtered' : 'all');
     return parts.join('_');
@@ -188,7 +198,13 @@ export class ImportExportService {
 
   /** Import already-parsed (and optionally remapped) asset rows. */
   async importAssetRows(rows: Row[], actor: AuthUser): Promise<ImportResult> {
-    const result: ImportResult = { total: rows.length, created: 0, failed: 0, errors: [], createdIds: [] };
+    const result: ImportResult = {
+      total: rows.length,
+      created: 0,
+      failed: 0,
+      errors: [],
+      createdIds: [],
+    };
 
     // preload lookups
     const [locations, categories, departments] = await Promise.all([
@@ -270,9 +286,7 @@ export class ImportExportService {
           result.errors.push(e as ImportRowError);
         } else {
           const msg = (e as Error).message;
-          result.errors.push(
-            importRowError(rowNum, classifyImportMessage(msg), msg, row),
-          );
+          result.errors.push(importRowError(rowNum, classifyImportMessage(msg), msg, row));
         }
       }
     }
@@ -285,7 +299,13 @@ export class ImportExportService {
   }
 
   async importEmployeeRows(rows: Row[], actor: AuthUser): Promise<ImportResult> {
-    const result: ImportResult = { total: rows.length, created: 0, failed: 0, errors: [], createdIds: [] };
+    const result: ImportResult = {
+      total: rows.length,
+      created: 0,
+      failed: 0,
+      errors: [],
+      createdIds: [],
+    };
 
     const [locations, departments] = await Promise.all([
       this.prisma.location.findMany(),
@@ -309,7 +329,12 @@ export class ImportExportService {
           );
         }
         if (!row.employeeCode) {
-          throw importRowError(rowNum, ImportErrorCode.MISSING_REQUIRED, 'Missing employeeCode', row);
+          throw importRowError(
+            rowNum,
+            ImportErrorCode.MISSING_REQUIRED,
+            'Missing employeeCode',
+            row,
+          );
         }
         if (!row.email) {
           throw importRowError(rowNum, ImportErrorCode.MISSING_REQUIRED, 'Missing email', row);
@@ -350,9 +375,7 @@ export class ImportExportService {
           result.errors.push(e as ImportRowError);
         } else {
           const msg = (e as Error).message;
-          result.errors.push(
-            importRowError(rowNum, classifyImportMessage(msg), msg, row),
-          );
+          result.errors.push(importRowError(rowNum, classifyImportMessage(msg), msg, row));
         }
       }
     }

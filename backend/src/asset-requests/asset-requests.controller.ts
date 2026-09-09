@@ -13,7 +13,10 @@ export class AssetRequestsController {
   constructor(private readonly svc: AssetRequestsService) {}
 
   @Get()
-  list(@Query() query: ListQuery & { status?: string }, @CurrentUser() user: AuthUser) {
+  list(
+    @Query() query: ListQuery & { status?: string; kind?: string },
+    @CurrentUser() user: AuthUser,
+  ) {
     return this.svc.list(query, user);
   }
 

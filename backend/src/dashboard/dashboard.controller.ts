@@ -51,10 +51,7 @@ export class DashboardController {
 
   /** Monthly asset additions for trend charts (last N months, zero-filled). */
   @Get('trends')
-  async trends(
-    @Query('months') monthsRaw = '12',
-    @Query('locationId') locationIdRaw?: string,
-  ) {
+  async trends(@Query('months') monthsRaw = '12', @Query('locationId') locationIdRaw?: string) {
     const months = Math.min(24, Math.max(3, Number(monthsRaw) || 12));
     const locationId = locationIdRaw ? Number(locationIdRaw) : undefined;
     const start = new Date();
@@ -122,7 +119,7 @@ export class DashboardController {
       },
       include: { category: true, location: true, assignedEmployee: true },
       orderBy: { warrantyEnd: 'asc' },
-      take: 100,
+      take: 500,
     });
     return assets.map((a) => ({
       id: a.id,
@@ -170,23 +167,22 @@ export class DashboardController {
           take: 10,
         }),
         this.prisma.consumable.findMany({
+          where: { quantityAvailable: { lte: this.prisma.consumable.fields.lowStockThreshold } },
           orderBy: { quantityAvailable: 'asc' },
-          take: 50,
+          take: 10,
         }),
         this.prisma.assetRequest.count({ where: { status: 'pending' } }),
         this.prisma.assetRequest.findMany({
           where: { status: 'approved' },
           include: {
-            requester: { select: { id: true, firstName: true, lastName: true, employeeCode: true } },
+            requester: {
+              select: { id: true, firstName: true, lastName: true, employeeCode: true },
+            },
           },
           orderBy: { reviewedAt: 'asc' },
           take: 10,
         }),
       ]);
-
-    const lowStockItems = lowStock
-      .filter((c) => c.quantityAvailable <= c.lowStockThreshold)
-      .slice(0, 10);
 
     return {
       warrantyUrgent: warrantyUrgent.map((a) => ({
@@ -203,7 +199,7 @@ export class DashboardController {
         detail: t.issue.slice(0, 80),
         href: '/maintenance',
       })),
-      lowStock: lowStockItems.map((c) => ({
+      lowStock: lowStock.map((c) => ({
         type: 'low_stock' as const,
         id: c.id,
         label: c.name,
@@ -215,7 +211,7 @@ export class DashboardController {
         type: 'request' as const,
         id: r.id,
         label: `${r.requester.firstName} ${r.requester.lastName}`,
-        detail: r.kind === 'asset' ? 'Asset request' : r.accessoryName ?? 'Accessory request',
+        detail: r.kind === 'asset' ? 'Asset request' : (r.accessoryName ?? 'Accessory request'),
         href: '/requests',
       })),
     };
