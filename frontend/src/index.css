@@ -1,0 +1,32 @@
+/* Prompt 3/6: resizable column handle */
+.react-resizable-handle {
+  position: absolute;
+  right: -5px;
+  bottom: 0;
+  width: 10px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 1;
+}
+
+/* Keyboard-focused table row highlight — accent focus ring */
+.nv-row-focused > td {
+  background: #eef1ff !important;
+  outline: 2px solid #2f54eb;
+  outline-offset: -2px;
+}
+
+/* WCAG AA link contrast on white backgrounds */
+a {
+  color: #1d39c4;
+}
+
+/* Danger buttons: AA contrast on white (#cf1322 ≈ 5.8:1) */
+.ant-btn-dangerous.ant-btn-default:not(:disabled) {
+  color: #cf1322;
+  border-color: #cf1322;
+}
+.ant-btn-dangerous.ant-btn-default:not(:disabled):hover {
+  color: #a8071a;
+  border-color: #a8071a;
+}

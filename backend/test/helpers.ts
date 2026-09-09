@@ -1,0 +1,151 @@
+import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
+import { RoleName } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
+import request from 'supertest';
+import { AppModule } from '../src/app.module';
+import { ROLE_PERMISSIONS } from '../src/common/rbac/permissions';
+import { PrismaService } from '../src/prisma/prisma.service';
+
+export const DEMO_PASSWORD = 'Password123!';
+
+export interface TestContext {
+  app: INestApplication;
+  prisma: PrismaService;
+  ids: {
+    locationPune: number;
+    locationHyd: number;
+    categoryLap: number;
+    department: number;
+    employeeA: number;
+    employeeB: number;
+    managerEmployee: number;
+  };
+}
+
+export async function createTestApp(): Promise<INestApplication> {
+  const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+  const app = moduleRef.createNestApplication();
+  app.setGlobalPrefix('api');
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  await app.init();
+  return app;
+}
+
+export async function resetDatabase(prisma: PrismaService): Promise<void> {
+  await prisma.consumableIssue.deleteMany();
+  await prisma.accessoryCheckout.deleteMany();
+  await prisma.consumable.deleteMany();
+  await prisma.accessory.deleteMany();
+  await prisma.assetRequest.deleteMany();
+  await prisma.webhookEndpoint.deleteMany();
+  await prisma.reconciliationRun.deleteMany();
+  await prisma.importJob.deleteMany();
+  await prisma.savedView.deleteMany();
+  await prisma.notification.deleteMany();
+  await prisma.assetMaintenance.deleteMany();
+  await prisma.assetTransfer.deleteMany();
+  await prisma.assetAssignment.deleteMany();
+  await prisma.asset.deleteMany();
+  await prisma.auditLog.deleteMany();
+  await prisma.user.deleteMany();
+  await prisma.employee.deleteMany();
+  await prisma.assetCategory.deleteMany();
+  await prisma.department.deleteMany();
+  await prisma.location.deleteMany();
+  await prisma.permission.deleteMany();
+  await prisma.role.deleteMany();
+}
+
+/** Seed a small, deterministic fixture and the five role users. Returns key ids. */
+export async function seedCore(prisma: PrismaService): Promise<TestContext['ids']> {
+  await resetDatabase(prisma);
+
+  const permKeys = Array.from(new Set(Object.values(ROLE_PERMISSIONS).flat()));
+  await prisma.permission.createMany({ data: permKeys.map((key) => ({ key })) });
+
+  const roleIds = new Map<RoleName, number>();
+  for (const name of Object.keys(ROLE_PERMISSIONS) as RoleName[]) {
+    const role = await prisma.role.create({ data: { name } });
+    roleIds.set(name, role.id);
+  }
+
+  const pune = await prisma.location.create({ data: { code: 'PUN', name: 'Pune', city: 'Pune' } });
+  const hyd = await prisma.location.create({
+    data: { code: 'HYD', name: 'Hyderabad', city: 'Hyderabad' },
+  });
+  const category = await prisma.assetCategory.create({ data: { code: 'LAP', name: 'Laptop' } });
+  const department = await prisma.department.create({ data: { name: 'Engineering' } });
+
+  const manager = await prisma.employee.create({
+    data: {
+      employeeCode: 'EMP-M001',
+      firstName: 'Meena',
+      lastName: 'Manager',
+      email: 'meena.manager@newvision.local',
+      locationId: pune.id,
+      departmentId: department.id,
+    },
+  });
+  const empA = await prisma.employee.create({
+    data: {
+      employeeCode: 'EMP-00001',
+      firstName: 'Asha',
+      lastName: 'Apte',
+      email: 'asha.apte@newvision.local',
+      locationId: pune.id,
+      departmentId: department.id,
+      managerId: manager.id,
+    },
+  });
+  const empB = await prisma.employee.create({
+    data: {
+      employeeCode: 'EMP-00002',
+      firstName: 'Bala',
+      lastName: 'Bose',
+      email: 'bala.bose@newvision.local',
+      locationId: hyd.id,
+      departmentId: department.id,
+    },
+  });
+
+  const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
+  const userDefs: { email: string; role: RoleName; employeeId: number | null }[] = [
+    { email: 'superadmin@newvision.local', role: RoleName.SUPER_ADMIN, employeeId: null },
+    { email: 'itadmin@newvision.local', role: RoleName.IT_ADMIN, employeeId: null },
+    { email: 'support@newvision.local', role: RoleName.IT_SUPPORT, employeeId: null },
+    { email: 'manager@newvision.local', role: RoleName.MANAGER, employeeId: manager.id },
+    { email: 'employee@newvision.local', role: RoleName.EMPLOYEE, employeeId: empA.id },
+  ];
+  for (const u of userDefs) {
+    await prisma.user.create({
+      data: {
+        email: u.email,
+        passwordHash,
+        fullName: u.email,
+        roleId: roleIds.get(u.role)!,
+        employeeId: u.employeeId,
+      },
+    });
+  }
+
+  return {
+    locationPune: pune.id,
+    locationHyd: hyd.id,
+    categoryLap: category.id,
+    department: department.id,
+    employeeA: empA.id,
+    employeeB: empB.id,
+    managerEmployee: manager.id,
+  };
+}
+
+export async function login(app: INestApplication, email: string): Promise<string> {
+  const res = await request(app.getHttpServer())
+    .post('/api/auth/login')
+    .send({ email, password: DEMO_PASSWORD })
+    .expect(200);
+  return res.body.access_token as string;
+}
+
+export const auth = (token: string) => ({ Authorization: `Bearer ${token}` });

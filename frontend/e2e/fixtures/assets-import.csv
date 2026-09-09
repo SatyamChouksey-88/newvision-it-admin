@@ -1,0 +1,3 @@
+assetCode,category,brand,model,serialNumber,status,condition,location,department,assignedEmployee,purchaseDate,purchaseCost,warrantyStart,warrantyEnd,vendor,invoiceNo
+,LAP,Dell,Latitude 5540,E2E-IMP-0001,available,good,PUN,,,2025-01-15,68000,2025-01-15,2028-01-15,Dell India,INV-E2E-001
+,MON,LG,27UP600,E2E-IMP-0002,available,new,HYD,,,2025-02-20,22000,2025-02-20,2028-02-20,LG Electronics,INV-E2E-002

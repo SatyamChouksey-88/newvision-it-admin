@@ -1,0 +1,558 @@
+// NewVision IT Asset Management — Prisma schema
+// Postgres. Generated client: prisma-client-js (default).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum RoleName {
+  SUPER_ADMIN
+  IT_ADMIN
+  IT_SUPPORT
+  MANAGER
+  EMPLOYEE
+}
+
+enum AssetStatus {
+  available
+  assigned
+  under_repair
+  lost
+  damaged
+  retired
+  disposed
+  pending_assignment
+}
+
+enum AssetCondition {
+  new
+  good
+  fair
+  poor
+}
+
+enum MaintenanceStatus {
+  reported
+  under_repair
+  repaired
+  reassigned
+  cancelled
+}
+
+enum AuditAction {
+  create
+  update
+  assign
+  transfer
+  status_change
+  retire
+  dispose
+  delete
+  import
+  checkout
+  checkin
+  stock_adjust
+  issue
+  approve
+  reject
+  fulfill
+}
+
+enum NotificationType {
+  warranty_expiry
+  asset_assigned
+  asset_transferred
+  issue_reported
+  asset_request
+  repair_status
+  low_stock
+  general
+}
+
+enum AssetRequestKind {
+  asset
+  accessory
+}
+
+enum AssetRequestStatus {
+  pending
+  approved
+  rejected
+  fulfilled
+}
+
+enum ImportKind {
+  assets
+  employees
+}
+
+enum ImportJobStatus {
+  queued
+  previewed
+  running
+  completed
+  failed
+  rolled_back
+}
+
+enum ReconciliationKind {
+  employees
+  assets
+}
+
+// ---------------------------------------------------------------------------
+// Auth / RBAC
+// ---------------------------------------------------------------------------
+
+model Role {
+  id          Int          @id @default(autoincrement())
+  name        RoleName     @unique
+  description String?
+  users       User[]
+  permissions Permission[] @relation("RolePermissions")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  @@map("roles")
+}
+
+model Permission {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique // e.g. "asset:create", "audit:read"
+  description String?
+  roles       Role[]   @relation("RolePermissions")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("permissions")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  fullName     String   @map("full_name")
+  isActive     Boolean  @default(true) @map("is_active")
+  roleId       Int      @map("role_id")
+  role         Role     @relation(fields: [roleId], references: [id])
+  employeeId   Int?     @unique @map("employee_id")
+  employee     Employee? @relation(fields: [employeeId], references: [id])
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  auditLogs          AuditLog[]           @relation("AuditActor")
+  assignmentsMade    AssetAssignment[]    @relation("AssignmentActor")
+  transfersMade      AssetTransfer[]      @relation("TransferActor")
+  maintenanceMade    AssetMaintenance[]   @relation("MaintenanceReporter")
+  notifications      Notification[]
+  importJobs         ImportJob[]
+  savedViews         SavedView[]
+  reconciliationRuns ReconciliationRun[]
+  webhookEndpoints   WebhookEndpoint[]
+  reviewedRequests   AssetRequest[]       @relation("RequestReviewer")
+  fulfilledRequests  AssetRequest[]       @relation("RequestFulfiller")
+  accessoryCheckouts AccessoryCheckout[]  @relation("AccessoryCheckoutActor")
+  consumableIssues   ConsumableIssue[]    @relation("ConsumableIssueActor")
+
+  @@map("users")
+}
+
+// ---------------------------------------------------------------------------
+// Org structure
+// ---------------------------------------------------------------------------
+
+model Location {
+  id        Int        @id @default(autoincrement())
+  code      String     @unique // e.g. PUN, HYD, BHO
+  name      String
+  city      String
+  address   String?
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  employees      Employee[]
+  assets         Asset[]
+  transfersFrom  AssetTransfer[] @relation("TransferFromLocation")
+  transfersTo    AssetTransfer[] @relation("TransferToLocation")
+
+  @@map("locations")
+}
+
+model Department {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique
+  description String?
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  employees Employee[]
+  assets    Asset[]
+
+  @@map("departments")
+}
+
+model Employee {
+  id           Int      @id @default(autoincrement())
+  employeeCode String   @unique @map("employee_code")
+  firstName    String   @map("first_name")
+  lastName     String   @map("last_name")
+  email        String   @unique
+  phone        String?
+  designation  String?
+  isActive     Boolean  @default(true) @map("is_active")
+  dateJoined   DateTime? @map("date_joined")
+
+  departmentId Int?     @map("department_id")
+  department   Department? @relation(fields: [departmentId], references: [id])
+  locationId   Int      @map("location_id")
+  location     Location @relation(fields: [locationId], references: [id])
+  managerId    Int?     @map("manager_id")
+  manager      Employee? @relation("EmployeeManager", fields: [managerId], references: [id])
+  reports      Employee[] @relation("EmployeeManager")
+
+  user            User?
+  assignedAssets  Asset[]           @relation("AssetAssignee")
+  assignments     AssetAssignment[]
+  transfersFrom   AssetTransfer[]   @relation("TransferFromEmployee")
+  transfersTo     AssetTransfer[]   @relation("TransferToEmployee")
+  assetRequests   AssetRequest[]
+  accessoryCheckouts AccessoryCheckout[]
+  consumableIssues   ConsumableIssue[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("employees")
+}
+
+// ---------------------------------------------------------------------------
+// Assets
+// ---------------------------------------------------------------------------
+
+model AssetCategory {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique // e.g. LAP, DES, MON
+  name        String
+  description String?
+  assets        Asset[]
+  assetRequests AssetRequest[]
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("asset_categories")
+}
+
+model Asset {
+  id             Int            @id @default(autoincrement())
+  assetCode      String         @unique @map("asset_code") // AST-{LOC}-{CAT}-{SEQ}
+  categoryId     Int            @map("category_id")
+  category       AssetCategory  @relation(fields: [categoryId], references: [id])
+  brand          String?
+  model          String?
+  serialNumber   String?        @unique @map("serial_number")
+  purchaseDate   DateTime?      @map("purchase_date")
+  purchaseCost   Decimal?       @map("purchase_cost") @db.Decimal(12, 2)
+  warrantyStart  DateTime?      @map("warranty_start")
+  warrantyEnd    DateTime?      @map("warranty_end")
+  locationId     Int            @map("location_id")
+  location       Location       @relation(fields: [locationId], references: [id])
+  departmentId   Int?           @map("department_id")
+  department     Department?    @relation(fields: [departmentId], references: [id])
+  assignedEmployeeId Int?       @map("assigned_employee_id")
+  assignedEmployee   Employee?  @relation("AssetAssignee", fields: [assignedEmployeeId], references: [id])
+  status         AssetStatus    @default(available)
+  condition      AssetCondition @default(good)
+  vendor         String?
+  invoiceNo      String?        @map("invoice_no")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  assignments  AssetAssignment[]
+  transfers    AssetTransfer[]
+  maintenance  AssetMaintenance[]
+  notifications Notification[]
+
+  @@index([status])
+  @@index([locationId])
+  @@index([categoryId])
+  @@index([assignedEmployeeId])
+  @@map("assets")
+}
+
+model AssetAssignment {
+  id          Int       @id @default(autoincrement())
+  assetId     Int       @map("asset_id")
+  asset       Asset     @relation(fields: [assetId], references: [id])
+  employeeId  Int       @map("employee_id")
+  employee    Employee  @relation(fields: [employeeId], references: [id])
+  assignedById Int?     @map("assigned_by_id")
+  assignedBy  User?     @relation("AssignmentActor", fields: [assignedById], references: [id])
+  assignedAt  DateTime  @default(now()) @map("assigned_at")
+  returnedAt  DateTime? @map("returned_at")
+  notes       String?
+
+  @@index([assetId])
+  @@index([employeeId])
+  @@map("asset_assignments")
+}
+
+model AssetTransfer {
+  id             Int       @id @default(autoincrement())
+  assetId        Int       @map("asset_id")
+  asset          Asset     @relation(fields: [assetId], references: [id])
+  fromEmployeeId Int?      @map("from_employee_id")
+  fromEmployee   Employee? @relation("TransferFromEmployee", fields: [fromEmployeeId], references: [id])
+  toEmployeeId   Int?      @map("to_employee_id")
+  toEmployee     Employee? @relation("TransferToEmployee", fields: [toEmployeeId], references: [id])
+  fromLocationId Int?      @map("from_location_id")
+  fromLocation   Location? @relation("TransferFromLocation", fields: [fromLocationId], references: [id])
+  toLocationId   Int?      @map("to_location_id")
+  toLocation     Location? @relation("TransferToLocation", fields: [toLocationId], references: [id])
+  transferredById Int?     @map("transferred_by_id")
+  transferredBy  User?     @relation("TransferActor", fields: [transferredById], references: [id])
+  transferredAt  DateTime  @default(now()) @map("transferred_at")
+  reason         String?
+
+  @@index([assetId])
+  @@map("asset_transfers")
+}
+
+model AssetMaintenance {
+  id           Int               @id @default(autoincrement())
+  assetId      Int               @map("asset_id")
+  asset        Asset             @relation(fields: [assetId], references: [id])
+  reportedById Int?              @map("reported_by_id")
+  reportedBy   User?             @relation("MaintenanceReporter", fields: [reportedById], references: [id])
+  issue        String
+  status       MaintenanceStatus @default(reported)
+  vendor       String?
+  estimatedCost Decimal?         @map("estimated_cost") @db.Decimal(12, 2)
+  actualCost    Decimal?         @map("actual_cost") @db.Decimal(12, 2)
+  reportedAt    DateTime         @default(now()) @map("reported_at")
+  expectedCompletionDate DateTime? @map("expected_completion_date")
+  completedAt   DateTime?        @map("completed_at")
+  notes         String?
+
+  @@index([assetId])
+  @@index([status])
+  @@map("asset_maintenance")
+}
+
+// ---------------------------------------------------------------------------
+// Audit + notifications
+// ---------------------------------------------------------------------------
+
+// Append-only. Application layer exposes INSERT + SELECT only.
+model AuditLog {
+  id          Int         @id @default(autoincrement())
+  entityType  String      @map("entity_type") // e.g. "Asset"
+  entityId    String      @map("entity_id")
+  action      AuditAction
+  summary     String
+  oldValue    Json?       @map("old_value")
+  newValue    Json?       @map("new_value")
+  changedById Int?        @map("changed_by_id")
+  changedBy   User?       @relation("AuditActor", fields: [changedById], references: [id])
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model Notification {
+  id        Int              @id @default(autoincrement())
+  userId    Int?             @map("user_id")
+  user      User?            @relation(fields: [userId], references: [id])
+  type      NotificationType
+  title     String
+  message   String
+  assetId   Int?             @map("asset_id")
+  asset     Asset?           @relation(fields: [assetId], references: [id])
+  isRead    Boolean          @default(false) @map("is_read")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([isRead])
+  @@map("notifications")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 3 — scale & governance
+// ---------------------------------------------------------------------------
+
+model ImportJob {
+  id              Int             @id @default(autoincrement())
+  kind            ImportKind
+  filename        String
+  status          ImportJobStatus @default(queued)
+  mapping         Json?
+  totalRows       Int             @default(0) @map("total_rows")
+  createdCount    Int             @default(0) @map("created_count")
+  updatedCount    Int             @default(0) @map("updated_count")
+  failedCount     Int             @default(0) @map("failed_count")
+  duplicateCount  Int             @default(0) @map("duplicate_count")
+  errors          Json?
+  preview         Json?
+  createdIds      Json?           @map("created_ids")
+  fileData        Bytes?          @map("file_data")
+  createdById     Int?            @map("created_by_id")
+  createdBy       User?           @relation(fields: [createdById], references: [id])
+  createdAt       DateTime        @default(now()) @map("created_at")
+  startedAt       DateTime?       @map("started_at")
+  finishedAt      DateTime?       @map("finished_at")
+
+  @@index([status])
+  @@index([createdById])
+  @@map("import_jobs")
+}
+
+model SavedView {
+  id          Int      @id @default(autoincrement())
+  name        String
+  resource    String   @default("assets")
+  filters     Json
+  isShared    Boolean  @default(false) @map("is_shared")
+  createdById Int      @map("created_by_id")
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([resource, createdById])
+  @@map("saved_views")
+}
+
+model ReconciliationRun {
+  id           Int                @id @default(autoincrement())
+  kind         ReconciliationKind
+  filename     String
+  matchField   String             @map("match_field")
+  inFileOnly   Int                @default(0) @map("in_file_only")
+  inSystemOnly Int                @default(0) @map("in_system_only")
+  matched      Int                @default(0)
+  findings     Json
+  createdById  Int?               @map("created_by_id")
+  createdBy    User?              @relation(fields: [createdById], references: [id])
+  createdAt    DateTime           @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("reconciliation_runs")
+}
+
+model WebhookEndpoint {
+  id            Int       @id @default(autoincrement())
+  url           String
+  secret        String
+  events        String[]  // "asset.created" | "asset.status_changed"
+  isActive      Boolean   @default(true) @map("is_active")
+  lastStatus    Int?      @map("last_status")
+  lastError     String?   @map("last_error")
+  lastAttemptAt DateTime? @map("last_attempt_at")
+  createdById   Int?      @map("created_by_id")
+  createdBy     User?     @relation(fields: [createdById], references: [id])
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@index([isActive])
+  @@map("webhook_endpoints")
+}
+
+// ---------------------------------------------------------------------------
+// Prompt 2 — asset requests, accessories & consumables
+// ---------------------------------------------------------------------------
+
+model AssetRequest {
+  id              Int                @id @default(autoincrement())
+  requesterId     Int                @map("requester_id")
+  requester       Employee           @relation(fields: [requesterId], references: [id])
+  kind            AssetRequestKind
+  categoryId      Int?               @map("category_id")
+  category        AssetCategory?     @relation(fields: [categoryId], references: [id])
+  accessoryName   String?            @map("accessory_name")
+  reason          String
+  status          AssetRequestStatus @default(pending)
+  managerComment  String?            @map("manager_comment")
+  rejectionReason String?            @map("rejection_reason")
+  reviewedById    Int?               @map("reviewed_by_id")
+  reviewedBy      User?              @relation("RequestReviewer", fields: [reviewedById], references: [id])
+  reviewedAt      DateTime?          @map("reviewed_at")
+  fulfilledById   Int?               @map("fulfilled_by_id")
+  fulfilledBy     User?              @relation("RequestFulfiller", fields: [fulfilledById], references: [id])
+  fulfilledAt     DateTime?          @map("fulfilled_at")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([requesterId])
+  @@map("asset_requests")
+}
+
+model Accessory {
+  id                 Int                 @id @default(autoincrement())
+  name               String
+  category           String
+  quantityTotal      Int                 @map("quantity_total")
+  quantityCheckedOut Int                 @default(0) @map("quantity_checked_out")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+  checkouts          AccessoryCheckout[]
+
+  @@index([category])
+  @@map("accessories")
+}
+
+model AccessoryCheckout {
+  id            Int       @id @default(autoincrement())
+  accessoryId   Int       @map("accessory_id")
+  accessory     Accessory @relation(fields: [accessoryId], references: [id])
+  employeeId    Int       @map("employee_id")
+  employee      Employee  @relation(fields: [employeeId], references: [id])
+  quantity      Int       @default(1)
+  checkedOutAt  DateTime  @default(now()) @map("checked_out_at")
+  checkedInAt   DateTime? @map("checked_in_at")
+  processedById Int?      @map("processed_by_id")
+  processedBy   User?     @relation("AccessoryCheckoutActor", fields: [processedById], references: [id])
+  notes         String?
+
+  @@index([accessoryId])
+  @@index([employeeId])
+  @@map("accessory_checkouts")
+}
+
+model Consumable {
+  id                Int               @id @default(autoincrement())
+  name              String
+  category          String
+  quantityTotal     Int               @map("quantity_total")
+  quantityAvailable Int               @map("quantity_available")
+  lowStockThreshold Int               @default(5) @map("low_stock_threshold")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+  issues            ConsumableIssue[]
+
+  @@index([category])
+  @@map("consumables")
+}
+
+model ConsumableIssue {
+  id            Int        @id @default(autoincrement())
+  consumableId  Int        @map("consumable_id")
+  consumable    Consumable @relation(fields: [consumableId], references: [id])
+  employeeId    Int        @map("employee_id")
+  employee      Employee   @relation(fields: [employeeId], references: [id])
+  quantity      Int        @default(1)
+  issuedAt      DateTime   @default(now()) @map("issued_at")
+  processedById Int?       @map("processed_by_id")
+  processedBy   User?      @relation("ConsumableIssueActor", fields: [processedById], references: [id])
+
+  @@index([consumableId])
+  @@index([employeeId])
+  @@map("consumable_issues")
+}

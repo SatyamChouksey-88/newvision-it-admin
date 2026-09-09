@@ -1,0 +1,100 @@
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseIntPipe,
+  Post,
+  Put,
+  Query,
+} from '@nestjs/common';
+import { ApiTags, PartialType } from '@nestjs/swagger';
+import { RoleName } from '@prisma/client';
+import { IsOptional, IsString, MinLength } from 'class-validator';
+import { AuditService } from '../audit/audit.service';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
+import { ListQuery, parseListQuery } from '../common/query';
+import { PrismaService } from '../prisma/prisma.service';
+
+export class CreateDepartmentDto {
+  @IsString() @MinLength(2) name!: string;
+  @IsOptional() @IsString() description?: string;
+}
+export class UpdateDepartmentDto extends PartialType(CreateDepartmentDto) {}
+
+@ApiTags('departments')
+@Controller('departments')
+export class DepartmentsController {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
+
+  @Get()
+  async list(@Query() query: ListQuery) {
+    const { skip, take, orderBy } = parseListQuery(query, ['id', 'name']);
+    const [data, total] = await Promise.all([
+      this.prisma.department.findMany({ skip, take, orderBy }),
+      this.prisma.department.count(),
+    ]);
+    return { data, total };
+  }
+
+  @Get(':id')
+  get(@Param('id', ParseIntPipe) id: number) {
+    return this.prisma.department.findUniqueOrThrow({ where: { id } });
+  }
+
+  @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
+  @Post()
+  async create(@Body() dto: CreateDepartmentDto, @CurrentUser('id') userId: number) {
+    const dep = await this.prisma.department.create({ data: dto });
+    await this.audit.record({
+      entityType: 'Department',
+      entityId: dep.id,
+      action: 'create',
+      summary: `Created department ${dep.name}`,
+      changedById: userId,
+      newValue: dep,
+    });
+    return dep;
+  }
+
+  @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
+  @Put(':id')
+  async update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateDepartmentDto,
+    @CurrentUser('id') userId: number,
+  ) {
+    const before = await this.prisma.department.findUniqueOrThrow({ where: { id } });
+    const dep = await this.prisma.department.update({ where: { id }, data: dto });
+    await this.audit.record({
+      entityType: 'Department',
+      entityId: id,
+      action: 'update',
+      summary: `Updated department ${dep.name}`,
+      changedById: userId,
+      oldValue: before,
+      newValue: dep,
+    });
+    return dep;
+  }
+
+  @Roles(RoleName.SUPER_ADMIN)
+  @Delete(':id')
+  async remove(@Param('id', ParseIntPipe) id: number, @CurrentUser('id') userId: number) {
+    const dep = await this.prisma.department.delete({ where: { id } });
+    await this.audit.record({
+      entityType: 'Department',
+      entityId: id,
+      action: 'delete',
+      summary: `Deleted department ${dep.name}`,
+      changedById: userId,
+      oldValue: dep,
+    });
+    return dep;
+  }
+}

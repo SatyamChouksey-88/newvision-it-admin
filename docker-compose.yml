@@ -1,0 +1,54 @@
+name: newvision
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: newvision
+      POSTGRES_PASSWORD: newvision
+      POSTGRES_DB: newvision
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U newvision -d newvision"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://newvision:newvision@postgres:5432/newvision?schema=public
+      JWT_SECRET: change-me-in-production-super-secret
+      JWT_EXPIRES_IN: 8h
+      PORT: "3000"
+      CORS_ORIGIN: http://localhost:5173
+      PUBLIC_APP_URL: http://localhost:5173
+      # Applies migrations then loads demo data on first boot. The seed script
+      # resets demo data each run — set to "false" to keep your own changes.
+      SEED_ON_START: "true"
+    ports:
+      - "3000:3000"
+
+  frontend:
+    build:
+      context: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      # The browser runs on the host, so it reaches the backend via the host port.
+      VITE_API_URL: http://localhost:3000/api
+    ports:
+      - "5173:5173"
+
+volumes:
+  pgdata:

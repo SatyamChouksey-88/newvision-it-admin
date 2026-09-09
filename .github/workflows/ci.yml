@@ -1,0 +1,147 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  # ---------------------------------------------------------------- backend
+  backend:
+    name: Backend (lint · typecheck · unit · integration)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: newvision
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/newvision?schema=public
+      DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/newvision_test?schema=public
+      JWT_SECRET: ci-secret
+      JWT_EXPIRES_IN: 8h
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - name: Generate Prisma client
+        run: npx prisma generate
+      - name: Lint
+        run: npm run lint
+      - name: Type-check
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm test
+      - name: Integration (e2e API) tests
+        run: npm run test:e2e
+
+  # ---------------------------------------------------------------- frontend
+  frontend:
+    name: Frontend (lint · typecheck · build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Type-check
+        run: npm run typecheck
+      - name: Build
+        run: npm run build
+
+  # ---------------------------------------------------------------- e2e (Playwright)
+  e2e:
+    name: Playwright e2e
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: newvision
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/newvision?schema=public
+      JWT_SECRET: ci-secret
+      JWT_EXPIRES_IN: 8h
+      CORS_ORIGIN: http://localhost:5173
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install backend deps
+        working-directory: backend
+        run: npm ci
+      - name: Prepare backend (generate · migrate · seed · build)
+        working-directory: backend
+        run: |
+          npx prisma generate
+          npx prisma migrate deploy
+          npm run seed
+          npm run build
+      - name: Start backend
+        working-directory: backend
+        run: |
+          # nohup + disown so the server survives this step's shell exiting.
+          nohup node dist/main.js > backend.log 2>&1 &
+          disown || true
+          echo "Waiting for backend on :3000..."
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:3000/api/docs -o /dev/null; then
+              echo "Backend is up"; exit 0
+            fi
+            sleep 2
+          done
+          echo "Backend failed to start"; cat backend.log; exit 1
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Run Playwright e2e
+        working-directory: frontend
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
+          if-no-files-found: ignore
