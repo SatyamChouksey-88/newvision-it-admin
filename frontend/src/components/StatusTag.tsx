@@ -22,17 +22,17 @@ const STATUS_META: Record<AssetStatus, StatusMeta> = {
   assigned: {
     label: 'Assigned',
     icon: <CheckCircleOutlined />,
-    style: { color: '#135200', background: '#f6ffed', borderColor: '#b7eb8f' },
+    style: { color: '#15803D', background: '#F0FDF4', borderColor: '#BBF7D0' },
   },
   available: {
     label: 'Available',
     icon: <MinusCircleOutlined />,
-    style: { color: '#434343', background: '#fafafa', borderColor: '#d9d9d9' },
+    style: { color: '#475569', background: '#F1F5F9', borderColor: '#CBD5E1' },
   },
   under_repair: {
     label: 'Under Repair',
     icon: <ToolOutlined />,
-    style: { color: '#873800', background: '#fff7e6', borderColor: '#ffd591' },
+    style: { color: '#B45309', background: '#FFFBEB', borderColor: '#FDE68A' },
   },
   retired: {
     label: 'Retired',

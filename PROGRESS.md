@@ -144,6 +144,21 @@ Definition of Done: Prompt 6 core features implemented; tests green; docs update
 
 Definition of Done: Prompt 8 audit complete; Section 3 re-verification confirmed in code; all tests green; pushed. ✅
 
+## Prompt 9 — Visual alignment (approved Claude Design mockup) ✅ COMPLETE
+
+- [x] Copied approved mockup → `design-reference/NewVision_Asset_Manager.html`
+- [x] Extracted design tokens → `design-reference/DESIGN_TOKENS.md` (supersedes Prompt 3/6 theme where conflicting)
+- [x] Rewrote `frontend/src/theme.ts` — canvas `#F8FAFC`, accent/links `#0958D9` (WCAG AA), KPI muted surface `#F1F4F8`, status bar colors
+- [x] New `KpiCard` component — 4px top accent bar, uppercase label, icon, value (signature mockup treatment)
+- [x] Dashboard, header, login, global CSS (`index.css`) — sidebar chrome, table typography, attention panel, responsive header
+- [x] Status badges, chart colors, warranty cells aligned to extracted palette
+- [x] A11y contrast fixes — link blue `#0958D9`, KPI/table secondary text `#334155`/`#475569`
+- [x] Help screenshots re-captured (`frontend/public/docs/screenshots/`, 14 images)
+- [x] Tests: **49 unit + 50 integration = 99** backend; **24 Playwright** (incl. axe-core) green
+- [x] Docs updated; pushed to GitHub
+
+Definition of Done: UI matches approved mockup look-and-feel; no functional regressions; Help screenshots current; all tests green; pushed. ✅
+
 ## Known issues
 
 - **Seed resets demo data on container start** when `SEED_ON_START=true` (the compose default). Convenient for demos, but restarting the backend wipes manual changes. Set `SEED_ON_START: "false"` in `docker-compose.yml` after the first boot to persist changes. Documented in README.

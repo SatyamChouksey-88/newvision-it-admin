@@ -39,7 +39,9 @@ export async function login(page: Page, email = DEMO_USERS.itAdmin) {
   await page.locator('#email').fill(email);
   await page.locator('#password').fill(DEMO_PASSWORD);
   await page.getByRole('button', { name: /sign in/i }).click();
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Dashboard', level: 3 })).toBeVisible({
+    timeout: 15_000,
+  });
 }
 
 /** The currently-open (non-hidden) Ant Design dropdown portal. */

@@ -15,16 +15,16 @@ export const CHART_PALETTE = [
   '#9A60B4',
 ] as const;
 
-/** Consistent status → chart color mapping across dashboard donut and legends. */
+/** Consistent status → chart color mapping (mockup palette). */
 export const STATUS_CHART_COLORS: Record<AssetStatus, string> = {
-  assigned: '#389e0d',
-  available: '#8c8c8c',
-  under_repair: '#d46b08',
-  retired: '#595959',
-  disposed: '#434343',
-  lost: '#cf1322',
-  damaged: '#eb2f96',
-  pending_assignment: '#2f54eb',
+  assigned: '#16A34A',
+  available: '#64748B',
+  under_repair: '#D97706',
+  retired: '#475569',
+  disposed: '#94A3B8',
+  lost: '#DC2626',
+  damaged: '#B91C1C',
+  pending_assignment: '#0958D9',
 };
 
 export const STATUS_LABELS: Record<AssetStatus, string> = {

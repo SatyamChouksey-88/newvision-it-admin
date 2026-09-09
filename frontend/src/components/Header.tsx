@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import type { Identity } from '../providers/authProvider';
 import { httpClient } from '../providers/axios';
+import { COLOR_BORDER, COLOR_TEXT_MUTED } from '../theme';
 import { NotificationBell } from './NotificationBell';
 
 interface Option {
@@ -57,14 +58,16 @@ export function Header() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0 16px',
+        gap: 12,
+        padding: '0 20px',
         background: '#fff',
-        borderBottom: '1px solid #f0f0f0',
+        borderBottom: `1px solid ${COLOR_BORDER}`,
         height: 56,
       }}
     >
       <AutoComplete
-        style={{ width: 420, maxWidth: '50vw' }}
+        className="nv-header-search"
+        style={{ flex: '1 1 420px', maxWidth: 480 }}
         options={options}
         value={value}
         onSearch={runSearch}
@@ -77,37 +80,44 @@ export function Header() {
         <Input
           id="global-search-input"
           size="middle"
-          prefix={<SearchOutlined />}
-          placeholder="Search asset code, serial, employee, model, location… (press /)"
+          prefix={<SearchOutlined style={{ color: COLOR_TEXT_MUTED }} />}
+          placeholder="Search assets, employees, tickets…"
           aria-label="Global search"
           allowClear
+          suffix={
+            <Typography.Text type="secondary" style={{ fontSize: 11, userSelect: 'none' }}>
+              /
+            </Typography.Text>
+          }
         />
       </AutoComplete>
 
-      <Space size="middle">
+      <Space size="middle" wrap={false} style={{ flexShrink: 0 }}>
         <Button
-          size="small"
+          size="middle"
           icon={<BookOutlined />}
           onClick={() => navigate('/help')}
           aria-label="Help and documentation"
+          className="nv-header-action-text"
         >
           Help
         </Button>
         <NotificationBell />
         <Space size={8}>
-          <Avatar size="small" icon={<UserOutlined />} />
-          <div style={{ lineHeight: 1.2 }}>
-            <Typography.Text style={{ fontSize: 13 }}>{identity?.fullName}</Typography.Text>
-            <div style={{ fontSize: 11, color: '#595959' }}>{identity?.role}</div>
+          <Avatar size="small" icon={<UserOutlined />} style={{ background: '#0958d9' }} />
+          <div style={{ lineHeight: 1.25 }} className="nv-header-profile">
+            <Typography.Text style={{ fontSize: 13, fontWeight: 500 }}>{identity?.fullName}</Typography.Text>
+            <div style={{ fontSize: 12, color: COLOR_TEXT_MUTED }}>{identity?.role}</div>
           </div>
         </Space>
         <Button
-          size="small"
+          size="middle"
           icon={<LogoutOutlined />}
           onClick={() => logout()}
           data-testid="logout-button"
+          style={{ flexShrink: 0 }}
         >
-          Logout
+          <span className="nv-header-action-text">Logout</span>
         </Button>
       </Space>
     </Layout.Header>

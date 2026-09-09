@@ -12,15 +12,26 @@ import {
   WarningOutlined,
 } from '@ant-design/icons';
 import { useCustom } from '@refinedev/core';
-import { Card, Col, List, Row, Select, Space, Statistic, Table, Typography } from 'antd';
+import { Card, Col, List, Row, Select, Space, Table, Typography } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { WarrantyDays } from '../components/Cells';
+import { KpiCard } from '../components/KpiCard';
 import { AssetTrendChart } from '../components/charts/AssetTrendChart';
 import { LocationBarChart } from '../components/charts/LocationBarChart';
 import { StatusDonutChart } from '../components/charts/StatusDonutChart';
 import { httpClient } from '../providers/axios';
-import { tabularNums } from '../theme';
+import {
+  COLOR_ACCENT,
+  COLOR_TEXT_MUTED,
+  COLOR_TEXT_SECONDARY,
+  KPI_ASSIGNED,
+  KPI_AVAILABLE,
+  KPI_REPAIR,
+  KPI_RETIRED,
+  KPI_TOTAL,
+  KPI_WARRANTY,
+} from '../theme';
 import type {
   DashboardAttention,
   DashboardMetrics,
@@ -39,49 +50,10 @@ interface WarrantyRow {
   daysRemaining: number | null;
 }
 
-function MetricCard({
-  title,
-  value,
-  icon,
-  color,
-  accent,
-  sparkline,
-  href,
-}: {
-  title: string;
-  value: number;
-  icon: React.ReactNode;
-  color?: string;
-  accent?: string;
-  sparkline?: React.ReactNode;
-  href?: string;
-}) {
-  const body = (
-    <>
-      <Statistic
-        title={
-          <Space size={6} style={{ color: '#595959' }}>
-            {icon}
-            {title}
-          </Space>
-        }
-        value={value}
-        valueStyle={{ ...tabularNums, color, fontWeight: 600 }}
-      />
-      {sparkline}
-    </>
-  );
-  return (
-    <Card
-      size="small"
-      style={accent ? { borderTop: `3px solid ${accent}`, cursor: href ? 'pointer' : undefined } : undefined}
-      styles={{ body: { padding: 16 } }}
-      hoverable={!!href}
-      onClick={href ? () => { window.location.href = href; } : undefined}
-    >
-      {body}
-    </Card>
-  );
+function locationQuerySuffix(locationId?: number) {
+  return locationId
+    ? `?filters[0][field]=locationId&filters[0][operator]=eq&filters[0][value]=${locationId}`
+    : '';
 }
 
 export function DashboardPage() {
@@ -141,35 +113,46 @@ export function DashboardPage() {
   const byLocation = byLocationQuery.data?.data ?? [];
 
   const sparklineTrend = useMemo(() => trends.slice(-6), [trends]);
+  const locSuffix = locationQuerySuffix(locationId);
 
   return (
     <Space direction="vertical" size={20} style={{ width: '100%' }}>
-      <Row justify="space-between" align="middle">
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          Dashboard
-        </Typography.Title>
-        <Select
-          allowClear
-          aria-label="Filter dashboard by location"
-          placeholder="All locations"
-          style={{ width: 220 }}
-          value={locationId}
-          onChange={(v) => setLocationId(v)}
-          options={locations.map((l) => ({ label: `${l.name} (${l.code})`, value: l.id }))}
-        />
+      <Row justify="space-between" align="middle" gutter={[16, 12]}>
+        <Col>
+          <Typography.Title level={3} style={{ margin: 0, fontWeight: 600, fontSize: 24 }}>
+            Dashboard
+          </Typography.Title>
+          <Typography.Text style={{ fontSize: 13, color: COLOR_TEXT_MUTED }}>
+            Fleet overview and items needing attention
+          </Typography.Text>
+        </Col>
+        <Col>
+          <Select
+            allowClear
+            aria-label="Filter dashboard by location"
+            placeholder="All locations"
+            style={{ width: 220 }}
+            value={locationId}
+            onChange={(v) => setLocationId(v)}
+            options={locations.map((l) => ({ label: `${l.name} (${l.code})`, value: l.id }))}
+          />
+        </Col>
       </Row>
 
       {attentionItems.length > 0 && (
         <Card
           size="small"
-          style={{ borderLeft: '4px solid #cf1322', background: '#fff1f0' }}
+          className="nv-attention-panel"
           title={
             <Space>
-              <AlertOutlined style={{ color: '#cf1322' }} />
-              <Typography.Text strong>Needs attention</Typography.Text>
+              <AlertOutlined style={{ color: KPI_WARRANTY }} />
+              <Typography.Text strong style={{ fontSize: 14 }}>
+                Needs attention
+              </Typography.Text>
               {attention?.pendingRequestCount ? (
-                <Typography.Text style={{ fontSize: 12, color: '#595959' }}>
-                  · {attention.pendingRequestCount} pending request(s)
+                <Typography.Text style={{ fontSize: 12, color: COLOR_TEXT_SECONDARY }}>
+                  {attention.pendingRequestCount} pending request
+                  {attention.pendingRequestCount === 1 ? '' : 's'}
                 </Typography.Text>
               ) : null}
             </Space>
@@ -180,14 +163,17 @@ export function DashboardPage() {
             dataSource={attentionItems.slice(0, 8)}
             renderItem={(item) => (
               <List.Item>
-                <Link to={item.href}>
-                  <Typography.Text strong style={{ fontSize: 13 }}>
-                    {item.label}
-                  </Typography.Text>
-                  <Typography.Text style={{ fontSize: 12, marginLeft: 8, color: '#595959' }}>
-                    {item.detail}
-                  </Typography.Text>
-                </Link>
+                <Space size={8}>
+                  <AlertOutlined style={{ color: KPI_WARRANTY, fontSize: 12 }} aria-hidden />
+                  <Link to={item.href} style={{ fontSize: 13 }}>
+                    <Typography.Text strong style={{ fontSize: 13, color: 'inherit' }}>
+                      {item.label}
+                    </Typography.Text>
+                    <Typography.Text style={{ fontSize: 12, marginLeft: 8, color: COLOR_TEXT_SECONDARY }}>
+                      {item.detail}
+                    </Typography.Text>
+                  </Link>
+                </Space>
               </List.Item>
             )}
           />
@@ -196,67 +182,65 @@ export function DashboardPage() {
 
       <Row gutter={[16, 16]}>
         <Col xs={12} sm={8} lg={4}>
-          <MetricCard
-            title="Total"
+          <KpiCard
+            title="Total Assets"
             value={m?.total ?? 0}
             icon={<DatabaseOutlined />}
-            accent="#2f54eb"
-            href={`/assets${locationId ? `?filters[0][field]=locationId&filters[0][operator]=eq&filters[0][value]=${locationId}` : ''}`}
+            accentColor={KPI_TOTAL}
+            href={`/assets${locSuffix}`}
             sparkline={
               sparklineTrend.length > 0 ? (
-                <div style={{ marginTop: 8, height: 48 }} onClick={(e) => e.stopPropagation()}>
-                  <AssetTrendChart data={sparklineTrend} height={48} compact />
-                </div>
+                <AssetTrendChart data={sparklineTrend} height={48} compact />
               ) : null
             }
           />
         </Col>
         <Col xs={12} sm={8} lg={4}>
-          <MetricCard
+          <KpiCard
             title="Assigned"
             value={m?.assigned ?? 0}
             icon={<CheckCircleOutlined />}
-            color="#389e0d"
-            accent="#389e0d"
-            href="/assets?filters[0][field]=status&filters[0][operator]=eq&filters[0][value]=assigned"
+            accentColor={KPI_ASSIGNED}
+            valueColor="#15803D"
+            href={`/assets?filters[0][field]=status&filters[0][operator]=eq&filters[0][value]=assigned${locationId ? `&filters[1][field]=locationId&filters[1][operator]=eq&filters[1][value]=${locationId}` : ''}`}
           />
         </Col>
         <Col xs={12} sm={8} lg={4}>
-          <MetricCard
+          <KpiCard
             title="Available"
             value={m?.available ?? 0}
             icon={<MinusCircleOutlined />}
-            accent="#8c8c8c"
-            href="/assets?filters[0][field]=status&filters[0][operator]=eq&filters[0][value]=available"
+            accentColor={KPI_AVAILABLE}
+            href={`/assets?filters[0][field]=status&filters[0][operator]=eq&filters[0][value]=available${locationId ? `&filters[1][field]=locationId&filters[1][operator]=eq&filters[1][value]=${locationId}` : ''}`}
           />
         </Col>
         <Col xs={12} sm={8} lg={4}>
-          <MetricCard
+          <KpiCard
             title="Under Repair"
             value={m?.underRepair ?? 0}
             icon={<ToolOutlined />}
-            color="#d46b08"
-            accent="#d46b08"
-            href="/assets?filters[0][field]=status&filters[0][operator]=eq&filters[0][value]=under_repair"
+            accentColor={KPI_REPAIR}
+            valueColor="#B45309"
+            href={`/assets?filters[0][field]=status&filters[0][operator]=eq&filters[0][value]=under_repair${locationId ? `&filters[1][field]=locationId&filters[1][operator]=eq&filters[1][value]=${locationId}` : ''}`}
           />
         </Col>
         <Col xs={12} sm={8} lg={4}>
-          <MetricCard
+          <KpiCard
             title="Retired"
             value={m?.retired ?? 0}
             icon={<InboxOutlined />}
-            accent="#595959"
-            href="/assets?filters[0][field]=status&filters[0][operator]=eq&filters[0][value]=retired"
+            accentColor={KPI_RETIRED}
+            href={`/assets?filters[0][field]=status&filters[0][operator]=eq&filters[0][value]=retired${locationId ? `&filters[1][field]=locationId&filters[1][operator]=eq&filters[1][value]=${locationId}` : ''}`}
           />
         </Col>
         <Col xs={12} sm={8} lg={4}>
-          <MetricCard
+          <KpiCard
             title="Warranty ≤90d"
             value={m?.warrantyExpiring ?? 0}
             icon={<WarningOutlined />}
-            color="#cf1322"
-            accent="#cf1322"
-            href="/assets?filters[0][field]=warrantyExpiringInDays&filters[0][operator]=eq&filters[0][value]=90"
+            accentColor={KPI_WARRANTY}
+            valueColor="#B91C1C"
+            href={`/assets?filters[0][field]=warrantyExpiringInDays&filters[0][operator]=eq&filters[0][value]=90${locationId ? `&filters[1][field]=locationId&filters[1][operator]=eq&filters[1][value]=${locationId}` : ''}`}
           />
         </Col>
       </Row>
@@ -268,7 +252,7 @@ export function DashboardPage() {
             loading={isFetching}
             title={
               <Space>
-                <PieChartOutlined />
+                <PieChartOutlined style={{ color: COLOR_ACCENT }} />
                 Status mix
               </Space>
             }
@@ -282,13 +266,16 @@ export function DashboardPage() {
             loading={!locationId && byLocationQuery.isFetching}
             title={
               <Space>
-                <BarChartOutlined />
+                <BarChartOutlined style={{ color: COLOR_ACCENT }} />
                 {locationId ? 'Filtered view' : 'Assets by location'}
               </Space>
             }
           >
             {locationId ? (
-              <Typography.Text type="secondary" style={{ display: 'block', padding: '24px 0', textAlign: 'center' }}>
+              <Typography.Text
+                type="secondary"
+                style={{ display: 'block', padding: '24px 0', textAlign: 'center', fontSize: 13 }}
+              >
                 Clear the location filter to compare all sites.
               </Typography.Text>
             ) : (
@@ -302,7 +289,7 @@ export function DashboardPage() {
             loading={trendsQuery.isFetching}
             title={
               <Space>
-                <LineChartOutlined />
+                <LineChartOutlined style={{ color: COLOR_ACCENT }} />
                 Assets added (12 months)
               </Space>
             }
@@ -316,8 +303,8 @@ export function DashboardPage() {
         size="small"
         title={
           <Space>
-            <ClockCircleOutlined />
-            Warranty expiring soon (sorted by days remaining)
+            <ClockCircleOutlined style={{ color: COLOR_ACCENT }} />
+            Warranty expiring soon
           </Space>
         }
         loading={isFetching}

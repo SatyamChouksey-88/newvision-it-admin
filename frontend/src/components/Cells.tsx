@@ -15,11 +15,11 @@ export function PrimaryWithSub({ primary, sub }: { primary: ReactNode; sub?: Rea
 /** Warranty rendered as plain "N days" text, coloured only when urgent (color is not the sole signal). */
 export function WarrantyDays({ warrantyEnd }: { warrantyEnd?: string | null }) {
   const { text, days } = warrantyDaysLabel(warrantyEnd);
-  let color = '#595959';
+  let color = '#475569';
   if (days !== null && days < 0) {
-    color = '#cf1322';
+    color = '#DC2626';
   } else if (days !== null && days <= 30) {
-    color = '#d46b08';
+    color = '#D97706';
   }
   return <span style={{ ...tabularNums, color }}>{text}</span>;
 }

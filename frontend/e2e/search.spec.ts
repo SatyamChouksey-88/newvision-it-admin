@@ -3,7 +3,7 @@ import { login } from './helpers';
 
 test('global search jumps to an asset detail page', async ({ page }) => {
   await login(page);
-  const search = page.getByPlaceholder(/Search asset code, serial, employee/i);
+  const search = page.getByPlaceholder(/Search assets, employees, tickets/i);
   await search.fill('AST-PUN');
 
   const dropdown = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').last();

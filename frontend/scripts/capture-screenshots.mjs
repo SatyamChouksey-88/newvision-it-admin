@@ -15,9 +15,10 @@ const base = 'http://localhost:5173';
 const password = 'Password123!';
 
 async function logoutIfNeeded(page) {
-  await page.goto(`${base}/login`);
+  await page.context().clearCookies();
+  await page.goto(`${base}/login`, { waitUntil: 'domcontentloaded' });
   const emailInput = page.locator('#email');
-  if (await emailInput.isVisible({ timeout: 2000 }).catch(() => false)) return;
+  if (await emailInput.isVisible({ timeout: 3000 }).catch(() => false)) return;
   await page.goto(`${base}/`);
   const logoutBtn = page.getByTestId('logout-button');
   if (await logoutBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
@@ -26,11 +27,15 @@ async function logoutIfNeeded(page) {
     return;
   }
   await page.evaluate(() => {
-    localStorage.clear();
-    sessionStorage.clear();
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch {
+      /* ignore cross-origin */
+    }
   });
-  await page.context().clearCookies();
-  await page.goto(`${base}/login`);
+  await page.goto(`${base}/login`, { waitUntil: 'domcontentloaded' });
+  await emailInput.waitFor({ state: 'visible', timeout: 15_000 });
 }
 
 async function login(page, email) {

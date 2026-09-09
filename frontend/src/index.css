@@ -1,4 +1,6 @@
-/* Prompt 3/6: resizable column handle */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* ── Resizable column handle ── */
 .react-resizable-handle {
   position: absolute;
   right: -5px;
@@ -9,24 +11,162 @@
   z-index: 1;
 }
 
-/* Keyboard-focused table row highlight — accent focus ring */
+/* ── Layout canvas ── */
+body {
+  background: #f8fafc;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.ant-layout {
+  background: #f8fafc !important;
+}
+
+.ant-layout-content {
+  padding: 20px 24px !important;
+}
+
+/* ── Sidebar polish ── */
+.ant-layout-sider {
+  border-right: 1px solid #e9edf2 !important;
+  box-shadow: none !important;
+}
+
+.ant-layout-sider .ant-menu-item {
+  border-radius: 8px !important;
+  margin-inline: 8px !important;
+  width: calc(100% - 16px) !important;
+}
+
+.ant-layout-sider .ant-menu-item-selected {
+  font-weight: 500;
+}
+
+/* ── Header ── */
+.ant-layout-header {
+  border-bottom: 1px solid #e9edf2 !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+/* ── Cards ── */
+.ant-card {
+  border: 1px solid #e9edf2 !important;
+  border-radius: 16px !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06) !important;
+}
+
+.ant-card-head {
+  border-bottom: 1px solid #e9edf2 !important;
+  min-height: 48px !important;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* ── Links (WCAG AA) ── */
+a {
+  color: #0958d9;
+}
+
+a:hover {
+  color: #1677ff;
+}
+
+/* ── KPI cards ── */
+.nv-kpi-label {
+  color: #334155;
+}
+
+.nv-kpi-card--clickable:hover,
+.nv-kpi-link:focus-visible .nv-kpi-card {
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+}
+
+.nv-kpi-link:focus-visible {
+  outline: 2px solid #0958d9;
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+/* ── Table row focus ── */
 .nv-row-focused > td {
-  background: #eef1ff !important;
-  outline: 2px solid #2f54eb;
+  background: #f0f7ff !important;
+  outline: 2px solid #0958d9;
   outline-offset: -2px;
 }
 
-/* WCAG AA link contrast on white backgrounds */
-a {
-  color: #1d39c4;
+.ant-table-wrapper .ant-table-thead > tr > th {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #334155 !important;
+  text-transform: none;
 }
 
-/* Danger buttons: AA contrast on white (#cf1322 ≈ 5.8:1) */
-.ant-btn-dangerous.ant-btn-default:not(:disabled) {
-  color: #cf1322;
-  border-color: #cf1322;
+.ant-table-wrapper .ant-table-thead > tr > th.ant-table-column-sort {
+  color: #334155 !important;
 }
+
+.ant-table-wrapper .ant-table-tbody > tr > td {
+  font-size: 13px !important;
+  color: #475569;
+}
+
+.ant-table-wrapper .ant-table-tbody > tr:hover > td {
+  background: #f1f5f9 !important;
+}
+
+/* ── Buttons ── */
+.ant-btn-primary {
+  box-shadow: none;
+}
+
+.ant-btn-primary:not(:disabled):hover {
+  box-shadow: 0 1px 2px rgba(9, 88, 217, 0.2);
+}
+
+.ant-btn-dangerous.ant-btn-default:not(:disabled) {
+  color: #dc2626;
+  border-color: #dc2626;
+}
+
 .ant-btn-dangerous.ant-btn-default:not(:disabled):hover {
-  color: #a8071a;
-  border-color: #a8071a;
+  color: #b91c1c;
+  border-color: #b91c1c;
+}
+
+/* ── Attention panel ── */
+.nv-attention-panel {
+  border-left: 4px solid #dc2626 !important;
+  background: #fef2f2 !important;
+  border-radius: 16px !important;
+}
+
+.nv-attention-panel .ant-list-item {
+  padding: 8px 0 !important;
+  border-block-end: 1px solid #fecaca !important;
+}
+
+/* ── Login ── */
+.nv-login-wrap .ant-card {
+  border-radius: 16px !important;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08), 0 8px 24px rgba(15, 23, 42, 0.06) !important;
+}
+
+/* ── Responsive header actions ── */
+@media (max-width: 900px) {
+  .nv-header-search {
+    max-width: 240px !important;
+  }
+
+  .nv-header-action-text,
+  .nv-header-profile {
+    display: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nv-kpi-card--clickable:hover,
+  .nv-kpi-link:focus-visible .nv-kpi-card {
+    transform: none;
+  }
 }

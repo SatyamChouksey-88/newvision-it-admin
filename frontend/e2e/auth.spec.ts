@@ -5,7 +5,7 @@ test('logs in as IT Admin and shows the dashboard metric cards', async ({ page }
   await login(page, DEMO_USERS.itAdmin);
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
   // Metric cards from Section 6.
-  await expect(page.getByText('Total', { exact: true })).toBeVisible();
+  await expect(page.getByText('Total Assets', { exact: true })).toBeVisible();
   await expect(page.getByText('Assigned', { exact: true })).toBeVisible();
   await expect(page.getByText('Available', { exact: true })).toBeVisible();
   await expect(page.getByText('Under Repair', { exact: true })).toBeVisible();

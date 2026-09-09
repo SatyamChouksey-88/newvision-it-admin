@@ -90,3 +90,12 @@ Every judgment call made while building NewVision, and why. Newest at the bottom
 - **All primary list screens use `DataGrid`** — consumables, requests, maintenance, locations, and import jobs migrated in Prompt 8; assets/employees/audit/accessories were already on the component from Prompt 6.
 - **Dashboard KPI cards drill down** — each metric card navigates to the assets list with the matching status (or warranty) filter pre-applied.
 - **Help screenshots committed under `frontend/public/docs/screenshots/`** — captured via `npm run screenshots` (Playwright) against a running seeded stack; served by Vite at `/docs/screenshots/…`.
+
+## Prompt 9 — Visual alignment (approved Claude Design mockup)
+
+- **Approved mockup is the visual source of truth** — `design-reference/NewVision_Asset_Manager.html` + extracted tokens in `design-reference/DESIGN_TOKENS.md` supersede Prompt 3/6 written theme specs wherever they conflict.
+- **Accent/links use `#0958D9` not `#1677FF`** — the lighter Ant Design default fails WCAG AA (4.1:1) on white; the mockup’s darker blue gives 6.16:1. Hover may use `#1677FF`.
+- **KPI tiles use muted surface `#F1F4F8` + 4px top accent bar** — implemented in shared `KpiCard`; dashboard metrics renamed to mockup labels (e.g. “Total Assets”). Existing drill-down links preserved (visual pass only).
+- **Secondary text bumped to 12–13px** — KPI labels, table body, attention panel details use `#334155`/`#475569` for readability on tinted backgrounds.
+- **Global chrome via `theme.ts` + `index.css`** — canvas `#F8FAFC`, borders `#E9EDF2`, card radius 16/10px, subtle two-tier shadows. Screens not depicted in the mockup inherit the same tokens consistently.
+- **Help screenshots re-captured after the visual pass** — `node scripts/capture-screenshots.mjs`; logout flow hardened (cookie clear + fallback storage wipe).

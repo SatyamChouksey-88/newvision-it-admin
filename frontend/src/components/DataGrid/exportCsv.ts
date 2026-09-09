@@ -4,14 +4,14 @@ export function exportToCsv(
   columns: { title: string; key: string }[],
   rows: Record<string, unknown>[],
 ) {
-  const escape = (v: unknown) => {
+  const escapeCell = (v: unknown) => {
     const s = String(v ?? '');
     if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
     return s;
   };
-  const header = columns.map((c) => escape(c.title)).join(',');
+  const header = columns.map((c) => escapeCell(c.title)).join(',');
   const body = rows
-    .map((row) => columns.map((c) => escape(row[c.key])).join(','))
+    .map((row) => columns.map((c) => escapeCell(row[c.key])).join(','))
     .join('\n');
   const blob = new Blob([`${header}\n${body}`], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
