@@ -20,7 +20,7 @@ const accessoryInclude = {
       },
     },
     orderBy: { checkedOutAt: 'desc' as const },
-    take: 20,
+    take: 200,
   },
 } satisfies Prisma.AccessoryInclude;
 
@@ -69,7 +69,7 @@ export class AccessoriesService {
             processedBy: { select: { id: true, fullName: true } },
           },
           orderBy: { checkedOutAt: 'desc' },
-          take: 50,
+          take: 500,
         },
       },
     });

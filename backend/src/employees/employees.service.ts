@@ -94,7 +94,7 @@ export class EmployeesService {
         consumableIssues: {
           include: { consumable: true },
           orderBy: { issuedAt: 'desc' },
-          take: 50,
+          take: 500,
         },
       },
     });

@@ -54,7 +54,7 @@ export class ConsumablesService {
             processedBy: { select: { id: true, fullName: true } },
           },
           orderBy: { issuedAt: 'desc' },
-          take: 50,
+          take: 500,
         },
       },
     });

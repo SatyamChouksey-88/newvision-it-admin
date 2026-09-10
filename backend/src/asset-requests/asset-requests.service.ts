@@ -193,7 +193,7 @@ export class AssetRequestsService {
     return this.prisma.auditLog.findMany({
       where: { entityType: 'AssetRequest', entityId: String(id) },
       orderBy: { createdAt: 'desc' },
-      take: 100,
+      take: 500,
       include: { changedBy: { select: { id: true, fullName: true } } },
     });
   }

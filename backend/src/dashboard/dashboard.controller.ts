@@ -88,16 +88,24 @@ export class DashboardController {
   async byLocation() {
     const locations = await this.prisma.location.findMany({ orderBy: { code: 'asc' } });
     const grouped = await this.prisma.asset.groupBy({
-      by: ['locationId'],
+      by: ['locationId', 'status'],
       _count: { _all: true },
     });
-    const map = new Map(grouped.map((g) => [g.locationId, g._count._all]));
+    const totals = new Map<number, number>();
+    const byStatus = new Map<number, Record<string, number>>();
+    for (const g of grouped) {
+      totals.set(g.locationId, (totals.get(g.locationId) ?? 0) + g._count._all);
+      const bucket = byStatus.get(g.locationId) ?? {};
+      bucket[g.status] = g._count._all;
+      byStatus.set(g.locationId, bucket);
+    }
     return locations.map((l) => ({
       locationId: l.id,
       code: l.code,
       name: l.name,
       city: l.city,
-      total: map.get(l.id) ?? 0,
+      total: totals.get(l.id) ?? 0,
+      byStatus: byStatus.get(l.id) ?? {},
     }));
   }
 

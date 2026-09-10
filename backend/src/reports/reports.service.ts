@@ -199,7 +199,7 @@ export class ReportsService {
           employee: { select: { employeeCode: true, firstName: true, lastName: true } },
         },
         orderBy: { issuedAt: 'desc' },
-        take: 200,
+        take: 2000,
       }),
     ]);
 
