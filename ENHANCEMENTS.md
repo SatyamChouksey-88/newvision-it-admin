@@ -77,3 +77,14 @@ Audit date: 2026-09-10. Each item lists the finding and resolution status.
 | A6 | Login was a single-column AuthPage | **Rebuilt** two-column + estate panel |
 | A7 | Accessories were table-only | **Card grid default** + table toggle |
 | A8 | Employee profile tabs were Overview/History | **Assigned / Supplies / History / Requests** |
+
+## Prompt 13 follow-up (2026-09-10)
+
+| # | Finding | Resolution |
+|---|---------|------------|
+| P13-1 | `PROJECT_STATUS.md` still described the product as of Prompt 4 | **Rewritten** against live code |
+| P13-2 | Mobile/responsive was an unnamed gap | **Tablet floor implemented**; phone-width admin declined in `DECISIONS.md` |
+| P13-3 | Dark mode undecided | **Declined**; light forced so OS dark cannot partially invert UI |
+| P13-4 | Empty database had only generic empty states | **Welcome to NewVision** card when estate counts are all zero |
+| P13-5 | Welcome linked to categories/employees with no create UI | **Settings → Categories** + **Add employee** modal |
+

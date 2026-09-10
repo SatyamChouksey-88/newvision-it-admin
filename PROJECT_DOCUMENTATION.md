@@ -1,6 +1,6 @@
 # NewVision — Project Documentation
 
-> Internal reference for developers and operators. Last aligned with the codebase after **Prompt 12** (audit-branch merge + final design system from `NewVision-standalone-src.html`). Everything below is verified against the actual repo — not the original build prompts.
+> Internal reference for developers and operators. Last aligned with the codebase after **Prompt 13** (tablet layout, light-only, first-run onboarding). Everything below is verified against the actual repo — not the original build prompts.
 
 ---
 
@@ -32,8 +32,9 @@ The stack is a **React + Refine + Ant Design** frontend talking to a **NestJS + 
 | **Prompt 9** — Visual alignment | Match approved Claude Design mockup; `DESIGN_TOKENS.md`, `KpiCard`, theme/CSS refresh, Help screenshots | **Done** (superseded visually by Prompt 12) |
 | **Audit** — Functionality | History truncation, DataGrid overflow tooltips, ticket search wiring, inactive-employee guards | **Done** — merged to `main` via PR #1 |
 | **Prompt 12** — Merge + final design system | Fast-forward audit branch; exact tokens from `NewVision-standalone-src.html`; login/shell/dashboard/lists restyle | **Done** |
+| **Prompt 13** — Investigation-based enhancements | Status-doc rewrite; tablet-width admin; light-only; first-run Welcome card; scan-page token pass | **Done** |
 
-**Test counts (current):** 50 backend unit + 66 backend integration = **116**; Playwright suite in `frontend/e2e`.
+**Test counts (current):** 52 backend unit + 67 backend integration = **119**; **40** Playwright (incl. axe-core).
 
 **Design reference:** `design-reference/NewVision-standalone-src.html` (Prompt 12 source of truth) and `design-reference/DESIGN_TOKENS.md`. Earlier `NewVision_Asset_Manager.html` is historical.
 
@@ -384,6 +385,7 @@ erDiagram
 
 **API endpoints:**
 - `GET /api/dashboard/metrics?locationId=` — counts + `byStatus` breakdown
+- `GET /api/dashboard/setup` — estate counts + `freshInstall` (true only when assets, employees, and locations are all zero)
 - `GET /api/dashboard/by-location` — per-site totals
 - `GET /api/dashboard/trends?months=12&locationId=` — monthly assets added
 - `GET /api/dashboard/warranty-expiring`
@@ -421,8 +423,11 @@ erDiagram
 | **Saved views** | `GET/POST /api/saved-views`; assets list picker + save | Done — `governance.spec.ts` |
 | **Reconciliation** | Settings tab; HR CSV set-diff on employee code/email or asset code/serial | Done — manual upload only |
 | **QR codes** | `GET /api/assets/:id/qr`, public PNG + scan data | Done |
-| **Public scan page** | `/scan/:code` — no login; mobile-friendly card | Done — `scan.spec.ts` |
+| **Public scan page** | `/scan/:code` — no login; phone-first card (Prompt 12 tokens) | Done — `scan.spec.ts`, `prompt13.spec.ts` |
 | **Webhooks** | Settings → Webhooks; `asset.created`, `asset.status_changed`; HMAC signature | Done |
+| **First-run onboarding** | Welcome card when estate is empty (`GET /dashboard/setup`) | Done — `prompt13.spec.ts` |
+| **Tablet admin layout** | Sider collapses ≤1023px; tables scroll; not a phone rewrite | Done — `prompt13.spec.ts` |
+| **Light-only** | OS dark preference cannot invert chrome | Done — `prompt13.spec.ts` |
 | **Copy to clipboard** | `CopyButton` component on asset codes/serials with toast feedback | Done |
 | **Keyboard shortcuts** | `/` global search, `Esc`, ↑↓ on assets/employees tables | Partial — not all list screens |
 | **Branding** | `frontend/public/brand/` logos + favicon; used in `Title.tsx`, login | Done |
@@ -448,6 +453,8 @@ From `PROJECT_STATUS.md` / product scope — these are **deliberate exclusions**
 | AI / natural-language search | Out of scope |
 | Redis/job queue for imports | In-process `setImmediate` chosen for local-dev simplicity |
 | JWT refresh tokens | Simplicity for internal tool; noted as future hardening |
+| Dark mode | Approved design system is light-only; OS dark preference is forced to light |
+| Phone-width authenticated admin | Tablet is the floor; phones use the public scan page |
 
 ---
 
@@ -462,15 +469,10 @@ From `PROJECT_STATUS.md` / product scope — these are **deliberate exclusions**
 
 | Item | Detail |
 |------|--------|
-| **Prompt 3 UI pass — mostly not implemented** | No Help launcher/panel. Text hierarchy still uses `#595959` muted secondary (`theme.ts`), not the specified `#1F1F1F` primary. Theme explicitly sets `boxShadow: 'none'` — no two-tier depth system. CopyButton exists with toast feedback (partial Prompt 3). |
-| **Empty accessories/consumables on seed** | Modules work but seed creates no catalog rows. |
-| **Keyboard shortcuts** | Wired on assets and employees lists only, not every table screen. |
-| **Mobile/responsive** | Main app tables/dashboard not designed mobile-first; only `/scan/:code` is mobile-friendly. |
-| **Dark mode** | Not implemented; explicit non-goal unless scoped later. |
-| **First-login / empty DB onboarding** | Generic empty states only; no guided setup wizard. |
 | **JWT refresh** | Access token only; 8h expiry (`JWT_EXPIRES_IN`). |
-| **README test count drift** | One README section still says "87" backend tests; actual count is **93** (46+47). |
-| **Import failure categories** | Chart buckets are heuristic (parsed from error message text), not structured error codes. |
+| **Seed resets on restart** | `SEED_ON_START=true` wipes manual demo edits on backend boot. |
+| **Phone-width admin app** | Explicit non-goal. Tablet (768–1023px) is supported; phones use `/scan/:code`. |
+| **Dark mode** | Explicit non-goal. Light-only; OS dark preference is forced to the approved light tokens. |
 
 ---
 
@@ -652,7 +654,7 @@ Screenshots were not captured in the documentation environment. Replace each pla
 | `[SCREENSHOT: import job summary]` | Settings → Import jobs — expanded completed job with charts |
 | `[SCREENSHOT: audit log]` | `/audit-logs` — paginated audit entries |
 | `[SCREENSHOT: public scan page]` | `/scan/AST-PUN-LAP-0001` — logged out, mobile width |
-| `[SCREENSHOT: help panel]` | **Not implemented** — skip until Prompt 3 Help launcher is built |
+| `[SCREENSHOT: help panel]` | `/help` — article chrome + screenshots under `frontend/public/docs/screenshots/` |
 
 **Suggested storage:** `docs/screenshots/` with matching filenames (e.g. `dashboard.png`).
 
@@ -662,16 +664,14 @@ Screenshots were not captured in the documentation environment. Replace each pla
 
 Reasonable increments given what exists today — not the excluded enterprise wishlist:
 
-1. **Complete Prompt 3 UI pass** — Help launcher with searchable articles, `#1F1F1F` text hierarchy, depth/shadow tokens, screen-by-screen consistency audit.
-2. **Seed accessories/consumables demo data** — so catalog pages aren't empty on first login.
-3. **Mobile-responsive pass** — dashboard cards and table layouts for tablet/phone (beyond scan page).
-4. **JWT refresh tokens / session hardening** — noted since Phase 0 as deferred security work.
-5. **First-login onboarding** — empty-database wizard (locations → categories → first import).
-6. **Extend keyboard shortcuts** — to maintenance, audit, requests, accessories tables.
-7. **Structured import error codes** — replace message-heuristic chart buckets with typed failure reasons from the import pipeline.
-8. **Screenshot gallery in docs** — fill §11 placeholders after capturing from staging.
+1. **JWT refresh tokens / session hardening** — noted since Phase 0 as deferred security work.
+2. **Extend keyboard shortcuts** — to maintenance, audit, requests, accessories tables (global `/` search already works).
+3. **Self-service first admin** — a migrate-only database still needs a user before anyone can see the Welcome card.
+4. **Screenshot gallery refresh** — recapture Help shots after any future chrome change (`frontend/scripts/capture-screenshots.mjs`).
 
-For the full list of deliberately excluded enterprise features, see `PROJECT_STATUS.md` §4.
+Tablet layout, light-only, and first-run onboarding shipped in Prompt 13. Prompt 3 Help, seed accessories, structured import codes, and DataGrid are already done.
+
+For the full list of deliberately excluded enterprise features, see `PROJECT_STATUS.md` §8.
 
 ---
 

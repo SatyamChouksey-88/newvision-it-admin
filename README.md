@@ -89,7 +89,7 @@ npm test              # unit tests
 npm run test:e2e      # integration/API tests (needs Postgres reachable)
 ```
 
-Current status: **49 unit + 50 integration = 99 passing.**
+Current status: **52 unit + 67 integration = 119 passing.**
 
 ### Frontend — lint, type-check, build
 
@@ -111,11 +111,11 @@ cd backend && npm run start:dev
 # 2) In another terminal, run the e2e suite
 cd frontend
 npx playwright install chromium   # first time only
-npm run test:e2e                  # 24 tests
+npm run test:e2e                  # 40 tests
 npm run test:e2e:report           # open the last HTML report
 ```
 
-Current status: **22 Playwright tests passing** (includes axe-core a11y, help docs, and the asset-request approval flow).
+Current status: **40 Playwright tests passing** (includes axe-core a11y, help docs, first-run onboarding, tablet/light-only checks, and the asset-request approval flow).
 
 ---
 
@@ -237,3 +237,11 @@ Current status: **49 unit + 47 integration = 96** backend tests; **22 Playwright
 - **Seed** — accessories and consumables demo catalog.
 
 See `PROJECT_STATUS.md` for the full gap audit and deliberate exclusions.
+
+## Prompt 13 — Tablet, light-only, first-run (complete)
+
+- **Tablet-width admin** — below 992px the sider is a hamburger drawer; 992–1023px it collapses to icons. Tables scroll horizontally; the public `/scan/:code` page stays phone-first. Phone-width rewrite of the authenticated app is an explicit non-goal.
+- **Light-only** — OS dark preference cannot invert chrome. Documented in `DECISIONS.md`.
+- **First-run** — a migrate-only empty estate shows **Welcome to NewVision** (locations → categories → employees → assets). Seeded demo is unchanged. Settings → Categories and Employees → Add employee back those steps.
+
+Current status: **52 unit + 67 integration = 119** backend tests; **40 Playwright**.

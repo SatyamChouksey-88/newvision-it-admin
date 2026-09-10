@@ -119,3 +119,12 @@ Every judgment call made while building NewVision, and why. Newest at the bottom
 - **Typeahead / attention `take` caps stay** — search (20/20/10/10) and dashboard attention (10) are summaries, not inventories. Profile/history/report issue lists were raised (50→500, 200→2000).
 - **Accessories default to the mockup card grid** — Excel DataGrid remains behind a Cards/Table toggle so we do not drop sort/filter/export.
 - **Sidebar Sign out carries `data-testid="logout-button"`** — header logout was removed to match the mockup; Playwright still finds the control.
+
+## Prompt 13 — Tablet, light-only, first-run (2026-09-10)
+
+- **Tablet is the responsive floor, not a phone rewrite.** The authenticated admin app must stay usable at ~768–1023px (floor-walk physical audit). Below Ant Design `lg` (992px) Refine already replaces the sider with a hamburger drawer. From 992–1023px `TabletCollapse` icon-collapses the 216px sider. KPI cards reflow (`xs={12}`), tables use existing `scroll.x` plus overflow-x, Help’s sider stacks, login stacks below 900px. Phone-width layout for dashboard/tables is an explicit non-goal; `/scan/:code` remains the phone-first surface.
+- **Dark mode is declined.** The approved Prompt 12 system is light-only. We force light: `html[data-color-mode=light]`, `color-scheme: light`, CSS that keeps `#F8FAFC` under `prefers-color-scheme: dark`, and Ant Design `theme.defaultAlgorithm`. No dark-token counterpart — a filter/invert would fight the mockup.
+- **First-run = empty estate, not empty filtered lists.** `isFreshInstall` is true only when asset, employee, and location counts are all zero. A database with locations but no assets uses the normal “No assets yet” empty state. Seeded demo (1,250 assets) never shows the Welcome card.
+- **Welcome is not a wizard.** One card, four next actions (locations → Settings Categories → employees → assets). Categories UI and Add-employee modal were added so those links are not dead ends.
+- **A migrate-only database has no users.** First-run still matters once an admin exists (`SEED_ON_START=false` after a manual user, tests that mock `/dashboard/setup`, or wiping operational rows). We did not add public signup.
+

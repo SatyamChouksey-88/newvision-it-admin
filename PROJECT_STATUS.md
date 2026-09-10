@@ -1,55 +1,83 @@
 # NewVision — Project Status & Gap Audit
 
-This document consolidates everything decided across the research, Prompt 1 (build), Prompt 2 (review/fix/enhance), and Prompt 3 (UI-only pass), so there's one place that says what's covered, what's deliberately excluded, and what's still missing.
+This document is the current gap audit, cross-checked against the codebase after **Prompt 13** (investigation-based enhancements). It is not a copy of an earlier prompt’s status. For the build log see `PROGRESS.md`; for judgment calls see `DECISIONS.md`.
 
-## 1. What's covered (Prompt 1 — core build)
+## 1. What’s covered (Phases 1–4 — core product)
 
 - Auth + 5-role RBAC (Super Admin, IT Admin, IT Support, Manager, Employee)
 - Asset CRUD, categories, locations, departments, employees
-- Assign / Transfer / Retire actions with an enforced backend lifecycle state machine
-- Global search across asset code, serial, employee, model, location
-- Dashboard with metric cards (total/assigned/available/repair/warranty-expiring) and a location filter
-- CSV/Excel import and export for assets and employees
+- Assign / Transfer / Retire with an enforced backend lifecycle state machine
+- Global search across asset code, serial, employee, model, location, and maintenance ticket id
+- Dashboard: KPI cards, location filter, warranty-expiring table, needs-attention panel
+- CSV/Excel import and export for assets and employees (sync + background import jobs)
 - Append-only audit log with a restricted viewer
-- Maintenance/repair ticket module with vendor/cost/completion tracking
+- Maintenance/repair tickets with vendor/cost/completion tracking
 - Warranty expiry alerts (30/60/90-day scheduled email job)
-- Reports module (asset/employee/location/warranty), exportable to CSV/PDF
-- Employee profile page showing all assigned assets
+- Reports (asset / employee / location / warranty / supplies), CSV + PDF
+- Employee profile (assigned assets, accessories, consumables, requests, merged history)
 - Background-job bulk import with dry-run, duplicate detection, rollback (Phase 3)
-- Basic HR-export reconciliation (manual upload, Phase 3)
-- QR code generation + mobile scan-to-view page, REST API + webhooks (Phase 4, optional)
-- Tech stack fixed: React + Refine + Ant Design, NestJS + PostgreSQL + Prisma, Docker, CI
+- Manual HR-export reconciliation (Phase 3)
+- QR code generation + public `/scan/:code` page, REST API + webhooks (Phase 4)
+- Tech stack: React + Refine + Ant Design 5, NestJS + PostgreSQL + Prisma, Docker, CI
 
-## 2. What's covered (Prompt 2 — review, fixes, accessories, and missing pieces)
+## 2. What’s covered (Prompt 2 — review, requests, accessories, UX)
 
-- Full code review checklist against Phase 1–4 (lifecycle enforcement, audit logging, permission checks, N+1 queries, error handling)
-- Resolved the Employee-request/Manager-approve contradiction with a minimal single-step approval (not a workflow engine)
-- **Accessories & Consumables module** — chargers, mice, headsets, cables etc. tracked separately from serialized assets, with checkout/check-in for accessories and quantity-based issuing + low-stock alerts for consumables
-- Pagination and column sorting/filtering on every data table
-- Row-level expand-to-detail on tables
-- Copy-to-clipboard on IDs/codes (first pass — refined further in Prompt 3)
-- Scope-aware export (respects current filters, names the file accordingly)
-- Field-level status + reason for anything that can fail (import rows, rejected requests)
-- Import run history (started/completed, rows processed/created/updated/failed, duration)
-- In-app notifications (bell icon, tied to the previously-unused `notifications` table)
-- Loading/empty states on every list screen
-- Accessibility test pass (axe-core in Playwright)
-- Official branding: logo, compact logo, favicon URLs specified for use
+- Code review against Phases 1–4 (lifecycle, audit, permissions, N+1, errors)
+- Single-step asset/accessory requests (employee → manager → IT fulfill) — not a workflow engine
+- Accessories (checkout/check-in) and consumables (quantity + low-stock), separate from serialized assets
+- Pagination, sorting, filtering on every primary list
+- Copy-to-clipboard on IDs/codes; scope-aware export
+- Import run history; field-level failure reasons
+- In-app notifications; loading/empty/skeleton states
+- axe-core Playwright checks on dashboard, assets list, and asset detail
+- Official branding in `frontend/public/brand/`
 
-## 3. What's covered (Prompt 3 — premium UI-only pass)
+## 3. What’s covered (Prompts 3–4 — visual hierarchy and charts)
 
-> **Note:** Prompt 3 is scoped and specified here; implementation may be partial until that pass is completed in code.
+- Prompt 3 text hierarchy, two-tier shadows, and copy-button polish — later superseded visually by Prompts 9/12 tokens, but the work shipped
+- Prompt 4 dashboard charts: status donut, per-location bar, 12-month trend, Total KPI sparkline
+- Dedicated chart palette in `frontend/src/chartColors.ts` (separate from UI chrome)
+- Import-job outcome donut + failure-category bar on completed jobs
 
-- Fixed the broken/missing logo (download and store locally, verify it renders)
-- Fixed the core light-gray-on-white text readability problem with a concrete color hierarchy (`#1F1F1F` primary → `#BFBFBF` disabled-only)
-- Introduced a single accent color (used only on interactive/active/focused elements) plus a proper two-tier depth/shadow system
-- Refined copy-to-clipboard into one reusable, accessible component with on-button feedback
-- Added a persistent Help launcher with a searchable panel, per-feature articles with annotated screenshots, and contextual inline help on complex fields
-- A final consistency sweep across every screen (colors, spacing, radius, status badges, depth)
+## 4. What’s covered (Prompt 6 — DataGrid, Help, structured import errors)
 
-## 4. What's explicitly and deliberately excluded (by design, not by oversight)
+- Shared Excel-grade `DataGrid` (sort, filter, resize, reorder, show/hide, sticky header, density, Ctrl+C, CSV export)
+- `/help` documentation section: search, category nav, articles, annotated screenshots
+- Structured `ImportErrorCode` on each import row error (charts bucket by code first)
+- Accessories/consumables included in the demo seed
 
-These came up in the original 56-section research document but were intentionally kept out because they belong to full enterprise ITSM/CMDB suites (ServiceNow, GLPI-at-scale) and don't fit a ~1,250-asset, 3-location internal tool:
+## 5. What’s covered (Prompt 8 — self-audit, offboarding, history, drill-down)
+
+- Employee offboarding: return or reassign assets, check in accessories, deactivate linked user, keep history
+- Employee History tab — merged timeline (assignments, transfers, accessories, consumables, requests, maintenance, audit)
+- Employee list/profile RBAC: IT sees all; managers see self + reports; employees see self
+- DataGrid on remaining lists (consumables, requests, maintenance, locations, import jobs)
+- Dashboard KPI cards link to the filtered assets list
+- Help screenshots committed under `frontend/public/docs/screenshots/`
+
+## 6. What’s covered (Prompts 9 / 12 — design system + audit-branch merge)
+
+- Approved mockup tokens in `design-reference/DESIGN_TOKENS.md` / `frontend/src/theme.ts` (canvas `#F8FAFC`, links `#0958D9`, 8px radii, KPI accent bars)
+- Login two-column + estate panel; 216px sider with MANAGE + Sign out; 52px header with breadcrumb + ⌘K
+- Dashboard KPI tiles, Needs attention + Dismiss all, charts restored to match the mockup
+- Accessories card grid (table toggle), maintenance status chips, reports card grid, Help article chrome
+- Employee profile tabs: Assigned assets / Accessories & consumables / History / Requests
+- Keep me signed in uses `sessionStorage` when unchecked; warranty urgency ≤14 red / ≤45 amber
+- Functionality audit (history truncation, DataGrid overflow tooltips, ticket search, inactive-employee guards) merged to `main` via **PR #1**
+- DataGrid also on webhooks, reconciliation findings, and import mapping/errors
+
+## 7. What’s covered (Prompt 13 — docs, tablet, light-only, first-run)
+
+- `PROJECT_STATUS.md` rewritten against the live product (this file)
+- **Tablet-width admin (~768–1023px):** below 992px the sider is Refine’s hamburger drawer; 992–1023px it icon-collapses. KPI grid reflows (`xs={12}`), tables scroll horizontally, Help nav stacks, login stacks below 900px. Phone-width rewrite of the admin app is an explicit non-goal; the public scan page stays phone-first
+- **Light mode only:** OS `prefers-color-scheme: dark` is forced back to the approved light tokens (`data-color-mode="light"`, `color-scheme: light`, Ant Design `defaultAlgorithm`). No dark-token set
+- **First-run empty estate:** `GET /api/dashboard/setup` reports `freshInstall` only when assets, employees, and locations are all zero. Dashboard + assets/employees/locations lists show **Welcome to NewVision** with next actions. Seeded demo data never shows that card
+- Settings → **Categories** tab (create LAP/MON/…) and Employees → **Add employee**, so the first-run steps have real screens
+- Public `/scan/:code` restyled to Prompt 12 tokens; still a single-column 420px card, no login
+
+## 8. What’s explicitly and deliberately excluded (by design, not by oversight)
+
+These came up in the original research document but were kept out because they belong to full enterprise ITSM/CMDB suites and don’t fit a ~1,250-asset, 3-location internal tool:
 
 - CMDB / configuration-item relationship mapping and dependency graphs
 - IT service catalog, SLA tracking, service lifecycle management
@@ -58,22 +86,24 @@ These came up in the original 56-section research document but were intentionall
 - IAM/Joiner-Mover-Leaver automation, live AD/Entra sync
 - Vendor/contract management, procurement/purchase orders, IT financial management
 - Business continuity/disaster recovery tracking
-- A general-purpose, configurable workflow/approval engine (a minimal single-step approval was built instead, where genuinely needed)
+- A general-purpose, configurable workflow/approval engine (a minimal single-step approval was built instead)
 - Live reconciliation engine (a manual-upload version was built instead)
 - Network auto-discovery
 - AI/natural-language-query layer
+- **Phone-width layout for the authenticated admin app** (tablet is the floor; phones use the public scan page)
+- **Dark mode** (light-only, matching the approved design system)
 
 If any of these become a real, demonstrated need later, they should be scoped as a deliberate, separate addition — not folded in casually.
 
-## 5. Gaps — what's NOT yet covered by any prompt so far
+## 9. Remaining gaps (true leftovers, not silent undecided items)
 
-- ~~**The dashboard has no real charts.**~~ **Addressed in Prompt 4** — status donut, per-location bar chart, 12-month trend line, sparkline on Total KPI.
-- ~~**The import feature has no rich visual summary.**~~ **Addressed in Prompt 4** — donut for created/updated/failed/duplicates + error category bar chart on completed jobs.
-- ~~**No dedicated color strategy for data visualization exists yet.**~~ **Addressed in Prompt 4** — `frontend/src/chartColors.ts` (categorical palette separate from UI accent).
-- **Mobile/responsive behavior** hasn't been explicitly specified for the main dashboard/tables beyond the QR scan-to-view page (Phase 4), which was scoped as mobile-friendly on its own.
-- **Dark mode** has not been discussed or scoped anywhere — not necessarily needed, but worth naming as an explicit non-goal rather than a silent gap if that's the decision.
-- **Onboarding for a brand-new admin** (first-login experience, empty-database state beyond a generic empty state) hasn't been specifically designed.
+- **JWT refresh tokens** — access token only; 8h expiry. Noted since Phase 0 as future hardening
+- **Seed resets demo data** when `SEED_ON_START=true` (compose default). Documented; set `false` after first boot to persist edits
+- **Keyboard shortcuts** are strongest on assets/employees lists (`/` global search works everywhere)
+- **No self-service admin bootstrap** — a migrate-only database has no login until an admin user exists (seed, or create via a one-off). First-run UI assumes someone can already authenticate
 
-## 6. Recommended next step
+None of Prompt 6/8/9/12/13 product work is sitting as an undocumented gap.
 
-Address the dashboard/import visualization gap directly — this is the one concrete, well-defined thing from Section 5 that materially improves the "feel" of the product without reopening scope questions. That's what **Prompt 4** covers: real charts on the dashboard using a proper data-visualization color palette, and a visual, chart-based summary after any Excel/CSV import — while keeping the UI chrome itself exactly as restrained as Prompt 3 established (the added color lives in the data, not in buttons/backgrounds/text).
+## 10. Recommended next step
+
+Operate the seeded demo, or stand up a migrate-only database with one admin user and walk the Welcome card. Out-of-scope enterprise ideas stay in `FUTURE_IDEAS.md`. Session hardening (refresh tokens) is the most useful *deferred* engineering item if this is deployed beyond a trusted LAN.

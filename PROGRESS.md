@@ -189,6 +189,18 @@ Definition of Done: UI matches approved mockup look-and-feel; no functional regr
 - [x] Keep me signed in uses sessionStorage when unchecked; warranty urgency ≤14 red / ≤45 amber
 - [x] Docs updated to drop “pending / on a branch” language
 
+## Prompt 13 — Investigation-based enhancements ✅ COMPLETE
+
+- [x] `PROJECT_STATUS.md` rewritten against shipped Phases 1–4 and Prompts 2/4/6/8/9/12 + PR #1 merge (no longer frozen at Prompt 4)
+- [x] Tablet-width admin: auto-collapsed sider, reflowing KPIs, horizontal table scroll, stacked Help/login; documented phone-width as non-goal
+- [x] Light-only: `data-color-mode="light"` + `color-scheme: light` + Ant Design default algorithm; OS dark preference cannot invert chrome
+- [x] First-run Welcome card when `GET /dashboard/setup` reports `freshInstall` (all-zero locations/employees/assets); seeded demo unchanged
+- [x] Settings → Categories tab; Employees → Add employee modal (first-run steps need real screens)
+- [x] Public scan page restyled to Prompt 12 tokens; still single-column / no login
+- [x] Playwright coverage for welcome (mocked empty estate vs seeded), tablet sider/drawer, light-only under `prefers-color-scheme: dark`, phone-width scan overflow
+- [x] Docs: PROJECT_STATUS, PROJECT_DOCUMENTATION, PROGRESS, DECISIONS
+- [x] Tests: **52 unit + 67 integration = 119** backend; **40 Playwright** (incl. axe-core). Lint/tsc clean.
+
 ## Known issues
 
 - **Seed resets demo data on container start** when `SEED_ON_START=true` (the compose default). Convenient for demos, but restarting the backend wipes manual changes. Set `SEED_ON_START: "false"` in `docker-compose.yml` after the first boot to persist changes. Documented in README.
