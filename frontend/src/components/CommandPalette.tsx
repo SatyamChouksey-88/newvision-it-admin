@@ -52,6 +52,12 @@ const NAV_ROUTES: Record<string, string> = {
   'nav-settings': '/settings',
 };
 
+/** AntD preset Tag colors (`color="green"` etc.) fail WCAG AA contrast — explicit safe pairs instead. */
+const TAG_BLUE: React.CSSProperties = { color: '#1D4ED8', background: '#EFF6FF', borderColor: '#BFDBFE' };
+const TAG_GREEN: React.CSSProperties = { color: '#15803D', background: '#F0FDF4', borderColor: '#BBF7D0' };
+const TAG_PURPLE: React.CSSProperties = { color: '#6D28D9', background: '#F5F3FF', borderColor: '#DDD6FE' };
+const TAG_ORANGE: React.CSSProperties = { color: '#B45309', background: '#FFFBEB', borderColor: '#FDE68A' };
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -129,7 +135,7 @@ export function CommandPalette({ open, onClose }: Props) {
         items.push({
           key: `asset-${a.id}`,
           section: 'Assets',
-          icon: <Tag color="blue">Asset</Tag>,
+          icon: <Tag style={TAG_BLUE}>Asset</Tag>,
           label: `${a.assetCode} — ${a.brand ?? ''} ${a.model ?? ''}`.trim(),
           run: () => go(`/assets/show/${a.id}`),
         });
@@ -138,7 +144,7 @@ export function CommandPalette({ open, onClose }: Props) {
         items.push({
           key: `emp-${e.id}`,
           section: 'Employees',
-          icon: <Tag color="green">Employee</Tag>,
+          icon: <Tag style={TAG_GREEN}>Employee</Tag>,
           label: `${e.firstName} ${e.lastName} (${e.employeeCode})`,
           run: () => go(`/employees/show/${e.id}`),
         });
@@ -147,7 +153,7 @@ export function CommandPalette({ open, onClose }: Props) {
         items.push({
           key: `helpdesk-${t.id}`,
           section: 'Support tickets',
-          icon: <Tag color="purple">Ticket</Tag>,
+          icon: <Tag style={TAG_PURPLE}>Ticket</Tag>,
           label: `${t.ticketNumber} — ${t.subject}`,
           run: () => go(`/tickets/show/${t.id}`),
         });
@@ -156,7 +162,7 @@ export function CommandPalette({ open, onClose }: Props) {
         items.push({
           key: `maint-${t.id}`,
           section: 'Maintenance',
-          icon: <Tag color="orange">Repair</Tag>,
+          icon: <Tag style={TAG_ORANGE}>Repair</Tag>,
           label: `#${t.id} ${t.asset?.assetCode ?? ''} — ${t.issue}`,
           run: () =>
             go(
