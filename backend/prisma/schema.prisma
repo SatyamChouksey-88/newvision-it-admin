@@ -21,6 +21,21 @@ enum RoleName {
   EMPLOYEE
 }
 
+enum EmploymentType {
+  permanent
+  contract
+}
+
+enum ChecklistKind {
+  onboard
+  offboard
+}
+
+enum ChatChannelType {
+  dm
+  group
+}
+
 enum AssetStatus {
   available
   assigned
@@ -78,6 +93,7 @@ enum NotificationType {
   low_stock
   general
   support_ticket
+  chat_message
 }
 
 enum TicketStatus {
@@ -207,6 +223,8 @@ model User {
   ticketTemplates    TicketTemplate[]
   recordNotes        RecordNote[]
   ticketAttachments  TicketAttachment[]  @relation("TicketAttachmentUploader")
+  chatMemberships    ChatChannelMember[]
+  chatMessages       ChatMessage[]       @relation("ChatAuthor")
 
   @@map("users")
 }
@@ -256,8 +274,11 @@ model Employee {
   email        String    @unique
   phone        String?
   designation  String?
-  isActive     Boolean   @default(true) @map("is_active")
-  dateJoined   DateTime? @map("date_joined")
+  isActive         Boolean        @default(true) @map("is_active")
+  employmentType   EmploymentType @default(permanent) @map("employment_type")
+  contractEndDate  DateTime?      @map("contract_end_date")
+  dateJoined       DateTime?      @map("date_joined")
+  checklists       EmployeeChecklist[]
 
   departmentId Int?        @map("department_id")
   department   Department? @relation(fields: [departmentId], references: [id])
@@ -821,6 +842,90 @@ model TicketTemplate {
   updatedAt   DateTime       @updatedAt @map("updated_at")
 
   @@map("ticket_templates")
+}
+
+model ChecklistTemplate {
+  id        Int                     @id @default(autoincrement())
+  name      String
+  kind      ChecklistKind
+  items     ChecklistTemplateItem[]
+  createdAt DateTime                @default(now()) @map("created_at")
+  updatedAt DateTime                @updatedAt @map("updated_at")
+
+  @@map("checklist_templates")
+}
+
+model ChecklistTemplateItem {
+  id         Int                @id @default(autoincrement())
+  templateId Int                @map("template_id")
+  template   ChecklistTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  label      String
+  sortOrder  Int                @default(0) @map("sort_order")
+
+  @@map("checklist_template_items")
+}
+
+model EmployeeChecklist {
+  id         Int                      @id @default(autoincrement())
+  employeeId Int                      @map("employee_id")
+  employee   Employee                 @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  templateId Int?                     @map("template_id")
+  kind       ChecklistKind
+  status     String                   @default("in_progress")
+  items      EmployeeChecklistItem[]
+  createdAt  DateTime                 @default(now()) @map("created_at")
+
+  @@index([employeeId])
+  @@map("employee_checklists")
+}
+
+model ChatChannel {
+  id        Int                 @id @default(autoincrement())
+  type      ChatChannelType
+  name      String?
+  createdAt DateTime            @default(now()) @map("created_at")
+  members   ChatChannelMember[]
+  messages  ChatMessage[]
+
+  @@map("chat_channels")
+}
+
+model ChatChannelMember {
+  id         Int         @id @default(autoincrement())
+  channelId  Int         @map("channel_id")
+  channel    ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  userId     Int         @map("user_id")
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastReadAt DateTime?   @map("last_read_at")
+
+  @@unique([channelId, userId])
+  @@map("chat_channel_members")
+}
+
+model ChatMessage {
+  id        Int         @id @default(autoincrement())
+  channelId Int         @map("channel_id")
+  channel   ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  authorId  Int         @map("author_id")
+  author    User        @relation("ChatAuthor", fields: [authorId], references: [id])
+  body      String
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  @@index([channelId, createdAt])
+  @@map("chat_messages")
+}
+
+model EmployeeChecklistItem {
+  id          Int                @id @default(autoincrement())
+  checklistId Int                @map("checklist_id")
+  checklist   EmployeeChecklist  @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  label       String
+  done        Boolean            @default(false)
+  doneAt      DateTime?          @map("done_at")
+  doneById    Int?               @map("done_by_id")
+  sortOrder   Int                @default(0) @map("sort_order")
+
+  @@map("employee_checklist_items")
 }
 
 model RecordNote {

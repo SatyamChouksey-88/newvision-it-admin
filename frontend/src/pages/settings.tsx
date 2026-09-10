@@ -11,6 +11,7 @@ import { DepartmentsPanel } from './settings/departments';
 import { HelpdeskSettings } from './settings/helpdesk';
 import { ImportJobsPanel } from './settings/import-jobs';
 import { ReconciliationPanel } from './settings/reconciliation';
+import { ChecklistsPanel } from './settings/checklists';
 import { UsersPanel } from './settings/users';
 import { WebhooksPanel } from './settings/webhooks';
 
@@ -100,6 +101,7 @@ export function SettingsPage() {
             { key: 'imports', label: 'Import jobs', children: <ImportJobsPanel /> },
             { key: 'reconcile', label: 'Reconciliation', children: <ReconciliationPanel /> },
             { key: 'webhooks', label: 'Webhooks', children: <WebhooksPanel /> },
+            { key: 'checklists', label: 'Onboard / Offboard', children: <ChecklistsPanel /> },
           ]
         : []),
       ...(isSuperAdmin ? [{ key: 'users', label: 'Users', children: <UsersPanel /> }] : []),

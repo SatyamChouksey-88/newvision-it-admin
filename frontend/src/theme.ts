@@ -5,7 +5,8 @@ import type { ThemeConfig } from 'antd';
 export const COLOR_CANVAS = '#F8FAFC';
 export const COLOR_SURFACE = '#FFFFFF';
 export const COLOR_SURFACE_MUTED = '#F1F4F8';
-export const COLOR_BORDER = '#E9EDF2';
+/** Visible card/table outline on #F8FAFC — slightly stronger than the mockup hairline. */
+export const COLOR_BORDER = '#D5DEE8';
 export const COLOR_BORDER_SECONDARY = '#E2E8F0';
 
 export const COLOR_TEXT_PRIMARY = '#1F1F1F';
@@ -21,7 +22,8 @@ export const COLOR_LINK = '#0958D9';
 export const COLOR_ACCENT_BG = '#F0F7FF';
 export const COLOR_ACCENT_BG_HOVER = '#D6E8FF';
 export const COLOR_SELECTED_ROW = '#F5FAFF';
-export const COLOR_INPUT_BORDER = '#E4E9F0';
+export const COLOR_INPUT_BORDER = '#C9D3DF';
+export const COLOR_TABLE_HEADER = '#EEF4FB';
 
 export const SHADOW_RAISED = '0 2px 6px rgba(16, 24, 40, 0.06)';
 export const SHADOW_FLOATING = '0 2px 6px rgba(16, 24, 40, 0.06)';
@@ -104,8 +106,8 @@ export const newVisionTheme: ThemeConfig = {
       cellPaddingInline: 12,
       cellFontSize: 13,
       cellFontSizeSM: 13,
-      headerBg: COLOR_SURFACE,
-      headerColor: '#334155',
+      headerBg: COLOR_TABLE_HEADER,
+      headerColor: '#1E3A5F',
       headerSortActiveBg: COLOR_ACCENT_BG,
       rowHoverBg: COLOR_SELECTED_ROW,
       borderColor: COLOR_BORDER,
@@ -122,10 +124,14 @@ export const newVisionTheme: ThemeConfig = {
       borderRadius: RADIUS_SM,
       colorBorder: COLOR_INPUT_BORDER,
       activeBorderColor: COLOR_ACCENT,
-      hoverBorderColor: COLOR_BORDER_SECONDARY,
+      hoverBorderColor: '#91CAFF',
     },
     Select: {
       borderRadius: RADIUS_SM,
+      colorBorder: COLOR_INPUT_BORDER,
+      optionSelectedBg: COLOR_ACCENT_BG,
+      optionActiveBg: COLOR_ACCENT_BG,
+      selectorBg: COLOR_SURFACE_MUTED,
     },
     Tag: {
       borderRadiusSM: 4,

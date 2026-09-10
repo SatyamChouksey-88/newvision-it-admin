@@ -1,5 +1,6 @@
 import { useGetIdentity, useShow } from '@refinedev/core';
 import {
+  Avatar,
   Button,
   Card,
   Checkbox,
@@ -7,6 +8,7 @@ import {
   Form,
   Input,
   InputNumber,
+  Mentions,
   Rate,
   Select,
   Space,
@@ -18,6 +20,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { ContactCard } from '../../components/ContactCard';
 import { CopyButton } from '../../components/CopyButton';
+import { CopyEmailButton } from '../../components/CopyEmailButton';
 import { EmptyState } from '../../components/EmptyState';
 import { EmployeeSelect } from '../../components/EmployeeSelect';
 import { EventTimeline, type TimelineEvent } from '../../components/EventTimeline';
@@ -138,6 +141,9 @@ export function TicketShow() {
           <Space>
             <span data-testid="ticket-number">{ticket?.ticketNumber}</span>
             {ticket?.ticketNumber ? <CopyButton value={ticket.ticketNumber} label="ticket number" /> : null}
+            {ticket ? (
+              <CopyButton value={`${window.location.origin}/tickets/show/${ticket.id}`} label="ticket link" />
+            ) : null}
             {ticket?.channel === 'email' ? <Tag data-testid="ticket-channel">Email</Tag> : <Tag>Portal</Tag>}
             {ticket?.unmatchedSender ? <Tag color="orange">Unmatched sender</Tag> : null}
             {ticket?.slaLabel ? (
@@ -157,6 +163,7 @@ export function TicketShow() {
         }
         extra={
           <Space>
+            {isStaff && ticket ? <CopyEmailButton ticket={ticket} /> : null}
             {isStaff && ticket ? (
               <TicketStatusSelect value={ticket.status} onChange={(s) => void transition(s)} />
             ) : ticket ? (
@@ -278,6 +285,9 @@ export function TicketShow() {
               }}
             >
               <Space>
+                <Avatar size={22}>
+                  {(c.author?.fullName ?? 'U').slice(0, 1)}
+                </Avatar>
                 <Typography.Text strong>
                   {c.author?.fullName ?? (c as { unmatchedSender?: string }).unmatchedSender ?? 'Unknown'}
                 </Typography.Text>
@@ -304,8 +314,23 @@ export function TicketShow() {
                 />
               </Form.Item>
             ) : null}
-            <Form.Item name="body" rules={[{ required: true }]}>
-              <Input.TextArea rows={3} aria-label="Comment" />
+            <Form.Item name="body" rules={[{ required: true }]} extra="Type @ to tag a teammate (Jira-style). They get a notification.">
+              <Mentions
+                rows={3}
+                aria-label="Comment"
+                placeholder="Comment — use @name to tag someone"
+                options={[
+                  ...staff.map((s) => ({ value: s.fullName, label: s.fullName })),
+                  ...(ticket?.raisedBy
+                    ? [
+                        {
+                          value: `${ticket.raisedBy.firstName} ${ticket.raisedBy.lastName}`,
+                          label: `${ticket.raisedBy.firstName} ${ticket.raisedBy.lastName} · ${ticket.raisedBy.employeeCode}`,
+                        },
+                      ]
+                    : []),
+                ]}
+              />
             </Form.Item>
             {isStaff ? (
               <Form.Item name="isInternal" valuePropName="checked">
@@ -476,7 +501,7 @@ export function TicketShow() {
         </Card>
       ) : null}
 
-      <Card title="Timeline">
+      <Card title="Activity / History">
         <EventTimeline events={timeline} />
       </Card>
 

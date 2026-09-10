@@ -27,6 +27,7 @@ export interface EmployeeListQuery extends ListQuery {
   departmentId?: string;
   /** 'true' | 'false' — omit for everyone. */
   isActive?: string;
+  employmentType?: string;
 }
 
 const employeeInclude = {
@@ -60,6 +61,9 @@ export class EmployeesService {
       ...(query.departmentId ? { departmentId: Number(query.departmentId) } : {}),
       ...(query.isActive === 'true' ? { isActive: true } : {}),
       ...(query.isActive === 'false' ? { isActive: false } : {}),
+      ...(query.employmentType === 'permanent' || query.employmentType === 'contract'
+        ? { employmentType: query.employmentType }
+        : {}),
       ...(query.q
         ? {
             OR: [
@@ -98,6 +102,11 @@ export class EmployeesService {
           include: { consumable: true },
           orderBy: { issuedAt: 'desc' },
           take: 500,
+        },
+        checklists: {
+          include: { items: { orderBy: { sortOrder: 'asc' } } },
+          orderBy: { createdAt: 'desc' },
+          take: 10,
         },
       },
     });
@@ -485,6 +494,8 @@ export class EmployeesService {
         managerId: dto.managerId ?? null,
         dateJoined: dto.dateJoined ? new Date(dto.dateJoined) : null,
         isActive: dto.isActive ?? true,
+        employmentType: dto.employmentType ?? 'permanent',
+        contractEndDate: dto.contractEndDate ? new Date(dto.contractEndDate) : null,
       },
     });
     await this.audit.record({
@@ -532,12 +543,14 @@ export class EmployeesService {
 
   async update(id: number, dto: UpdateEmployeeDto, actor: AuthUser) {
     const before = await this.get(id, actor);
+    const { createLogin: _c, loginRole: _r, contractEndDate, dateJoined, ...rest } = dto;
     const employee = await this.prisma.employee.update({
       where: { id },
       data: {
-        ...dto,
+        ...rest,
         email: dto.email ? dto.email.toLowerCase() : undefined,
-        dateJoined: dto.dateJoined ? new Date(dto.dateJoined) : undefined,
+        dateJoined: dateJoined ? new Date(dateJoined) : undefined,
+        contractEndDate: contractEndDate ? new Date(contractEndDate) : undefined,
       },
     });
     await this.audit.record({

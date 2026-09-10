@@ -1,4 +1,4 @@
-import { LaptopOutlined, LogoutOutlined, UndoOutlined } from '@ant-design/icons';
+import { LaptopOutlined, LogoutOutlined, SwapOutlined, UndoOutlined } from '@ant-design/icons';
 import { useCustom, useGetIdentity } from '@refinedev/core';
 import {
   Alert,
@@ -18,8 +18,8 @@ import {
   Tag,
   Typography,
 } from 'antd';
-import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { useEffect, useState } from 'react';
+import { Link, useParams } from 'react-router';
 import { WarrantyDays } from '../../components/Cells';
 import { CopyButton } from '../../components/CopyButton';
 import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid';
@@ -30,6 +30,11 @@ import { StatusTag } from '../../components/StatusTag';
 import { useToast } from '../../components/Toast';
 import type { Identity } from '../../providers/authProvider';
 import { apiErrorMessage, httpClient } from '../../providers/axios';
+import type { Asset, Location } from '../../types';
+import { employeeLabel } from '../../utils/employeeLabel';
+import { employmentStatus } from '../../utils/employmentStatus';
+import { TransferModal } from '../assets/actions';
+import { AssignToEmployeeModal } from './AssignToEmployeeModal';
 
 interface HistoryEvent {
   id: string;
@@ -42,7 +47,6 @@ interface HistoryEvent {
 
 export function EmployeeProfile() {
   const { id } = useParams();
-  const navigate = useNavigate();
   const toast = useToast();
   const { data: identity } = useGetIdentity<Identity>();
   const canOffboard = ['SUPER_ADMIN', 'IT_ADMIN'].includes(identity?.role ?? '');
@@ -52,6 +56,9 @@ export function EmployeeProfile() {
   const [offboardNotes, setOffboardNotes] = useState('');
   const [offboarding, setOffboarding] = useState(false);
   const [reinstating, setReinstating] = useState(false);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [transferTarget, setTransferTarget] = useState<Asset | null>(null);
+  const [locations, setLocations] = useState<Location[]>([]);
 
   const { query } = useCustom<any>({
     url: `employees/${id}/profile`,
@@ -63,6 +70,13 @@ export function EmployeeProfile() {
     method: 'get',
     queryOptions: { queryKey: ['employee-history', id], enabled: !!id },
   });
+
+  useEffect(() => {
+    httpClient
+      .get('/locations', { params: { _start: 0, _end: 50 } })
+      .then(({ data }) => setLocations(data.data ?? data ?? []))
+      .catch(() => undefined);
+  }, []);
 
   const isFetching = query.isFetching;
   const emp = query.data?.data;
@@ -123,11 +137,7 @@ export function EmployeeProfile() {
         <Descriptions.Item label="Department">{emp?.department?.name ?? '—'}</Descriptions.Item>
         <Descriptions.Item label="Location">{emp?.location?.name ?? '—'}</Descriptions.Item>
         <Descriptions.Item label="Status">
-          {emp?.isActive === false ? (
-            <Tag color="default">Inactive</Tag>
-          ) : (
-            <Tag color="success">Active</Tag>
-          )}
+          <Tag color={employmentStatus(emp).color}>{employmentStatus(emp).label}</Tag>
         </Descriptions.Item>
       </Descriptions>
 
@@ -147,6 +157,62 @@ export function EmployeeProfile() {
       ) : null}
 
       <RecordNotes entityType="Employee" entityId={emp?.id} canAdd={canOffboard} />
+
+      {canOffboard && emp ? (
+        <Card size="small" title="Onboard / offboard checklist">
+          <Space wrap style={{ marginBottom: 12 }}>
+            <Button
+              size="small"
+              onClick={async () => {
+                await httpClient.post(`/employees/${emp.id}/checklists`, { kind: 'onboard' });
+                void query.refetch();
+              }}
+            >
+              Start onboarding
+            </Button>
+            <Button
+              size="small"
+              onClick={async () => {
+                await httpClient.post(`/employees/${emp.id}/checklists`, { kind: 'offboard' });
+                void query.refetch();
+              }}
+            >
+              Start offboarding
+            </Button>
+          </Space>
+          {(emp.checklists ?? []).map(
+            (cl: {
+              id: number;
+              kind: string;
+              status: string;
+              items: { id: number; label: string; done: boolean }[];
+            }) => (
+              <div key={cl.id} style={{ marginBottom: 12 }}>
+                <Typography.Text strong>
+                  {cl.kind} · {cl.status}
+                </Typography.Text>
+                {cl.items.map((item) => (
+                  <div key={item.id}>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={item.done}
+                        onChange={async (e) => {
+                          await httpClient.patch(`/employee-checklist-items/${item.id}`, {
+                            done: e.target.checked,
+                          });
+                          void query.refetch();
+                        }}
+                      />{' '}
+                      {item.label}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            ),
+          )}
+        </Card>
+      ) : null}
 
       {emp?.isActive === false && (
         <Alert
@@ -306,14 +372,7 @@ export function EmployeeProfile() {
                 <Button href={`mailto:${emp.email}`}>Email</Button>
               ) : null}
               {canOffboard && emp?.isActive !== false && (
-                <Button
-                  type="primary"
-                  onClick={() =>
-                    navigate(
-                      `/assets?filters[0][field]=status&filters[0][operator]=eq&filters[0][value]=available`,
-                    )
-                  }
-                >
+                <Button type="primary" onClick={() => setAssignOpen(true)}>
                   Assign asset
                 </Button>
               )}
@@ -385,6 +444,41 @@ export function EmployeeProfile() {
                       dataIndex: 'warrantyEnd',
                       render: (v) => <WarrantyDays warrantyEnd={v} />,
                     },
+                    ...(canOffboard
+                      ? [
+                          {
+                            title: 'Actions',
+                            gridKey: 'actions',
+                            render: (_: unknown, r: Asset) => (
+                              <Space size={4} onClick={(e) => e.stopPropagation()}>
+                                <Button
+                                  size="small"
+                                  icon={<SwapOutlined />}
+                                  onClick={() => setTransferTarget(r)}
+                                >
+                                  Transfer
+                                </Button>
+                                <Button
+                                  size="small"
+                                  onClick={async () => {
+                                    try {
+                                      await httpClient.post(`/assets/${r.id}/status`, {
+                                        status: 'available',
+                                      });
+                                      toast.success(`${r.assetCode} returned to pool`);
+                                      void query.refetch();
+                                    } catch (e) {
+                                      toast.error(apiErrorMessage(e, 'Could not return asset'));
+                                    }
+                                  }}
+                                >
+                                  Return
+                                </Button>
+                              </Space>
+                            ),
+                          },
+                        ]
+                      : []),
                   ]}
                 />
               ),
@@ -424,6 +518,27 @@ export function EmployeeProfile() {
         />
       </Card>
 
+      <AssignToEmployeeModal
+        employeeId={Number(id)}
+        employeeLabel={employeeLabel(emp)}
+        open={assignOpen}
+        onClose={() => setAssignOpen(false)}
+        onDone={() => {
+          setAssignOpen(false);
+          void query.refetch();
+          void historyQuery.refetch();
+        }}
+      />
+      <TransferModal
+        asset={transferTarget}
+        locations={locations}
+        onClose={() => setTransferTarget(null)}
+        onDone={() => {
+          setTransferTarget(null);
+          void query.refetch();
+          void historyQuery.refetch();
+        }}
+      />
       <Modal
         open={offboardOpen}
         title={`Offboard ${emp?.firstName ?? ''} ${emp?.lastName ?? ''}`}

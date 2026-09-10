@@ -30,7 +30,6 @@ import { EmptyState } from '../../components/EmptyState';
 import { FirstRunWelcome } from '../../components/FirstRunWelcome';
 import { ChipSelect } from '../../components/ChipSelect';
 import { AssetStatusSelect } from '../../components/AssetStatusSelect';
-import { StatusLegend } from '../../components/StatusLegend';
 import { ASSET_STATUS_OPTIONS, StatusTag } from '../../components/StatusTag';
 import { TablePagination } from '../../components/TablePagination';
 import { TableSkeleton } from '../../components/TableSkeleton';
@@ -338,7 +337,6 @@ export function AssetList() {
       }
     >
       <div className="nv-filter-row">
-        <StatusLegend />
         <Input.Search
           aria-label="Search assets"
           placeholder="Search code, serial, model…"
@@ -350,6 +348,7 @@ export function AssetList() {
         />
         <ChipSelect
           label="Status"
+          tone="status"
           allowClear
           aria-label="Filter by status"
           placeholder="All"
@@ -359,6 +358,7 @@ export function AssetList() {
         />
         <ChipSelect
           label="Location"
+          tone="location"
           allowClear
           aria-label="Filter by location"
           placeholder="All"
@@ -368,6 +368,7 @@ export function AssetList() {
         />
         <ChipSelect
           label="Category"
+          tone="category"
           allowClear
           aria-label="Filter by category"
           placeholder="All"
@@ -377,6 +378,7 @@ export function AssetList() {
         />
         <ChipSelect
           label="Department"
+          tone="department"
           allowClear
           aria-label="Filter by department"
           placeholder="All"
@@ -470,7 +472,8 @@ export function AssetList() {
           onChange={tableProps.onChange}
           onExport={exportCsv}
           exportFilename="assets_export.csv"
-          scroll={{ x: 1100 }}
+          scroll={{ x: 1600 }}
+          quickFilter={false}
           rowSelection={
             canManage
               ? {
@@ -557,7 +560,7 @@ export function AssetList() {
                     to={`/employees/show/${r.assignedEmployee.id}`}
                     onClick={(e) => e.stopPropagation()}
                   >
-                    {r.assignedEmployee.firstName} {r.assignedEmployee.lastName}
+                    {`${r.assignedEmployee.firstName} ${r.assignedEmployee.lastName} · ${r.assignedEmployee.employeeCode}`}
                   </Link>
                 ) : (
                   '—'

@@ -17,6 +17,7 @@ import type { Identity } from '../../providers/authProvider';
 import { httpClient } from '../../providers/axios';
 import type { Department, Employee, Location } from '../../types';
 import { ChipSelect } from '../../components/ChipSelect';
+import { employmentStatus } from '../../utils/employmentStatus';
 import { CreateEmployeeModal } from './CreateEmployeeModal';
 
 type StatusFilter = 'active' | 'inactive' | 'all';
@@ -122,8 +123,18 @@ export function EmployeeList() {
         }}
       />
       <div className="nv-filter-row">
+        <Input.Search
+          placeholder="Search name or employee ID…"
+          allowClear
+          aria-label="Search employees"
+          style={{ width: 260, flex: '0 0 260px' }}
+          key={String(active.q ?? '')}
+          defaultValue={(active.q as string | undefined) ?? ''}
+          onSearch={(v) => setFilter('q', v.trim())}
+        />
         <ChipSelect<StatusFilter>
           label="Status"
+          tone="status"
           aria-label="Filter by employment status"
           value={statusValue}
           options={STATUS_OPTIONS}
@@ -135,7 +146,21 @@ export function EmployeeList() {
           }
         />
         <ChipSelect
+          label="Type"
+          tone="category"
+          allowClear
+          aria-label="Filter by employment type"
+          placeholder="All types"
+          options={[
+            { label: 'Permanent', value: 'permanent' },
+            { label: 'Contract', value: 'contract' },
+          ]}
+          value={active.employmentType as 'permanent' | 'contract' | undefined}
+          onChange={(v) => setFilter('employmentType', v)}
+        />
+        <ChipSelect
           label="Location"
+          tone="location"
           allowClear
           aria-label="Filter by location"
           placeholder="All"
@@ -145,6 +170,7 @@ export function EmployeeList() {
         />
         <ChipSelect
           label="Department"
+          tone="department"
           allowClear
           aria-label="Filter by department"
           placeholder="All"
@@ -205,22 +231,11 @@ export function EmployeeList() {
             fixFirstColumn
             serverSide
             onChange={tableProps.onChange}
-            quickFilterPlaceholder="Filter rows…"
+            quickFilter={false}
             onRow={(record) => ({
               onClick: () => navigate(`/employees/show/${record.id}`),
             })}
             rowClassName={(r) => (r.isActive === false ? 'nv-row-inactive' : '')}
-            toolbarExtra={
-              <Input.Search
-                placeholder="Search name, code, email…"
-                allowClear
-                aria-label="Search employees"
-                style={{ width: 260 }}
-                key={String(active.q ?? '')}
-                defaultValue={(active.q as string | undefined) ?? ''}
-                onSearch={(v) => setFilter('q', v.trim())}
-              />
-            }
             columns={[
               {
                 title: 'Employee',
@@ -234,7 +249,7 @@ export function EmployeeList() {
                       primary={
                         <Space size={4}>
                           {`${r.firstName} ${r.lastName}`}
-                          {r.isActive === false ? <Tag>Inactive</Tag> : null}
+                          <Tag color={employmentStatus(r).color}>{employmentStatus(r).label}</Tag>
                         </Space>
                       }
                       sub={r.employeeCode}

@@ -41,7 +41,7 @@ const ROLE_COLOR: Record<string, string> = {
   EMPLOYEE: 'default',
 };
 
-/** Settings → Users (Super Admin only, B1/B3) — closes the documented-but-missing user:manage gap. */
+/** Settings → Users (Super Admin only). Only Super Admin can create IT Admins and other roles. */
 export function UsersPanel() {
   const { message } = AntdApp.useApp();
   const [rows, setRows] = useState<UserRow[]>([]);
@@ -123,9 +123,9 @@ export function UsersPanel() {
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-        Every login into NewVision — who can sign in, their role, and whether it's linked to an
-        employee record. New logins get an email to set their own password; nobody types or sees a
-        temporary password here.
+        Role hierarchy (only Super Admin can create or promote logins): Super Admin → IT Admin →
+        IT Support → Manager → Employee. IT Admin cannot create Super Admin. New logins get an
+        email to set their own password.
       </Typography.Paragraph>
       <div>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>

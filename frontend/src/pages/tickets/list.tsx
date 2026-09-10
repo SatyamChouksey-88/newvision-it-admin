@@ -5,6 +5,7 @@ import { Button, Card, Form, Input, Modal, Select, Space, Tag, Typography } from
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { CopyButton } from '../../components/CopyButton';
+import { CopyEmailButton } from '../../components/CopyEmailButton';
 import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid';
 import { EmptyState } from '../../components/EmptyState';
 import { StatusLegend } from '../../components/StatusLegend';
@@ -245,6 +246,7 @@ export function TicketList() {
                   <Space size={4}>
                     <Link to={`/tickets/show/${r.id}`}>{v}</Link>
                     <CopyButton value={v} label="ticket number" />
+                    {isStaff ? <CopyEmailButton compact ticket={r} /> : null}
                     {r.channel === 'email' ? <Tag>Email</Tag> : null}
                     {r.slaLabel ? (
                       <Tag color={r.slaState === 'overdue' ? 'red' : r.slaState === 'soon' ? 'gold' : undefined}>

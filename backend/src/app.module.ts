@@ -9,6 +9,7 @@ import { ConsumablesModule } from './consumables/consumables.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { CategoriesModule } from './categories/categories.module';
+import { ChatModule } from './chat/chat.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { DashboardModule } from './dashboard/dashboard.module';
@@ -61,6 +62,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     NotesModule,
     RecordsModule,
     UsersModule,
+    ChatModule,
   ],
   providers: [
     // Order matters: authenticate first, then check roles. Both run globally.

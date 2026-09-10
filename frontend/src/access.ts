@@ -90,6 +90,7 @@ export interface NavItem {
   label: string;
   resource: string;
   badgeKey?: 'assets' | 'employees' | 'maintenance' | 'requests' | 'tickets';
+  hint?: string;
 }
 
 /** Role-specific sidebar. Labels change for My IT / Manager so the shell is visibly different. */

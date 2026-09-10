@@ -466,6 +466,7 @@ export class TicketsService {
       summary: `${args.isInternal ? 'Internal note' : 'Comment'} on ${ticket.ticketNumber}`,
       changedById: args.authorId ?? undefined,
     });
+    await this.notifyMentions(ticket.id, ticket.ticketNumber, args.body, args.authorId);
     if (!args.isInternal) {
       const excerpt = args.body.slice(0, 200);
       const commentEmail = ticketCommentEmail({
@@ -1274,6 +1275,36 @@ export class TicketsService {
   private async userIdForEmployee(employeeId: number) {
     const u = await this.prisma.user.findUnique({ where: { employeeId } });
     return u?.id ?? null;
+  }
+
+  private async notifyMentions(
+    ticketId: number,
+    ticketNumber: string,
+    body: string,
+    authorId: number | null,
+  ) {
+    const tags = [...body.matchAll(/@([A-Za-z][A-Za-z0-9._ -]{1,40})/g)].map((m) => m[1].trim());
+    if (tags.length === 0) return;
+    const users = await this.prisma.user.findMany({
+      where: {
+        isActive: true,
+        OR: tags.flatMap((t) => [
+          { fullName: { contains: t, mode: 'insensitive' as const } },
+          { email: { contains: t.replace(/\s+/g, '.'), mode: 'insensitive' as const } },
+        ]),
+      },
+      select: { id: true },
+      take: 20,
+    });
+    const ids = users.map((u) => u.id).filter((id) => id !== authorId);
+    if (ids.length === 0) return;
+    await this.notifyUsers(
+      ids,
+      `You were mentioned on ${ticketNumber}`,
+      body.slice(0, 200),
+      ticketId,
+      true,
+    );
   }
 
   private async notifyRequesterAndWatchers(

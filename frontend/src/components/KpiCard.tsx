@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Tooltip } from 'antd';
 import { Link } from 'react-router';
 import {
   COLOR_BORDER,
@@ -61,7 +62,9 @@ export function KpiCard({
           }}
         >
           <span style={{ color: accentColor, fontSize: 12, lineHeight: 1 }}>{icon}</span>
-          {title}
+          <Tooltip title={subtitle ? `${title}: ${subtitle}` : title}>
+            <span>{title}</span>
+          </Tooltip>
         </div>
         <div
           style={{

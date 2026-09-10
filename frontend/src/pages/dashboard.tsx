@@ -2,20 +2,18 @@ import {
   AlertOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
+  CustomerServiceOutlined,
   DatabaseOutlined,
   InboxOutlined,
   MinusCircleOutlined,
   ToolOutlined,
-  WarningOutlined,
 } from '@ant-design/icons';
 import { useCustom, useGetIdentity } from '@refinedev/core';
-import { Alert, Button, Card, Col, Row, Space, Typography } from 'antd';
+import { Alert, Button, Card, Col, DatePicker, Row, Space, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { isEmployee, isItConsole, isManager } from '../access';
 import { LocationBreakdownTable, StatusBreakdownTable } from '../components/BreakdownList';
-import { WarrantyDays } from '../components/Cells';
-import { DataGrid } from '../components/DataGrid/DataGrid';
 import { FirstRunWelcome } from '../components/FirstRunWelcome';
 import { KpiCard } from '../components/KpiCard';
 import { LiveTimestamp } from '../components/LiveTimestamp';
@@ -33,7 +31,6 @@ import {
   KPI_REPAIR,
   KPI_RETIRED,
   KPI_TOTAL,
-  KPI_WARRANTY,
 } from '../theme';
 import type {
   AssetStatus,
@@ -45,14 +42,14 @@ import type {
 } from '../types';
 import { StatusTag } from '../components/StatusTag';
 
-interface WarrantyRow {
-  id: number;
-  assetCode: string;
-  brand?: string;
-  model?: string;
-  location?: string;
-  warrantyEnd?: string;
-  daysRemaining: number | null;
+interface TicketSummary {
+  open: number;
+  unassigned: number;
+  inProgress: number;
+  resolved: number;
+  created: number;
+  due: number;
+  preset: string;
 }
 
 const STATUS_ORDER: AssetStatus[] = [
@@ -302,13 +299,22 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
     if (m) setLastUpdated(Date.now());
   }, [m]);
 
-  const { query: warrantyQuery } = useCustom<WarrantyRow[]>({
-    url: 'dashboard/warranty-expiring',
+  const [ticketPreset, setTicketPreset] = useState<'today' | 'yesterday' | 'tomorrow' | 'range'>('today');
+  const [ticketRange, setTicketRange] = useState<[string, string] | null>(null);
+  const { query: ticketsQuery } = useCustom<TicketSummary>({
+    url: 'dashboard/tickets',
     method: 'get',
-    config: { query: { withinDays: 90, ...(locationId ? { locationId } : {}) } },
-    queryOptions: { queryKey: ['dashboard-warranty', locationId] },
+    config: {
+      query: {
+        preset: ticketPreset,
+        ...(ticketPreset === 'range' && ticketRange
+          ? { from: ticketRange[0], to: ticketRange[1] }
+          : {}),
+      },
+    },
+    queryOptions: { queryKey: ['dashboard-tickets', ticketPreset, ticketRange?.join(':')] },
   });
-  const warrantyRows = warrantyQuery.data?.data ?? [];
+  const ticketSummary = ticketsQuery.data?.data;
 
   const { query: attentionQuery } = useCustom<DashboardAttention>({
     url: 'dashboard/attention',
@@ -331,10 +337,10 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
   });
   const byLocation = byLocationQuery.data?.data ?? [];
 
-  const loadFailed = metricsQuery.isError || warrantyQuery.isError || attentionQuery.isError;
+  const loadFailed = metricsQuery.isError || ticketsQuery.isError || attentionQuery.isError;
   const retryAll = () => {
     void metricsQuery.refetch();
-    void warrantyQuery.refetch();
+    void ticketsQuery.refetch();
     void attentionQuery.refetch();
     if (!locationId) void byLocationQuery.refetch();
   };
@@ -398,6 +404,7 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
         {!freshInstall && (
           <Col>
             <ChipSelect
+              tone="location"
               aria-label="Filter dashboard by location"
               allowClear
               placeholder="All locations"
@@ -444,7 +451,7 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
               <KpiCard title="Retired" value={m?.retired ?? 0} icon={<InboxOutlined />} accentColor={KPI_RETIRED} href={assetsHref({ status: 'retired', locationId })} subtitle="End of life" />
             </Col>
             <Col xs={12} sm={8} lg={4}>
-              <KpiCard title="Warranty ≤90d" value={m?.warrantyExpiring ?? 0} icon={<WarningOutlined />} accentColor={KPI_WARRANTY} href={assetsHref({ warrantyExpiringInDays: 90, locationId })} subtitle="Needs renewal" />
+              <KpiCard title="Open tickets" value={ticketSummary?.open ?? 0} icon={<CustomerServiceOutlined />} accentColor={KPI_REPAIR} href="/tickets" subtitle="Estate support queue" />
             </Col>
           </Row>
 
@@ -521,44 +528,60 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
             title={
               <Space>
                 <ClockCircleOutlined />
-                Warranty expiring
+                Support tickets
               </Space>
             }
             extra={
-              <Link to={assetsHref({ warrantyExpiringInDays: 90, locationId })} style={{ fontSize: 12 }}>
-                View all on Assets
-              </Link>
+              <Space size={8} wrap>
+                {(['today', 'yesterday', 'tomorrow'] as const).map((p) => (
+                  <Button
+                    key={p}
+                    size="small"
+                    type={ticketPreset === p ? 'primary' : 'default'}
+                    onClick={() => setTicketPreset(p)}
+                  >
+                    {p[0].toUpperCase() + p.slice(1)}
+                  </Button>
+                ))}
+                <DatePicker.RangePicker
+                  size="small"
+                  onChange={(vals) => {
+                    if (!vals?.[0] || !vals?.[1]) {
+                      setTicketRange(null);
+                      setTicketPreset('today');
+                      return;
+                    }
+                    setTicketRange([vals[0].format('YYYY-MM-DD'), vals[1].format('YYYY-MM-DD')]);
+                    setTicketPreset('range');
+                  }}
+                />
+                <Link to="/tickets" style={{ fontSize: 12 }}>
+                  Open queue
+                </Link>
+              </Space>
             }
-            loading={isFetching}
+            loading={ticketsQuery.isFetching}
           >
-            <DataGrid<WarrantyRow>
-              tableKey="dashboard-warranty"
-              dataSource={warrantyRows}
-              rowKey="id"
-              density="Compact"
-              pagination={{ pageSize: 8, size: 'small', hideOnSinglePage: true }}
-              columns={[
-                {
-                  title: 'Asset',
-                  dataIndex: 'assetCode',
-                  render: (_, r) => <Link to={`/assets/show/${r.id}`}>{r.assetCode}</Link>,
-                },
-                {
-                  title: 'Item',
-                  gridKey: 'item',
-                  render: (_, r) => `${r.brand ?? ''} ${r.model ?? ''}`.trim() || '—',
-                  getExportValue: (r) => `${r.brand ?? ''} ${r.model ?? ''}`.trim(),
-                },
-                { title: 'Location', dataIndex: 'location' },
-                {
-                  title: 'Warranty remaining',
-                  dataIndex: 'daysRemaining',
-                  defaultSortOrder: 'ascend',
-                  sorter: (a, b) => (a.daysRemaining ?? 1e9) - (b.daysRemaining ?? 1e9),
-                  render: (_, r) => <WarrantyDays warrantyEnd={r.warrantyEnd} />,
-                },
-              ]}
-            />
+            <Row gutter={[10, 10]}>
+              {[
+                { label: 'Open', value: ticketSummary?.open ?? 0, href: '/tickets' },
+                { label: 'Unassigned', value: ticketSummary?.unassigned ?? 0, href: '/tickets?view=unassigned' },
+                { label: 'In progress', value: ticketSummary?.inProgress ?? 0, href: '/tickets' },
+                { label: ticketPreset === 'tomorrow' ? 'Due' : 'Resolved in window', value: ticketPreset === 'tomorrow' ? (ticketSummary?.due ?? 0) : (ticketSummary?.resolved ?? 0), href: '/tickets' },
+                { label: 'Created in window', value: ticketSummary?.created ?? 0, href: '/tickets' },
+              ].map((cell) => (
+                <Col xs={12} sm={8} md={4} key={cell.label}>
+                  <Link to={cell.href} style={{ textDecoration: 'none', color: 'inherit' }}>
+                    <div style={{ padding: '10px 12px', background: '#eef4fb', borderRadius: 8, border: '1px solid #d5dee8' }}>
+                      <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>{cell.label}</div>
+                      <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'JetBrains Mono, monospace' }}>
+                        {cell.value.toLocaleString()}
+                      </div>
+                    </div>
+                  </Link>
+                </Col>
+              ))}
+            </Row>
           </Card>
         </>
       )}

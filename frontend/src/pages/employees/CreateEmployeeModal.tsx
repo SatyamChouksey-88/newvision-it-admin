@@ -128,6 +128,23 @@ export function CreateEmployeeModal({
             options={departments.map((d) => ({ label: d.name, value: d.id }))}
           />
         </Form.Item>
+        <Form.Item label="Employment type" name="employmentType" initialValue="permanent">
+          <Select
+            options={[
+              { label: 'Permanent — Active', value: 'permanent' },
+              { label: 'Contract — Contract Active', value: 'contract' },
+            ]}
+          />
+        </Form.Item>
+        <Form.Item noStyle shouldUpdate={(a, b) => a.employmentType !== b.employmentType}>
+          {({ getFieldValue }) =>
+            getFieldValue('employmentType') === 'contract' ? (
+              <Form.Item label="Contract end date" name="contractEndDate">
+                <Input type="date" />
+              </Form.Item>
+            ) : null
+          }
+        </Form.Item>
         <Form.Item label="Designation" name="designation">
           <Input placeholder="Optional" />
         </Form.Item>

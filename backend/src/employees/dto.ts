@@ -1,5 +1,5 @@
 import { PartialType } from '@nestjs/swagger';
-import { RoleName } from '@prisma/client';
+import { EmploymentType, RoleName } from '@prisma/client';
 import { IsBoolean, IsEmail, IsEnum, IsInt, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class CreateEmployeeDto {
@@ -14,6 +14,8 @@ export class CreateEmployeeDto {
   @IsOptional() @IsInt() managerId?: number;
   @IsOptional() @IsString() dateJoined?: string;
   @IsOptional() @IsBoolean() isActive?: boolean;
+  @IsOptional() @IsEnum(EmploymentType) employmentType?: EmploymentType;
+  @IsOptional() @IsString() contractEndDate?: string;
 
   /** B2: optionally create a login (a "set your own password" email link) in the same action. */
   @IsOptional() @IsBoolean() createLogin?: boolean;

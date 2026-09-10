@@ -42,6 +42,8 @@ export interface Employee {
   phone?: string;
   designation?: string;
   isActive?: boolean;
+  employmentType?: 'permanent' | 'contract';
+  contractEndDate?: string;
   locationId: number;
   departmentId?: number;
   location?: Location;

@@ -1,12 +1,46 @@
-import { useGetIdentity, useLogout } from '@refinedev/core';
+import {
+  AuditOutlined,
+  DashboardOutlined,
+  DesktopOutlined,
+  EnvironmentOutlined,
+  FileTextOutlined,
+  GoldOutlined,
+  HomeOutlined,
+  QuestionCircleOutlined,
+  SettingOutlined,
+  ShoppingOutlined,
+  TeamOutlined,
+  ToolOutlined,
+  CustomerServiceOutlined,
+} from '@ant-design/icons';
 import { useThemedLayoutContext } from '@refinedev/antd';
-import { Avatar } from 'antd';
-import { useEffect, useState } from 'react';
+import { useGetIdentity, useLogout } from '@refinedev/core';
+import { Avatar, Tooltip } from 'antd';
+import { useEffect, useState, type ReactNode } from 'react';
 import { NavLink } from 'react-router';
 import { navForRole, ROLE_CHIP } from '../access';
 import { httpClient } from '../providers/axios';
 import type { Identity } from '../providers/authProvider';
 import { Title } from './Title';
+
+const NAV_ICONS: Record<string, ReactNode> = {
+  home: <HomeOutlined />,
+  dash: <DashboardOutlined />,
+  devices: <DesktopOutlined />,
+  assets: <DesktopOutlined />,
+  employees: <TeamOutlined />,
+  locations: <EnvironmentOutlined />,
+  accessories: <GoldOutlined />,
+  consumables: <ShoppingOutlined />,
+  request: <FileTextOutlined />,
+  requests: <FileTextOutlined />,
+  maintenance: <ToolOutlined />,
+  tickets: <CustomerServiceOutlined />,
+  reports: <FileTextOutlined />,
+  audit: <AuditOutlined />,
+  settings: <SettingOutlined />,
+  help: <QuestionCircleOutlined />,
+};
 
 function initials(name?: string) {
   if (!name) return 'NV';
@@ -98,20 +132,25 @@ export function AppSider() {
           </span>
         )}
         {items.map((item) => (
-          <NavLink
-            key={item.key}
-            to={item.href}
-            end={item.href === '/'}
-            className={({ isActive }) => `nv-sider-link${isActive ? ' is-active' : ''}`}
-            title={item.label}
-          >
-            <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {siderCollapsed ? item.label.slice(0, 2) : item.label}
-            </span>
-            {!siderCollapsed && item.badgeKey && counts[item.badgeKey] != null ? (
-              <span className="nv-nav-badge">{counts[item.badgeKey]}</span>
-            ) : null}
-          </NavLink>
+          <Tooltip key={item.key} title={siderCollapsed ? item.label : item.hint} placement="right">
+            <NavLink
+              to={item.href}
+              end={item.href === '/'}
+              className={({ isActive }) => `nv-sider-link${isActive ? ' is-active' : ''}`}
+            >
+              <span className="nv-sider-icon" aria-hidden>
+                {NAV_ICONS[item.key] ?? <DashboardOutlined />}
+              </span>
+              {!siderCollapsed ? (
+                <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {item.label}
+                </span>
+              ) : null}
+              {!siderCollapsed && item.badgeKey && counts[item.badgeKey] != null ? (
+                <span className="nv-nav-badge">{counts[item.badgeKey]}</span>
+              ) : null}
+            </NavLink>
+          </Tooltip>
         ))}
       </nav>
       <div className="nv-sider-user">

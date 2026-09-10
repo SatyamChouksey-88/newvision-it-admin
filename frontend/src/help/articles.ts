@@ -65,20 +65,21 @@ Press **/** anywhere to focus global search. Press **?** in the header to return
     id: 'dashboard',
     title: 'Dashboard & Analytics',
     category: 'Operations',
-    summary: 'Role-specific homes, KPI tiles, status and location tables, warranty table, and needs-attention alerts.',
+    summary: 'Role-specific homes, KPI tiles, status and location tables, ticket summary, and needs-attention alerts.',
     keywords: ['dashboard', 'status', 'metrics', 'warranty', 'attention', 'tables'],
     screenshot: '/docs/screenshots/dashboard.png',
     callouts: [
       { n: 1, label: 'Metric cards' },
       { n: 2, label: 'Needs attention' },
       { n: 3, label: 'Status table' },
-      { n: 4, label: 'Warranty table' },
+      { n: 4, label: 'Ticket summary' },
     ],
     body: `Home depends on your role — Super Admin and IT Admin see the estate console; IT Support sees an operational queue; Managers see team work; Employees see **My IT**.
 
 ### IT console (Super Admin / IT Admin)
 
-- **Metric cards** — Total, Assigned, Available, Under Repair, Retired, Warranty ≤90d. Click a card to open the assets list pre-filtered.
+- **Metric cards** — Total, Assigned, Available, Under Repair, Retired, Open tickets. Click a card to open the matching list.
+- **Support tickets** — Today / Yesterday / Tomorrow / date range counts. Warranty expiry stays under Needs attention.
 - **Status table** — one coloured row per status (tag, count, share). Click a row to filter Assets.
 - **Assets by location** — one row per office (from live Location records, never hardcoded city names). Each status is its own coloured column. Click a count to filter.
 - There is **no Growth chart**. Estate size is the Total KPI.
@@ -167,13 +168,11 @@ Both modules use the same Excel-grade grid as Assets.`,
     summary: 'Employee directory and profile with assigned assets.',
     keywords: ['employees', 'profile', 'manager'],
     screenshot: '/docs/screenshots/employee-profile.png',
-    body: `**Employees** lists all staff with search by name, code, or email. Click a row for the **profile** page showing:
+    body: `**Employees** lists all staff with search by name or employee ID. Statuses: Active, Inactive, Contract Active, Contract Inactive.
 
-- Assigned serialized assets with status and warranty
-- Accessory checkouts
-- Consumable issues
+Click a row for the **profile** — assign / transfer / return assets, and run onboarding or offboarding **checklists** (templates live in Settings → Onboard / Offboard).
 
-Managers viewing profiles see **direct reports only** (API-enforced).`,
+Managers viewing profiles see **direct reports only** (API-enforced).`
   },
   {
     id: 'maintenance',
@@ -269,7 +268,9 @@ You can also email the shared helpdesk mailbox — a new message opens a ticket,
 
 Employees see a short form (category, priority, description, optional asset). IT staff can still start from a template and add watchers.
 
-IT Support is auto-assigned when someone is available; otherwise the ticket stays Open for the queue.`,
+IT Support is auto-assigned when someone is available; otherwise the ticket stays Open for the queue.
+
+Staff can **@mention** colleagues on the ticket, copy a ready **email draft** (mail icon) to paste into Outlook, and — for Super Admin / IT Admin / IT Support only — use the header **Chat** launcher (#it-ops plus 1:1 DMs). Pasting a ticket number like \`TCK-000123\` in chat becomes a clickable preview.`
   },
   {
     id: 'tickets-statuses',

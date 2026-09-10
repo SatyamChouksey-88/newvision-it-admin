@@ -5,7 +5,7 @@ import {
   SettingOutlined,
 } from '@ant-design/icons';
 import type { TableProps } from 'antd';
-import { Button, Checkbox, Dropdown, Input, Segmented, Space, Table, Tooltip } from 'antd';
+import { Button, Checkbox, Dropdown, Input, Segmented, Space, Table } from 'antd';
 import type { ColumnType } from 'antd/es/table';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTableKeyboard } from '../../hooks/useTableKeyboard';
@@ -99,7 +99,7 @@ function isRenderedCell(v: unknown): boolean {
   );
 }
 
-/** Tooltip only when the cell actually overflows, so no data is hidden behind an ellipsis. */
+/** Plain cell wrapper — no ResizeObserver (that froze the grid on large pages). */
 function OverflowCell({
   text,
   children,
@@ -109,26 +109,10 @@ function OverflowCell({
   children: React.ReactNode;
   wrap: boolean;
 }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const [overflowed, setOverflowed] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || wrap || !text) {
-      setOverflowed(false);
-      return;
-    }
-    const check = () => setOverflowed(el.scrollWidth > el.clientWidth + 1);
-    check();
-    const ro = new ResizeObserver(check);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [text, wrap]);
-
   const inner = (
     <span
-      ref={ref}
       className="nv-cell-ellipsis"
+      title={!wrap && text ? text : undefined}
       style={
         wrap
           ? { display: 'block', whiteSpace: 'normal', wordBreak: 'break-word' }
@@ -143,12 +127,7 @@ function OverflowCell({
       {children}
     </span>
   );
-  if (wrap || !text || !overflowed) return inner;
-  return (
-    <Tooltip title={text} mouseEnterDelay={0.25} placement="topLeft">
-      {inner}
-    </Tooltip>
-  );
+  return inner;
 }
 
 export function DataGrid<T extends object>(props: DataGridProps<T>) {
@@ -160,11 +139,11 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
     loading,
     density = 'Comfortable',
     onDensityChange,
-    sticky = true,
+    sticky = false,
     fixFirstColumn = false,
     rowSelection,
     bulkActions,
-    quickFilter = true,
+    quickFilter = false,
     quickFilterPlaceholder = 'Filter rows…',
     onExport,
     exportFilename = `${tableKey}-export.csv`,
@@ -415,8 +394,8 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
 
   return (
     <Space direction="vertical" size={8} style={{ width: '100%' }} ref={tableRef}>
-      <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
-        <Space wrap>
+      <div className="nv-grid-toolbar">
+        <div className="nv-grid-toolbar__left">
           {quickFilter && (
             <Input.Search
               id={searchInputId}
@@ -436,8 +415,8 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
           ) : null}
           {toolbarExtra}
           {bulkActions}
-        </Space>
-        <Space wrap>
+        </div>
+        <div className="nv-grid-toolbar__right">
           {onDensityChange && (
             <Segmented
               size="small"
@@ -460,8 +439,8 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
           <span style={{ fontSize: 11, color: '#64748b' }} title="Select a row and press Ctrl+C to copy it for Excel">
             Ctrl+C copies the selected row
           </span>
-        </Space>
-      </Space>
+        </div>
+      </div>
 
       <Table<T>
         className={wrapText ? 'nv-grid nv-grid--wrap' : 'nv-grid'}
@@ -472,7 +451,7 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
         loading={loading}
         size={density === 'Compact' ? 'small' : 'middle'}
         sticky={sticky}
-        scroll={scroll ?? { x: 'max-content' }}
+        scroll={scroll ?? { x: 1400 }}
         pagination={pagination}
         rowSelection={
           rowSelection

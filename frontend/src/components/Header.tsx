@@ -6,6 +6,7 @@ import { CommandPalette } from './CommandPalette';
 import { HistoryNav } from './HistoryNav';
 import { COLOR_BORDER, COLOR_TEXT_MUTED, FONT_MONO } from '../theme';
 import { NotificationBell } from './NotificationBell';
+import { StaffChatLauncher } from './StaffChat';
 
 const CRUMBS: Record<string, string> = {
   '/': 'Dashboard',
@@ -83,6 +84,7 @@ export function Header() {
         id="global-search-input"
         className="nv-header-search"
         onClick={() => setPaletteOpen(true)}
+        title="Search or jump (⌘K / Ctrl+K)"
         aria-label="Open command palette (search or jump to a screen)"
         style={{
           display: 'flex',
@@ -92,8 +94,8 @@ export function Header() {
           maxWidth: '32vw',
           height: 30,
           padding: '0 10px',
-          background: '#fafbfc',
-          border: `1px solid #e4e9f0`,
+          background: '#f3f7fb',
+          border: `1px solid #c9d3df`,
           borderRadius: 6,
           color: COLOR_TEXT_MUTED,
           fontSize: 13,
@@ -112,6 +114,7 @@ export function Header() {
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
 
       <Space size={8} wrap={false} style={{ flexShrink: 0 }}>
+        <StaffChatLauncher />
         <NotificationBell />
         <Button
           size="small"

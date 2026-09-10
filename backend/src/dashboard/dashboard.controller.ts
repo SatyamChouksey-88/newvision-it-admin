@@ -175,6 +175,48 @@ export class DashboardController {
     }));
   }
 
+  /** Ticket counts for a date window. preset=today|yesterday|tomorrow|range */
+  @Roles(...ESTATE_ROLES)
+  @Get('tickets')
+  async tickets(
+    @Query('preset') preset?: string,
+    @Query('from') fromRaw?: string,
+    @Query('to') toRaw?: string,
+  ) {
+    const now = new Date();
+    const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const endOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+    let from = startOf(now);
+    let to = endOf(now);
+    if (preset === 'yesterday') {
+      const y = new Date(now);
+      y.setDate(y.getDate() - 1);
+      from = startOf(y);
+      to = endOf(y);
+    } else if (preset === 'tomorrow') {
+      const t = new Date(now);
+      t.setDate(t.getDate() + 1);
+      from = startOf(t);
+      to = endOf(t);
+    } else if (preset === 'range' && fromRaw && toRaw) {
+      from = startOf(new Date(fromRaw));
+      to = endOf(new Date(toRaw));
+    }
+    const createdWhere = { createdAt: { gte: from, lte: to } };
+    const dueWhere = { dueDate: { gte: from, lte: to } };
+    const [open, unassigned, inProgress, resolved, created, due] = await Promise.all([
+      this.prisma.supportTicket.count({
+        where: { status: { in: ['open', 'assigned', 'in_progress', 'waiting_on_employee', 'reopened'] } },
+      }),
+      this.prisma.supportTicket.count({ where: { assignedToId: null, status: { notIn: ['resolved', 'closed'] } } }),
+      this.prisma.supportTicket.count({ where: { status: 'in_progress' } }),
+      this.prisma.supportTicket.count({ where: { status: 'resolved', resolvedAt: { gte: from, lte: to } } }),
+      this.prisma.supportTicket.count({ where: createdWhere }),
+      this.prisma.supportTicket.count({ where: dueWhere }),
+    ]);
+    return { from, to, preset: preset ?? 'today', open, unassigned, inProgress, resolved, created, due };
+  }
+
   /** Actionable items for the dashboard "needs attention" panel. */
   @Roles(...ESTATE_ROLES)
   @Get('attention')
