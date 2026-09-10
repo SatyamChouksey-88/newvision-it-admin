@@ -149,6 +149,48 @@ test.describe('Functionality audit — browser regressions', () => {
     await expect(page.getByText('UniqueFlickerSearchTerm').first()).toBeVisible({ timeout: 15_000 });
   });
 
+  test('asset list status dropdown can change an available asset to under repair', async ({ page }) => {
+    await page.goto(
+      '/assets?filters[0][field]=status&filters[0][operator]=eq&filters[0][value]=available',
+    );
+    const statusSelect = page.locator('table tbody tr.ant-table-row .ant-select').first();
+    await expect(statusSelect).toBeVisible();
+    await statusSelect.click();
+    await page
+      .locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option', {
+        hasText: 'Under Repair',
+      })
+      .click();
+    await expect(page.getByText(/under_repair/i).first()).toBeVisible({ timeout: 10_000 });
+  });
+
+  test('fulfilled request can still be edited and history is recorded', async ({ page }) => {
+    const token = await apiToken(page);
+    const headers = { Authorization: `Bearer ${token}` };
+    const cats = await (await page.request.get(`${API}/asset-categories?_start=0&_end=1`, { headers })).json();
+    const empTok = await apiToken(page, DEMO_USERS.employee);
+    const created = await page.request.post(`${API}/asset-requests`, {
+      headers: { Authorization: `Bearer ${empTok}` },
+      data: { kind: 'asset', categoryId: cats.data[0].id, reason: 'Editable after fulfill' },
+    });
+    expect(created.ok()).toBeTruthy();
+    const req = await created.json();
+    await page.request.patch(`${API}/asset-requests/${req.id}/review`, {
+      headers,
+      data: { decision: 'approved', comment: 'ok' },
+    });
+    await page.request.patch(`${API}/asset-requests/${req.id}/fulfill`, { headers });
+
+    await page.goto('/requests');
+    await page.getByPlaceholder(/Filter rows/i).fill('Editable after fulfill');
+    await page.getByRole('button', { name: 'Edit' }).first().click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await dialog.getByLabel('Reason').fill('Editable after fulfill — corrected');
+    await dialog.getByRole('button', { name: 'Save changes' }).click();
+    await expect(page.getByText(/updated/i).first()).toBeVisible();
+  });
+
   test('asset transfer modal hides the current location and blocks no-op transfers', async ({ page }) => {
     await page.goto('/assets?filters[0][field]=status&filters[0][operator]=eq&filters[0][value]=assigned');
     await page.getByRole('button', { name: 'Transfer' }).first().click();

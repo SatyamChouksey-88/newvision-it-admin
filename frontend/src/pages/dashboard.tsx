@@ -1,25 +1,24 @@
 import {
   AlertOutlined,
-  BarChartOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   DatabaseOutlined,
+  EnvironmentOutlined,
   InboxOutlined,
-  LineChartOutlined,
   MinusCircleOutlined,
   PieChartOutlined,
+  PlusCircleOutlined,
   ToolOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
 import { useCustom } from '@refinedev/core';
 import { Alert, Button, Card, Col, List, Row, Select, Space, Typography } from 'antd';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
+import { CHART_PALETTE, STATUS_CHART_COLORS, STATUS_LABELS } from '../chartColors';
+import { BreakdownList } from '../components/BreakdownList';
 import { WarrantyDays } from '../components/Cells';
 import { DataGrid } from '../components/DataGrid/DataGrid';
-import { AssetTrendChart } from '../components/charts/AssetTrendChart';
-import { LocationBarChart } from '../components/charts/LocationBarChart';
-import { StatusDonutChart } from '../components/charts/StatusDonutChart';
 import { KpiCard } from '../components/KpiCard';
 import { httpClient } from '../providers/axios';
 import {
@@ -34,6 +33,7 @@ import {
   KPI_WARRANTY,
 } from '../theme';
 import type {
+  AssetStatus,
   DashboardAttention,
   DashboardMetrics,
   DashboardTrendPoint,
@@ -135,7 +135,6 @@ export function DashboardPage() {
   });
   const byLocation = byLocationQuery.data?.data ?? [];
 
-  const sparklineTrend = useMemo(() => trends.slice(-6), [trends]);
   const loadFailed =
     metricsQuery.isError || warrantyQuery.isError || attentionQuery.isError || trendsQuery.isError;
   const retryAll = () => {
@@ -233,11 +232,6 @@ export function DashboardPage() {
             icon={<DatabaseOutlined />}
             accentColor={KPI_TOTAL}
             href={assetsHref({ locationId })}
-            sparkline={
-              sparklineTrend.length > 0 ? (
-                <AssetTrendChart data={sparklineTrend} height={48} compact />
-              ) : null
-            }
           />
         </Col>
         <Col xs={12} sm={8} lg={4}>
@@ -302,7 +296,18 @@ export function DashboardPage() {
               </Space>
             }
           >
-            {m?.byStatus ? <StatusDonutChart byStatus={m.byStatus} /> : null}
+            <BreakdownList
+              empty="No assets in this view"
+              items={(
+                Object.entries(m?.byStatus ?? {}) as [AssetStatus, number][]
+              ).map(([status, count]) => ({
+                key: status,
+                label: STATUS_LABELS[status] ?? status,
+                count,
+                color: STATUS_CHART_COLORS[status] ?? '#64748B',
+                href: assetsHref({ status, locationId }),
+              }))}
+            />
           </Card>
         </Col>
         <Col xs={24} lg={8}>
@@ -311,7 +316,7 @@ export function DashboardPage() {
             loading={!locationId && byLocationQuery.isFetching}
             title={
               <Space>
-                <BarChartOutlined style={{ color: COLOR_ACCENT }} />
+                <EnvironmentOutlined style={{ color: COLOR_ACCENT }} />
                 {locationId ? 'Filtered view' : 'Assets by location'}
               </Space>
             }
@@ -324,7 +329,16 @@ export function DashboardPage() {
                 Clear the location filter to compare all sites.
               </Typography.Text>
             ) : (
-              <LocationBarChart data={byLocation} />
+              <BreakdownList
+                empty="No locations"
+                items={byLocation.map((l, i) => ({
+                  key: String(l.locationId),
+                  label: `${l.name} (${l.code})`,
+                  count: l.total,
+                  color: CHART_PALETTE[i % CHART_PALETTE.length],
+                  href: assetsHref({ locationId: l.locationId }),
+                }))}
+              />
             )}
           </Card>
         </Col>
@@ -334,12 +348,20 @@ export function DashboardPage() {
             loading={trendsQuery.isFetching}
             title={
               <Space>
-                <LineChartOutlined style={{ color: COLOR_ACCENT }} />
+                <PlusCircleOutlined style={{ color: COLOR_ACCENT }} />
                 Assets added (12 months)
               </Space>
             }
           >
-            <AssetTrendChart data={trends} />
+            <BreakdownList
+              empty="No assets added in the last 12 months"
+              items={[...trends].reverse().map((t, i) => ({
+                key: t.month,
+                label: t.label,
+                count: t.count,
+                color: CHART_PALETTE[i % CHART_PALETTE.length],
+              }))}
+            />
           </Card>
         </Col>
       </Row>

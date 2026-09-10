@@ -27,6 +27,7 @@ import { CopyButton } from '../../components/CopyButton';
 import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid';
 import { EmployeeSelect } from '../../components/EmployeeSelect';
 import { EmptyState } from '../../components/EmptyState';
+import { AssetStatusSelect } from '../../components/AssetStatusSelect';
 import { StatusLegend } from '../../components/StatusLegend';
 import { ASSET_STATUS_OPTIONS, StatusTag } from '../../components/StatusTag';
 import { TablePagination } from '../../components/TablePagination';
@@ -125,6 +126,16 @@ export function AssetList() {
     applyFilterState({ ...activeFilters, [field]: value ?? undefined });
 
   const clearFilters = () => applyFilterState({});
+
+  const changeStatus = async (asset: Asset, status: AssetStatus) => {
+    try {
+      await httpClient.post(`/assets/${asset.id}/status`, { status });
+      message.success(`${asset.assetCode}: ${asset.status} → ${status}`);
+      tableQuery.refetch();
+    } catch (e) {
+      message.error(apiErrorMessage(e, 'Could not change status'));
+    }
+  };
 
   const retire = async (asset: Asset, reason?: string) => {
     try {
@@ -526,7 +537,14 @@ export function AssetList() {
               title: 'Status',
               dataIndex: 'status',
               sorter: true,
-              render: (_, r) => <StatusTag status={r.status} />,
+              defaultWidth: 180,
+              render: (_, r) =>
+                canManage ? (
+                  <AssetStatusSelect value={r.status} onChange={(next) => void changeStatus(r, next)} />
+                ) : (
+                  <StatusTag status={r.status} />
+                ),
+              getExportValue: (r) => r.status,
             },
             {
               title: 'Assigned To',

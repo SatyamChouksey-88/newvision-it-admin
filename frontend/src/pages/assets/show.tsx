@@ -1,14 +1,17 @@
 import { Show } from '@refinedev/antd';
-import { useShow } from '@refinedev/core';
-import { Alert, Button, Card, Descriptions, Space, Tag, Typography } from 'antd';
+import { useGetIdentity, useShow } from '@refinedev/core';
+import { Alert, App as AntdApp, Button, Card, Descriptions, Space, Tag, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
+import { AssetStatusSelect } from '../../components/AssetStatusSelect';
 import { WarrantyDays } from '../../components/Cells';
 import { CopyButton } from '../../components/CopyButton';
 import { DataGrid } from '../../components/DataGrid/DataGrid';
 import { MaintenanceStatusTag } from '../../components/MaintenanceStatusTag';
 import { StatusTag } from '../../components/StatusTag';
-import { httpClient } from '../../providers/axios';
+import type { Identity } from '../../providers/authProvider';
+import { apiErrorMessage, httpClient } from '../../providers/axios';
+import type { AssetStatus } from '../../types';
 import { formatCurrency, formatDate } from '../../utils/format';
 
 function EmployeeLink({
@@ -30,9 +33,23 @@ function EmployeeLink({
 }
 
 export function AssetShow() {
+  const { message } = AntdApp.useApp();
+  const { data: identity } = useGetIdentity<Identity>();
+  const canManage = ['SUPER_ADMIN', 'IT_ADMIN'].includes(identity?.role ?? '');
   const { query } = useShow({ resource: 'assets' });
   const asset: any = query.data?.data;
   const [qrUrl, setQrUrl] = useState<string | null>(null);
+
+  const changeStatus = async (status: AssetStatus) => {
+    if (!asset?.id) return;
+    try {
+      await httpClient.post(`/assets/${asset.id}/status`, { status });
+      message.success(`Status updated to ${status.replace('_', ' ')}`);
+      void query.refetch();
+    } catch (e) {
+      message.error(apiErrorMessage(e, 'Could not change status'));
+    }
+  };
 
   useEffect(() => {
     if (!asset?.id) return;
@@ -69,7 +86,13 @@ export function AssetShow() {
             </Space>
           </Descriptions.Item>
           <Descriptions.Item label="Status">
-            {asset ? <StatusTag status={asset.status} /> : null}
+            {asset ? (
+              canManage ? (
+                <AssetStatusSelect value={asset.status} onChange={(s) => void changeStatus(s)} />
+              ) : (
+                <StatusTag status={asset.status} />
+              )
+            ) : null}
           </Descriptions.Item>
           <Descriptions.Item label="Category">{asset?.category?.name}</Descriptions.Item>
           <Descriptions.Item label="Condition">

@@ -5,7 +5,7 @@ import {
   SyncOutlined,
   ToolOutlined,
 } from '@ant-design/icons';
-import { Tag } from 'antd';
+import { Select, Tag } from 'antd';
 import type { CSSProperties, ReactNode } from 'react';
 import type { MaintenanceStatus } from '../types';
 
@@ -53,3 +53,37 @@ export function MaintenanceStatusTag({ status }: { status: MaintenanceStatus }) 
 export const MAINTENANCE_STATUS_OPTIONS: { label: string; value: MaintenanceStatus }[] = (
   Object.keys(META) as MaintenanceStatus[]
 ).map((s) => ({ label: META[s].label, value: s }));
+
+export const MAINTENANCE_TRANSITIONS: Record<MaintenanceStatus, MaintenanceStatus[]> = {
+  reported: ['under_repair', 'cancelled'],
+  under_repair: ['repaired', 'cancelled'],
+  repaired: ['reassigned'],
+  reassigned: [],
+  cancelled: [],
+};
+
+export function MaintenanceStatusSelect({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: MaintenanceStatus;
+  onChange: (next: MaintenanceStatus) => void;
+  disabled?: boolean;
+}) {
+  const allowed = new Set<MaintenanceStatus>([value, ...(MAINTENANCE_TRANSITIONS[value] ?? [])]);
+  return (
+    <Select<MaintenanceStatus>
+      size="small"
+      value={value}
+      disabled={disabled || allowed.size <= 1}
+      aria-label="Change ticket status"
+      style={{ minWidth: 150 }}
+      onClick={(e) => e.stopPropagation()}
+      onChange={(next) => {
+        if (next !== value) onChange(next);
+      }}
+      options={MAINTENANCE_STATUS_OPTIONS.filter((o) => allowed.has(o.value))}
+    />
+  );
+}

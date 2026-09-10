@@ -24,6 +24,7 @@ import { EmployeeSelect } from '../components/EmployeeSelect';
 import { EmptyState } from '../components/EmptyState';
 import {
   MAINTENANCE_STATUS_OPTIONS,
+  MaintenanceStatusSelect,
   MaintenanceStatusTag,
 } from '../components/MaintenanceStatusTag';
 import { StatusLegend } from '../components/StatusLegend';
@@ -213,7 +214,21 @@ export function MaintenancePage() {
                 {
                   title: 'Status',
                   dataIndex: 'status',
-                  render: (_, r) => <MaintenanceStatusTag status={r.status} />,
+                  defaultWidth: 170,
+                  render: (_, r) =>
+                    canView ? (
+                      <MaintenanceStatusSelect
+                        value={r.status}
+                        onChange={(next) => {
+                          if (next === 'repaired') setCompleteTarget(r);
+                          else if (next === 'reassigned') setReassignTarget(r);
+                          else void transition(r, next);
+                        }}
+                      />
+                    ) : (
+                      <MaintenanceStatusTag status={r.status} />
+                    ),
+                  getExportValue: (r) => r.status,
                 },
                 { title: 'Vendor', dataIndex: 'vendor', render: (v) => v || '—' },
                 {

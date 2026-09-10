@@ -8,6 +8,8 @@ test.describe('Employee profile history', () => {
 
   test('shows History tab with timeline events', async ({ page }) => {
     await page.goto('/employees');
+    await page.getByLabel('Search employees').fill('EMP-');
+    await page.getByLabel('Search employees').press('Enter');
     await page.locator('table tbody tr.ant-table-row').first().click();
     await page.waitForURL(/\/employees\/show\//);
     const historyResp = page.waitForResponse(
@@ -15,9 +17,9 @@ test.describe('Employee profile history', () => {
     );
     await page.getByRole('tab', { name: 'History' }).click();
     await historyResp;
-    const historyPanel = page.locator('[role=tabpanel]').filter({ has: page.getByPlaceholder(/Filter rows/i) });
+    const historyTable = page.getByRole('tabpanel', { name: /History/i }).locator('table tbody');
     await expect(
-      historyPanel.getByText(/Asset assignment|Asset request|Audit|Asset transfer/i).first(),
+      historyTable.getByText(/Asset assignment|Asset request|Asset transfer|Maintenance|Accessory/i).first(),
     ).toBeVisible({ timeout: 15_000 });
   });
 });
@@ -29,7 +31,7 @@ test.describe('Dashboard drill-down', () => {
 
   test('Assigned metric card navigates to filtered assets list', async ({ page }) => {
     await page.goto('/');
-    await page.getByText('Assigned', { exact: true }).click();
+    await page.getByRole('link', { name: /^Assigned:/ }).click();
     await page.waitForURL(/\/assets/);
     await expect(page).toHaveURL(/status.*assigned|filters.*assigned/i);
   });

@@ -5,7 +5,7 @@ import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorat
 import { Roles } from '../common/decorators/roles.decorator';
 import { ListQuery } from '../common/query';
 import { AssetRequestsService } from './asset-requests.service';
-import { CreateAssetRequestDto, ReviewAssetRequestDto } from './dto';
+import { CreateAssetRequestDto, ReviewAssetRequestDto, UpdateAssetRequestDto } from './dto';
 
 @ApiTags('asset-requests')
 @Controller('asset-requests')
@@ -40,5 +40,24 @@ export class AssetRequestsController {
   @Patch(':id/fulfill')
   fulfill(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
     return this.svc.fulfill(id, user);
+  }
+
+  @Get(':id/history')
+  history(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
+    return this.svc.history(id, user);
+  }
+
+  @Get(':id')
+  get(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
+    return this.svc.get(id, user);
+  }
+
+  @Patch(':id')
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateAssetRequestDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.svc.update(id, dto, user);
   }
 }

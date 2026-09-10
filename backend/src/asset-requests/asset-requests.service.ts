@@ -9,7 +9,7 @@ import { AuditService } from '../audit/audit.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { ListQuery, parseListQuery } from '../common/query';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateAssetRequestDto, ReviewAssetRequestDto } from './dto';
+import { CreateAssetRequestDto, ReviewAssetRequestDto, UpdateAssetRequestDto } from './dto';
 
 const requestInclude = {
   requester: {
@@ -173,6 +173,97 @@ export class AssetRequestsService {
         },
       });
     }
+
+    return updated;
+  }
+
+  async get(id: number, actor: AuthUser) {
+    const request = await this.prisma.assetRequest.findFirst({
+      where: { id, ...this.scopeWhere(actor) },
+      include: requestInclude,
+    });
+    if (!request) {
+      throw new NotFoundException(`Request ${id} not found`);
+    }
+    return request;
+  }
+
+  async history(id: number, actor: AuthUser) {
+    await this.get(id, actor);
+    return this.prisma.auditLog.findMany({
+      where: { entityType: 'AssetRequest', entityId: String(id) },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+      include: { changedBy: { select: { id: true, fullName: true } } },
+    });
+  }
+
+  /**
+   * Edit a request after it has been submitted — including fulfilled ones.
+   * Field edits are allowed for the requester and IT; status changes are IT-only
+   * (or the assigned manager). Every change is audited.
+   */
+  async update(id: number, dto: UpdateAssetRequestDto, actor: AuthUser) {
+    const request = await this.get(id, actor);
+    const isIt =
+      actor.role === RoleName.SUPER_ADMIN ||
+      actor.role === RoleName.IT_ADMIN ||
+      actor.role === RoleName.IT_SUPPORT;
+    const isOwner = actor.role === RoleName.EMPLOYEE && actor.employeeId === request.requesterId;
+    const isManager =
+      actor.role === RoleName.MANAGER && actor.employeeId === request.requester.managerId;
+
+    if (!isIt && !isOwner && !isManager) {
+      throw new ForbiddenException('You cannot edit this request');
+    }
+    if (dto.status && !isIt && !isManager) {
+      throw new ForbiddenException('Only IT or the manager can change request status');
+    }
+
+    const kind = dto.kind ?? request.kind;
+    const categoryId = dto.categoryId !== undefined ? dto.categoryId : request.categoryId;
+    const accessoryName =
+      dto.accessoryName !== undefined ? dto.accessoryName.trim() || null : request.accessoryName;
+    if (kind === 'asset' && !categoryId) {
+      throw new BadRequestException('Asset requests require a category');
+    }
+    if (kind === 'accessory' && !accessoryName) {
+      throw new BadRequestException('Accessory requests require an accessory name or type');
+    }
+
+    const updated = await this.prisma.assetRequest.update({
+      where: { id },
+      data: {
+        kind,
+        categoryId: kind === 'asset' ? categoryId : null,
+        accessoryName: kind === 'accessory' ? accessoryName : null,
+        reason: dto.reason?.trim() ?? request.reason,
+        ...(dto.status ? { status: dto.status } : {}),
+      },
+      include: requestInclude,
+    });
+
+    await this.audit.record({
+      entityType: 'AssetRequest',
+      entityId: id,
+      action: 'update',
+      summary: `Request #${id} updated${dto.status && dto.status !== request.status ? ` (${request.status} → ${dto.status})` : ''}`,
+      changedById: actor.id,
+      oldValue: {
+        kind: request.kind,
+        categoryId: request.categoryId,
+        accessoryName: request.accessoryName,
+        reason: request.reason,
+        status: request.status,
+      },
+      newValue: {
+        kind: updated.kind,
+        categoryId: updated.categoryId,
+        accessoryName: updated.accessoryName,
+        reason: updated.reason,
+        status: updated.status,
+      },
+    });
 
     return updated;
   }

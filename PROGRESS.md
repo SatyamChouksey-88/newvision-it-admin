@@ -170,6 +170,13 @@ Definition of Done: UI matches approved mockup look-and-feel; no functional regr
 - [x] Tests: **50 unit + 66 integration** backend; **31 Playwright**
 - [x] Branch `audit/functionality-and-truncation` + PR
 
+## Dashboard lists, inline status, editable requests (2026-09-10)
+
+- [x] Replaced Status mix / Assets by location / Assets added charts with color-coded bullet lists
+- [x] Inline status dropdown on Assets, Maintenance, and Requests (allowed transitions only)
+- [x] Requests stay editable after fulfill; expand-row shows who changed what
+- [x] Tests updated
+
 ## Known issues
 
 - **Seed resets demo data on container start** when `SEED_ON_START=true` (the compose default). Convenient for demos, but restarting the backend wipes manual changes. Set `SEED_ON_START: "false"` in `docker-compose.yml` after the first boot to persist changes. Documented in README.

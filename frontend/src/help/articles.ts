@@ -60,21 +60,21 @@ Press **/** anywhere to focus global search. Press **?** in the header to return
     id: 'dashboard',
     title: 'Dashboard & Analytics',
     category: 'Operations',
-    summary: 'Metric cards, charts, warranty panel, and needs-attention alerts.',
-    keywords: ['dashboard', 'charts', 'metrics', 'warranty', 'attention'],
+    summary: 'Metric cards, color-coded breakdowns, warranty panel, and needs-attention alerts.',
+    keywords: ['dashboard', 'status', 'metrics', 'warranty', 'attention'],
     screenshot: '/docs/screenshots/dashboard.png',
     callouts: [
-      { n: 1, label: 'Metric cards + sparkline' },
-      { n: 2, label: 'Status donut chart' },
-      { n: 3, label: 'Location bar chart' },
-      { n: 4, label: '12-month trend' },
+      { n: 1, label: 'Metric cards' },
+      { n: 2, label: 'Status mix list' },
+      { n: 3, label: 'Location breakdown' },
+      { n: 4, label: 'Assets added list' },
     ],
     body: `The **Dashboard** shows fleet health at a glance.
 
-- **Metric cards** — Total, Assigned, Available, Under Repair, Retired, Warranty ≤90d. The Total card includes a 6-month sparkline.
+- **Metric cards** — Total, Assigned, Available, Under Repair, Retired, Warranty ≤90d. Click a card to open the assets list pre-filtered.
 - **Needs attention** — warranty ≤7 days, stale repairs (>14 days open), low consumable stock, approved requests awaiting IT fulfillment.
-- **Charts** — Status mix (donut), assets by location (bar — hidden when a location filter is active), assets added per month (line).
-- **Location filter** — top-right dropdown scopes all metrics and charts.
+- **Breakdown lists** — Status mix, assets by location, and assets added (12 months) as color-coded bullets (no charts). Click a status or location row to filter the assets list.
+- **Location filter** — top-right dropdown scopes all metrics and lists.
 
 Click any attention item to jump to the relevant screen.`,
   },

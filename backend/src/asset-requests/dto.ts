@@ -19,6 +19,29 @@ export class CreateAssetRequestDto {
   reason!: string;
 }
 
+export class UpdateAssetRequestDto {
+  @IsOptional()
+  @IsEnum(AssetRequestKind)
+  kind?: AssetRequestKind;
+
+  @IsOptional()
+  @IsInt()
+  categoryId?: number;
+
+  @IsOptional()
+  @IsString()
+  accessoryName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(3)
+  reason?: string;
+
+  @IsOptional()
+  @IsIn(['pending', 'approved', 'rejected', 'fulfilled'])
+  status?: 'pending' | 'approved' | 'rejected' | 'fulfilled';
+}
+
 export class ReviewAssetRequestDto {
   @IsIn(['approved', 'rejected'])
   decision!: 'approved' | 'rejected';

@@ -46,6 +46,21 @@ describe('Prompt 2 — requests, accessories & consumables (e2e)', () => {
       .set(auth(adminToken))
       .expect(200);
     expect(fulfilled.body.status).toBe('fulfilled');
+
+    const edited = await request(app.getHttpServer())
+      .patch(`/api/asset-requests/${created.body.id}`)
+      .set(auth(adminToken))
+      .send({ reason: 'Need a laptop for project work — updated after fulfill' })
+      .expect(200);
+    expect(edited.body.reason).toContain('updated after fulfill');
+    expect(edited.body.status).toBe('fulfilled');
+
+    const history = await request(app.getHttpServer())
+      .get(`/api/asset-requests/${created.body.id}/history`)
+      .set(auth(adminToken))
+      .expect(200);
+    expect(Array.isArray(history.body)).toBe(true);
+    expect(history.body.some((h: { action: string }) => h.action === 'update')).toBe(true);
   });
 
   it('rejects a request with a human-readable reason', async () => {
