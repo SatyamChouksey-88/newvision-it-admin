@@ -74,12 +74,10 @@ export function AppSider(props: RefineThemedLayoutSiderProps) {
         return (
           <>
             {!collapsed && (
-              <div className="nv-sider-section" role="group" aria-label="Manage">
-                MANAGE
-              </div>
+              <div className="nv-sider-section">MANAGE</div>
             )}
             {items}
-            <div className="nv-sider-user" role="menuitem" aria-disabled="true">
+            <div className="nv-sider-user">
               <div className="nv-sider-user-row">
                 <Avatar size={26} className="nv-sider-avatar">
                   {initials(identity?.fullName)}

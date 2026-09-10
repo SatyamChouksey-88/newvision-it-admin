@@ -15,6 +15,12 @@ body {
   font-family: Inter, Helvetica, Arial, sans-serif;
   color: #1f1f1f;
   -webkit-font-smoothing: antialiased;
+  color-scheme: light;
+}
+
+html {
+  color-scheme: light;
+  background: #f8fafc;
 }
 
 code,
@@ -515,6 +521,78 @@ a:hover {
   color: #0958d9;
 }
 
+.nv-first-run-step {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #e9edf2;
+  border-radius: 8px;
+  height: 100%;
+  background: #fff;
+}
+
+.nv-first-run-num {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: #f0f7ff;
+  color: #0958d9;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.nv-scan-page {
+  min-height: 100vh;
+  background: #f8fafc;
+  padding: 24px 16px;
+  display: flex;
+  justify-content: center;
+}
+
+@media (max-width: 1023px) {
+  .ant-layout-content {
+    padding: 16px 12px 48px !important;
+  }
+
+  .nv-header-search {
+    width: 180px !important;
+    max-width: 36vw !important;
+  }
+
+  .nv-header-action-text,
+  .nv-breadcrumb {
+    display: none !important;
+  }
+
+  .nv-help-layout {
+    flex-direction: column !important;
+  }
+
+  .nv-help-layout > .ant-layout-sider {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    position: static !important;
+    height: auto !important;
+    border-right: none !important;
+    border-bottom: 1px solid #e9edf2;
+  }
+
+  .nv-help-layout .ant-layout-content {
+    padding: 16px 0 24px !important;
+    max-width: none !important;
+  }
+
+  .ant-table-wrapper {
+    overflow-x: auto;
+  }
+}
+
 @media (max-width: 900px) {
   .nv-login-split {
     grid-template-columns: 1fr;
@@ -524,14 +602,15 @@ a:hover {
     border-left: none;
     border-top: 1px solid #e9edf2;
   }
+}
 
-  .nv-header-search {
-    max-width: 200px !important;
-  }
-
-  .nv-header-action-text,
-  .nv-breadcrumb {
-    display: none !important;
+@media (prefers-color-scheme: dark) {
+  html,
+  body,
+  .ant-layout,
+  .ant-layout-content {
+    background: #f8fafc !important;
+    color-scheme: light;
   }
 }
 

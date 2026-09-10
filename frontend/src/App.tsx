@@ -19,10 +19,11 @@ import routerProvider, {
   NavigateToResource,
   UnsavedChangesNotifier,
 } from '@refinedev/react-router';
-import { App as AntdApp, ConfigProvider } from 'antd';
+import { App as AntdApp, ConfigProvider, theme } from 'antd';
 import { BrowserRouter, Outlet, Route, Routes } from 'react-router';
 import { AppSider } from './components/AppSider';
 import { Header } from './components/Header';
+import { TabletCollapse } from './components/TabletCollapse';
 import { Title } from './components/Title';
 import { AccessoriesPage } from './pages/accessories/list';
 import { AssetCreate } from './pages/assets/create';
@@ -51,7 +52,7 @@ import { newVisionTheme } from './theme';
 export default function App() {
   return (
     <BrowserRouter>
-      <ConfigProvider theme={newVisionTheme}>
+      <ConfigProvider theme={{ ...newVisionTheme, algorithm: theme.defaultAlgorithm }}>
         <AntdApp>
           <Refine
             dataProvider={dataProvider}
@@ -133,6 +134,7 @@ export default function App() {
                 element={
                   <Authenticated key="auth" fallback={<CatchAllNavigate to="/login" />}>
                     <ThemedLayout Header={Header} Title={Title} Sider={AppSider}>
+                      <TabletCollapse />
                       <Outlet />
                     </ThemedLayout>
                   </Authenticated>

@@ -24,11 +24,16 @@ export function AssetStatusSelect({
   disabled?: boolean;
 }) {
   const allowed = new Set<AssetStatus>([value, ...(ASSET_TRANSITIONS[value] ?? [])]);
+  const locked = disabled || allowed.size <= 1;
+
+  if (locked) {
+    return <StatusTag status={value} />;
+  }
+
   return (
     <Select<AssetStatus>
       size="small"
       value={value}
-      disabled={disabled || allowed.size <= 1}
       aria-label="Change asset status"
       style={{ minWidth: 160 }}
       onClick={(e) => e.stopPropagation()}

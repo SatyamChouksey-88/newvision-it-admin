@@ -183,7 +183,7 @@ export function HelpSection() {
   });
 
   return (
-    <Layout style={{ background: 'transparent', minHeight: 'calc(100vh - 120px)' }}>
+    <Layout className="nv-help-layout" style={{ background: 'transparent', minHeight: 'calc(100vh - 120px)' }}>
       <Layout.Sider
         width={260}
         theme="light"

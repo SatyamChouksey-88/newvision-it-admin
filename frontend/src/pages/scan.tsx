@@ -4,6 +4,7 @@ import { useParams } from 'react-router';
 import { StatusTag } from '../components/StatusTag';
 import { WarrantyDays } from '../components/Cells';
 import { API_URL } from '../providers/axios';
+import { COLOR_TEXT_MUTED } from '../theme';
 import type { AssetStatus } from '../types';
 
 interface ScanCard {
@@ -20,7 +21,7 @@ interface ScanCard {
   warrantyEnd?: string | null;
 }
 
-/** Public, mobile-first asset card opened by scanning a sticker QR. No login. */
+/** Public, mobile-first asset card opened by scanning a sticker QR. No login. Light-only. */
 export function ScanPage() {
   const { code } = useParams();
   const [card, setCard] = useState<ScanCard | null>(null);
@@ -38,19 +39,13 @@ export function ScanPage() {
   }, [code]);
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: '#f5f6f8',
-        padding: '24px 16px',
-        display: 'flex',
-        justifyContent: 'center',
-      }}
-    >
+    <div className="nv-scan-page">
       <Space direction="vertical" size={16} style={{ width: '100%', maxWidth: 420 }}>
         <div>
-          <Typography.Text type="secondary">NewVision IT · Physical audit</Typography.Text>
-          <Typography.Title level={3} style={{ margin: '4px 0 0' }}>
+          <Typography.Text style={{ fontSize: 12, color: COLOR_TEXT_MUTED }}>
+            NewVision IT · Physical audit
+          </Typography.Text>
+          <Typography.Title level={3} style={{ margin: '4px 0 0', fontSize: 22, letterSpacing: '-0.02em' }}>
             {card?.assetCode ?? code ?? 'Asset'}
           </Typography.Title>
         </div>
