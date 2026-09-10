@@ -13,7 +13,7 @@ import { Alert, Button, Card, Col, Row, Space, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { isEmployee, isItConsole, isManager } from '../access';
-import { BreakdownList } from '../components/BreakdownList';
+import { LocationBreakdownTable, StatusBreakdownTable } from '../components/BreakdownList';
 import { WarrantyDays } from '../components/Cells';
 import { DataGrid } from '../components/DataGrid/DataGrid';
 import { FirstRunWelcome } from '../components/FirstRunWelcome';
@@ -348,6 +348,7 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
       const count = m?.byStatus?.[status] ?? 0;
       return {
         key: status,
+        status,
         label: STATUS_LABELS[status],
         percent: total ? `${Math.round((count / total) * 100)}%` : undefined,
         count,
@@ -491,7 +492,7 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
           <Row gutter={[12, 12]}>
             <Col xs={24} lg={12}>
               <Card size="small" title="Status distribution" extra={<Typography.Text style={{ fontSize: 11.5, color: COLOR_TEXT_MUTED }}>All categories</Typography.Text>}>
-                <BreakdownList items={statusItems} empty="No assets yet." />
+                <StatusBreakdownTable items={statusItems} empty="No assets yet." />
               </Card>
             </Col>
             <Col xs={24} lg={12}>
@@ -499,16 +500,14 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
                 {locationId ? (
                   <Typography.Text type="secondary">Clear the location filter to compare all sites.</Typography.Text>
                 ) : (
-                  <BreakdownList
-                    items={byLocation.map((l) => ({
+                  <LocationBreakdownTable
+                    rows={byLocation.map((l) => ({
                       key: String(l.locationId ?? l.code),
-                      label: l.name || l.city || l.code,
-                      detail: STATUS_ORDER.filter((s) => (l.byStatus?.[s] ?? 0) > 0)
-                        .map((s) => `${STATUS_LABELS[s]} ${l.byStatus?.[s]}`)
-                        .join(' · '),
-                      count: l.total,
-                      color: KPI_TOTAL,
+                      name: l.name || l.city || l.code,
+                      total: l.total,
                       href: assetsHref({ locationId: l.locationId }),
+                      byStatus: l.byStatus ?? {},
+                      statusHref: (status) => assetsHref({ locationId: l.locationId, status }),
                     }))}
                     empty="No location breakdown yet."
                   />

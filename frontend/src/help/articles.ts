@@ -65,13 +65,13 @@ Press **/** anywhere to focus global search. Press **?** in the header to return
     id: 'dashboard',
     title: 'Dashboard & Analytics',
     category: 'Operations',
-    summary: 'Role-specific homes, KPI tiles, status and location lists, warranty table, and needs-attention alerts.',
-    keywords: ['dashboard', 'status', 'metrics', 'warranty', 'attention', 'lists'],
+    summary: 'Role-specific homes, KPI tiles, status and location tables, warranty table, and needs-attention alerts.',
+    keywords: ['dashboard', 'status', 'metrics', 'warranty', 'attention', 'tables'],
     screenshot: '/docs/screenshots/dashboard.png',
     callouts: [
       { n: 1, label: 'Metric cards' },
       { n: 2, label: 'Needs attention' },
-      { n: 3, label: 'Status list' },
+      { n: 3, label: 'Status table' },
       { n: 4, label: 'Warranty table' },
     ],
     body: `Home depends on your role — Super Admin and IT Admin see the estate console; IT Support sees an operational queue; Managers see team work; Employees see **My IT**.
@@ -79,8 +79,8 @@ Press **/** anywhere to focus global search. Press **?** in the header to return
 ### IT console (Super Admin / IT Admin)
 
 - **Metric cards** — Total, Assigned, Available, Under Repair, Retired, Warranty ≤90d. Click a card to open the assets list pre-filtered.
-- **Status list** — one row per status with a colour swatch, count, and percentage. Click a row to filter Assets.
-- **Assets by location** — one row per office (from live Location records, never hardcoded city names) with a short status breakdown. Click to filter.
+- **Status table** — one coloured row per status (tag, count, share). Click a row to filter Assets.
+- **Assets by location** — one row per office (from live Location records, never hardcoded city names). Each status is its own coloured column. Click a count to filter.
 - There is **no Growth chart**. Estate size is the Total KPI.
 - **Needs attention** — warranty, stale repairs, low stock, and requests awaiting fulfillment.
 

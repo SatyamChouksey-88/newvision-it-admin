@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { DEMO_USERS, login } from './helpers';
 
 test.describe('Prompt 17 / 20 — routes, branding, role homes', () => {
-  test('IT Admin home shows list-based status and location breakdowns, not a Growth chart', async ({
+  test('IT Admin home shows status and location tables, not a Growth chart', async ({
     page,
   }) => {
     await login(page);
@@ -11,7 +11,10 @@ test.describe('Prompt 17 / 20 — routes, branding, role homes', () => {
     });
     await expect(page.getByTestId('growth-chart')).toHaveCount(0);
     await expect(page.getByText('Running estate total')).toHaveCount(0);
-    await expect(page.getByText(/Status/i).first()).toBeVisible();
+    await expect(page.getByText('Status distribution')).toBeVisible();
+    await expect(page.getByText('Assets by location')).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'Share' })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'Location' })).toBeVisible();
   });
 
   test('lazy routes render tickets, settings, and help', async ({ page }) => {

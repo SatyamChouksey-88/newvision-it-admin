@@ -273,7 +273,7 @@ Definition of Done: UI matches approved mockup look-and-feel; no functional regr
 ## Prompt 20 — Visual rebuild, role shells, ticket depth, email-in ✅
 
 - [x] Custom 216px sidebar (`AppSider`), thin scrollbars, quiet ⧉ copy chip, chip filters on Assets/Employees
-- [x] Growth chart removed from the UI; Status and Location are clickable list/bar breakdowns
+- [x] Growth chart removed from the UI; Status and Location are coloured tables (status tag + share; per-office status columns)
 - [x] Five role homes (IT console / Support queue / Manager team / Employee My IT) with scoped dashboard APIs
 - [x] Settings → Users / Departments, employee create-login, JWT refresh, forgot/change password (prior + wired)
 - [x] Ticket human timeline, `waiting_on_employee` (pauses SLA clock; requester reply resumes), first-response labels
