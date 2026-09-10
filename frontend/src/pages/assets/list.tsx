@@ -297,75 +297,7 @@ export function AssetList() {
 
   return (
     <Card
-      title={
-        <Space size="middle" wrap>
-          <Typography.Text strong>Assets</Typography.Text>
-          <StatusLegend />
-          <Input.Search
-            aria-label="Search assets"
-            placeholder="Search code, serial, model…"
-            allowClear
-            style={{ width: 260 }}
-            key={String(activeFilters.q ?? '')}
-            defaultValue={(activeFilters.q as string | undefined) ?? ''}
-            onSearch={(v) => setFilter('q', v.trim())}
-          />
-          <ChipSelect
-            label="Status"
-            allowClear
-            aria-label="Filter by status"
-            placeholder="All"
-            options={ASSET_STATUS_OPTIONS}
-            value={activeFilters.status as AssetStatus | undefined}
-            onChange={(v) => setFilter('status', v)}
-          />
-          <ChipSelect
-            label="Location"
-            allowClear
-            aria-label="Filter by location"
-            placeholder="All"
-            options={locations.map((l) => ({ label: l.name, value: l.id }))}
-            value={activeFilters.locationId as number | undefined}
-            onChange={(v) => setFilter('locationId', v)}
-          />
-          <ChipSelect
-            label="Category"
-            allowClear
-            aria-label="Filter by category"
-            placeholder="All"
-            options={categories.map((c) => ({ label: c.name, value: c.id }))}
-            value={activeFilters.categoryId as number | undefined}
-            onChange={(v) => setFilter('categoryId', v)}
-          />
-          <ChipSelect
-            label="Department"
-            allowClear
-            aria-label="Filter by department"
-            placeholder="All"
-            options={departments.map((d) => ({ label: d.name, value: d.id }))}
-            value={activeFilters.departmentId as number | undefined}
-            onChange={(v) => setFilter('departmentId', v)}
-          />
-          <Select
-            allowClear
-            aria-label="Saved view"
-            placeholder="Saved view"
-            style={{ width: 180 }}
-            options={views.map((v) => ({ label: v.name, value: v.id }))}
-            onChange={(id) => {
-              const view = views.find((v) => v.id === id);
-              if (view) applyFilterState(view.filters);
-            }}
-          />
-          <Button
-            size="small"
-            disabled={activeFilterCount === 0}
-            onClick={() => setSaveViewOpen(true)}
-          >
-            Save view
-          </Button>
-        </Space>
-      }
+      title={<Typography.Text strong>Assets</Typography.Text>}
       extra={
         <Space>
           {canManage && selectedIds.length > 0 && (
@@ -405,6 +337,72 @@ export function AssetList() {
         </Space>
       }
     >
+      <div className="nv-filter-row">
+        <StatusLegend />
+        <Input.Search
+          aria-label="Search assets"
+          placeholder="Search code, serial, model…"
+          allowClear
+          style={{ width: 260 }}
+          key={String(activeFilters.q ?? '')}
+          defaultValue={(activeFilters.q as string | undefined) ?? ''}
+          onSearch={(v) => setFilter('q', v.trim())}
+        />
+        <ChipSelect
+          label="Status"
+          allowClear
+          aria-label="Filter by status"
+          placeholder="All"
+          options={ASSET_STATUS_OPTIONS}
+          value={activeFilters.status as AssetStatus | undefined}
+          onChange={(v) => setFilter('status', v)}
+        />
+        <ChipSelect
+          label="Location"
+          allowClear
+          aria-label="Filter by location"
+          placeholder="All"
+          options={locations.map((l) => ({ label: l.name, value: l.id }))}
+          value={activeFilters.locationId as number | undefined}
+          onChange={(v) => setFilter('locationId', v)}
+        />
+        <ChipSelect
+          label="Category"
+          allowClear
+          aria-label="Filter by category"
+          placeholder="All"
+          options={categories.map((c) => ({ label: c.name, value: c.id }))}
+          value={activeFilters.categoryId as number | undefined}
+          onChange={(v) => setFilter('categoryId', v)}
+        />
+        <ChipSelect
+          label="Department"
+          allowClear
+          aria-label="Filter by department"
+          placeholder="All"
+          options={departments.map((d) => ({ label: d.name, value: d.id }))}
+          value={activeFilters.departmentId as number | undefined}
+          onChange={(v) => setFilter('departmentId', v)}
+        />
+        <Select
+          allowClear
+          aria-label="Saved view"
+          placeholder="Saved view"
+          style={{ width: 180 }}
+          options={views.map((v) => ({ label: v.name, value: v.id }))}
+          onChange={(id) => {
+            const view = views.find((v) => v.id === id);
+            if (view) applyFilterState(view.filters);
+          }}
+        />
+        <Button
+          size="small"
+          disabled={activeFilterCount === 0}
+          onClick={() => setSaveViewOpen(true)}
+        >
+          Save view
+        </Button>
+      </div>
       {filterChips.length > 0 && (
         <Space wrap size={[4, 4]} style={{ marginBottom: 12 }} aria-label="Active filters">
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>

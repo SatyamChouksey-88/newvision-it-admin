@@ -128,7 +128,7 @@ export function TicketList() {
         </Space>
       }
     >
-      <Space wrap style={{ marginBottom: 12 }}>
+      <div className="nv-filter-row">
         {TICKET_STATUS_OPTIONS.map((s) => (
           <Tag.CheckableTag
             key={s.value}
@@ -145,9 +145,9 @@ export function TicketList() {
             {counts[s.value] != null ? ` (${counts[s.value]})` : ''}
           </Tag.CheckableTag>
         ))}
-      </Space>
+      </div>
       {isStaff ? (
-        <Space wrap style={{ marginBottom: 12 }}>
+        <div className="nv-filter-row">
           {QUICK_VIEWS.map((v) => (
             <Button
               key={v.key || 'all'}
@@ -167,7 +167,7 @@ export function TicketList() {
           <Button size="small" onClick={() => setSaveOpen(true)}>
             Save view
           </Button>
-        </Space>
+        </div>
       ) : null}
       <Input.Search
         allowClear

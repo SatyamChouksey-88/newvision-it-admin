@@ -7,9 +7,13 @@ export interface BreakdownItem {
   count: number;
   color: string;
   href?: string;
+  /** e.g. "20%" — shown as its own column, never glued to the name. */
+  percent?: string;
+  /** e.g. "Assigned 412 · Available 80" — second line under the name. */
+  detail?: string;
 }
 
-/** Color-coded bullet list used instead of dashboard charts. */
+/** Color-coded list used instead of dashboard charts. Each field is its own cell. */
 export function BreakdownList({ items, empty }: { items: BreakdownItem[]; empty?: string }) {
   const visible = items.filter((i) => i.count > 0);
   if (visible.length === 0) {
@@ -20,69 +24,43 @@ export function BreakdownList({ items, empty }: { items: BreakdownItem[]; empty?
     );
   }
   const max = Math.max(...visible.map((i) => i.count), 1);
+
   return (
-    <ul style={{ listStyle: 'none', margin: 0, padding: '4px 0', display: 'grid', gap: 8 }}>
+    <ul className="nv-breakdown" style={{ listStyle: 'none', margin: 0, padding: '4px 0' }}>
       {visible.map((item) => {
-        const row = (
-          <span
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              fontSize: 13,
-              color: COLOR_TEXT_PRIMARY,
-            }}
-          >
+        const inner = (
+          <>
+            <span className="nv-breakdown-row">
+              <span
+                aria-hidden
+                className="nv-breakdown-dot"
+                style={{ background: item.color }}
+              />
+              <span className="nv-breakdown-copy">
+                <span className="nv-breakdown-label">{item.label}</span>
+                {item.detail ? <span className="nv-breakdown-detail">{item.detail}</span> : null}
+              </span>
+              {item.percent ? <span className="nv-breakdown-pct">{item.percent}</span> : null}
+              <span className="nv-breakdown-count">{item.count.toLocaleString()}</span>
+            </span>
             <span
               aria-hidden
+              className="nv-breakdown-bar"
               style={{
-                width: 10,
-                height: 10,
-                borderRadius: '50%',
                 background: item.color,
-                flexShrink: 0,
+                width: `${Math.max(8, (item.count / max) * 100)}%`,
               }}
             />
-            <span style={{ flex: 1, minWidth: 0 }}>{item.label}</span>
-            <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{item.count}</span>
-          </span>
+          </>
         );
         return (
-          <li key={item.key}>
+          <li key={item.key} className="nv-breakdown-item">
             {item.href ? (
-              <Link to={item.href} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
-                {row}
-                <span
-                  aria-hidden
-                  style={{
-                    display: 'block',
-                    height: 4,
-                    marginTop: 4,
-                    marginLeft: 20,
-                    borderRadius: 4,
-                    background: item.color,
-                    opacity: 0.25,
-                    width: `${Math.max(8, (item.count / max) * 100)}%`,
-                  }}
-                />
+              <Link to={item.href} className="nv-breakdown-link">
+                {inner}
               </Link>
             ) : (
-              <>
-                {row}
-                <span
-                  aria-hidden
-                  style={{
-                    display: 'block',
-                    height: 4,
-                    marginTop: 4,
-                    marginLeft: 20,
-                    borderRadius: 4,
-                    background: item.color,
-                    opacity: 0.25,
-                    width: `${Math.max(8, (item.count / max) * 100)}%`,
-                  }}
-                />
-              </>
+              inner
             )}
           </li>
         );

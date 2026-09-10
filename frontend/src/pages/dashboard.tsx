@@ -55,6 +55,17 @@ interface WarrantyRow {
   daysRemaining: number | null;
 }
 
+const STATUS_ORDER: AssetStatus[] = [
+  'assigned',
+  'available',
+  'under_repair',
+  'pending_assignment',
+  'lost',
+  'damaged',
+  'retired',
+  'disposed',
+];
+
 function assetsHref(filters: Record<string, string | number | undefined>) {
   const parts: string[] = [];
   let i = 0;
@@ -332,15 +343,19 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
     ? locations.map((l) => l.city || l.name).join(', ')
     : 'your locations';
   const total = m?.total ?? 0;
-  const statusItems = (Object.entries(m?.byStatus ?? {}) as [AssetStatus, number][])
-    .filter(([, n]) => n > 0)
-    .map(([status, count]) => ({
-      key: status,
-      label: `${STATUS_LABELS[status] ?? status}  ${total ? `${Math.round((count / total) * 100)}%` : ''}`,
-      count,
-      color: STATUS_CHART_COLORS[status],
-      href: assetsHref({ status, locationId }),
-    }));
+  const statusItems = STATUS_ORDER.filter((status) => (m?.byStatus?.[status] ?? 0) > 0).map(
+    (status) => {
+      const count = m?.byStatus?.[status] ?? 0;
+      return {
+        key: status,
+        label: STATUS_LABELS[status],
+        percent: total ? `${Math.round((count / total) * 100)}%` : undefined,
+        count,
+        color: STATUS_CHART_COLORS[status],
+        href: assetsHref({ status, locationId }),
+      };
+    },
+  );
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }} data-testid="estate-dashboard">
@@ -487,10 +502,10 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
                   <BreakdownList
                     items={byLocation.map((l) => ({
                       key: String(l.locationId ?? l.code),
-                      label: `${l.name ?? l.code}  ${Object.entries(l.byStatus ?? {})
-                        .filter(([, n]) => n)
-                        .map(([s, n]) => `${STATUS_LABELS[s as AssetStatus] ?? s} ${n}`)
-                        .join(' · ')}`,
+                      label: l.name || l.city || l.code,
+                      detail: STATUS_ORDER.filter((s) => (l.byStatus?.[s] ?? 0) > 0)
+                        .map((s) => `${STATUS_LABELS[s]} ${l.byStatus?.[s]}`)
+                        .join(' · '),
                       count: l.total,
                       color: KPI_TOTAL,
                       href: assetsHref({ locationId: l.locationId }),

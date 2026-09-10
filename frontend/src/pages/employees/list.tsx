@@ -104,41 +104,7 @@ export function EmployeeList() {
 
   return (
     <Card
-      title={
-        <Space size="middle" wrap>
-          <Typography.Text strong>Employees</Typography.Text>
-          <ChipSelect<StatusFilter>
-            label="Status"
-            aria-label="Filter by employment status"
-            value={statusValue}
-            options={STATUS_OPTIONS}
-            onChange={(v) =>
-              setFilter(
-                'isActive',
-                v === 'active' ? 'true' : v === 'inactive' ? 'false' : undefined,
-              )
-            }
-          />
-          <ChipSelect
-            label="Location"
-            allowClear
-            aria-label="Filter by location"
-            placeholder="All"
-            options={locations.map((l) => ({ label: l.name, value: l.id }))}
-            value={active.locationId ? Number(active.locationId) : undefined}
-            onChange={(v) => setFilter('locationId', v)}
-          />
-          <ChipSelect
-            label="Department"
-            allowClear
-            aria-label="Filter by department"
-            placeholder="All"
-            options={departments.map((d) => ({ label: d.name, value: d.id }))}
-            value={active.departmentId ? Number(active.departmentId) : undefined}
-            onChange={(v) => setFilter('departmentId', v)}
-          />
-        </Space>
-      }
+      title={<Typography.Text strong>Employees</Typography.Text>}
       extra={
         canManage ? (
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
@@ -155,6 +121,38 @@ export function EmployeeList() {
           void tableQuery.refetch();
         }}
       />
+      <div className="nv-filter-row">
+        <ChipSelect<StatusFilter>
+          label="Status"
+          aria-label="Filter by employment status"
+          value={statusValue}
+          options={STATUS_OPTIONS}
+          onChange={(v) =>
+            setFilter(
+              'isActive',
+              v === 'active' ? 'true' : v === 'inactive' ? 'false' : undefined,
+            )
+          }
+        />
+        <ChipSelect
+          label="Location"
+          allowClear
+          aria-label="Filter by location"
+          placeholder="All"
+          options={locations.map((l) => ({ label: l.name, value: l.id }))}
+          value={active.locationId ? Number(active.locationId) : undefined}
+          onChange={(v) => setFilter('locationId', v)}
+        />
+        <ChipSelect
+          label="Department"
+          allowClear
+          aria-label="Filter by department"
+          placeholder="All"
+          options={departments.map((d) => ({ label: d.name, value: d.id }))}
+          value={active.departmentId ? Number(active.departmentId) : undefined}
+          onChange={(v) => setFilter('departmentId', v)}
+        />
+      </div>
       {tableQuery.isLoading ? (
         <TableSkeleton columns={5} />
       ) : tableQuery.isError ? (

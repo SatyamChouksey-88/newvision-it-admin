@@ -3,6 +3,7 @@ import { Button, Layout, Space } from 'antd';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { CommandPalette } from './CommandPalette';
+import { HistoryNav } from './HistoryNav';
 import { COLOR_BORDER, COLOR_TEXT_MUTED, FONT_MONO } from '../theme';
 import { NotificationBell } from './NotificationBell';
 
@@ -67,6 +68,8 @@ export function Header() {
         lineHeight: '52px',
       }}
     >
+      <HistoryNav />
+
       <nav className="nv-breadcrumb" aria-label="Breadcrumb">
         <span>NewVision</span>
         <span className="nv-breadcrumb-sep">/</span>
