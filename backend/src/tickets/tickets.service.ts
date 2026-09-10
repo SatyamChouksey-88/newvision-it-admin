@@ -16,6 +16,15 @@ import { AuditService } from '../audit/audit.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { ListQuery, parseListQuery } from '../common/query';
 import { MailerService } from '../notifications/mailer.service';
+import {
+  dailyDigestEmail,
+  newUnassignedTicketEmail,
+  ratingPromptEmail,
+  ticketAssignedEmail,
+  ticketCommentEmail,
+  ticketCreatedEmail,
+  ticketStatusChangedEmail,
+} from '../notifications/ticket-email-templates';
 import { PrismaService } from '../prisma/prisma.service';
 import { canTransitionTicket } from './tickets.lifecycle';
 
@@ -252,13 +261,13 @@ export class TicketsService {
     if (!assignedToId) {
       await this.notifyStaffNewUnassigned(ticket.id, ticket.ticketNumber, subject);
     } else {
-      await this.notifyUsers(
-        [assignedToId],
-        `${ticket.ticketNumber} assigned to you`,
-        `${subject}`,
-        ticket.id,
-        true,
-      );
+      const assignedEmail = ticketAssignedEmail({ ticketId: ticket.id, ticketNumber: ticket.ticketNumber, subject });
+      await this.notifyUsers([assignedToId], assignedEmail.subject, subject, ticket.id, true, assignedEmail.html);
+    }
+    const requesterUserId = await this.userIdForEmployee(raisedById);
+    if (requesterUserId) {
+      const confirmEmail = ticketCreatedEmail({ ticketId: ticket.id, ticketNumber: ticket.ticketNumber, subject });
+      await this.notifyUsers([requesterUserId], confirmEmail.subject, subject, ticket.id, false, confirmEmail.html);
     }
     return this.get(ticket.id, actor);
   }
@@ -284,11 +293,14 @@ export class TicketsService {
       newValue: { assignedToId: userId, status },
     });
     if (userId) {
-      await this.notifyUsers([userId], `${ticket.ticketNumber} assigned to you`, ticket.subject, id, true);
+      const assignedEmail = ticketAssignedEmail({ ticketId: id, ticketNumber: ticket.ticketNumber, subject: ticket.subject });
+      await this.notifyUsers([userId], assignedEmail.subject, ticket.subject, id, true, assignedEmail.html);
+      const statusEmail = ticketStatusChangedEmail({ ticketId: id, ticketNumber: ticket.ticketNumber, status });
       await this.notifyRequesterAndWatchers(
         ticket,
         `${ticket.ticketNumber} assigned`,
         `Your ticket is now assigned.`,
+        statusEmail.html,
       );
     }
     return this.decorate(updated);
@@ -318,20 +330,24 @@ export class TicketsService {
       oldValue: { status: ticket.status },
       newValue: { status },
     });
+    const statusEmail = ticketStatusChangedEmail({ ticketId: id, ticketNumber: ticket.ticketNumber, status });
     await this.notifyRequesterAndWatchers(
       ticket,
       `${ticket.ticketNumber} is now ${status.replaceAll('_', ' ')}`,
       ticket.subject,
+      statusEmail.html,
     );
     if (status === 'resolved') {
       const requesterUser = await this.userIdForEmployee(ticket.raisedById);
       if (requesterUser) {
+        const rating = ratingPromptEmail({ ticketId: id, ticketNumber: ticket.ticketNumber });
         await this.notifyUsers(
           [requesterUser],
-          `How did we do on ${ticket.ticketNumber}?`,
+          rating.subject,
           'Please rate this resolution (1–5) from the ticket page.',
           id,
           false,
+          rating.html,
         );
       }
     }
@@ -363,14 +379,22 @@ export class TicketsService {
       changedById: actor.id,
     });
     if (!isInternal) {
-      await this.notifyRequesterAndWatchers(ticket, `New comment on ${ticket.ticketNumber}`, body.slice(0, 200));
+      const excerpt = body.slice(0, 200);
+      const commentEmail = ticketCommentEmail({
+        ticketId: id,
+        ticketNumber: ticket.ticketNumber,
+        authorLabel: actor.fullName,
+        excerpt,
+      });
+      await this.notifyRequesterAndWatchers(ticket, commentEmail.subject, excerpt, commentEmail.html);
       if (ticket.assignedToId && ticket.assignedToId !== actor.id) {
         await this.notifyUsers(
           [ticket.assignedToId],
           `Requester commented on ${ticket.ticketNumber}`,
-          body.slice(0, 200),
+          excerpt,
           id,
           true,
+          commentEmail.html,
         );
       }
     }
@@ -592,11 +616,8 @@ export class TicketsService {
         this.prisma.supportTicket.count({ where: { assignedToId: u.id, updatedAt: { gte: since } } }),
         this.prisma.supportTicket.count({ where: { assignedToId: u.id, status: { in: OPEN_STATUSES } } }),
       ]);
-      await this.mailer.send({
-        to: u.email,
-        subject: 'NewVision daily ticket digest',
-        text: `${created} new tickets in the last day.\n${assigned} updates on tickets assigned to you.\n${awaiting} still open and assigned to you.`,
-      });
+      const digest = dailyDigestEmail({ created, assignedUpdates: assigned, stillOpen: awaiting });
+      await this.mailer.send({ to: u.email, subject: digest.subject, text: digest.text, html: digest.html });
       sent += 1;
     }
     return { sent };
@@ -904,6 +925,7 @@ export class TicketsService {
     ticket: { id: number; ticketNumber: string; raisedById: number },
     title: string,
     message: string,
+    html?: string,
   ) {
     const watchers = await this.prisma.ticketWatcher.findMany({
       where: { ticketId: ticket.id },
@@ -915,7 +937,7 @@ export class TicketsService {
     for (const w of watchers) {
       if (w.employee.user?.id) userIds.push(w.employee.user.id);
     }
-    await this.notifyUsers([...new Set(userIds)], title, message, ticket.id, false);
+    await this.notifyUsers([...new Set(userIds)], title, message, ticket.id, false, html);
   }
 
   private async notifyStaffNewUnassigned(ticketId: number, number: string, subject: string) {
@@ -923,12 +945,14 @@ export class TicketsService {
       where: { isActive: true, role: { name: { in: [RoleName.IT_ADMIN, RoleName.IT_SUPPORT] } } },
       select: { id: true },
     });
+    const email = newUnassignedTicketEmail({ ticketId, ticketNumber: number, subject });
     await this.notifyUsers(
       staff.map((s) => s.id),
-      `New ticket ${number}`,
+      email.subject,
       subject,
       ticketId,
       true,
+      email.html,
     );
   }
 
@@ -939,6 +963,7 @@ export class TicketsService {
     message: string,
     ticketId: number,
     honorDigest: boolean,
+    html?: string,
   ) {
     const unique = [...new Set(userIds.filter(Boolean))];
     if (unique.length === 0) return;
@@ -959,7 +984,7 @@ export class TicketsService {
       if (honorDigest && isTicketStaff(u.role.name) && u.emailNotifyPref === EmailNotifyPref.daily_digest) {
         continue;
       }
-      await this.mailer.send({ to: u.email, subject: title, text: message });
+      await this.mailer.send({ to: u.email, subject: title, text: message, html });
     }
   }
 }
