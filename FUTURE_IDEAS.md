@@ -9,7 +9,7 @@ Nothing here should be implemented without an explicit decision to expand scope.
 - SLA-breach automation or escalation engine (overdue is visual only)
 - Configurable ticket-routing rules builder
 - Knowledge-base / self-service article suggestions
-- Multi-channel email-to-ticket ingestion
+- Multi-mailbox or Slack/Teams/SMS ticket ingestion (one shared mailbox email-in is built)
 - AI-assisted triage or auto-categorization
 - Gamified leaderboards
 - User-configurable custom-fields builder

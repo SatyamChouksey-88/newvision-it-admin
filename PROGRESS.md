@@ -270,6 +270,17 @@ Definition of Done: UI matches approved mockup look-and-feel; no functional regr
 - [x] Re-verified full suites after the revert: **58 unit + 84 integration = 142** backend tests,
       **55 Playwright** (incl. axe-core) — all green; lint/tsc/production build clean on both sides.
 
+## Prompt 20 — Visual rebuild, role shells, ticket depth, email-in ✅
+
+- [x] Custom 216px sidebar (`AppSider`), thin scrollbars, quiet ⧉ copy chip, chip filters on Assets/Employees
+- [x] Growth chart removed from the UI; Status and Location are clickable list/bar breakdowns
+- [x] Five role homes (IT console / Support queue / Manager team / Employee My IT) with scoped dashboard APIs
+- [x] Settings → Users / Departments, employee create-login, JWT refresh, forgot/change password (prior + wired)
+- [x] Ticket human timeline, `waiting_on_employee` (pauses SLA clock; requester reply resumes), first-response labels
+- [x] Email-in: threadable outbound mail, IMAP poller + ingest webhook, loop/OOO/dedupe, unmatched senders flagged
+- [x] Duplicate asset + 20-up QR label PDF; category delete blocked when assets remain
+- [x] Help rewritten for the new dashboard/homes/tickets; Playwright no longer asserts a Growth chart
+
 ## Known issues
 
 - **Seed resets demo data on container start** when `SEED_ON_START=true` (the compose default). Convenient for demos, but restarting the backend wipes manual changes. Set `SEED_ON_START: "false"` in `docker-compose.yml` after the first boot to persist changes. Documented in README.

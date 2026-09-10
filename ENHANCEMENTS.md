@@ -123,4 +123,17 @@ Audit date: 2026-09-10. Each item lists the finding and resolution status.
 | V2 | AntD `color="green"` preset tag failed axe-core color-contrast (3.37:1) on asset notes and the command palette | **Fixed** — swapped to the project's existing safe green/blue/purple/orange pairs |
 | V3 | Mockup's floating "?" help-launcher FAB has no equivalent in the app | **Declined** — header's labelled Help button covers the same entry point with better a11y; logged rather than silently diverging |
 
+## Prompt 20
+
+| # | Finding | Resolution |
+|---|---------|------------|
+| B1/B3 | User management documented but missing | **Fixed** — Settings → Users (Super Admin) |
+| B2 | Creating an employee created no login | **Fixed** — optional “Create a login” on add-employee |
+| B5/B6 | Hardcoded Pune/Hyd/Bhopal copy | **Fixed** — location text from Location records / generic login copy |
+| B8/B17 | Departments UI + unsafe deletes | **Fixed** — Settings → Departments; delete blocked when referenced (also categories) |
+| B9 | Palette missing Reports/Audit/Help and `?` | **Fixed** — nav targets, `?` → Help, TCK-/AST- deep link |
+| B10 | Public scan leaked name + serial | **Fixed** — status only |
+| B11 | Accessories/consumables had no location | **Fixed** — `locationId` on stock (backend + types) |
+| Email-in | Replies did nothing; footer said don’t reply | **Fixed** — thread headers, IMAP/webhook ingest, replyable footer |
+
 

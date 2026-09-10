@@ -43,6 +43,21 @@ All accounts use password **`Password123!`**:
 | Manager     | `manager@newvision.local`      |
 | Employee    | `employee@newvision.local`     |
 
+### Fresh install (no seed)
+
+On a truly empty database, `npx prisma migrate deploy` creates the schema but no logins. The seed script (`npm run seed` in `backend/`) creates the five demo accounts above, including the first Super Admin. That is the supported bootstrap path — do not leave `SEED_ON_START=true` on a database that already has real data (the running app shows a banner when seeding-on-start is enabled).
+
+### Email-in (one shared mailbox)
+
+Outbound ticket mail now includes `Message-ID` / `In-Reply-To` / `References`, a `Reply-To` of `HELPDESK_MAILBOX`, and `[TCK-000123]` in the subject. Employees can reply to add a comment.
+
+Inbound options (pick one):
+
+1. **IMAP poll** every minute — set `IMAP_HOST`, `IMAP_USER`, `IMAP_PASS` (and optional `IMAP_PORT` / `IMAP_MAILBOX`). Unconfigured hosts are skipped; the app still starts.
+2. **Ingest webhook** — `POST /api/email-in/webhook` with `X-Email-Ingest-Secret` and `{ "raw": "<rfc822>" }`, or `POST /api/email-in/ingest` as Super Admin / IT Admin.
+
+Auto-replies, mail from the system's own address, and duplicate `Message-ID`s are discarded. Unrecognized senders still create a ticket, flagged with `unmatchedSender` (no auto-created employee).
+
 ---
 
 ## Local development (without Docker)

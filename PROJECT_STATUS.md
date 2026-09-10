@@ -1,6 +1,6 @@
 # NewVision — Project Status & Gap Audit
 
-This document is the current gap audit, cross-checked against the codebase after **Prompt 19** (real helpdesk emails; re-verified against `design-reference/NewVision-standalone-src.html` after reverting an interim visual pass that had drifted from it). It is not a copy of an earlier prompt’s status. For the build log see `PROGRESS.md`; for judgment calls see `DECISIONS.md`.
+This document is the current gap audit, cross-checked against the codebase after **Prompt 20** (visual rebuild, role-based shells, ticket depth, email-in). For the build log see `PROGRESS.md`; for judgment calls see `DECISIONS.md`.
 
 ## 1. What’s covered (Phases 1–4 — core product)
 
@@ -104,7 +104,7 @@ These came up in the original research document but were kept out because they b
 
 - CMDB / configuration-item relationship mapping and dependency graphs
 - IT service catalog, SLA tracking, service lifecycle management
-- Ticketing/ITSM platform, change & release management (a simple Spiceworks-style helpdesk *was* added in Prompts 14–15; full ITSM/SLA/email-in is still out)
+- Ticketing/ITSM platform, change & release management (a Spiceworks-style helpdesk plus one-mailbox email-in *was* added; full ITSM/multi-mailbox is still out)
 - IT governance, security/vulnerability/patch management modules
 - IAM/Joiner-Mover-Leaver automation, live AD/Entra sync
 - Vendor/contract management, procurement/purchase orders, IT financial management
@@ -118,15 +118,23 @@ These came up in the original research document but were kept out because they b
 
 If any of these become a real, demonstrated need later, they should be scoped as a deliberate, separate addition — not folded in casually.
 
+## 7e. What’s covered (Prompt 20 — visual rebuild, role shells, email-in)
+
+- Custom sidebar, thin scrollbars, quiet copy chip, chip-style list filters, list-based dashboard (no Growth chart)
+- Distinct homes and nav for Super Admin, IT Admin, IT Support, Manager, and Employee, with role-scoped dashboard APIs
+- Settings → Users / Departments; employee create-login; JWT refresh; forgot/change password; seed-on-start banner
+- Ticket timeline, waiting-on-employee, first-response overdue labels, requester-assets panel, Portal vs Email channel
+- Email-in (IMAP and/or webhook): new mail → ticket, reply → comment, loops/OOO/duplicates dropped, unmatched From flagged
+- Duplicate asset + printable QR label sheets; Help updated for the screens that actually exist
+
 ## 9. Remaining gaps (true leftovers, not silent undecided items)
 
-- **JWT refresh tokens** — access token only; 8h expiry. Noted since Phase 0 as future hardening
-- **Seed resets demo data** when `SEED_ON_START=true` (compose default). Documented; set `false` after first boot to persist edits
-- **Keyboard shortcuts** are strongest on assets/employees lists (`/` global search works everywhere)
-- **No self-service admin bootstrap** — a migrate-only database has no login until an admin user exists (seed, or create via a one-off). First-run UI assumes someone can already authenticate
+- **Seed resets demo data** when `SEED_ON_START=true` (compose default). Documented and warned in-app; set `false` after first boot to persist edits
+- **IMAP is optional** — local/dev without `IMAP_HOST` uses console outbound mail and can ingest via `/api/email-in/ingest`
+- **Keyboard shortcuts** are strongest on assets/employees lists (`/` global search and `?` Help work everywhere)
 
-None of Prompt 6/8/9/12/13/14/15/16/17/18/19 product work is sitting as an undocumented gap.
+None of Prompt 6/8/9/12/13/14/15/16/17/18/19/20 product work is sitting as an undocumented gap.
 
 ## 10. Recommended next step
 
-Operate the seeded demo, or stand up a migrate-only database with one admin user and walk the Welcome card. Out-of-scope enterprise ideas stay in `FUTURE_IDEAS.md`. Session hardening (refresh tokens) is the most useful *deferred* engineering item if this is deployed beyond a trusted LAN.
+Operate the seeded demo (five role logins feel like different products). Out-of-scope enterprise ideas stay in `FUTURE_IDEAS.md`.

@@ -185,3 +185,12 @@ Every judgment call made while building NewVision, and why. Newest at the bottom
   The header's labelled "Help" button already covers this entry point and is more accessible
   (visible label vs. an icon-only FAB) — a deliberate, logged divergence rather than an oversight.
 
+## Prompt 20 — Visual rebuild, role shells, email-in (2026-09-10)
+
+- **Custom sider, not Refine `ThemedSider`.** The built-in sider could not match the mockup (216px, pinned logo/footer, thin inner scroll). `AppSider` is the shell; Refine layout still supplies collapse context on tablet.
+- **Dashboard Growth chart deleted from the UI**, not hidden. Status/location are proportional lists so an admin can answer “how many / who has them / what’s broken” in seconds. The `/dashboard/trends` API remains for any leftover tooling but is unused by the home screens.
+- **Email-in default = IMAP poll + raw ingest webhook.** One shared mailbox (`HELPDESK_MAILBOX`). Matching is header `In-Reply-To`/`References` first, then `[TCK-000123]` in the subject — no fuzzy sender+subject merge. Unrecognized From still creates a ticket with `unmatchedSender`; we never auto-create an Employee.
+- **Public `/scan/:code` omits assignee name and serial** — a QR sticker is photographable. Status (Assigned / Available / …) is enough to confirm the asset without leaking PII.
+- **First-response SLA is three numbers in Settings**, not a rules engine. The clock pauses in `waiting_on_employee`. Business hours and escalation stay in `FUTURE_IDEAS.md`.
+- **Access tokens are 15 minutes + a 7-day rotating refresh token.** Long-lived 8h JWTs were a real limitation outside a trusted LAN.
+
