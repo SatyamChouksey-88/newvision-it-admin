@@ -911,7 +911,7 @@ export class TicketsService {
       select: { ticketId: true, authorId: true },
     });
     for (const c of comments) {
-      if (!map.has(c.ticketId)) map.set(c.ticketId, c.authorId);
+      if (!map.has(c.ticketId) && c.authorId != null) map.set(c.ticketId, c.authorId);
     }
     return map;
   }

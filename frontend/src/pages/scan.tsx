@@ -11,13 +11,12 @@ interface ScanCard {
   assetCode: string;
   brand?: string | null;
   model?: string | null;
-  serialNumber?: string | null;
   status: AssetStatus;
   condition?: string;
   location?: string;
   locationCode?: string;
   category?: string;
-  assignedTo?: string | null;
+  assigned?: boolean;
   warrantyEnd?: string | null;
 }
 
@@ -63,12 +62,10 @@ export function ScanPage() {
               <Descriptions.Item label="Item">
                 {`${card.brand ?? ''} ${card.model ?? ''}`.trim() || '—'}
               </Descriptions.Item>
-              <Descriptions.Item label="Serial">{card.serialNumber ?? '—'}</Descriptions.Item>
               <Descriptions.Item label="Category">{card.category ?? '—'}</Descriptions.Item>
               <Descriptions.Item label="Location">
                 {card.location ?? card.locationCode ?? '—'}
               </Descriptions.Item>
-              <Descriptions.Item label="Assigned to">{card.assignedTo ?? '—'}</Descriptions.Item>
               <Descriptions.Item label="Warranty">
                 <WarrantyDays warrantyEnd={card.warrantyEnd ?? undefined} />
               </Descriptions.Item>

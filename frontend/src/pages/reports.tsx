@@ -1,8 +1,9 @@
 import { FilePdfOutlined, FileTextOutlined } from '@ant-design/icons';
 import { App as AntdApp, Button, Card, Col, Row, Space, Typography } from 'antd';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { apiErrorMessage, httpClient } from '../providers/axios';
 import { COLOR_TEXT_MUTED, COLOR_TEXT_SECONDARY, FONT_MONO } from '../theme';
+import type { Location } from '../types';
 
 function filenameFrom(disposition: string | undefined, fallback: string) {
   const m = disposition?.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
@@ -26,42 +27,54 @@ async function download(type: string, format: 'csv' | 'pdf') {
   return Number(res.headers['x-row-count'] ?? Number.NaN);
 }
 
-const REPORTS: { type: string; title: string; desc: string; meta: string }[] = [
-  {
-    type: 'assets',
-    title: 'Asset Report',
-    desc: 'Full inventory with status, location, assignee and cost.',
-    meta: 'CSV · PDF · estate-wide',
-  },
-  {
-    type: 'employees',
-    title: 'Employee Report',
-    desc: 'Everyone, with their location, department and asset count.',
-    meta: 'CSV · PDF · includes inactive',
-  },
-  {
-    type: 'locations',
-    title: 'Location Report',
-    desc: 'Per-site asset totals broken down by status.',
-    meta: 'CSV · PDF · Pune · HYD · BHO',
-  },
-  {
-    type: 'warranty',
-    title: 'Warranty Report',
-    desc: 'Assets sorted by warranty days remaining (most urgent first).',
-    meta: 'CSV · PDF · ≤90 days first',
-  },
-  {
-    type: 'supplies',
-    title: 'Accessories & Consumables',
-    desc: 'Stock levels, open checkouts, recent issues, and low-stock flags.',
-    meta: 'CSV · PDF · live stock',
-  },
-];
+function buildReports(locationCodes: string[]): { type: string; title: string; desc: string; meta: string }[] {
+  return [
+    {
+      type: 'assets',
+      title: 'Asset Report',
+      desc: 'Full inventory with status, location, assignee and cost.',
+      meta: 'CSV · PDF · estate-wide',
+    },
+    {
+      type: 'employees',
+      title: 'Employee Report',
+      desc: 'Everyone, with their location, department and asset count.',
+      meta: 'CSV · PDF · includes inactive',
+    },
+    {
+      type: 'locations',
+      title: 'Location Report',
+      desc: 'Per-site asset totals broken down by status.',
+      meta: locationCodes.length ? `CSV · PDF · ${locationCodes.join(' · ')}` : 'CSV · PDF · per site',
+    },
+    {
+      type: 'warranty',
+      title: 'Warranty Report',
+      desc: 'Assets sorted by warranty days remaining (most urgent first).',
+      meta: 'CSV · PDF · ≤90 days first',
+    },
+    {
+      type: 'supplies',
+      title: 'Accessories & Consumables',
+      desc: 'Stock levels, open checkouts, recent issues, and low-stock flags.',
+      meta: 'CSV · PDF · live stock',
+    },
+  ];
+}
 
 export function ReportsPage() {
   const { message } = AntdApp.useApp();
   const [busy, setBusy] = useState<string | null>(null);
+  const [locationCodes, setLocationCodes] = useState<string[]>([]);
+
+  useEffect(() => {
+    httpClient
+      .get('/locations', { params: { _start: 0, _end: 100 } })
+      .then(({ data }) => setLocationCodes((data.data ?? []).map((l: Location) => l.code)))
+      .catch(() => setLocationCodes([]));
+  }, []);
+
+  const REPORTS = buildReports(locationCodes);
 
   const get = async (type: string, format: 'csv' | 'pdf') => {
     const key = `${type}:${format}`;

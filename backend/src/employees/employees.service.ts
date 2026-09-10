@@ -6,10 +6,12 @@ import {
 } from '@nestjs/common';
 import { AssetStatus, Prisma, RoleName } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
+import { AuthService } from '../auth/auth.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { ListQuery, parseListQuery } from '../common/query';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateEmployeeDto, OffboardEmployeeDto, UpdateEmployeeDto } from './dto';
+import * as crypto from 'node:crypto';
 
 export interface EmployeeHistoryEvent {
   id: string;
@@ -38,6 +40,7 @@ export class EmployeesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly authService: AuthService,
   ) {}
 
   async list(query: EmployeeListQuery, actor: AuthUser) {
@@ -492,6 +495,38 @@ export class EmployeesService {
       changedById: actor.id,
       newValue: employee,
     });
+
+    // B2: creating an employee doesn't automatically create a login — this is the optional
+    // "Create a login for this employee" step, wired to the same user-creation path Settings →
+    // Users uses (a set-your-own-password email link, never a plaintext temp password).
+    if (dto.createLogin) {
+      const role = await this.prisma.role.findUnique({
+        where: { name: dto.loginRole ?? RoleName.EMPLOYEE },
+      });
+      if (role) {
+        const user = await this.prisma.user.create({
+          data: {
+            email: employee.email,
+            fullName: `${employee.firstName} ${employee.lastName}`,
+            passwordHash: await AuthService.hashPassword(crypto.randomBytes(24).toString('hex')),
+            roleId: role.id,
+            employeeId: employee.id,
+          },
+        });
+        await this.authService.sendSetPasswordLink(user.id, user.email, {
+          subject: 'Set your NewVision password',
+          intro: `IT created a NewVision login for you (${(dto.loginRole ?? RoleName.EMPLOYEE).replaceAll('_', ' ')}). Set your password using the link below.`,
+        });
+        await this.audit.record({
+          entityType: 'User',
+          entityId: user.id,
+          action: 'create',
+          summary: `Created login ${user.email} for new employee ${employee.employeeCode}`,
+          changedById: actor.id,
+        });
+      }
+    }
+
     return employee;
   }
 

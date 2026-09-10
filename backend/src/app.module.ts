@@ -28,6 +28,7 @@ import { SearchModule } from './search/search.module';
 import { NotesModule } from './notes/notes.module';
 import { RecordsModule } from './records/records.module';
 import { TicketsModule } from './tickets/tickets.module';
+import { UsersModule } from './users/users.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({
@@ -59,6 +60,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     TicketsModule,
     NotesModule,
     RecordsModule,
+    UsersModule,
   ],
   providers: [
     // Order matters: authenticate first, then check roles. Both run globally.

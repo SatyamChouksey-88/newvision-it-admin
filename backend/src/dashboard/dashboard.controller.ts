@@ -1,17 +1,26 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { AssetStatus, Prisma } from '@prisma/client';
+import { AssetStatus, Prisma, RoleName } from '@prisma/client';
+import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
 import { daysRemaining } from '../common/warranty';
 import { PrismaService } from '../prisma/prisma.service';
 import { isFreshInstall } from './fresh-install';
 import { buildTrendPoints, trendWindowStart } from './trends';
+
+const ESTATE_ROLES = [RoleName.SUPER_ADMIN, RoleName.IT_ADMIN, RoleName.IT_SUPPORT] as const;
 
 @ApiTags('dashboard')
 @Controller('dashboard')
 export class DashboardController {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Metric cards + per-location filter. locationId omitted = all locations. */
+  /**
+   * Estate-wide metric cards + per-location filter. Restricted to IT roles — Manager/Employee
+   * get their own scoped `my-summary`/`team-summary` endpoints instead, so a non-IT client can
+   * never pull full-estate numbers even by calling the API directly.
+   */
+  @Roles(...ESTATE_ROLES)
   @Get('metrics')
   async metrics(@Query('locationId') locationIdRaw?: string) {
     const locationId = locationIdRaw ? Number(locationIdRaw) : undefined;
@@ -103,6 +112,7 @@ export class DashboardController {
   }
 
   /** Per-location breakdown for the all-locations view. */
+  @Roles(...ESTATE_ROLES)
   @Get('by-location')
   async byLocation() {
     const locations = await this.prisma.location.findMany({ orderBy: { code: 'asc' } });
@@ -129,6 +139,7 @@ export class DashboardController {
   }
 
   /** Assets sorted by warranty days-remaining ascending (most urgent first). */
+  @Roles(...ESTATE_ROLES)
   @Get('warranty-expiring')
   async warrantyExpiring(
     @Query('locationId') locationIdRaw?: string,
@@ -161,6 +172,7 @@ export class DashboardController {
   }
 
   /** Actionable items for the dashboard "needs attention" panel. */
+  @Roles(...ESTATE_ROLES)
   @Get('attention')
   async attention(@Query('locationId') locationIdRaw?: string) {
     const locationId = locationIdRaw ? Number(locationIdRaw) : undefined;
@@ -241,6 +253,86 @@ export class DashboardController {
         detail: r.kind === 'asset' ? 'Asset request' : (r.accessoryName ?? 'Accessory request'),
         href: '/requests',
       })),
+    };
+  }
+
+  /**
+   * Employee "My IT" home: their own assets and their own open tickets — never estate-wide
+   * numbers. Scoped server-side (not just hidden in the UI) so a non-IT client can't pull full
+   * dashboard data by calling the estate endpoints directly.
+   */
+  @Get('my-summary')
+  async mySummary(@CurrentUser() actor: AuthUser) {
+    if (!actor.employeeId) {
+      return { assets: [], openTickets: [], openTicketCount: 0 };
+    }
+    const OPEN = ['open', 'assigned', 'in_progress', 'waiting_on_employee', 'reopened'] as const;
+    const [assets, openTickets] = await Promise.all([
+      this.prisma.asset.findMany({
+        where: { assignedEmployeeId: actor.employeeId },
+        select: {
+          id: true,
+          assetCode: true,
+          brand: true,
+          model: true,
+          status: true,
+          category: { select: { name: true } },
+        },
+        orderBy: { assetCode: 'asc' },
+      }),
+      this.prisma.supportTicket.findMany({
+        where: { raisedById: actor.employeeId, status: { in: [...OPEN] } },
+        select: { id: true, ticketNumber: true, subject: true, status: true, priority: true, updatedAt: true },
+        orderBy: { updatedAt: 'desc' },
+        take: 20,
+      }),
+    ]);
+    return {
+      assets: assets.map((a) => ({
+        id: a.id,
+        assetCode: a.assetCode,
+        brand: a.brand,
+        model: a.model,
+        status: a.status,
+        category: a.category?.name,
+      })),
+      openTickets,
+      openTicketCount: openTickets.length,
+    };
+  }
+
+  /**
+   * Manager home: their team's pending approvals, the team's open tickets, and the team's
+   * device count — scoped to direct reports only, never the full estate.
+   */
+  @Roles(RoleName.MANAGER)
+  @Get('team-summary')
+  async teamSummary(@CurrentUser() actor: AuthUser) {
+    if (!actor.employeeId) {
+      return { pendingRequestCount: 0, teamOpenTicketCount: 0, teamDeviceCount: 0, reports: [] };
+    }
+    const reports = await this.prisma.employee.findMany({
+      where: { managerId: actor.employeeId, isActive: true },
+      select: { id: true, firstName: true, lastName: true },
+    });
+    const reportIds = reports.map((r) => r.id);
+    const OPEN = ['open', 'assigned', 'in_progress', 'waiting_on_employee', 'reopened'] as const;
+    const [pendingRequestCount, teamOpenTicketCount, teamDeviceCount] = await Promise.all([
+      this.prisma.assetRequest.count({
+        where: { requesterId: { in: reportIds.length ? reportIds : [-1] }, status: 'pending' },
+      }),
+      this.prisma.supportTicket.count({
+        where: { raisedById: { in: reportIds.length ? reportIds : [-1] }, status: { in: [...OPEN] } },
+      }),
+      this.prisma.asset.count({
+        where: { assignedEmployeeId: { in: reportIds.length ? reportIds : [-1] } },
+      }),
+    ]);
+    return {
+      pendingRequestCount,
+      teamOpenTicketCount,
+      teamDeviceCount,
+      reports: reports.map((r) => ({ id: r.id, name: `${r.firstName} ${r.lastName}` })),
     };
   }
 }

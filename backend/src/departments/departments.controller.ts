@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -86,6 +87,15 @@ export class DepartmentsController {
   @Roles(RoleName.SUPER_ADMIN)
   @Delete(':id')
   async remove(@Param('id', ParseIntPipe) id: number, @CurrentUser('id') userId: number) {
+    const [employeeCount, assetCount] = await Promise.all([
+      this.prisma.employee.count({ where: { departmentId: id } }),
+      this.prisma.asset.count({ where: { departmentId: id } }),
+    ]);
+    if (employeeCount > 0 || assetCount > 0) {
+      throw new BadRequestException(
+        `Cannot delete: ${employeeCount} employee(s) and ${assetCount} asset(s) still reference this department. Reassign them first.`,
+      );
+    }
     const dep = await this.prisma.department.delete({ where: { id } });
     await this.audit.record({
       entityType: 'Department',

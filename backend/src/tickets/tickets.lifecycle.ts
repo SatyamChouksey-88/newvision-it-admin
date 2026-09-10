@@ -2,8 +2,9 @@ import { TicketStatus } from '@prisma/client';
 
 const NEXT: Record<TicketStatus, TicketStatus[]> = {
   open: ['assigned', 'in_progress', 'closed'],
-  assigned: ['in_progress', 'open', 'resolved'],
-  in_progress: ['assigned', 'resolved'],
+  assigned: ['in_progress', 'open', 'waiting_on_employee', 'resolved'],
+  in_progress: ['assigned', 'waiting_on_employee', 'resolved'],
+  waiting_on_employee: ['in_progress', 'assigned', 'resolved'],
   resolved: ['closed', 'reopened'],
   reopened: ['assigned', 'in_progress', 'open'],
   closed: ['reopened'],

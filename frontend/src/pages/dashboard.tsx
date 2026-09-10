@@ -54,6 +54,13 @@ interface WarrantyRow {
   daysRemaining: number | null;
 }
 
+/** "Pune", "Pune and Hyderabad", "Pune, Hyderabad and Bhopal" — never hardcode site names. */
+function joinNames(names: string[]): string {
+  if (names.length === 0) return 'the estate';
+  if (names.length === 1) return names[0];
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
 function assetsHref(filters: Record<string, string | number | undefined>) {
   const parts: string[] = [];
   let i = 0;
@@ -198,7 +205,7 @@ export function DashboardPage() {
               'Empty estate — follow the setup steps below.'
             ) : (
               <>
-                {`${(m?.total ?? 0).toLocaleString()} assets across Pune, Hyderabad and Bhopal. `}
+                {`${(m?.total ?? 0).toLocaleString()} assets across ${joinNames(locations.map((l) => l.name))}. `}
                 <LiveTimestamp at={lastUpdated} refreshing={isFetching} />
               </>
             )}

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -49,6 +50,16 @@ export class LocationsController {
     return this.prisma.location.findUniqueOrThrow({ where: { id } });
   }
 
+  /** Asset/employee counts for the location detail view. */
+  @Get(':id/summary')
+  async summary(@Param('id', ParseIntPipe) id: number) {
+    const [assetCount, employeeCount] = await Promise.all([
+      this.prisma.asset.count({ where: { locationId: id } }),
+      this.prisma.employee.count({ where: { locationId: id, isActive: true } }),
+    ]);
+    return { assetCount, employeeCount };
+  }
+
   @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
   @Post()
   async create(@Body() dto: CreateLocationDto, @CurrentUser('id') userId: number) {
@@ -93,6 +104,16 @@ export class LocationsController {
   @Roles(RoleName.SUPER_ADMIN)
   @Delete(':id')
   async remove(@Param('id', ParseIntPipe) id: number, @CurrentUser('id') userId: number) {
+    const [employeeCount, assetCount, ticketCount] = await Promise.all([
+      this.prisma.employee.count({ where: { locationId: id } }),
+      this.prisma.asset.count({ where: { locationId: id } }),
+      this.prisma.supportTicket.count({ where: { locationId: id } }),
+    ]);
+    if (employeeCount > 0 || assetCount > 0 || ticketCount > 0) {
+      throw new BadRequestException(
+        `Cannot delete: ${employeeCount} employee(s), ${assetCount} asset(s), and ${ticketCount} ticket(s) still reference this location. Reassign or retire them first.`,
+      );
+    }
     const loc = await this.prisma.location.delete({ where: { id } });
     await this.audit.record({
       entityType: 'Location',

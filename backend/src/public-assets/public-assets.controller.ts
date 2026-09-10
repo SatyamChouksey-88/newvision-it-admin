@@ -8,7 +8,10 @@ import { QrService } from '../qr/qr.service';
 
 /**
  * Unauthenticated, read-only asset card for physical audits (phone-camera QR scan).
- * Intentionally omits purchase cost, invoice, and assignment history.
+ * Intentionally omits purchase cost, invoice, assignment history, the assignee's name, and the
+ * serial number — anyone who can see or photograph the printed sticker can hit this endpoint
+ * with no login, so it must not leak who holds the device or a number useful for a fraudulent
+ * warranty/insurance claim. "Assigned" vs "Available" status is enough for a physical audit.
  */
 @ApiTags('public')
 @Controller('public/assets')
@@ -36,15 +39,12 @@ export class PublicAssetsController {
       assetCode: asset.assetCode,
       brand: asset.brand,
       model: asset.model,
-      serialNumber: asset.serialNumber,
       status: asset.status,
       condition: asset.condition,
       location: asset.location?.name,
       locationCode: asset.location?.code,
       category: asset.category?.name,
-      assignedTo: asset.assignedEmployee
-        ? `${asset.assignedEmployee.firstName} ${asset.assignedEmployee.lastName}`
-        : null,
+      assigned: asset.status === 'assigned',
       warrantyEnd: asset.warrantyEnd,
       warrantyDays: asset.warrantyEnd ? daysRemaining(asset.warrantyEnd) : null,
     };
@@ -56,7 +56,6 @@ export class PublicAssetsController {
       include: {
         location: true,
         category: true,
-        assignedEmployee: { select: { firstName: true, lastName: true } },
       },
     });
     if (!asset) throw new NotFoundException(`Asset ${code} not found`);
