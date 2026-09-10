@@ -128,3 +128,20 @@ Every judgment call made while building NewVision, and why. Newest at the bottom
 - **Welcome is not a wizard.** One card, four next actions (locations → Settings Categories → employees → assets). Categories UI and Add-employee modal were added so those links are not dead ends.
 - **A migrate-only database has no users.** First-run still matters once an admin exists (`SEED_ON_START=false` after a manual user, tests that mock `/dashboard/setup`, or wiping operational rows). We did not add public signup.
 
+## Prompts 14–16 — Helpdesk, digest, notes & manual edit (2026-09-10)
+
+- **Growth chart zeros** were a timezone key mismatch: `date_trunc` + `toISOString().slice(0,7)` shifted IST midnight into the previous month so every lookup missed. Aggregation now keys months in UTC (`to_char(... AT TIME ZONE 'UTC', 'YYYY-MM')` + `buildTrendPoints`). Seed also stamps `createdAt` from purchase date so a reseed shows a real 12-month shape, not a single spike.
+- **Select-all header text** was Ant Design `columnTitle: string` replacing the checkbox. DataGrid now wraps string titles as `aria-label` on the real checkbox; the assets list passes a checkbox node. Audited: only Assets (and now Support Tickets) use row selection.
+- **MANAGE rainbow** was a raw `<div>` inside Ant Design `Menu`, which inherited chart-palette / per-character fill. It is now `Menu.ItemGroup` + forced muted `#64748b` (no gradient clip). Logos use `/brand/header-logo.png`, `/brand/favicon.png` (collapsed), `/brand/footer-logo.png` (Help), favicon in `index.html`.
+- **Helpdesk RBAC:** Super Admin, IT Admin, and IT Support manage the full queue (`ticket:manage`). Employees see own + watched tickets and public comments only. Managers see own + direct reports + watched; they cannot assign, add internal notes, or log time. Documented here rather than inventing a sixth role.
+- **IT Admin/Support seed users are linked to employee rows** (Ishan IT / Sunil Support) so staff can raise tickets as themselves. Create still requires `raisedByEmployeeId` or `actor.employeeId`.
+- **Auto-assign** is least-loaded active IT Support unless `autoAssign === false`. Manual assign always works. Unassigned new tickets notify IT Admin + IT Support.
+- **Email digest** is personal (`User.emailNotifyPref`), not admin-wide. In-app notifications are always immediate; only email is batched. Requesters/watchers stay on immediate email.
+- **Manual edit** is Super Admin **and** IT Admin (they run the estate day-to-day). Never Manager or Employee. Every save needs a reason; audit `action=manual_override` is filterable. Notes are append-only. No Vendor entity exists, so notes skip vendors.
+- **Attachments** are `bytea` on `TicketAttachment` (same pattern as import jobs), 8 MB, no executables.
+- **Ticket numbers** are assigned after insert: temp `TMP-…` then `TCK-{id padded to 6}`.
+- **Duplicate-of** is a one-way close + system comment, not a merge.
+- **Category default priorities:** Access & Account and Network → High; General → Low; others → Medium. Requester can still change them.
+- **Warranty 15–45 day text uses `#B45309`** not `#D97706`. Amber-500 on white is 3.18:1 (fails WCAG AA); amber-700 matches the existing StatusTag repair colour and passes axe after a reseed put “20 days” on the first assets page.
+- **Jest e2e `forceExit: true`** because `ScheduleModule` cron (warranty + ticket digest) keeps handles open after suites finish. Tests themselves pass; without forceExit the process can hang/crash on Windows.
+

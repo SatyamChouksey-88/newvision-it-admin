@@ -88,3 +88,15 @@ Audit date: 2026-09-10. Each item lists the finding and resolution status.
 | P13-4 | Empty database had only generic empty states | **Welcome to NewVision** card when estate counts are all zero |
 | P13-5 | Welcome linked to categories/employees with no create UI | **Settings → Categories** + **Add employee** modal |
 
+## Prompts 14–16
+
+| # | Finding | Resolution |
+|---|---------|------------|
+| A1 | Growth (12 months) chart pinned at 0, y-axis 0–1 | **Fixed** — UTC month keys + frontend `count` binding; seed `createdAt` from purchase date |
+| A2 | Assets select-all header showed wrapped “Select all assets” text | **Fixed** — checkbox + `aria-label`; DataGrid wraps string titles |
+| A3 | MANAGE label rainbow; logo placeholders | **Fixed** — Menu.ItemGroup muted color; `/brand/` assets on sider, login, Help, favicon |
+| T1 | No general IT helpdesk (only asset maintenance + asset requests) | **Added** — Support Tickets module (Spiceworks-simple) |
+| T2 | IT email notification flood | **Added** — Immediate vs Daily digest (email only; in-app always on) |
+| T3 | No escape hatch for typos / historical backfill | **Added** — Notes + Manual correction with mandatory reason |
+
+

@@ -89,7 +89,7 @@ npm test              # unit tests
 npm run test:e2e      # integration/API tests (needs Postgres reachable)
 ```
 
-Current status: **52 unit + 67 integration = 119 passing.**
+Current status: **57 unit + 79 integration = 136 passing.**
 
 ### Frontend — lint, type-check, build
 
@@ -111,11 +111,11 @@ cd backend && npm run start:dev
 # 2) In another terminal, run the e2e suite
 cd frontend
 npx playwright install chromium   # first time only
-npm run test:e2e                  # 40 tests
+npm run test:e2e                  # 47 tests
 npm run test:e2e:report           # open the last HTML report
 ```
 
-Current status: **40 Playwright tests passing** (includes axe-core a11y, help docs, first-run onboarding, tablet/light-only checks, and the asset-request approval flow).
+Current status: **47 Playwright tests passing** (includes axe-core a11y, help docs, first-run onboarding, tablet/light-only checks, helpdesk tickets, and the asset-request approval flow).
 
 ---
 
@@ -244,4 +244,11 @@ See `PROJECT_STATUS.md` for the full gap audit and deliberate exclusions.
 - **Light-only** — OS dark preference cannot invert chrome. Documented in `DECISIONS.md`.
 - **First-run** — a migrate-only empty estate shows **Welcome to NewVision** (locations → categories → employees → assets). Seeded demo is unchanged. Settings → Categories and Employees → Add employee back those steps.
 
-Current status: **52 unit + 67 integration = 119** backend tests; **40 Playwright**.
+Current status: **57 unit + 79 integration = 136** backend tests; **47 Playwright**.
+
+## Prompts 14–16 — Helpdesk, CSAT, notes & manual edit (complete)
+
+- **Bug fixes** — Growth (12 months) chart uses real UTC month counts; table select-all is a checkbox; MANAGE is one muted color; logos/favicon from `frontend/public/brand/`.
+- **Support Tickets** — Spiceworks-simple helpdesk (lifecycle, public/internal comments, watchers, time, canned replies, templates, attachments, optional asset link, overdue flag, reports). Separate from Maintenance and Requests.
+- **IT queue extras** — CSAT on resolve, Immediate vs Daily digest email, quick/saved views, full-text search, contact cards, duplicate-of linking, bulk assign/close, category default priority, CSV/PDF export.
+- **Notes & manual correction** — append-only notes on major records; Super Admin / IT Admin override with mandatory reason + confirm; backfilled entries tagged; audit filter for `manual_override`.

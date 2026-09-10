@@ -1,6 +1,6 @@
 # NewVision — Project Documentation
 
-> Internal reference for developers and operators. Last aligned with the codebase after **Prompt 13** (tablet layout, light-only, first-run onboarding). Everything below is verified against the actual repo — not the original build prompts.
+> Internal reference for developers and operators. Last aligned with the codebase after **Prompts 14–16** (IT helpdesk, CSAT/digest, notes and manual edit). Everything below is verified against the actual repo — not the original build prompts.
 
 ---
 
@@ -33,8 +33,11 @@ The stack is a **React + Refine + Ant Design** frontend talking to a **NestJS + 
 | **Audit** — Functionality | History truncation, DataGrid overflow tooltips, ticket search wiring, inactive-employee guards | **Done** — merged to `main` via PR #1 |
 | **Prompt 12** — Merge + final design system | Fast-forward audit branch; exact tokens from `NewVision-standalone-src.html`; login/shell/dashboard/lists restyle | **Done** |
 | **Prompt 13** — Investigation-based enhancements | Status-doc rewrite; tablet-width admin; light-only; first-run Welcome card; scan-page token pass | **Done** |
+| **Prompt 14 v2** — Bugs + helpdesk | Growth chart, select-all, MANAGE/logos; Spiceworks-style support tickets | **Done** |
+| **Prompt 15** — Helpdesk enhancements | CSAT, digest email, quick views, search, contact cards, duplicate-of, bulk, export | **Done** |
+| **Prompt 16** — Notes & manual edit | Append-only notes; reason-required manual override; backfill; audit filter | **Done** |
 
-**Test counts (current):** 52 backend unit + 67 backend integration = **119**; **40** Playwright (incl. axe-core).
+**Test counts (current):** 57 backend unit + 79 backend integration = **136**; **47** Playwright (incl. axe-core).
 
 **Design reference:** `design-reference/NewVision-standalone-src.html` (Prompt 12 source of truth) and `design-reference/DESIGN_TOKENS.md`. Earlier `NewVision_Asset_Manager.html` is historical.
 
@@ -319,6 +322,32 @@ erDiagram
 
 ---
 
+### 5.5b Support tickets (IT helpdesk)
+
+Separate from Maintenance (hardware repairs on one asset) and Asset Requests (asking for new kit). Used for software, network, access, and general issues.
+
+**Lifecycle:** `open → assigned → in_progress → resolved → closed`, plus `reopened`. Ticket numbers `TCK-000123`. Categories (Software / Network / Access & Account / Hardware-other / General) carry a default priority the requester can override.
+
+**API:** `/api/support-tickets` (CRUD + assign/transition/comments/watchers/time/rate/duplicate/bulk/export), `/api/ticket-categories`, `/api/ticket-templates`, `/api/canned-responses`, `/api/notes`, `/api/records/:entityType/:id/manual`.
+
+**RBAC:** any employee creates and sees own + watched tickets (public comments only). IT Support / IT Admin / Super Admin manage the queue, internal notes, time, canned/templates, reports. Managers see own + direct reports; no assign/internal/time.
+
+**Also:** CSAT 1–5 on resolve; IT email Immediate vs Daily digest (`POST /api/support-tickets/digest/run`); quick views; full-text `q`; contact cards; duplicate-of; CSV/PDF export.
+
+**Status:** Fully working. E2e: `backend/test/tickets.e2e-spec.ts`, `frontend/e2e/tickets.spec.ts`.
+
+---
+
+### 5.5c Notes and manual correction
+
+**Notes:** `GET/POST /api/notes?entityType=&entityId=` — append-only freeform notes on Asset, Employee, Accessory, Consumable, AssetMaintenance, AssetRequest, SupportTicket, Location. Viewers can read; editors of that record type can add. Past `occurredAt` is tagged **Backfilled**.
+
+**Manual edit:** `POST /api/records/:entityType/:id/manual` — Super Admin and IT Admin only. Mandatory `reason`, field whitelist, enum/FK validation still applies. Audit `action=manual_override`. Backfill assignment: `POST /api/records/Asset/:id/backfill-assignment`.
+
+**Status:** Fully working. Covered in `tickets.e2e-spec.ts` and Help article `notes-manual-edit`.
+
+---
+
 ### 5.6 Warranty tracking & alerts
 
 **Data:** `assets.warranty_start`, `assets.warranty_end`; UI shows days remaining via `WarrantyDays` component.
@@ -373,7 +402,7 @@ erDiagram
 
 **API:** `GET /api/notifications`, `PATCH /api/notifications/:id/read`.
 
-**Sources:** Warranty alerts, issue reported, repair status, low stock, asset requests, assignments.
+**Sources:** Warranty alerts, issue reported, repair status, low stock, asset requests, assignments, support-ticket events (create/assign/status/comment). IT staff can choose Immediate vs Daily digest for **email** only.
 
 **Frontend:** `NotificationBell` in `Header.tsx` — unread count badge, dropdown list.
 
@@ -407,7 +436,7 @@ erDiagram
 
 **API:** `GET /api/audit-logs` — **SUPER_ADMIN** and **IT_ADMIN** only.
 
-**Coverage:** Asset CRUD, assign, transfer, retire, status changes, imports, accessory/consumable actions, request approve/reject/fulfill.
+**Coverage:** Asset CRUD, assign, transfer, retire, status changes, imports, accessory/consumable actions, request approve/reject/fulfill, support tickets, notes, and flagged `manual_override` corrections (filterable).
 
 **Frontend:** `/audit-logs` — paginated table with expand rows.
 
@@ -419,7 +448,7 @@ erDiagram
 
 | Feature | Details | Status |
 |---------|---------|--------|
-| **Global search** | `GET /api/search?q=` — assets + employees; header `#global-search-input` | Done — `search.spec.ts` |
+| **Global search** | `GET /api/search?q=` — assets, employees, maintenance, helpdesk; header `#global-search-input` | Done — `search.spec.ts` |
 | **Saved views** | `GET/POST /api/saved-views`; assets list picker + save | Done — `governance.spec.ts` |
 | **Reconciliation** | Settings tab; HR CSV set-diff on employee code/email or asset code/serial | Done — manual upload only |
 | **QR codes** | `GET /api/assets/:id/qr`, public PNG + scan data | Done |
@@ -601,6 +630,9 @@ npm run test:e2e:report           # HTML report
 | `scan.spec.ts` | Public scan page without login |
 | `requests.spec.ts` | Employee submit → manager approve → IT fulfill |
 | `a11y.spec.ts` | axe-core WCAG2a/2aa on dashboard, assets list, asset detail |
+| `prompt13.spec.ts` | First-run welcome, tablet sider, light-only, phone scan |
+| `prompt14-bugs.spec.ts` | Growth chart scale, select-all checkbox, MANAGE color + logos |
+| `tickets.spec.ts` | Raise ticket (blank + template), IT queue, Help, notes/manual edit |
 
 **Accessibility:** Implemented as Playwright tests using `@axe-core/playwright` — not a separate npm script. Serious/critical violations fail the build.
 

@@ -1,6 +1,6 @@
 # NewVision — Project Status & Gap Audit
 
-This document is the current gap audit, cross-checked against the codebase after **Prompt 13** (investigation-based enhancements). It is not a copy of an earlier prompt’s status. For the build log see `PROGRESS.md`; for judgment calls see `DECISIONS.md`.
+This document is the current gap audit, cross-checked against the codebase after **Prompts 14–16** (helpdesk ticketing, CSAT/digest, notes and manual edit). It is not a copy of an earlier prompt’s status. For the build log see `PROGRESS.md`; for judgment calls see `DECISIONS.md`.
 
 ## 1. What’s covered (Phases 1–4 — core product)
 
@@ -75,13 +75,20 @@ This document is the current gap audit, cross-checked against the codebase after
 - Settings → **Categories** tab (create LAP/MON/…) and Employees → **Add employee**, so the first-run steps have real screens
 - Public `/scan/:code` restyled to Prompt 12 tokens; still a single-column 420px card, no login
 
+## 7b. What’s covered (Prompts 14–16 — IT helpdesk, CSAT, notes)
+
+- Three bug fixes: 12-month Growth chart (UTC month keys + chart binding), DataGrid select-all checkbox (not wrapped label text), sidebar MANAGE label (single muted color) plus a logo/favicon audit against `frontend/public/brand/`
+- Spiceworks-style **Support Tickets** module, separate from Maintenance and Asset Requests: lifecycle, public/internal comments, watchers, time logs, canned responses, templates, attachments, optional asset link, overdue indicator, reports, RBAC, Help
+- CSAT 1–5 on resolve (once; dropped on reopen); IT staff email Immediate vs Daily digest (in-app always immediate); quick/saved views; full-text search; contact cards; duplicate-of linking; bulk assign/close; category default priority; CSV/PDF export
+- Append-only **Notes** on major records; **Manual correction** for Super Admin and IT Admin (mandatory reason + confirm old→new); backfilled history tagged; audit log filter `manual_override`
+
 ## 8. What’s explicitly and deliberately excluded (by design, not by oversight)
 
 These came up in the original research document but were kept out because they belong to full enterprise ITSM/CMDB suites and don’t fit a ~1,250-asset, 3-location internal tool:
 
 - CMDB / configuration-item relationship mapping and dependency graphs
 - IT service catalog, SLA tracking, service lifecycle management
-- Ticketing/ITSM platform, change & release management
+- Ticketing/ITSM platform, change & release management (a simple Spiceworks-style helpdesk *was* added in Prompts 14–15; full ITSM/SLA/email-in is still out)
 - IT governance, security/vulnerability/patch management modules
 - IAM/Joiner-Mover-Leaver automation, live AD/Entra sync
 - Vendor/contract management, procurement/purchase orders, IT financial management
@@ -102,7 +109,7 @@ If any of these become a real, demonstrated need later, they should be scoped as
 - **Keyboard shortcuts** are strongest on assets/employees lists (`/` global search works everywhere)
 - **No self-service admin bootstrap** — a migrate-only database has no login until an admin user exists (seed, or create via a one-off). First-run UI assumes someone can already authenticate
 
-None of Prompt 6/8/9/12/13 product work is sitting as an undocumented gap.
+None of Prompt 6/8/9/12/13/14/15/16 product work is sitting as an undocumented gap.
 
 ## 10. Recommended next step
 

@@ -201,6 +201,17 @@ Definition of Done: UI matches approved mockup look-and-feel; no functional regr
 - [x] Docs: PROJECT_STATUS, PROJECT_DOCUMENTATION, PROGRESS, DECISIONS
 - [x] Tests: **52 unit + 67 integration = 119** backend; **40 Playwright** (incl. axe-core). Lint/tsc clean.
 
+## Prompts 14–16 — Helpdesk ticketing, CSAT/digest, notes & manual edit ✅
+
+- [x] A1 Growth (12 months) chart: UTC month keys + frontend binding; seed `createdAt` from purchase date
+- [x] A2 Select-all checkbox headers (assets + tickets); never render the aria-label as visible text
+- [x] A3 MANAGE single muted color; logos from `frontend/public/brand/` on sider, login, Help, favicon
+- [x] Support tickets: lifecycle, comments (public/internal), watchers, time logs, canned responses, templates, attachments, optional asset link, overdue flag, reports, RBAC, Help
+- [x] CSAT on resolve, IT email digest vs immediate, quick/saved views, full-text search, contact cards, duplicate-of, bulk assign/close, category default priority, CSV/PDF export
+- [x] Append-only notes on major records; Manual correction (Super Admin + IT Admin) with mandatory reason + confirm; backfill tag; audit filter `manual_override`
+- [x] Deliberately excluded: SLA engine, routing rules, KB suggestions, email-in, AI triage, leaderboards, custom fields, merge/split, bulk manual edit, rewriting audit/notes
+- [x] Tests: **57 unit + 79 integration = 136** backend; **47 Playwright** (incl. axe-core). Lint/tsc clean.
+
 ## Known issues
 
 - **Seed resets demo data on container start** when `SEED_ON_START=true` (the compose default). Convenient for demos, but restarting the backend wipes manual changes. Set `SEED_ON_START: "false"` in `docker-compose.yml` after the first boot to persist changes. Documented in README.
