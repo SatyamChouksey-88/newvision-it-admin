@@ -21,10 +21,12 @@ import { CopyButton } from '../components/CopyButton';
 import { DataGrid, type TableDensity } from '../components/DataGrid/DataGrid';
 import { EmployeeSelect } from '../components/EmployeeSelect';
 import { EmptyState } from '../components/EmptyState';
+import { ManualEditButton } from '../components/ManualEdit';
 import {
   MaintenanceStatusSelect,
   MaintenanceStatusTag,
 } from '../components/MaintenanceStatusTag';
+import { RecordNotes } from '../components/RecordNotes';
 import { StatusLegend } from '../components/StatusLegend';
 import { TablePagination } from '../components/TablePagination';
 import { TableSkeleton } from '../components/TableSkeleton';
@@ -36,12 +38,14 @@ import type { Maintenance, MaintenanceStatus } from '../types';
 import { formatCurrency, formatDate } from '../utils/format';
 
 const VIEW_ROLES = ['SUPER_ADMIN', 'IT_ADMIN', 'IT_SUPPORT'];
+const MANUAL_ROLES = ['SUPER_ADMIN', 'IT_ADMIN'];
 
 export function MaintenancePage() {
   const navigate = useNavigate();
   const { message } = AntdApp.useApp();
   const { data: identity } = useGetIdentity<Identity>();
   const canView = VIEW_ROLES.includes(identity?.role ?? '');
+  const canManual = MANUAL_ROLES.includes(identity?.role ?? '');
 
   const { tableProps, setFilters, filters, tableQuery } = useTable<Maintenance>({
     resource: 'maintenance',
@@ -221,10 +225,26 @@ export function MaintenancePage() {
                 expandedRowKeys: expanded,
                 onExpandedRowsChange: (keys) => setExpanded(keys as number[]),
                 expandedRowRender: (r) => (
-                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                    Notes: {r.notes ?? '—'} · Completed: {formatDate(r.completedAt)} · Reported by:{' '}
-                    {r.reportedBy?.fullName ?? '—'}
-                  </Typography.Text>
+                  <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                      Notes: {r.notes ?? '—'} · Completed: {formatDate(r.completedAt)} · Reported by:{' '}
+                      {r.reportedBy?.fullName ?? '—'}
+                    </Typography.Text>
+                    {canManual ? (
+                      <ManualEditButton
+                        entityType="AssetMaintenance"
+                        id={r.id}
+                        fields={[
+                          { name: 'issue', label: 'Issue', value: r.issue },
+                          { name: 'status', label: 'Status', value: r.status },
+                          { name: 'vendor', label: 'Vendor', value: r.vendor },
+                          { name: 'reportedAt', label: 'Reported at', value: r.reportedAt },
+                        ]}
+                        onSaved={() => void refetch()}
+                      />
+                    ) : null}
+                    <RecordNotes entityType="AssetMaintenance" entityId={r.id} canAdd={canView} />
+                  </Space>
                 ),
               }}
               columns={[

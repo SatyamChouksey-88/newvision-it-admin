@@ -7,6 +7,7 @@ import { CopyButton } from '../../components/CopyButton';
 import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid';
 import { EmployeeSelect } from '../../components/EmployeeSelect';
 import { EmptyState } from '../../components/EmptyState';
+import { RecordNotes } from '../../components/RecordNotes';
 import { StatusLegend } from '../../components/StatusLegend';
 import { TablePagination } from '../../components/TablePagination';
 import { TableSkeleton } from '../../components/TableSkeleton';
@@ -169,7 +170,7 @@ export function AccessoriesPage() {
                           ...tabularNums,
                           fontSize: 22,
                           fontWeight: 600,
-                          color: low ? '#D97706' : '#1F1F1F',
+                          color: low ? '#B45309' : '#1F1F1F',
                         }}
                       >
                         {avail}
@@ -211,36 +212,40 @@ export function AccessoriesPage() {
             expandable={{
               expandedRowKeys: expanded,
               onExpandedRowsChange: (keys) => setExpanded(keys as number[]),
-              expandedRowRender: (r) =>
-                (r.checkouts ?? []).length === 0 ? (
-                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                    No open checkouts
-                  </Typography.Text>
-                ) : (
-                  <Space wrap size={[8, 4]}>
-                    {(r.checkouts ?? []).map((c) => (
-                      <Space key={c.id} size={4}>
-                        <Typography.Text style={{ fontSize: 12 }}>
-                          {c.quantity}× → {c.employee?.firstName} {c.employee?.lastName} (
-                          {c.employee?.employeeCode})
-                        </Typography.Text>
-                        {canCheckout && (
-                          <Button
-                            size="small"
-                            type="link"
-                            style={{ padding: 0, height: 'auto' }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              void checkin(r.id, c.id);
-                            }}
-                          >
-                            Check in
-                          </Button>
-                        )}
-                      </Space>
-                    ))}
-                  </Space>
-                ),
+              expandedRowRender: (r) => (
+                <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                  {(r.checkouts ?? []).length === 0 ? (
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                      No open checkouts
+                    </Typography.Text>
+                  ) : (
+                    <Space wrap size={[8, 4]}>
+                      {(r.checkouts ?? []).map((c) => (
+                        <Space key={c.id} size={4}>
+                          <Typography.Text style={{ fontSize: 12 }}>
+                            {c.quantity}× → {c.employee?.firstName} {c.employee?.lastName} (
+                            {c.employee?.employeeCode})
+                          </Typography.Text>
+                          {canCheckout && (
+                            <Button
+                              size="small"
+                              type="link"
+                              style={{ padding: 0, height: 'auto' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void checkin(r.id, c.id);
+                              }}
+                            >
+                              Check in
+                            </Button>
+                          )}
+                        </Space>
+                      ))}
+                    </Space>
+                  )}
+                  <RecordNotes entityType="Accessory" entityId={r.id} canAdd={canManage} />
+                </Space>
+              ),
             }}
             columns={[
               {

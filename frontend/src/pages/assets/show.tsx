@@ -7,7 +7,9 @@ import { AssetStatusSelect } from '../../components/AssetStatusSelect';
 import { WarrantyDays } from '../../components/Cells';
 import { CopyButton } from '../../components/CopyButton';
 import { DataGrid } from '../../components/DataGrid/DataGrid';
+import { ManualEditButton } from '../../components/ManualEdit';
 import { MaintenanceStatusTag } from '../../components/MaintenanceStatusTag';
+import { RecordNotes } from '../../components/RecordNotes';
 import { StatusTag } from '../../components/StatusTag';
 import type { Identity } from '../../providers/authProvider';
 import { apiErrorMessage, httpClient } from '../../providers/axios';
@@ -67,7 +69,27 @@ export function AssetShow() {
   }, [asset?.id]);
 
   return (
-    <Show isLoading={query.isLoading} title={asset?.assetCode ?? 'Asset'}>
+    <Show
+      isLoading={query.isLoading}
+      title={asset?.assetCode ?? 'Asset'}
+      headerButtons={
+        canManage && asset ? (
+          <ManualEditButton
+            entityType="Asset"
+            id={asset.id}
+            fields={[
+              { name: 'brand', label: 'Brand', value: asset.brand },
+              { name: 'model', label: 'Model', value: asset.model },
+              { name: 'serialNumber', label: 'Serial', value: asset.serialNumber },
+              { name: 'status', label: 'Status', value: asset.status },
+              { name: 'vendor', label: 'Vendor', value: asset.vendor },
+              { name: 'createdAt', label: 'Created at', value: asset.createdAt },
+            ]}
+            onSaved={() => void query.refetch()}
+          />
+        ) : undefined
+      }
+    >
       {query.isError && (
         <Alert
           type="error"
@@ -275,6 +297,8 @@ export function AssetShow() {
             />
           </Card>
         )}
+
+        <RecordNotes entityType="Asset" entityId={asset?.id} canAdd={canManage} />
 
         <Typography.Text type="secondary" style={{ fontSize: 12 }}>
           Every change to this asset is recorded in the audit log.

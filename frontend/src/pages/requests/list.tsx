@@ -6,6 +6,7 @@ import { PrimaryWithSub } from '../../components/Cells';
 import { CopyButton } from '../../components/CopyButton';
 import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid';
 import { EmptyState } from '../../components/EmptyState';
+import { RecordNotes } from '../../components/RecordNotes';
 import { TablePagination } from '../../components/TablePagination';
 import { TableSkeleton } from '../../components/TableSkeleton';
 import { useToast } from '../../components/Toast';
@@ -253,14 +254,21 @@ export function RequestsPage() {
                   return <Typography.Text type="secondary">No change history yet</Typography.Text>;
                 }
                 return (
-                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12 }}>
-                    {rows.map((h) => (
-                      <li key={h.id}>
-                        {new Date(h.createdAt).toLocaleString()} — {h.summary}
-                        {h.changedBy?.fullName ? ` (${h.changedBy.fullName})` : ''}
-                      </li>
-                    ))}
-                  </ul>
+                  <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                    <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12 }}>
+                      {rows.map((h) => (
+                        <li key={h.id}>
+                          {new Date(h.createdAt).toLocaleString()} — {h.summary}
+                          {h.changedBy?.fullName ? ` (${h.changedBy.fullName})` : ''}
+                        </li>
+                      ))}
+                    </ul>
+                    <RecordNotes
+                      entityType="AssetRequest"
+                      entityId={r.id}
+                      canAdd={['SUPER_ADMIN', 'IT_ADMIN', 'MANAGER', 'EMPLOYEE'].includes(role)}
+                    />
+                  </Space>
                 );
               },
             }}

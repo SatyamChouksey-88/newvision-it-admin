@@ -1,6 +1,6 @@
 import { useTable } from '@refinedev/antd';
 import { useGetIdentity } from '@refinedev/core';
-import { Alert, Card, Input, Space, Tag, Typography } from 'antd';
+import { Alert, Button, Card, Input, Space, Tag, Typography } from 'antd';
 import { useMemo, useState } from 'react';
 import { CopyButton } from '../../components/CopyButton';
 import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid';
@@ -27,7 +27,8 @@ const ACTION_COLORS: Record<string, string> = {
   issue: 'purple',
   approve: 'green',
   reject: 'red',
-  fulfill: 'cyan',
+  comment: 'green',
+  manual_override: 'red',
 };
 
 interface AuditRow {
@@ -93,10 +94,31 @@ export function AuditList() {
         allowClear
         placeholder="Search summary, entity id or actor…"
         defaultValue={search}
-        onSearch={(v) => setFilters([{ field: 'q', operator: 'contains', value: v || undefined }])}
+        onSearch={(v) =>
+          setFilters([
+            { field: 'q', operator: 'contains', value: v || undefined },
+            ...(actionFilter ? [{ field: 'action', operator: 'eq' as const, value: actionFilter }] : []),
+          ])
+        }
         style={{ maxWidth: 360, marginBottom: 12 }}
         aria-label="Search audit log"
       />
+      <Button
+        size="small"
+        data-testid="filter-manual-overrides"
+        type={actionFilter?.includes('manual_override') ? 'primary' : 'default'}
+        onClick={() =>
+          setFilters(
+            actionFilter?.includes('manual_override')
+              ? [{ field: 'action', operator: 'eq', value: undefined }]
+              : [{ field: 'action', operator: 'eq', value: 'manual_override' }],
+            'replace',
+          )
+        }
+        style={{ marginBottom: 12, marginLeft: 8 }}
+      >
+        Manual overrides
+      </Button>
       {tableQuery.isLoading ? (
         <TableSkeleton columns={5} />
       ) : tableQuery.isError ? (

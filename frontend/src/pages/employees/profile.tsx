@@ -24,6 +24,8 @@ import { WarrantyDays } from '../../components/Cells';
 import { CopyButton } from '../../components/CopyButton';
 import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid';
 import { EmployeeSelect } from '../../components/EmployeeSelect';
+import { ManualEditButton } from '../../components/ManualEdit';
+import { RecordNotes } from '../../components/RecordNotes';
 import { StatusTag } from '../../components/StatusTag';
 import { useToast } from '../../components/Toast';
 import type { Identity } from '../../providers/authProvider';
@@ -128,6 +130,23 @@ export function EmployeeProfile() {
           )}
         </Descriptions.Item>
       </Descriptions>
+
+      {canOffboard && emp ? (
+        <ManualEditButton
+          entityType="Employee"
+          id={emp.id}
+          fields={[
+            { name: 'firstName', label: 'First name', value: emp.firstName },
+            { name: 'lastName', label: 'Last name', value: emp.lastName },
+            { name: 'email', label: 'Email', value: emp.email },
+            { name: 'phone', label: 'Phone', value: emp.phone },
+            { name: 'designation', label: 'Designation', value: emp.designation },
+          ]}
+          onSaved={() => void query.refetch()}
+        />
+      ) : null}
+
+      <RecordNotes entityType="Employee" entityId={emp?.id} canAdd={canOffboard} />
 
       {emp?.isActive === false && (
         <Alert

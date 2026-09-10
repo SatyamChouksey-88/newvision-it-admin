@@ -18,6 +18,7 @@ import { CopyButton } from '../../components/CopyButton';
 import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid';
 import { EmployeeSelect } from '../../components/EmployeeSelect';
 import { EmptyState } from '../../components/EmptyState';
+import { RecordNotes } from '../../components/RecordNotes';
 import { TablePagination } from '../../components/TablePagination';
 import { TableSkeleton } from '../../components/TableSkeleton';
 import { useToast } from '../../components/Toast';
@@ -179,13 +180,16 @@ export function ConsumablesPage() {
               expandedRowKeys: expanded,
               onExpandedRowsChange: (keys) => setExpanded(keys as number[]),
               expandedRowRender: (r) => (
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  Recent issues:{' '}
-                  {(r.issues ?? [])
-                    .slice(0, 5)
-                    .map((i) => `${i.quantity}× → ${i.employee?.firstName} ${i.employee?.lastName}`)
-                    .join(' · ') || 'None yet'}
-                </Typography.Text>
+                <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                    Recent issues:{' '}
+                    {(r.issues ?? [])
+                      .slice(0, 5)
+                      .map((i) => `${i.quantity}× → ${i.employee?.firstName} ${i.employee?.lastName}`)
+                      .join(' · ') || 'None yet'}
+                  </Typography.Text>
+                  <RecordNotes entityType="Consumable" entityId={r.id} canAdd={canManage} />
+                </Space>
               ),
             }}
             columns={[
