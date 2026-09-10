@@ -79,6 +79,16 @@ describe('Dashboard, search, scoping & import (e2e)', () => {
     expect(trends.body[0]).toHaveProperty('count');
   });
 
+  it('reports a non-fresh setup status against seeded fixture data', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/dashboard/setup')
+      .set(auth(adminToken))
+      .expect(200);
+    expect(res.body.freshInstall).toBe(false);
+    expect(res.body.locationCount).toBeGreaterThan(0);
+    expect(res.body.employeeCount).toBeGreaterThan(0);
+  });
+
   it('finds assets and employees via global search', async () => {
     const res = await request(app.getHttpServer())
       .get('/api/search?q=AST-PUN')

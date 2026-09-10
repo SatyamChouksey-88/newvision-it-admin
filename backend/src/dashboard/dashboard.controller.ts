@@ -3,6 +3,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { AssetStatus, Prisma } from '@prisma/client';
 import { daysRemaining } from '../common/warranty';
 import { PrismaService } from '../prisma/prisma.service';
+import { isFreshInstall } from './fresh-install';
 
 @ApiTags('dashboard')
 @Controller('dashboard')
@@ -46,6 +47,24 @@ export class DashboardController {
       pendingAssignment: count('pending_assignment'),
       warrantyExpiring,
       byStatus,
+    };
+  }
+
+  /** First-run detector: true only when the estate has no locations, employees, or assets. */
+  @Get('setup')
+  async setup() {
+    const [assets, employees, locations, categories] = await Promise.all([
+      this.prisma.asset.count(),
+      this.prisma.employee.count(),
+      this.prisma.location.count(),
+      this.prisma.assetCategory.count(),
+    ]);
+    return {
+      assetCount: assets,
+      employeeCount: employees,
+      locationCount: locations,
+      categoryCount: categories,
+      freshInstall: isFreshInstall({ assets, employees, locations }),
     };
   }
 
