@@ -36,6 +36,23 @@ export class ChecklistsController {
   }
 
   @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
+  @Patch('checklist-templates/:id')
+  async updateTemplate(@Param('id', ParseIntPipe) id: number, @Body() dto: TemplateDto) {
+    await this.prisma.checklistTemplateItem.deleteMany({ where: { templateId: id } });
+    return this.prisma.checklistTemplate.update({
+      where: { id },
+      data: {
+        name: dto.name,
+        kind: dto.kind,
+        items: {
+          create: dto.items.filter(Boolean).map((label, i) => ({ label, sortOrder: i })),
+        },
+      },
+      include: { items: { orderBy: { sortOrder: 'asc' } } },
+    });
+  }
+
+  @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
   @Post('checklist-templates')
   createTemplate(@Body() dto: TemplateDto) {
     return this.prisma.checklistTemplate.create({

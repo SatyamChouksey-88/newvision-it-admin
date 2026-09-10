@@ -5,6 +5,8 @@ export interface ChatLinkRef {
   href: string;
   code: string;
   id?: number;
+  title?: string;
+  status?: string;
 }
 
 /** Detect TCK / AST / EMP codes and in-app show URLs inside a chat body. */

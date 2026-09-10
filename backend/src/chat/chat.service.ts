@@ -2,7 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { NotificationType, RoleName } from '@prisma/client';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
-import { parseChatLinks } from './chat-links';
+import { parseChatLinks, type ChatLinkRef } from './chat-links';
 
 const STAFF: RoleName[] = [RoleName.SUPER_ADMIN, RoleName.IT_ADMIN, RoleName.IT_SUPPORT];
 const IT_OPS = '#it-ops';
@@ -132,13 +132,79 @@ export class ChatService {
       take: 80,
       include: { author: { select: { id: true, fullName: true } } },
     });
-    return rows.map((r) => ({
+    const linksByRow = await Promise.all(rows.map((r) => this.enrichLinks(parseChatLinks(r.body))));
+    return rows.map((r, i) => ({
       id: r.id,
       body: r.body,
       createdAt: r.createdAt,
       author: r.author,
-      links: parseChatLinks(r.body),
+      links: linksByRow[i],
     }));
+  }
+
+  private async enrichLinks(links: ChatLinkRef[]): Promise<ChatLinkRef[]> {
+    return Promise.all(
+      links.map(async (link) => {
+        if (link.kind === 'ticket' && link.id) {
+          const ticket = await this.prisma.supportTicket.findUnique({
+            where: { id: link.id },
+            select: { id: true, ticketNumber: true, subject: true, status: true },
+          });
+          if (ticket) {
+            return {
+              ...link,
+              code: ticket.ticketNumber,
+              title: ticket.subject,
+              status: ticket.status,
+              href: `/tickets/show/${ticket.id}`,
+            };
+          }
+        }
+        if (link.kind === 'asset') {
+          const asset = link.id
+            ? await this.prisma.asset.findUnique({
+                where: { id: link.id },
+                select: { id: true, assetCode: true, status: true, brand: true, model: true },
+              })
+            : await this.prisma.asset.findFirst({
+                where: { assetCode: { equals: link.code, mode: 'insensitive' } },
+                select: { id: true, assetCode: true, status: true, brand: true, model: true },
+              });
+          if (asset) {
+            return {
+              ...link,
+              id: asset.id,
+              code: asset.assetCode,
+              title: `${asset.brand ?? ''} ${asset.model ?? ''}`.trim() || asset.assetCode,
+              status: asset.status,
+              href: `/assets/show/${asset.id}`,
+            };
+          }
+        }
+        if (link.kind === 'employee') {
+          const employee = link.id
+            ? await this.prisma.employee.findUnique({
+                where: { id: link.id },
+                select: { id: true, employeeCode: true, firstName: true, lastName: true, isActive: true },
+              })
+            : await this.prisma.employee.findFirst({
+                where: { employeeCode: { equals: link.code, mode: 'insensitive' } },
+                select: { id: true, employeeCode: true, firstName: true, lastName: true, isActive: true },
+              });
+          if (employee) {
+            return {
+              ...link,
+              id: employee.id,
+              code: employee.employeeCode,
+              title: `${employee.firstName} ${employee.lastName}`,
+              status: employee.isActive ? 'active' : 'inactive',
+              href: `/employees/show/${employee.id}`,
+            };
+          }
+        }
+        return link;
+      }),
+    );
   }
 
   async post(actor: AuthUser, channelId: number, body: string) {
@@ -164,7 +230,7 @@ export class ChatService {
         })),
       });
     }
-    return { ...row, links: parseChatLinks(text) };
+    return { ...row, links: await this.enrichLinks(parseChatLinks(text)) };
   }
 
   async markRead(actor: AuthUser, channelId: number) {

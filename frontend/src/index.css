@@ -1193,12 +1193,32 @@ a:hover {
 }
 
 .nv-chat-unfurl {
-  display: inline-block;
-  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
   margin-right: 6px;
-  padding: 4px 8px;
+  padding: 8px 10px;
   border: 1px solid #bfdbfe;
   background: #eff6ff;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 12px;
+  max-width: 280px;
+  text-decoration: none;
+}
+
+.nv-chat-unfurl strong {
+  color: #0958d9;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+.nv-chat-unfurl span {
+  color: #334155;
+}
+
+.nv-chat-unfurl em {
+  color: #64748b;
+  font-style: normal;
+  font-size: 11px;
+  text-transform: capitalize;
 }

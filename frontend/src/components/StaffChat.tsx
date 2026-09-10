@@ -21,7 +21,7 @@ interface ChatMsg {
   body: string;
   createdAt: string;
   author: { id: number; fullName: string };
-  links: { kind: string; href: string; code: string }[];
+  links: { kind: string; href: string; code: string; title?: string; status?: string }[];
 }
 
 export function StaffChatLauncher() {
@@ -186,7 +186,9 @@ function StaffChatDrawer({
                   <div style={{ whiteSpace: 'pre-wrap' }}>{m.body}</div>
                   {m.links?.map((l) => (
                     <Link key={`${l.kind}-${l.code}`} to={l.href} className="nv-chat-unfurl">
-                      {l.code}
+                      <strong>{l.code}</strong>
+                      {l.title ? <span>{l.title}</span> : null}
+                      {l.status ? <em>{l.status.replaceAll('_', ' ')}</em> : null}
                     </Link>
                   ))}
                 </div>

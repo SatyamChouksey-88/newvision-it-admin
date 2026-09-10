@@ -63,7 +63,7 @@ const STATUS_ORDER: AssetStatus[] = [
   'disposed',
 ];
 
-function assetsHref(filters: Record<string, string | number | undefined>) {
+function listHref(path: string, filters: Record<string, string | number | undefined>) {
   const parts: string[] = [];
   let i = 0;
   for (const [field, value] of Object.entries(filters)) {
@@ -73,7 +73,15 @@ function assetsHref(filters: Record<string, string | number | undefined>) {
     );
     i += 1;
   }
-  return parts.length ? `/assets?${parts.join('&')}` : '/assets';
+  return parts.length ? `${path}?${parts.join('&')}` : path;
+}
+
+function assetsHref(filters: Record<string, string | number | undefined>) {
+  return listHref('/assets', filters);
+}
+
+function ticketsHref(filters: Record<string, string | number | undefined> = {}) {
+  return listHref('/tickets', filters);
 }
 
 const DISMISS_KEY = 'nv:attention-dismissed';
@@ -451,7 +459,7 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
               <KpiCard title="Retired" value={m?.retired ?? 0} icon={<InboxOutlined />} accentColor={KPI_RETIRED} href={assetsHref({ status: 'retired', locationId })} subtitle="End of life" />
             </Col>
             <Col xs={12} sm={8} lg={4}>
-              <KpiCard title="Open tickets" value={ticketSummary?.open ?? 0} icon={<CustomerServiceOutlined />} accentColor={KPI_REPAIR} href="/tickets" subtitle="Estate support queue" />
+              <KpiCard title="Open tickets" value={ticketSummary?.open ?? 0} icon={<CustomerServiceOutlined />} accentColor={KPI_REPAIR} href={ticketsHref()} subtitle="Estate support queue" />
             </Col>
           </Row>
 
@@ -564,11 +572,15 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
           >
             <Row gutter={[10, 10]}>
               {[
-                { label: 'Open', value: ticketSummary?.open ?? 0, href: '/tickets' },
-                { label: 'Unassigned', value: ticketSummary?.unassigned ?? 0, href: '/tickets?view=unassigned' },
-                { label: 'In progress', value: ticketSummary?.inProgress ?? 0, href: '/tickets' },
-                { label: ticketPreset === 'tomorrow' ? 'Due' : 'Resolved in window', value: ticketPreset === 'tomorrow' ? (ticketSummary?.due ?? 0) : (ticketSummary?.resolved ?? 0), href: '/tickets' },
-                { label: 'Created in window', value: ticketSummary?.created ?? 0, href: '/tickets' },
+                { label: 'Open', value: ticketSummary?.open ?? 0, href: ticketsHref() },
+                { label: 'Unassigned', value: ticketSummary?.unassigned ?? 0, href: ticketsHref({ view: 'unassigned' }) },
+                { label: 'In progress', value: ticketSummary?.inProgress ?? 0, href: ticketsHref({ status: 'in_progress' }) },
+                {
+                  label: ticketPreset === 'tomorrow' ? 'Due' : 'Resolved in window',
+                  value: ticketPreset === 'tomorrow' ? (ticketSummary?.due ?? 0) : (ticketSummary?.resolved ?? 0),
+                  href: ticketsHref({ status: 'resolved' }),
+                },
+                { label: 'Created in window', value: ticketSummary?.created ?? 0, href: ticketsHref() },
               ].map((cell) => (
                 <Col xs={12} sm={8} md={4} key={cell.label}>
                   <Link to={cell.href} style={{ textDecoration: 'none', color: 'inherit' }}>
