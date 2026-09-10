@@ -1,6 +1,6 @@
 # NewVision — Project Documentation
 
-> Internal reference for developers and operators. Last aligned with the codebase after **Prompt 9** (visual alignment to approved Claude Design mockup). Everything below is verified against the actual repo — not the original build prompts.
+> Internal reference for developers and operators. Last aligned with the codebase after **Prompt 12** (audit-branch merge + final design system from `NewVision-standalone-src.html`). Everything below is verified against the actual repo — not the original build prompts.
 
 ---
 
@@ -29,12 +29,13 @@ The stack is a **React + Refine + Ant Design** frontend talking to a **NestJS + 
 | **Prompt 5** — This document | Full project documentation | **Done** (this file) |
 | **Prompt 6** — DataGrid, Help, ship | Shared `DataGrid`, `/help` section, structured import errors, seed accessories/consumables | **Done** |
 | **Prompt 8** — Self-audit | Offboarding, employee history, full DataGrid sweep, dashboard drill-down, RBAC hardening | **Done** |
-| **Prompt 9** — Visual alignment | Match approved Claude Design mockup; `DESIGN_TOKENS.md`, `KpiCard`, theme/CSS refresh, Help screenshots | **Done** |
-| **Audit** — Functionality | History truncation, DataGrid overflow tooltips, ticket search wiring, inactive-employee guards | **Done** |
+| **Prompt 9** — Visual alignment | Match approved Claude Design mockup; `DESIGN_TOKENS.md`, `KpiCard`, theme/CSS refresh, Help screenshots | **Done** (superseded visually by Prompt 12) |
+| **Audit** — Functionality | History truncation, DataGrid overflow tooltips, ticket search wiring, inactive-employee guards | **Done** — merged to `main` via PR #1 |
+| **Prompt 12** — Merge + final design system | Fast-forward audit branch; exact tokens from `NewVision-standalone-src.html`; login/shell/dashboard/lists restyle | **Done** |
 
-**Test counts (current):** 50 backend unit + 66 backend integration = **116**; **31** Playwright e2e tests passing.
+**Test counts (current):** 50 backend unit + 66 backend integration = **116**; Playwright suite in `frontend/e2e`.
 
-**Design reference:** `design-reference/NewVision_Asset_Manager.html` (approved mockup) and `design-reference/DESIGN_TOKENS.md` (extracted tokens — source of truth for colors, typography, spacing, shadows).
+**Design reference:** `design-reference/NewVision-standalone-src.html` (Prompt 12 source of truth) and `design-reference/DESIGN_TOKENS.md`. Earlier `NewVision_Asset_Manager.html` is historical.
 
 ---
 

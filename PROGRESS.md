@@ -168,14 +168,26 @@ Definition of Done: UI matches approved mockup look-and-feel; no functional regr
 - [x] Global search ticket hits now land on `/maintenance` with a real `q` filter (ticket id searchable)
 - [x] Inactive employees blocked from assign/transfer/checkout/issue; reinstate + list status filter
 - [x] Tests: **50 unit + 66 integration** backend; **31 Playwright**
-- [x] Branch `audit/functionality-and-truncation` + PR
+- [x] Merged to `main` via PR #1 (`97a461c`); remote branch deleted
 
 ## Dashboard lists, inline status, editable requests (2026-09-10)
 
-- [x] Replaced Status mix / Assets by location / Assets added charts with color-coded bullet lists
 - [x] Inline status dropdown on Assets, Maintenance, and Requests (allowed transitions only)
 - [x] Requests stay editable after fulfill; expand-row shows who changed what
 - [x] Tests updated
+- [x] Prompt 12 restored dashboard charts (status donut, stacked location bar, growth) per the approved mockup — lists are no longer the primary viz
+
+## Prompt 12 — Merge audit branch + final design system (2026-09-10)
+
+- [x] Fast-forward / merge PR #1 into `main`; remote `audit/functionality-and-truncation` deleted
+- [x] Fresh audit: DataGrid on webhooks, reconciliation, and import mapping/errors; raised silent `take` caps on profile/history/reports
+- [x] Design tokens from `design-reference/NewVision-standalone-src.html` applied (`theme.ts`, `index.css`, `DESIGN_TOKENS.md`)
+- [x] Login two-column + estate panel; 216px sider + MANAGE + Sign out; 52px header with breadcrumb + ⌘K
+- [x] Dashboard KPI 3px bars, Needs attention + Dismiss all, charts restored, warranty DataGrid
+- [x] Accessories card grid (table toggle), maintenance status chips with counts, reports card grid, Help article chrome
+- [x] Employee profile tabs: Assigned assets / Accessories & consumables / History / Requests
+- [x] Keep me signed in uses sessionStorage when unchecked; warranty urgency ≤14 red / ≤45 amber
+- [x] Docs updated to drop “pending / on a branch” language
 
 ## Known issues
 

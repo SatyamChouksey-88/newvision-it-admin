@@ -106,4 +106,16 @@ Every judgment call made while building NewVision, and why. Newest at the bottom
 - **Employee History omitted maintenance tickets** — now merged from tickets reported by the employee’s user account or filed against assets they have held. Per-source cap raised to 500; the old `slice(0, 200)` cutoff is gone so long-tenured staff are not silently truncated.
 - **Truncated table cells must remain readable** — DataGrid wraps every cell in an overflow detector and shows the full value in a tooltip; “Wrap long text” in the Columns menu remains the Excel-style alternative.
 - **Header ticket search used `?q=` which Refine never read** — it now writes the same `filters[0][field]=q` query the list already syncs, and the maintenance API matches numeric `q` to ticket id.
-- **Styling left alone** — only functional CSS added (`nv-grid--wrap`, inactive row tint). Visual tokens from Prompt 9 were not revisited.
+- **Styling left alone on the audit branch** — only functional CSS added (`nv-grid--wrap`, inactive row tint). Visual tokens were revisited in Prompt 12.
+
+## Prompt 12 — Merge + final design system (2026-09-10)
+
+- **PR #1 was a clean fast-forward** — `main` received `63860a2`, `0f4596d`, `c252759` (plus later dashboard/request commits already on the branch) via `gh pr merge --merge --delete-branch`. No conflicts.
+- **Prompt 12 mockup wins over Prompt 9 and the earlier “remove charts” request** — `NewVision-standalone-src.html` is the approved visual source of truth. Dashboard charts are restored (donut, stacked location bar, 12-month growth). Breakdown lists are no longer the primary viz.
+- **Accent `#1677FF` on KPI bars; buttons and links use `#0958D9`** — `#1677FF` on white is ~4.1:1 (fails WCAG AA for text). Logged rather than asking.
+- **Login estate stats are seed figures (1,250 / 1,180 / 3 / 98.2%)** — there is no public unauthenticated metrics API; fabricating live numbers without auth would leak inventory. Display-only.
+- **Forgot password is helpdesk-only** — no reset endpoint exists; the link explains IT Helpdesk / ext. 4120 rather than faking a flow.
+- **Keep me signed in unchecked → `sessionStorage`** — checked (default) keeps JWT in `localStorage` as before so existing sessions and Playwright are unchanged.
+- **Typeahead / attention `take` caps stay** — search (20/20/10/10) and dashboard attention (10) are summaries, not inventories. Profile/history/report issue lists were raised (50→500, 200→2000).
+- **Accessories default to the mockup card grid** — Excel DataGrid remains behind a Cards/Table toggle so we do not drop sort/filter/export.
+- **Sidebar Sign out carries `data-testid="logout-button"`** — header logout was removed to match the mockup; Playwright still finds the control.

@@ -64,3 +64,16 @@ Audit date: 2026-09-10. Each item lists the finding and resolution status.
 |---|---------|------------|
 | M1 | `MetricCard` sparkline area not linked when card body clicked | **Fixed** — entire card is a link except sparkline chart |
 | M2 | Offboard allowed on already-inactive employee | **Fixed** — returns 400 with clear message |
+
+## Prompt 12 follow-up audit (2026-09-10)
+
+| # | Finding | Resolution |
+|---|---------|------------|
+| A1 | Webhooks, reconciliation findings, import column-map/errors still used plain `Table` | **Fixed** — `DataGrid` |
+| A2 | Accessory open-checkouts `take: 20`, profile issues `take: 50`, request history `take: 100`, supplies report issues `take: 200` | **Raised** to 200/500/500/2000 |
+| A3 | Import jobs list fetched 50 rows with no paging affordance | **Raised** fetch window to 200; list already paginates in the grid |
+| A4 | Warranty colour used 30-day amber, not the mockup 14/45 split | **Fixed** — ≤14 red, ≤45 amber |
+| A5 | Location chart was a single series | **Enhanced** — `GET /dashboard/by-location` now returns `byStatus` for a stacked bar |
+| A6 | Login was a single-column AuthPage | **Rebuilt** two-column + estate panel |
+| A7 | Accessories were table-only | **Card grid default** + table toggle |
+| A8 | Employee profile tabs were Overview/History | **Assigned / Supplies / History / Requests** |

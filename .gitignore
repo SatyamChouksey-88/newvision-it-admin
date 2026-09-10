@@ -13,3 +13,5 @@ test-results/
 frontend/dist/
 backend/dist/
 .cursor/
+design-reference/_extract/
+backend/tsconfig.build.tsbuildinfo
