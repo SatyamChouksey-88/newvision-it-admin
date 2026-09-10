@@ -9,6 +9,7 @@ export interface Identity {
   role: string;
   employeeId: number | null;
   permissions?: string[];
+  emailNotifyPref?: 'immediate' | 'daily_digest';
 }
 
 export const authProvider: AuthProvider = {

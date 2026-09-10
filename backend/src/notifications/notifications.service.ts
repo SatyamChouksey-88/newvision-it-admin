@@ -22,7 +22,10 @@ export class NotificationsService {
         skip,
         take,
         orderBy: { createdAt: 'desc' },
-        include: { asset: { select: { id: true, assetCode: true } } },
+        include: {
+          asset: { select: { id: true, assetCode: true } },
+          supportTicket: { select: { id: true, ticketNumber: true } },
+        },
       }),
       this.prisma.notification.count({ where }),
     ]);

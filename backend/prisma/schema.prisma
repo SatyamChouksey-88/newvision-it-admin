@@ -64,6 +64,8 @@ enum AuditAction {
   approve
   reject
   fulfill
+  comment
+  manual_override
 }
 
 enum NotificationType {
@@ -75,6 +77,28 @@ enum NotificationType {
   repair_status
   low_stock
   general
+  support_ticket
+}
+
+enum TicketStatus {
+  open
+  assigned
+  in_progress
+  resolved
+  closed
+  reopened
+}
+
+enum TicketPriority {
+  low
+  medium
+  high
+  urgent
+}
+
+enum EmailNotifyPref {
+  immediate
+  daily_digest
 }
 
 enum AssetRequestKind {
@@ -160,6 +184,14 @@ model User {
   fulfilledRequests  AssetRequest[]       @relation("RequestFulfiller")
   accessoryCheckouts AccessoryCheckout[]  @relation("AccessoryCheckoutActor")
   consumableIssues   ConsumableIssue[]    @relation("ConsumableIssueActor")
+  emailNotifyPref    EmailNotifyPref      @default(immediate) @map("email_notify_pref")
+  assignedTickets    SupportTicket[]      @relation("TicketAssignee")
+  ticketComments     TicketComment[]
+  ticketTimeLogs     TicketTimeLog[]
+  cannedResponses    CannedResponse[]
+  ticketTemplates    TicketTemplate[]
+  recordNotes        RecordNote[]
+  ticketAttachments  TicketAttachment[]   @relation("TicketAttachmentUploader")
 
   @@map("users")
 }
@@ -181,6 +213,7 @@ model Location {
   assets         Asset[]
   transfersFrom  AssetTransfer[] @relation("TransferFromLocation")
   transfersTo    AssetTransfer[] @relation("TransferToLocation")
+  supportTickets SupportTicket[]
 
   @@map("locations")
 }
@@ -225,6 +258,8 @@ model Employee {
   assetRequests   AssetRequest[]
   accessoryCheckouts AccessoryCheckout[]
   consumableIssues   ConsumableIssue[]
+  supportTickets     SupportTicket[]     @relation("TicketRequester")
+  ticketWatches      TicketWatcher[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -280,6 +315,7 @@ model Asset {
   transfers    AssetTransfer[]
   maintenance  AssetMaintenance[]
   notifications Notification[]
+  supportTickets SupportTicket[]
 
   @@index([status])
   @@index([locationId])
@@ -378,6 +414,8 @@ model Notification {
   message   String
   assetId   Int?             @map("asset_id")
   asset     Asset?           @relation(fields: [assetId], references: [id])
+  supportTicketId Int?       @map("support_ticket_id")
+  supportTicket   SupportTicket? @relation(fields: [supportTicketId], references: [id])
   isRead    Boolean          @default(false) @map("is_read")
   createdAt DateTime         @default(now()) @map("created_at")
 
@@ -558,3 +596,166 @@ model ConsumableIssue {
   @@index([employeeId])
   @@map("consumable_issues")
 }
+
+// ---------------------------------------------------------------------------
+// Support tickets (Prompt 14/15) + universal notes (Prompt 16)
+// ---------------------------------------------------------------------------
+
+model TicketCategory {
+  id              Int             @id @default(autoincrement())
+  code            String          @unique
+  name            String
+  defaultPriority TicketPriority  @default(medium) @map("default_priority")
+  tickets         SupportTicket[]
+  templates       TicketTemplate[]
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  @@map("ticket_categories")
+}
+
+model SupportTicket {
+  id                    Int            @id @default(autoincrement())
+  ticketNumber          String         @unique @map("ticket_number")
+  subject               String
+  description           String
+  categoryId            Int            @map("category_id")
+  category              TicketCategory @relation(fields: [categoryId], references: [id])
+  priority              TicketPriority @default(medium)
+  status                TicketStatus   @default(open)
+  raisedById            Int            @map("raised_by_id")
+  raisedBy              Employee       @relation("TicketRequester", fields: [raisedById], references: [id])
+  assignedToId          Int?           @map("assigned_to_id")
+  assignedTo            User?          @relation("TicketAssignee", fields: [assignedToId], references: [id])
+  assetId               Int?           @map("asset_id")
+  asset                 Asset?         @relation(fields: [assetId], references: [id])
+  locationId            Int?           @map("location_id")
+  location              Location?      @relation(fields: [locationId], references: [id])
+  dueDate               DateTime?      @map("due_date")
+  resolvedAt            DateTime?      @map("resolved_at")
+  closedAt              DateTime?      @map("closed_at")
+  totalTimeSpentMinutes Int            @default(0) @map("total_time_spent_minutes")
+  satisfactionRating    Int?           @map("satisfaction_rating")
+  satisfactionComment   String?        @map("satisfaction_comment")
+  ratedAt               DateTime?      @map("rated_at")
+  ratingPromptDropped   Boolean        @default(false) @map("rating_prompt_dropped")
+  duplicateOfId         Int?           @map("duplicate_of_id")
+  duplicateOf           SupportTicket? @relation("TicketDuplicate", fields: [duplicateOfId], references: [id])
+  duplicates            SupportTicket[] @relation("TicketDuplicate")
+  createdAt             DateTime       @default(now()) @map("created_at")
+  updatedAt             DateTime       @updatedAt @map("updated_at")
+
+  comments     TicketComment[]
+  watchers     TicketWatcher[]
+  timeLogs     TicketTimeLog[]
+  attachments  TicketAttachment[]
+  notifications Notification[]
+
+  @@index([status])
+  @@index([priority])
+  @@index([assignedToId])
+  @@index([raisedById])
+  @@index([dueDate])
+  @@map("support_tickets")
+}
+
+model TicketComment {
+  id         Int           @id @default(autoincrement())
+  ticketId   Int           @map("ticket_id")
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId   Int           @map("author_id")
+  author     User          @relation(fields: [authorId], references: [id])
+  body       String
+  isInternal Boolean       @default(false) @map("is_internal")
+  createdAt  DateTime      @default(now()) @map("created_at")
+  attachments TicketAttachment[]
+
+  @@index([ticketId])
+  @@map("ticket_comments")
+}
+
+model TicketWatcher {
+  id         Int           @id @default(autoincrement())
+  ticketId   Int           @map("ticket_id")
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  employeeId Int           @map("employee_id")
+  employee   Employee      @relation(fields: [employeeId], references: [id])
+  createdAt  DateTime      @default(now()) @map("created_at")
+
+  @@unique([ticketId, employeeId])
+  @@map("ticket_watchers")
+}
+
+model TicketTimeLog {
+  id         Int           @id @default(autoincrement())
+  ticketId   Int           @map("ticket_id")
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  staffId    Int           @map("staff_id")
+  staff      User          @relation(fields: [staffId], references: [id])
+  minutes    Int
+  note       String?
+  loggedAt   DateTime      @default(now()) @map("logged_at")
+
+  @@index([ticketId])
+  @@map("ticket_time_logs")
+}
+
+model TicketAttachment {
+  id         Int            @id @default(autoincrement())
+  ticketId   Int            @map("ticket_id")
+  ticket     SupportTicket  @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  commentId  Int?           @map("comment_id")
+  comment    TicketComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  filename   String
+  mimeType   String         @map("mime_type")
+  sizeBytes  Int            @map("size_bytes")
+  data       Bytes
+  uploadedById Int          @map("uploaded_by_id")
+  uploadedBy User           @relation("TicketAttachmentUploader", fields: [uploadedById], references: [id])
+  createdAt  DateTime       @default(now()) @map("created_at")
+
+  @@index([ticketId])
+  @@map("ticket_attachments")
+}
+
+model CannedResponse {
+  id          Int      @id @default(autoincrement())
+  title       String
+  body        String
+  createdById Int      @map("created_by_id")
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("canned_responses")
+}
+
+model TicketTemplate {
+  id          Int            @id @default(autoincrement())
+  title       String
+  subject     String
+  description String
+  categoryId  Int            @map("category_id")
+  category    TicketCategory @relation(fields: [categoryId], references: [id])
+  createdById Int            @map("created_by_id")
+  createdBy   User           @relation(fields: [createdById], references: [id])
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  @@map("ticket_templates")
+}
+
+model RecordNote {
+  id            Int      @id @default(autoincrement())
+  entityType    String   @map("entity_type")
+  entityId      String   @map("entity_id")
+  body          String
+  authorId      Int      @map("author_id")
+  author        User     @relation(fields: [authorId], references: [id])
+  isBackfilled  Boolean  @default(false) @map("is_backfilled")
+  occurredAt    DateTime @default(now()) @map("occurred_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([entityType, entityId])
+  @@map("record_notes")
+}
+

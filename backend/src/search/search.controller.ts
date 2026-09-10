@@ -20,13 +20,13 @@ export class SearchController {
   async search(@Query('q') q: string | undefined, @CurrentUser() user: AuthUser) {
     const term = (q ?? '').trim();
     if (term.length < 1) {
-      return { assets: [], employees: [], locations: [], tickets: [], query: term };
+      return { assets: [], employees: [], locations: [], tickets: [], helpdesk: [], query: term };
     }
     const like = { contains: term, mode: 'insensitive' as const };
     const isIt = IT_ROLES.includes(user.role);
     const ticketId = /^#?\d+$/.test(term) ? Number(term.replace('#', '')) : undefined;
 
-    const [assets, employees, locations, tickets] = await Promise.all([
+    const [assets, employees, locations, tickets, helpdesk] = await Promise.all([
       this.prisma.asset.findMany({
         where: {
           ...this.assetScope(user),
@@ -67,9 +67,42 @@ export class SearchController {
             take: 10,
           })
         : Promise.resolve([]),
+      this.prisma.supportTicket.findMany({
+        where: {
+          AND: [
+            user.role === RoleName.SUPER_ADMIN ||
+            user.role === RoleName.IT_ADMIN ||
+            user.role === RoleName.IT_SUPPORT
+              ? {}
+              : user.role === RoleName.MANAGER && user.employeeId
+                ? {
+                    OR: [
+                      { raisedById: user.employeeId },
+                      { raisedBy: { managerId: user.employeeId } },
+                      { watchers: { some: { employeeId: user.employeeId } } },
+                    ],
+                  }
+                : {
+                    OR: [
+                      { raisedById: user.employeeId ?? -1 },
+                      { watchers: { some: { employeeId: user.employeeId ?? -1 } } },
+                    ],
+                  },
+            {
+              OR: [
+                { ticketNumber: like },
+                { subject: like },
+                { description: like },
+              ],
+            },
+          ],
+        },
+        select: { id: true, ticketNumber: true, subject: true, status: true },
+        take: 10,
+      }),
     ]);
 
-    return { query: term, assets, employees, locations, tickets };
+    return { query: term, assets, employees, locations, tickets, helpdesk };
   }
 
   private assetScope(actor: AuthUser): Prisma.AssetWhereInput {

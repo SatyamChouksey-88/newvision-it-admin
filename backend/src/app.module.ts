@@ -25,6 +25,9 @@ import { ReconciliationModule } from './reconciliation/reconciliation.module';
 import { ReportsModule } from './reports/reports.module';
 import { SavedViewsModule } from './saved-views/saved-views.module';
 import { SearchModule } from './search/search.module';
+import { NotesModule } from './notes/notes.module';
+import { RecordsModule } from './records/records.module';
+import { TicketsModule } from './tickets/tickets.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({
@@ -53,6 +56,9 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     ReportsModule,
     QrModule,
     WebhooksModule,
+    TicketsModule,
+    NotesModule,
+    RecordsModule,
   ],
   providers: [
     // Order matters: authenticate first, then check roles. Both run globally.

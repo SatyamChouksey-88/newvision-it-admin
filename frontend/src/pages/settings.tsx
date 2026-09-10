@@ -1,28 +1,47 @@
 import { useGetIdentity } from '@refinedev/core';
-import { Card, Descriptions, Space, Tabs, Tag, Typography } from 'antd';
-import { useEffect, useMemo, useState } from 'react';
+import { Card, Descriptions, Radio, Space, Tabs, Tag, Typography } from 'antd';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import type { Identity } from '../providers/authProvider';
 import { httpClient } from '../providers/axios';
+import { useToast } from '../components/Toast';
 import { CategoriesPanel } from './settings/categories';
+import { HelpdeskSettings } from './settings/helpdesk';
 import { ImportJobsPanel } from './settings/import-jobs';
 import { ReconciliationPanel } from './settings/reconciliation';
 import { WebhooksPanel } from './settings/webhooks';
 
 const GOVERNANCE_ROLES = ['SUPER_ADMIN', 'IT_ADMIN'];
+const TICKET_STAFF = ['SUPER_ADMIN', 'IT_ADMIN', 'IT_SUPPORT'];
 
 export function SettingsPage() {
+  const toast = useToast();
   const { data: identity } = useGetIdentity<Identity>();
   const [permissions, setPermissions] = useState<string[]>([]);
   const [params, setParams] = useSearchParams();
+  const [pref, setPref] = useState<'immediate' | 'daily_digest'>('immediate');
   const canGovern = GOVERNANCE_ROLES.includes(identity?.role ?? '');
+  const isTicketStaff = TICKET_STAFF.includes(identity?.role ?? '');
 
   useEffect(() => {
     httpClient
       .get('/auth/me')
-      .then(({ data }) => setPermissions(data.permissions ?? []))
+      .then(({ data }) => {
+        setPermissions(data.permissions ?? []);
+        if (data.emailNotifyPref) setPref(data.emailNotifyPref);
+      })
       .catch(() => setPermissions([]));
   }, []);
+
+  const savePref = useCallback(async (next: 'immediate' | 'daily_digest') => {
+    try {
+      await httpClient.patch('/support-tickets/notify-pref', { pref: next });
+      setPref(next);
+      toast.success(next === 'daily_digest' ? 'Daily digest enabled' : 'Immediate email enabled');
+    } catch {
+      toast.error('Could not save preference');
+    }
+  }, [toast]);
 
   const items = useMemo(
     () => [
@@ -51,9 +70,24 @@ export function SettingsPage() {
                 )}
               </Space>
             </Card>
+            {isTicketStaff ? (
+              <Card size="small" title="Ticket email notifications">
+                <Typography.Paragraph type="secondary">
+                  In-app notifications always arrive immediately. This only changes how often you get email.
+                </Typography.Paragraph>
+                <Radio.Group
+                  value={pref}
+                  onChange={(e) => void savePref(e.target.value as 'immediate' | 'daily_digest')}
+                >
+                  <Radio value="immediate">Immediate</Radio>
+                  <Radio value="daily_digest">Daily digest</Radio>
+                </Radio.Group>
+              </Card>
+            ) : null}
           </Space>
         ),
       },
+      ...(isTicketStaff ? [{ key: 'helpdesk', label: 'Helpdesk', children: <HelpdeskSettings /> }] : []),
       ...(canGovern
         ? [
             { key: 'categories', label: 'Categories', children: <CategoriesPanel /> },
@@ -63,7 +97,7 @@ export function SettingsPage() {
           ]
         : []),
     ],
-    [canGovern, identity, permissions],
+    [canGovern, isTicketStaff, identity, permissions, pref, savePref],
   );
 
   const allowed = useMemo(() => new Set(items.map((i) => i.key)), [items]);

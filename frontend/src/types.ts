@@ -64,6 +64,7 @@ export interface Asset {
   condition: AssetCondition;
   vendor?: string;
   invoiceNo?: string;
+  createdAt?: string;
   category?: AssetCategory;
   location?: Location;
   department?: Department;
@@ -99,9 +100,11 @@ export interface AppNotification {
   title: string;
   message: string;
   assetId?: number | null;
+  supportTicketId?: number | null;
   isRead: boolean;
   createdAt: string;
   asset?: { id: number; assetCode: string };
+  supportTicket?: { id: number; ticketNumber: string };
 }
 
 export interface SavedView {
@@ -247,4 +250,87 @@ export interface SetupStatus {
   locationCount: number;
   categoryCount: number;
   freshInstall: boolean;
+}
+
+export type TicketStatus =
+  | 'open'
+  | 'assigned'
+  | 'in_progress'
+  | 'resolved'
+  | 'closed'
+  | 'reopened';
+
+export type TicketPriority = 'low' | 'medium' | 'high' | 'urgent';
+
+export interface TicketCategory {
+  id: number;
+  code: string;
+  name: string;
+  defaultPriority: TicketPriority;
+}
+
+export interface SupportTicket {
+  id: number;
+  ticketNumber: string;
+  subject: string;
+  description: string;
+  status: TicketStatus;
+  priority: TicketPriority;
+  categoryId: number;
+  category?: TicketCategory;
+  raisedById: number;
+  raisedBy: Employee;
+  assignedToId?: number | null;
+  assignedTo?: { id: number; fullName: string; email: string; employee?: Employee | null } | null;
+  assetId?: number | null;
+  asset?: { id: number; assetCode: string } | null;
+  location?: Location | null;
+  dueDate?: string | null;
+  overdue?: boolean;
+  totalTimeSpentMinutes: number;
+  satisfactionRating?: number | null;
+  satisfactionComment?: string | null;
+  ratedAt?: string | null;
+  ratingPromptDropped?: boolean;
+  duplicateOf?: { id: number; ticketNumber: string; subject: string } | null;
+  comments?: TicketComment[];
+  watchers?: { id: number; employeeId: number; employee: Employee }[];
+  timeLogs?: { id: number; minutes: number; note?: string | null; loggedAt: string; staff: { fullName: string } }[];
+  attachments?: { id: number; filename: string; mimeType: string; sizeBytes: number; createdAt: string }[];
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt?: string | null;
+  closedAt?: string | null;
+}
+
+export interface TicketComment {
+  id: number;
+  body: string;
+  isInternal: boolean;
+  createdAt: string;
+  author: { id: number; fullName: string; role?: { name: string } };
+}
+
+export interface TicketTemplate {
+  id: number;
+  title: string;
+  subject: string;
+  description: string;
+  categoryId: number;
+  category?: TicketCategory;
+}
+
+export interface CannedResponse {
+  id: number;
+  title: string;
+  body: string;
+}
+
+export interface RecordNote {
+  id: number;
+  body: string;
+  occurredAt: string;
+  isBackfilled: boolean;
+  createdAt: string;
+  author: { id: number; fullName: string };
 }

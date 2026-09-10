@@ -12,4 +12,5 @@ module.exports = {
   setupFiles: ['<rootDir>/test-env.ts'],
   globalSetup: '<rootDir>/global-setup.ts',
   testTimeout: 30000,
+  forceExit: true,
 };

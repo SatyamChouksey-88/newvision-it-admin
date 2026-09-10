@@ -15,6 +15,7 @@ export const HELP_CATEGORIES = [
   'Accessories & Consumables',
   'People & Locations',
   'Operations',
+  'Support tickets',
   'Governance',
   'Reference',
 ] as const;
@@ -239,6 +240,155 @@ Requires \`report:run\` permission (IT Admin, IT Support, Manager, Super Admin).
 Statuses: \`pending → approved|rejected → fulfilled\`.`,
   },
   {
+    id: 'tickets-raise',
+    title: 'Raising a support ticket',
+    category: 'Support tickets',
+    summary: 'Open a general IT helpdesk ticket, optionally from a template.',
+    keywords: ['ticket', 'helpdesk', 'raise', 'template', 'vpn', 'password'],
+    screenshot: '/docs/screenshots/tickets.png',
+    callouts: [
+      { n: 1, label: 'Template picker' },
+      { n: 2, label: 'Category (sets a default priority)' },
+      { n: 3, label: 'Submit ticket' },
+    ],
+    body: `Use **Support Tickets** for software, network, access, or general issues. Hardware repairs on a known asset still go through **Maintenance**; asking for a new laptop still goes through **Requests**.
+
+1. **Open Raise a ticket** from the Support Tickets list.
+2. **Optionally pick a template** such as “Can't connect to VPN” or “Password reset”.
+3. **Choose a category** — Access & Account defaults to High; General defaults to Low. You can still change priority.
+4. **Add watchers** if a manager or colleague should be notified.
+5. **Submit** — you receive a ticket number like \`TCK-000123\` (copy icon next to it).
+
+IT Support is auto-assigned when someone is available; otherwise the ticket stays Open for the queue.`,
+  },
+  {
+    id: 'tickets-statuses',
+    title: 'Understanding ticket statuses',
+    category: 'Support tickets',
+    summary: 'Open, assigned, in progress, resolved, closed, and reopened.',
+    keywords: ['status', 'lifecycle', 'reopen', 'overdue'],
+    screenshot: '/docs/screenshots/tickets.png',
+    callouts: [
+      { n: 1, label: 'Status chips' },
+      { n: 2, label: 'Overdue flag' },
+    ],
+    body: `Lifecycle: \`open → assigned → in_progress → resolved → closed\`. **Reopened** returns the ticket to assigned/in progress.
+
+- **Overdue** is a visual flag against an optional due date. There is no automatic escalation.
+- **Resolved** is when IT believes the work is done — that is when you are asked to rate the resolution.
+- **Closed** is the final state. Reopen if the issue returns.`,
+  },
+  {
+    id: 'tickets-comments-watchers',
+    title: 'Comments and watchers',
+    category: 'Support tickets',
+    summary: 'Public replies, internal notes, and extra people on the ticket.',
+    keywords: ['comment', 'internal', 'watcher', 'cc'],
+    screenshot: '/docs/screenshots/ticket-detail.png',
+    callouts: [
+      { n: 1, label: 'Public vs internal' },
+      { n: 2, label: 'Watchers' },
+    ],
+    body: `1. **Public replies** are visible to the requester and watchers.
+2. **Internal notes** (IT staff only) stay on the staff thread.
+3. **Watchers** get the same notifications as the requester. Add a manager or the colleague who reported the issue.
+
+Anyone who can view the ticket can read public comments. Internal notes never appear for employees.`,
+  },
+  {
+    id: 'tickets-it-queue',
+    title: 'Managing the IT queue',
+    category: 'Support tickets',
+    summary: 'Assignment, canned replies, time logging, and reports for IT staff.',
+    keywords: ['queue', 'assign', 'canned', 'time', 'reports'],
+    screenshot: '/docs/screenshots/tickets.png',
+    callouts: [
+      { n: 1, label: 'Status chips with counts' },
+      { n: 2, label: 'Quick views' },
+      { n: 3, label: 'Bulk actions' },
+    ],
+    body: `IT Admin and IT Support see every ticket. Super Admin has the same access.
+
+1. **Filter** with status chips or built-in quick views: My tickets, Unassigned, Overdue, Awaiting my reply.
+2. **Assign** from the ticket or in bulk from the list.
+3. **Insert a canned response** before sending a reply (Settings → Helpdesk).
+4. **Log time** in minutes; the running total appears on the ticket and in reports.
+5. **Reports** show volume by status/category/priority, average resolution time, overdue open tickets, closed counts per staff member, and average satisfaction.
+
+Managers see their own tickets plus direct reports. They cannot assign, add internal notes, or log time.`,
+  },
+  {
+    id: 'tickets-rating',
+    title: 'Rating a resolved ticket',
+    category: 'Support tickets',
+    summary: 'Requesters rate a resolution once on a 1–5 scale.',
+    keywords: ['csat', 'rating', 'satisfaction', 'resolved'],
+    screenshot: '/docs/screenshots/ticket-detail.png',
+    callouts: [{ n: 1, label: 'How did we do?' }],
+    body: `When a ticket moves to **resolved**, the requester gets a notification to rate it.
+
+1. Open the ticket and use **How did we do?**
+2. Pick 1–5 stars and an optional comment.
+3. You can rate only once. If you **reopen** instead of rating, the prompt is dropped for that ticket.
+
+Averages appear on Ticket reports, overall and per staff member.`,
+  },
+  {
+    id: 'tickets-notify-pref',
+    title: 'Ticket email notification preference',
+    category: 'Support tickets',
+    summary: 'IT staff can choose immediate emails or a daily digest.',
+    keywords: ['digest', 'email', 'notifications', 'noise'],
+    screenshot: '/docs/screenshots/settings.png',
+    callouts: [{ n: 1, label: 'Immediate vs Daily digest' }],
+    body: `Spiceworks users often report email overload. NewVision keeps in-app notifications immediate and lets IT staff choose email frequency.
+
+1. Open **Settings → Account**.
+2. Under **Ticket email notifications**, pick **Immediate** or **Daily digest**.
+3. Digest is one email per day covering new tickets, tickets assigned to you, and tickets still open on your queue.
+
+Requesters and watchers always get immediate email for events on their tickets.`,
+  },
+  {
+    id: 'tickets-search-views-export',
+    title: 'Searching, quick views, bulk actions, and export',
+    category: 'Support tickets',
+    summary: 'Find tickets by text, reuse views, assign or close many at once, export CSV/PDF.',
+    keywords: ['search', 'views', 'bulk', 'export', 'duplicate'],
+    screenshot: '/docs/screenshots/tickets.png',
+    callouts: [
+      { n: 1, label: 'Text search' },
+      { n: 2, label: 'Quick views' },
+      { n: 3, label: 'CSV / PDF' },
+    ],
+    body: `1. **Search** looks at ticket number, subject, description, and comments (internal comments only for IT).
+2. **Save view** stores the current filters, same pattern as the Assets list.
+3. **Bulk assign** and **Bulk close** apply to selected rows (IT staff). Closing asks for one shared comment.
+4. **Export** CSV/PDF respects the current filters.
+5. **Duplicate of** closes an open ticket with a link to the original — comments stay on each ticket; nothing is merged.
+6. Click a requester or assignee name for a **contact card** (email, department, location, profile link).`,
+  },
+  {
+    id: 'notes-manual-edit',
+    title: 'Notes, manual correction, and backfilling',
+    category: 'Governance',
+    summary: 'Append-only notes on records, and a reason-required override for Super Admin / IT Admin.',
+    keywords: ['notes', 'manual', 'override', 'backfill', 'audit'],
+    screenshot: '/docs/screenshots/audit-log.png',
+    callouts: [
+      { n: 1, label: 'Notes' },
+      { n: 2, label: 'Manual correction' },
+      { n: 3, label: 'Audit filter' },
+    ],
+    body: `Every major record (assets, employees, accessories, consumables, maintenance, requests, tickets, locations) has a **Notes** section. Notes are append-only — correct a mistake with a follow-up note.
+
+1. **Add a note** on the record. Optionally set an occurred date in the past; it is tagged **Backfilled**.
+2. **Manual correction** (Super Admin and IT Admin) sits apart from Assign/Transfer. Every save needs a **reason** and a confirm step showing old → new.
+3. Review **Audit Log → Manual overrides** to see every flagged correction.
+
+This does not bypass field validation (unknown statuses or missing employees are still rejected). There is no bulk manual-edit tool and no way to edit or delete an audit row.`,
+  },
+  {
     id: 'notifications',
     title: 'Notifications',
     category: 'Operations',
@@ -270,9 +420,9 @@ Expand a row for full before/after payloads. Copy entry IDs via the copy icon.`,
 
 - **SUPER_ADMIN** — all permissions including \`user:manage\`, \`audit:read\`, asset delete
 - **IT_ADMIN** — full asset lifecycle, org CRUD, maintenance, import/export, audit read, fulfill requests
-- **IT_SUPPORT** — read assets/employees, manage maintenance, run reports
-- **MANAGER** — read assets/employees, \`request:approve\`, reports
-- **EMPLOYEE** — read assets (scoped), \`issue:report\`, \`asset:request\`
+- **IT_SUPPORT** — read assets/employees, manage maintenance, run reports, manage support tickets
+- **MANAGER** — read assets/employees, \`request:approve\`, reports; own + direct-report support tickets
+- **EMPLOYEE** — read assets (scoped), \`issue:report\`, \`asset:request\`, raise/view own support tickets
 
 View your permissions under **Settings → Account**.`,
   },

@@ -1,10 +1,20 @@
 import { QuestionCircleOutlined } from '@ant-design/icons';
 import { Popover, Space } from 'antd';
 import { MaintenanceStatusTag } from './MaintenanceStatusTag';
+import { TicketStatusTag } from './TicketStatusTag';
 import { ASSET_STATUS_OPTIONS, StatusTag } from './StatusTag';
-import type { AssetStatus } from '../types';
+import type { AssetStatus, TicketStatus } from '../types';
 
-export function StatusLegend({ kind = 'asset' }: { kind?: 'asset' | 'maintenance' }) {
+const TICKET_STATUSES: TicketStatus[] = [
+  'open',
+  'assigned',
+  'in_progress',
+  'resolved',
+  'closed',
+  'reopened',
+];
+
+export function StatusLegend({ kind = 'asset' }: { kind?: 'asset' | 'maintenance' | 'ticket' }) {
   const content =
     kind === 'maintenance' ? (
       <Space direction="vertical" size={4}>
@@ -13,6 +23,12 @@ export function StatusLegend({ kind = 'asset' }: { kind?: 'asset' | 'maintenance
             <MaintenanceStatusTag key={s} status={s} />
           ),
         )}
+      </Space>
+    ) : kind === 'ticket' ? (
+      <Space direction="vertical" size={4}>
+        {TICKET_STATUSES.map((s) => (
+          <TicketStatusTag key={s} status={s} />
+        ))}
       </Space>
     ) : (
       <Space direction="vertical" size={4}>

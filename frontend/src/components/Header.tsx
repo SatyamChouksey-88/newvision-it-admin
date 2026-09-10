@@ -46,6 +46,7 @@ const CRUMBS: Record<string, string> = {
   '/consumables': 'Consumables',
   '/requests': 'Requests',
   '/maintenance': 'Maintenance',
+  '/tickets': 'Support Tickets',
   '/reports': 'Reports',
   '/audit-logs': 'Audit Log',
   '/settings': 'Settings',
@@ -106,7 +107,7 @@ export function Header() {
         value: `ticket-${t.id}`,
         label: (
           <span>
-            <Tag color="orange">Ticket</Tag> #{t.id} {t.asset?.assetCode ?? ''} — {t.issue}
+            <Tag color="orange">Repair</Tag> #{t.id} {t.asset?.assetCode ?? ''} — {t.issue}
           </span>
         ),
         onSelect: () =>
@@ -114,6 +115,17 @@ export function Header() {
             `/maintenance?filters[0][field]=q&filters[0][operator]=contains&filters[0][value]=${t.id}`,
           ),
       }));
+      const helpdeskOpts: Option[] = (data.helpdesk ?? []).slice(0, 4).map(
+        (t: { id: number; ticketNumber: string; subject: string }) => ({
+          value: `helpdesk-${t.id}`,
+          label: (
+            <span>
+              <Tag color="purple">Ticket</Tag> {t.ticketNumber} — {t.subject}
+            </span>
+          ),
+          onSelect: () => navigate(`/tickets/show/${t.id}`),
+        }),
+      );
       const locOpts: Option[] = (data.locations ?? []).slice(0, 3).map((l: SearchLocation) => ({
         value: `loc-${l.id}`,
         label: (
@@ -126,7 +138,7 @@ export function Header() {
             `/assets?filters[0][field]=locationId&filters[0][operator]=eq&filters[0][value]=${l.id}`,
           ),
       }));
-      const all = [...assetOpts, ...empOpts, ...ticketOpts, ...locOpts];
+      const all = [...assetOpts, ...empOpts, ...helpdeskOpts, ...ticketOpts, ...locOpts];
       setOptions(
         all.length
           ? all

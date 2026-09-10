@@ -202,7 +202,16 @@ async function main() {
   await prisma.reconciliationRun.deleteMany();
   await prisma.importJob.deleteMany();
   await prisma.savedView.deleteMany();
+  await prisma.ticketAttachment.deleteMany();
+  await prisma.ticketTimeLog.deleteMany();
+  await prisma.ticketComment.deleteMany();
+  await prisma.ticketWatcher.deleteMany();
+  await prisma.recordNote.deleteMany();
   await prisma.notification.deleteMany();
+  await prisma.supportTicket.deleteMany();
+  await prisma.cannedResponse.deleteMany();
+  await prisma.ticketTemplate.deleteMany();
+  await prisma.ticketCategory.deleteMany();
   await prisma.assetMaintenance.deleteMany();
   await prisma.assetTransfer.deleteMany();
   await prisma.assetAssignment.deleteMany();
@@ -340,6 +349,30 @@ async function main() {
     void locId;
   }
 
+  const itDept = departments.find((d) => d.name === 'Information Technology') ?? departments[0];
+  const itAdminEmployee = await prisma.employee.create({
+    data: {
+      employeeCode: 'EMP-ITADM',
+      firstName: 'Ishan',
+      lastName: 'IT',
+      email: 'itadmin@newvision.local',
+      locationId: locationIds.get('PUN')!,
+      departmentId: itDept.id,
+      designation: 'IT Administrator',
+    },
+  });
+  const supportEmployee = await prisma.employee.create({
+    data: {
+      employeeCode: 'EMP-ITSUP',
+      firstName: 'Sunil',
+      lastName: 'Support',
+      email: 'support@newvision.local',
+      locationId: locationIds.get('PUN')!,
+      departmentId: itDept.id,
+      designation: 'IT Support',
+    },
+  });
+
   // ---- users (one per role) ----
   console.log('Seeding demo users...');
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
@@ -363,13 +396,13 @@ async function main() {
       email: 'itadmin@newvision.local',
       fullName: 'Ishan IT Admin',
       role: RoleName.IT_ADMIN,
-      employeeId: null,
+      employeeId: itAdminEmployee.id,
     },
     {
       email: 'support@newvision.local',
       fullName: 'Sunil Support',
       role: RoleName.IT_SUPPORT,
-      employeeId: null,
+      employeeId: supportEmployee.id,
     },
     {
       email: 'manager@newvision.local',
@@ -440,6 +473,7 @@ async function main() {
     invoiceNo: string;
     status: AssetStatus;
     assignedEmployeeId: number | null;
+    createdAt: Date;
   }[] = [];
 
   let serialSeq = 1;
@@ -488,6 +522,7 @@ async function main() {
         invoiceNo: `INV-${purchase.getFullYear()}-${randInt(10000, 99999)}`,
         status,
         assignedEmployeeId,
+        createdAt: purchase,
       });
       serialSeq++;
     }
@@ -612,6 +647,116 @@ async function main() {
       { name: 'USB Flash Drive 32GB', category: 'Storage', quantityTotal: 100, quantityAvailable: 8, lowStockThreshold: 10 },
     ],
   });
+
+  // ---- support tickets (Prompt 14/15) ----
+  console.log('Seeding support tickets...');
+  await prisma.ticketCategory.createMany({
+    data: [
+      { code: 'software', name: 'Software', defaultPriority: 'medium' },
+      { code: 'network', name: 'Network', defaultPriority: 'high' },
+      { code: 'access_account', name: 'Access & Account', defaultPriority: 'high' },
+      { code: 'hardware_other', name: 'Hardware-other', defaultPriority: 'medium' },
+      { code: 'general', name: 'General', defaultPriority: 'low' },
+    ],
+  });
+  const ticketCats = await prisma.ticketCategory.findMany();
+  const catByCode = new Map(ticketCats.map((c) => [c.code, c]));
+  const itAdminUser = await prisma.user.findUnique({ where: { email: 'itadmin@newvision.local' } });
+  const supportUser = await prisma.user.findUnique({ where: { email: 'support@newvision.local' } });
+  const requester = plainEmployee;
+  if (itAdminUser && supportUser && requester) {
+    await prisma.cannedResponse.createMany({
+      data: [
+        {
+          title: 'Please restart',
+          body: 'Please restart your machine and try again. Reply here if the issue remains.',
+          createdById: itAdminUser.id,
+        },
+        {
+          title: 'Network team',
+          body: 'Please raise this with the network team using this ticket number so they have the full history.',
+          createdById: itAdminUser.id,
+        },
+      ],
+    });
+    await prisma.ticketTemplate.createMany({
+      data: [
+        {
+          title: "Can't connect to VPN",
+          subject: 'VPN connection failing',
+          description: 'I cannot connect to the office VPN. I have tried restarting the client.',
+          categoryId: catByCode.get('network')!.id,
+          createdById: itAdminUser.id,
+        },
+        {
+          title: 'Need software installed',
+          subject: 'Software installation request',
+          description: 'Please install the following application on my machine:',
+          categoryId: catByCode.get('software')!.id,
+          createdById: itAdminUser.id,
+        },
+        {
+          title: 'Password reset',
+          subject: 'Password reset needed',
+          description: 'I am locked out of my account and need a password reset.',
+          categoryId: catByCode.get('access_account')!.id,
+          createdById: itAdminUser.id,
+        },
+      ],
+    });
+    const t1 = await prisma.supportTicket.create({
+      data: {
+        ticketNumber: 'TCK-TMP-1',
+        subject: 'Outlook search not working',
+        description: 'Search in Outlook returns no results since this morning.',
+        categoryId: catByCode.get('software')!.id,
+        priority: 'medium',
+        status: 'in_progress',
+        raisedById: requester.id,
+        assignedToId: supportUser.id,
+        locationId: requester.locationId,
+      },
+    });
+    await prisma.supportTicket.update({
+      where: { id: t1.id },
+      data: { ticketNumber: `TCK-${String(t1.id).padStart(6, '0')}` },
+    });
+    const t2 = await prisma.supportTicket.create({
+      data: {
+        ticketNumber: 'TCK-TMP-2',
+        subject: 'Cannot print from 4th floor',
+        description: 'The shared printer on 4th floor is offline.',
+        categoryId: catByCode.get('hardware_other')!.id,
+        priority: 'high',
+        status: 'open',
+        raisedById: requester.id,
+        locationId: requester.locationId,
+        dueDate: daysFromNow(-1),
+      },
+    });
+    await prisma.supportTicket.update({
+      where: { id: t2.id },
+      data: { ticketNumber: `TCK-${String(t2.id).padStart(6, '0')}` },
+    });
+    const t3 = await prisma.supportTicket.create({
+      data: {
+        ticketNumber: 'TCK-TMP-3',
+        subject: 'Need access to shared drive',
+        description: 'Please grant read access to the Finance share.',
+        categoryId: catByCode.get('access_account')!.id,
+        priority: 'high',
+        status: 'resolved',
+        raisedById: requester.id,
+        assignedToId: itAdminUser.id,
+        locationId: requester.locationId,
+        resolvedAt: new Date(),
+      },
+    });
+    await prisma.supportTicket.update({
+      where: { id: t3.id },
+      data: { ticketNumber: `TCK-${String(t3.id).padStart(6, '0')}` },
+    });
+  }
 
   const counts = {
     employees: await prisma.employee.count(),

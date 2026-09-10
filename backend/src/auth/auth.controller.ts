@@ -3,13 +3,17 @@ import { ApiTags } from '@nestjs/swagger';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { ROLE_PERMISSIONS } from '../common/rbac/permissions';
+import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @Public()
   @Post('login')
@@ -19,7 +23,15 @@ export class AuthController {
   }
 
   @Get('me')
-  me(@CurrentUser() user: AuthUser) {
-    return { ...user, permissions: ROLE_PERMISSIONS[user.role] };
+  async me(@CurrentUser() user: AuthUser) {
+    const row = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: { emailNotifyPref: true },
+    });
+    return {
+      ...user,
+      permissions: ROLE_PERMISSIONS[user.role],
+      emailNotifyPref: row?.emailNotifyPref ?? 'immediate',
+    };
   }
 }

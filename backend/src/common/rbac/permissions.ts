@@ -27,7 +27,8 @@ export type PermissionKey =
   | 'user:manage'
   | 'request:approve'
   | 'issue:report'
-  | 'asset:request';
+  | 'asset:request'
+  | 'ticket:manage';
 
 const ALL: PermissionKey[] = [
   'asset:read',
@@ -52,6 +53,7 @@ const ALL: PermissionKey[] = [
   'request:approve',
   'issue:report',
   'asset:request',
+  'ticket:manage',
 ];
 
 /** Role → permission matrix. Single source of truth for RBAC. */
@@ -75,6 +77,7 @@ export const ROLE_PERMISSIONS: Record<RoleName, PermissionKey[]> = {
     'category:manage',
     'report:run',
     'audit:read',
+    'ticket:manage',
   ],
   IT_SUPPORT: [
     'asset:read',
@@ -82,6 +85,7 @@ export const ROLE_PERMISSIONS: Record<RoleName, PermissionKey[]> = {
     'maintenance:manage',
     'employee:read',
     'report:run',
+    'ticket:manage',
   ],
   MANAGER: ['asset:read', 'employee:read', 'request:approve', 'report:run'],
   EMPLOYEE: ['asset:read', 'issue:report', 'asset:request'],

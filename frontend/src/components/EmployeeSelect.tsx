@@ -33,7 +33,7 @@ export function EmployeeSelect({
   disabled,
 }: {
   value?: number;
-  onChange?: (v: number) => void;
+  onChange?: (v: number | undefined) => void;
   placeholder?: string;
   /** Hide one employee (e.g. the person being offboarded) from the choices. */
   excludeId?: number;
@@ -90,11 +90,59 @@ export function EmployeeSelect({
       loading={loading}
       onSearch={debouncedLoad}
       value={value}
-      onChange={(v) => onChange?.(v as number)}
+      onChange={(v) => onChange?.(v as number | undefined)}
       options={options}
       placeholder={placeholder}
       notFoundContent={loading ? 'Searching…' : 'No active employee matches'}
       disabled={disabled}
+      style={{ width: '100%' }}
+    />
+  );
+}
+
+export function EmployeeMultiSelect({
+  value,
+  onChange,
+  placeholder = 'Select employees',
+}: {
+  value?: number[];
+  onChange?: (v: number[]) => void;
+  placeholder?: string;
+}) {
+  const [options, setOptions] = useState<Opt[]>([]);
+  const [loading, setLoading] = useState(false);
+  const seq = useRef(0);
+  const load = async (q?: string) => {
+    const mine = ++seq.current;
+    setLoading(true);
+    try {
+      const { data } = await httpClient.get('/employees', {
+        params: { _start: 0, _end: 20, isActive: 'true', ...(q ? { q } : {}) },
+      });
+      if (mine !== seq.current) return;
+      setOptions((data.data ?? []).map(toOpt));
+    } catch {
+      if (mine === seq.current) setOptions([]);
+    } finally {
+      if (mine === seq.current) setLoading(false);
+    }
+  };
+  const debouncedLoad = useDebouncedCallback((q: string) => void load(q), 250);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: load is stable enough for first page
+  useEffect(() => {
+    void load();
+  }, []);
+  return (
+    <Select
+      mode="multiple"
+      showSearch
+      filterOption={false}
+      loading={loading}
+      onSearch={debouncedLoad}
+      value={value}
+      onChange={(v) => onChange?.(v as number[])}
+      options={options}
+      placeholder={placeholder}
       style={{ width: '100%' }}
     />
   );

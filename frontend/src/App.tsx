@@ -10,6 +10,7 @@ import {
   TeamOutlined,
   FormOutlined,
   ToolOutlined,
+  CustomerServiceOutlined,
 } from '@ant-design/icons';
 import { ErrorComponent, ThemedLayout, useNotificationProvider } from '@refinedev/antd';
 import { Authenticated, Refine } from '@refinedev/core';
@@ -45,6 +46,10 @@ import { ReportsPage } from './pages/reports';
 import { HelpSection } from './pages/help/HelpSection';
 import { ScanPage } from './pages/scan';
 import { SettingsPage } from './pages/settings';
+import { TicketCreate } from './pages/tickets/create';
+import { TicketList } from './pages/tickets/list';
+import { TicketReports } from './pages/tickets/reports';
+import { TicketShow } from './pages/tickets/show';
 import { authProvider } from './providers/authProvider';
 import { dataProvider } from './providers/dataProvider';
 import { newVisionTheme } from './theme';
@@ -107,6 +112,13 @@ export default function App() {
                 meta: { label: 'Maintenance', icon: <ToolOutlined /> },
               },
               {
+                name: 'support-tickets',
+                list: '/tickets',
+                create: '/tickets/create',
+                show: '/tickets/show/:id',
+                meta: { label: 'Support Tickets', icon: <CustomerServiceOutlined /> },
+              },
+              {
                 name: 'reports',
                 list: '/reports',
                 meta: { label: 'Reports', icon: <BarChartOutlined /> },
@@ -165,6 +177,12 @@ export default function App() {
                 <Route path="/requests" element={<RequestsPage />} />
 
                 <Route path="/maintenance" element={<MaintenancePage />} />
+                <Route path="/tickets">
+                  <Route index element={<TicketList />} />
+                  <Route path="create" element={<TicketCreate />} />
+                  <Route path="reports" element={<TicketReports />} />
+                  <Route path="show/:id" element={<TicketShow />} />
+                </Route>
                 <Route path="/reports" element={<ReportsPage />} />
                 <Route path="/audit-logs" element={<AuditList />} />
                 <Route path="/settings" element={<SettingsPage />} />

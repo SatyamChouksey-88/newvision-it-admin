@@ -100,6 +100,14 @@ export function NotificationBell() {
                       </Link>
                     </>
                   ) : null}
+                  {n.supportTicket ? (
+                    <>
+                      {' '}
+                      <Link to={`/tickets/show/${n.supportTicket.id}`} onClick={() => setOpen(false)}>
+                        {n.supportTicket.ticketNumber}
+                      </Link>
+                    </>
+                  ) : null}
                 </Typography.Text>
               }
             />

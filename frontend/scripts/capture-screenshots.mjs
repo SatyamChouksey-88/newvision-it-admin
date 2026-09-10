@@ -84,6 +84,14 @@ const shots = [
     }
   }},
   { name: 'scan-page.png', fn: async (page) => { await page.goto(`${base}/scan/AST-PUN-LAP-0001`); } },
+  { name: 'tickets.png', fn: async (page) => { await login(page, 'itadmin@newvision.local'); await page.goto(`${base}/tickets`); } },
+  { name: 'ticket-detail.png', fn: async (page) => {
+    await login(page, 'itadmin@newvision.local');
+    await page.goto(`${base}/tickets`);
+    await page.locator('table tbody tr.ant-table-row').first().click();
+    await page.waitForURL(/\/tickets\/show\//);
+  }},
+  { name: 'settings.png', fn: async (page) => { await login(page, 'itadmin@newvision.local'); await page.goto(`${base}/settings`); } },
 ];
 
 await mkdir(outDir, { recursive: true });
