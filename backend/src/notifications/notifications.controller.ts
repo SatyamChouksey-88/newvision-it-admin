@@ -20,6 +20,12 @@ export class NotificationsController {
     return this.notifications.listForUser(query, user);
   }
 
+  /** Declared before `:id/read` so the literal segment wins over the param route. */
+  @Patch('notifications/read-all')
+  markAllRead(@CurrentUser() user: AuthUser) {
+    return this.notifications.markAllRead(user);
+  }
+
   @Patch('notifications/:id/read')
   markRead(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
     return this.notifications.markRead(id, user);

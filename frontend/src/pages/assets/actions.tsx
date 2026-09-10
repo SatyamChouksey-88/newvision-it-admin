@@ -1,7 +1,7 @@
 import { App as AntdApp, Checkbox, Form, Input, Modal, Select, Space, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { EmployeeSelect } from '../../components/EmployeeSelect';
-import { httpClient } from '../../providers/axios';
+import { apiErrorMessage, httpClient } from '../../providers/axios';
 import type { Accessory, Asset, Location } from '../../types';
 
 export function AssignModal({
@@ -22,10 +22,27 @@ export function AssignModal({
 
   useEffect(() => {
     if (!asset) return;
+    let cancelled = false;
     httpClient
       .get('/accessories', { params: { _start: 0, _end: 100 } })
-      .then(({ data }) => setAccessories((data.data ?? []).filter((a: Accessory) => a.quantityAvailable > 0)));
+      .then(({ data }) => {
+        if (cancelled) return;
+        setAccessories((data.data ?? []).filter((a: Accessory) => a.quantityAvailable > 0));
+      })
+      .catch(() => {
+        // Optional extra; the assignment itself still works without the accessory list.
+        if (!cancelled) setAccessories([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [asset]);
+
+  const reset = () => {
+    setEmployeeId(undefined);
+    setNotes('');
+    setAccessoryIds([]);
+  };
 
   const submit = async () => {
     if (!asset || !employeeId) {
@@ -36,15 +53,14 @@ export function AssignModal({
     try {
       await httpClient.post(`/assets/${asset.id}/assign`, {
         employeeId,
-        notes,
+        notes: notes.trim() || undefined,
         accessoryIds: accessoryIds.length ? accessoryIds : undefined,
       });
       message.success(`Assigned ${asset.assetCode}`);
-      setEmployeeId(undefined);
-      setNotes('');
+      reset();
       onDone();
-    } catch {
-      message.error('Assignment failed');
+    } catch (e) {
+      message.error(apiErrorMessage(e, 'Assignment failed'));
     } finally {
       setLoading(false);
     }
@@ -54,10 +70,14 @@ export function AssignModal({
     <Modal
       open={!!asset}
       title={`Assign ${asset?.assetCode ?? ''}`}
-      onCancel={onClose}
+      onCancel={() => {
+        reset();
+        onClose();
+      }}
       onOk={submit}
       confirmLoading={loading}
       okText="Assign"
+      okButtonProps={{ disabled: !employeeId }}
     >
       <Form layout="vertical">
         <Form.Item label="Employee" required>
@@ -108,25 +128,33 @@ export function TransferModal({
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const reset = () => {
+    setToEmployeeId(undefined);
+    setToLocationId(undefined);
+    setReason('');
+  };
+
+  const sameEmployee = !!toEmployeeId && toEmployeeId === asset?.assignedEmployeeId;
+  const sameLocation = !!toLocationId && toLocationId === asset?.locationId;
+  const nothingChanges = (!toEmployeeId || sameEmployee) && (!toLocationId || sameLocation);
+
   const submit = async () => {
-    if (!asset || (!toEmployeeId && !toLocationId)) {
-      message.warning('Choose a target employee and/or location');
+    if (!asset || nothingChanges) {
+      message.warning('Choose a different employee and/or location');
       return;
     }
     setLoading(true);
     try {
       await httpClient.post(`/assets/${asset.id}/transfer`, {
-        toEmployeeId,
-        toLocationId,
-        reason,
+        toEmployeeId: sameEmployee ? undefined : toEmployeeId,
+        toLocationId: sameLocation ? undefined : toLocationId,
+        reason: reason.trim() || undefined,
       });
       message.success(`Transferred ${asset.assetCode}`);
-      setToEmployeeId(undefined);
-      setToLocationId(undefined);
-      setReason('');
+      reset();
       onDone();
-    } catch {
-      message.error('Transfer failed');
+    } catch (e) {
+      message.error(apiErrorMessage(e, 'Transfer failed'));
     } finally {
       setLoading(false);
     }
@@ -136,21 +164,50 @@ export function TransferModal({
     <Modal
       open={!!asset}
       title={`Transfer ${asset?.assetCode ?? ''}`}
-      onCancel={onClose}
+      onCancel={() => {
+        reset();
+        onClose();
+      }}
       onOk={submit}
       confirmLoading={loading}
       okText="Transfer"
+      okButtonProps={{ disabled: nothingChanges }}
     >
       <Form layout="vertical">
-        <Form.Item label="To employee">
-          <EmployeeSelect value={toEmployeeId} onChange={setToEmployeeId} />
+        <Form.Item
+          label="To employee"
+          validateStatus={sameEmployee ? 'warning' : undefined}
+          help={sameEmployee ? 'Already assigned to this employee' : undefined}
+        >
+          <EmployeeSelect
+            value={toEmployeeId}
+            onChange={setToEmployeeId}
+            excludeId={asset?.assignedEmployeeId ?? undefined}
+            placeholder={
+              asset?.assignedEmployeeId ? 'Keep current holder' : 'Assign to an employee'
+            }
+          />
         </Form.Item>
-        <Form.Item label="To location">
+        <Form.Item
+          label="To location"
+          extra={
+            asset?.location
+              ? `Currently at ${asset.location.name} (${asset.location.code})`
+              : undefined
+          }
+          validateStatus={sameLocation ? 'warning' : undefined}
+          help={sameLocation ? 'Already at this location' : undefined}
+        >
           <Select
             allowClear
+            showSearch
+            optionFilterProp="label"
             value={toLocationId}
             onChange={setToLocationId}
-            options={locations.map((l) => ({ label: `${l.name} (${l.code})`, value: l.id }))}
+            // The current site is not a valid target, so leave it out of the list.
+            options={locations
+              .filter((l) => l.id !== asset?.locationId)
+              .map((l) => ({ label: `${l.name} (${l.code})`, value: l.id }))}
             placeholder="Keep current location"
           />
         </Form.Item>

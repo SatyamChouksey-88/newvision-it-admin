@@ -2,6 +2,7 @@ import { CreateButton, DeleteButton, EditButton, List, useTable } from '@refined
 import { useGetIdentity } from '@refinedev/core';
 import { Space } from 'antd';
 import { useState } from 'react';
+import { useNavigate } from 'react-router';
 import { CopyButton } from '../../components/CopyButton';
 import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid';
 import { EmptyState } from '../../components/EmptyState';
@@ -13,9 +14,11 @@ import type { Location } from '../../types';
 
 export function LocationList() {
   const [density, setDensity] = useState<TableDensity>('Compact');
+  const navigate = useNavigate();
   const { tableProps, tableQuery } = useTable<Location>({
     resource: 'locations',
     pagination: { pageSize: 25 },
+    syncWithLocation: true,
   });
   const { data: identity } = useGetIdentity<Identity>();
   const canManage = ['SUPER_ADMIN', 'IT_ADMIN'].includes(identity?.role ?? '');
@@ -26,11 +29,17 @@ export function LocationList() {
     <List headerButtons={canManage ? <CreateButton /> : null}>
       {tableQuery.isLoading ? (
         <TableSkeleton columns={4} />
+      ) : tableQuery.isError ? (
+        <EmptyState
+          description="Could not load locations."
+          actionLabel="Retry"
+          onAction={() => void tableQuery.refetch()}
+        />
       ) : rows.length === 0 ? (
         <EmptyState
           description="No locations defined"
           actionLabel={canManage ? 'Add location' : undefined}
-          onAction={canManage ? () => window.location.assign('/locations/create') : undefined}
+          onAction={canManage ? () => navigate('/locations/create') : undefined}
         />
       ) : (
         <>

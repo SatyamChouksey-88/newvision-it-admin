@@ -1,12 +1,23 @@
 import { UploadOutlined } from '@ant-design/icons';
-import { App as AntdApp, Button, Descriptions, Select, Space, Table, Tag, Typography, Upload } from 'antd';
+import {
+  App as AntdApp,
+  Button,
+  Descriptions,
+  Popconfirm,
+  Select,
+  Space,
+  Table,
+  Tag,
+  Typography,
+  Upload,
+} from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { CopyButton } from '../../components/CopyButton';
-import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid';
 import { ImportResultChart } from '../../components/charts/ImportResultChart';
+import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid';
 import { TablePagination } from '../../components/TablePagination';
 import { useToast } from '../../components/Toast';
-import { httpClient } from '../../providers/axios';
+import { apiErrorMessage, httpClient } from '../../providers/axios';
 import type { ImportJob } from '../../types';
 import { formatDate, formatDuration } from '../../utils/format';
 
@@ -32,13 +43,22 @@ export function ImportJobsPanel() {
   const [expanded, setExpanded] = useState<number[]>([]);
   const [density, setDensity] = useState<TableDensity>('Compact');
 
+  const [loadingJobs, setLoadingJobs] = useState(false);
+
   const reload = useCallback(async () => {
-    const { data } = await httpClient.get('/import-jobs', { params: { _start: 0, _end: 50 } });
-    setJobs(data.data ?? []);
-  }, []);
+    setLoadingJobs(true);
+    try {
+      const { data } = await httpClient.get('/import-jobs', { params: { _start: 0, _end: 50 } });
+      setJobs(data.data ?? []);
+    } catch (e) {
+      message.error(apiErrorMessage(e, 'Could not load import jobs'));
+    } finally {
+      setLoadingJobs(false);
+    }
+  }, [message]);
 
   useEffect(() => {
-    reload();
+    void reload();
   }, [reload]);
 
   const openJob = (job: ImportJob) => {
@@ -49,13 +69,16 @@ export function ImportJobsPanel() {
   const upload = async (file: File) => {
     const form = new FormData();
     form.append('file', file);
+    setBusy(true);
     try {
       const { data } = await httpClient.post(`/import-jobs?kind=${kind}`, form);
       message.success('File uploaded — review column mapping');
       openJob(data);
-      reload();
-    } catch {
-      message.error('Upload failed');
+      void reload();
+    } catch (e) {
+      message.error(apiErrorMessage(e, 'Upload failed'));
+    } finally {
+      setBusy(false);
     }
     return false;
   };
@@ -69,9 +92,9 @@ export function ImportJobsPanel() {
       message.success(
         `Dry-run: ${data.duplicateCount ?? 0} duplicate(s) flagged of ${data.totalRows} rows`,
       );
-      reload();
-    } catch {
-      message.error('Preview failed');
+      void reload();
+    } catch (e) {
+      message.error(apiErrorMessage(e, 'Preview failed'));
     } finally {
       setBusy(false);
     }
@@ -94,14 +117,16 @@ export function ImportJobsPanel() {
           } else {
             toast.error(`Import failed after ${dur}`);
           }
-          reload();
+          void reload();
           return;
         }
-        await new Promise((r) => setTimeout(r, 400));
+        // Back off gradually: 400ms → 2s so long imports don't hammer the API.
+        await new Promise((r) => setTimeout(r, Math.min(2000, 400 + i * 100)));
       }
       message.info('Import is still running — refresh the jobs list shortly');
-    } catch {
-      message.error('Commit failed');
+      void reload();
+    } catch (e) {
+      message.error(apiErrorMessage(e, 'Commit failed'));
     } finally {
       setBusy(false);
     }
@@ -112,15 +137,18 @@ export function ImportJobsPanel() {
       await httpClient.post(`/import-jobs/${id}/rollback`);
       message.success('Rolled back');
       if (active?.id === id) setActive(null);
-      reload();
-    } catch {
-      message.error('Rollback failed');
+      void reload();
+    } catch (e) {
+      message.error(apiErrorMessage(e, 'Rollback failed'));
     }
   };
 
   const headers = active?.preview?.headers ?? Object.keys(mapping);
   const canonical = active?.preview?.canonical ?? [];
-  const fieldOptions = [{ label: '(ignore)', value: '' }, ...canonical.map((c) => ({ label: c, value: c }))];
+  const fieldOptions = [
+    { label: '(ignore)', value: '' },
+    ...canonical.map((c) => ({ label: c, value: c })),
+  ];
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
@@ -134,8 +162,10 @@ export function ImportJobsPanel() {
             { label: 'Employees', value: 'employees' },
           ]}
         />
-        <Upload showUploadList={false} accept=".csv,.xlsx" beforeUpload={upload}>
-          <Button icon={<UploadOutlined />}>Upload file</Button>
+        <Upload showUploadList={false} accept=".csv,.xlsx" beforeUpload={upload} disabled={busy}>
+          <Button icon={<UploadOutlined />} loading={busy}>
+            Upload file
+          </Button>
         </Upload>
         <Typography.Text type="secondary">
           Large Excel/CSV imports run in the background. Map columns, dry-run, then commit. Rollback
@@ -174,25 +204,40 @@ export function ImportJobsPanel() {
             <Button onClick={preview} loading={busy}>
               Dry-run preview
             </Button>
-            <Button type="primary" onClick={commit} loading={busy} disabled={active.status === 'completed'}>
+            <Button
+              type="primary"
+              onClick={commit}
+              loading={busy}
+              disabled={
+                active.status === 'completed' ||
+                active.status === 'running' ||
+                active.status === 'rolled_back'
+              }
+            >
               Commit import
             </Button>
             {active.status === 'completed' && (
-              <Button danger onClick={() => rollback(active.id)}>
-                Rollback
-              </Button>
+              <Popconfirm
+                title="Roll back this import?"
+                description="Rows created by this job will be deleted."
+                okText="Roll back"
+                okButtonProps={{ danger: true }}
+                onConfirm={() => rollback(active.id)}
+              >
+                <Button danger>Rollback</Button>
+              </Popconfirm>
             )}
           </Space>
           {!!active.preview?.duplicates?.length && (
             <Typography.Text type="warning">
-              {active.preview.duplicates.length} duplicate row(s) will be skipped (serial/email already
-              exists in the file or in the system).
+              {active.preview.duplicates.length} duplicate row(s) will be skipped (serial/email
+              already exists in the file or in the system).
             </Typography.Text>
           )}
           {(active.status === 'completed' || active.status === 'failed') &&
-            (active.createdCount > 0 || active.failedCount > 0 || (active.updatedCount ?? 0) > 0) && (
-              <ImportResultChart job={active} />
-            )}
+            (active.createdCount > 0 ||
+              active.failedCount > 0 ||
+              (active.updatedCount ?? 0) > 0) && <ImportResultChart job={active} />}
           {!!active.errors?.length && (
             <Table
               size="small"
@@ -213,6 +258,7 @@ export function ImportJobsPanel() {
         searchInputId="import-jobs-grid-search"
         rowKey="id"
         dataSource={jobs.slice((page - 1) * pageSize, page * pageSize)}
+        loading={loadingJobs}
         density={density}
         onDensityChange={setDensity}
         fixFirstColumn
@@ -277,16 +323,18 @@ export function ImportJobsPanel() {
             exportable: false,
             render: (_, r) =>
               r.status === 'completed' ? (
-                <Button
-                  size="small"
-                  danger
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    rollback(r.id);
-                  }}
+                <Popconfirm
+                  title="Roll back this import?"
+                  description="Rows created by this job will be deleted."
+                  okText="Roll back"
+                  okButtonProps={{ danger: true }}
+                  onConfirm={() => rollback(r.id)}
+                  onPopupClick={(e) => e.stopPropagation()}
                 >
-                  Rollback
-                </Button>
+                  <Button size="small" danger onClick={(e) => e.stopPropagation()}>
+                    Rollback
+                  </Button>
+                </Popconfirm>
               ) : null,
           },
         ]}

@@ -1,7 +1,12 @@
 import { describe, expect, it } from '@jest/globals';
-import { formatAssetCode, parseAssetCode } from './asset-code';
+import { assetCodePrefix, formatAssetCode, parseAssetCode } from './asset-code';
 
 describe('asset code generation', () => {
+  it('exposes the prefix used to find the next sequence', () => {
+    expect(assetCodePrefix('PUN', 'LAP')).toBe('AST-PUN-LAP-');
+    expect(formatAssetCode('PUN', 'LAP', 12).startsWith(assetCodePrefix('PUN', 'LAP'))).toBe(true);
+  });
+
   it('formats as AST-{LOCATION}-{CATEGORY}-{SEQ} with 4-digit zero padding', () => {
     expect(formatAssetCode('PUN', 'LAP', 1)).toBe('AST-PUN-LAP-0001');
     expect(formatAssetCode('HYD', 'MON', 42)).toBe('AST-HYD-MON-0042');

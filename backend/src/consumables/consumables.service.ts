@@ -22,6 +22,10 @@ export class ConsumablesService {
     const { skip, take, orderBy } = parseListQuery(query, ['id', 'name', 'category', 'createdAt']);
     const where: Prisma.ConsumableWhereInput = {
       ...(query.category ? { category: query.category } : {}),
+      // Column-to-column comparison in SQL so low-stock filtering paginates correctly.
+      ...(query.lowStock === 'true'
+        ? { quantityAvailable: { lte: this.prisma.consumable.fields.lowStockThreshold } }
+        : {}),
       ...(query.q
         ? {
             OR: [
@@ -31,15 +35,11 @@ export class ConsumablesService {
           }
         : {}),
     };
-    const [rows, total] = await Promise.all([
+    const [data, total] = await Promise.all([
       this.prisma.consumable.findMany({ where, skip, take, orderBy }),
       this.prisma.consumable.count({ where }),
     ]);
-    const data =
-      query.lowStock === 'true'
-        ? rows.filter((c) => c.quantityAvailable <= c.lowStockThreshold)
-        : rows;
-    return { data, total: query.lowStock === 'true' ? data.length : total };
+    return { data, total };
   }
 
   async get(id: number) {
@@ -132,6 +132,11 @@ export class ConsumablesService {
       const employee = await tx.employee.findUnique({ where: { id: dto.employeeId } });
       if (!employee) {
         throw new BadRequestException(`Employee ${dto.employeeId} not found`);
+      }
+      if (!employee.isActive) {
+        throw new BadRequestException(
+          `${employee.employeeCode} is inactive — cannot issue to them`,
+        );
       }
       const issue = await tx.consumableIssue.create({
         data: {

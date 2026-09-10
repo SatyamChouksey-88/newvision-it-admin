@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { NotificationType, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { ListQuery, parseListQuery } from '../common/query';
@@ -127,7 +127,10 @@ export class AccessoriesService {
       oldValue: before,
       newValue: accessory,
     });
-    return { ...accessory, quantityAvailable: accessory.quantityTotal - accessory.quantityCheckedOut };
+    return {
+      ...accessory,
+      quantityAvailable: accessory.quantityTotal - accessory.quantityCheckedOut,
+    };
   }
 
   async checkout(id: number, dto: CheckoutAccessoryDto, actor: AuthUser) {
@@ -144,6 +147,11 @@ export class AccessoriesService {
       const employee = await tx.employee.findUnique({ where: { id: dto.employeeId } });
       if (!employee) {
         throw new BadRequestException(`Employee ${dto.employeeId} not found`);
+      }
+      if (!employee.isActive) {
+        throw new BadRequestException(
+          `${employee.employeeCode} is inactive — cannot check out to them`,
+        );
       }
       const checkout = await tx.accessoryCheckout.create({
         data: {
@@ -235,6 +243,9 @@ export class AccessoriesService {
       oldValue: { quantityTotal: before.quantityTotal },
       newValue: { quantityTotal: dto.quantityTotal },
     });
-    return { ...accessory, quantityAvailable: accessory.quantityTotal - accessory.quantityCheckedOut };
+    return {
+      ...accessory,
+      quantityAvailable: accessory.quantityTotal - accessory.quantityCheckedOut,
+    };
   }
 }

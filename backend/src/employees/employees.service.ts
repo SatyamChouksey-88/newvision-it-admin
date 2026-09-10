@@ -20,6 +20,13 @@ export interface EmployeeHistoryEvent {
   href?: string;
 }
 
+export interface EmployeeListQuery extends ListQuery {
+  locationId?: string;
+  departmentId?: string;
+  /** 'true' | 'false' — omit for everyone. */
+  isActive?: string;
+}
+
 const employeeInclude = {
   department: true,
   location: true,
@@ -33,21 +40,23 @@ export class EmployeesService {
     private readonly audit: AuditService,
   ) {}
 
-  async list(
-    query: ListQuery & { locationId?: string; departmentId?: string },
-    actor: AuthUser,
-  ) {
+  async list(query: EmployeeListQuery, actor: AuthUser) {
     const { skip, take, orderBy } = parseListQuery(query, [
       'id',
       'employeeCode',
       'firstName',
       'lastName',
       'email',
+      'designation',
+      'isActive',
+      'dateJoined',
     ]);
     const where: Prisma.EmployeeWhereInput = {
       ...this.listScopeWhere(actor),
       ...(query.locationId ? { locationId: Number(query.locationId) } : {}),
       ...(query.departmentId ? { departmentId: Number(query.departmentId) } : {}),
+      ...(query.isActive === 'true' ? { isActive: true } : {}),
+      ...(query.isActive === 'false' ? { isActive: false } : {}),
       ...(query.q
         ? {
             OR: [
@@ -117,62 +126,67 @@ export class EmployeesService {
       throw new NotFoundException(`Employee ${id} not found`);
     }
 
-    const [
-      assignments,
-      transfersFrom,
-      transfersTo,
-      checkouts,
-      issues,
-      requests,
-      auditRows,
-    ] = await Promise.all([
-      this.prisma.assetAssignment.findMany({
-        where: { employeeId: id },
-        include: { asset: { select: { id: true, assetCode: true } } },
-        orderBy: { assignedAt: 'desc' },
-        take: 100,
-      }),
-      this.prisma.assetTransfer.findMany({
-        where: { fromEmployeeId: id },
-        include: { asset: { select: { id: true, assetCode: true } } },
-        orderBy: { transferredAt: 'desc' },
-        take: 50,
-      }),
-      this.prisma.assetTransfer.findMany({
-        where: { toEmployeeId: id },
-        include: { asset: { select: { id: true, assetCode: true } } },
-        orderBy: { transferredAt: 'desc' },
-        take: 50,
-      }),
-      this.prisma.accessoryCheckout.findMany({
-        where: { employeeId: id },
-        include: { accessory: { select: { id: true, name: true } } },
-        orderBy: { checkedOutAt: 'desc' },
-        take: 100,
-      }),
-      this.prisma.consumableIssue.findMany({
-        where: { employeeId: id },
-        include: { consumable: { select: { id: true, name: true } } },
-        orderBy: { issuedAt: 'desc' },
-        take: 100,
-      }),
-      this.prisma.assetRequest.findMany({
-        where: { requesterId: id },
-        include: { category: { select: { name: true } } },
-        orderBy: { createdAt: 'desc' },
-        take: 50,
-      }),
-      this.prisma.auditLog.findMany({
-        where: {
-          OR: [
-            { entityType: 'Employee', entityId: String(id) },
-            { summary: { contains: employee.employeeCode, mode: 'insensitive' } },
-          ],
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 50,
-      }),
-    ]);
+    const HISTORY_TAKE = 500;
+    const [assignments, transfersFrom, transfersTo, checkouts, issues, requests, tickets, auditRows] =
+      await Promise.all([
+        this.prisma.assetAssignment.findMany({
+          where: { employeeId: id },
+          include: { asset: { select: { id: true, assetCode: true } } },
+          orderBy: { assignedAt: 'desc' },
+          take: HISTORY_TAKE,
+        }),
+        this.prisma.assetTransfer.findMany({
+          where: { fromEmployeeId: id },
+          include: { asset: { select: { id: true, assetCode: true } } },
+          orderBy: { transferredAt: 'desc' },
+          take: HISTORY_TAKE,
+        }),
+        this.prisma.assetTransfer.findMany({
+          where: { toEmployeeId: id },
+          include: { asset: { select: { id: true, assetCode: true } } },
+          orderBy: { transferredAt: 'desc' },
+          take: HISTORY_TAKE,
+        }),
+        this.prisma.accessoryCheckout.findMany({
+          where: { employeeId: id },
+          include: { accessory: { select: { id: true, name: true } } },
+          orderBy: { checkedOutAt: 'desc' },
+          take: HISTORY_TAKE,
+        }),
+        this.prisma.consumableIssue.findMany({
+          where: { employeeId: id },
+          include: { consumable: { select: { id: true, name: true } } },
+          orderBy: { issuedAt: 'desc' },
+          take: HISTORY_TAKE,
+        }),
+        this.prisma.assetRequest.findMany({
+          where: { requesterId: id },
+          include: { category: { select: { name: true } } },
+          orderBy: { createdAt: 'desc' },
+          take: HISTORY_TAKE,
+        }),
+        this.prisma.assetMaintenance.findMany({
+          where: {
+            OR: [
+              { reportedBy: { employeeId: id } },
+              { asset: { assignments: { some: { employeeId: id } } } },
+            ],
+          },
+          include: { asset: { select: { id: true, assetCode: true } } },
+          orderBy: { reportedAt: 'desc' },
+          take: HISTORY_TAKE,
+        }),
+        this.prisma.auditLog.findMany({
+          where: {
+            OR: [
+              { entityType: 'Employee', entityId: String(id) },
+              { summary: { contains: employee.employeeCode, mode: 'insensitive' } },
+            ],
+          },
+          orderBy: { createdAt: 'desc' },
+          take: HISTORY_TAKE,
+        }),
+      ]);
 
     const events: EmployeeHistoryEvent[] = [];
 
@@ -189,13 +203,21 @@ export class EmployeesService {
       });
     }
 
+    // A location-only transfer has from === to === this employee and appears in both lists;
+    // de-duplicate by transfer id so React keys stay unique and the event is not shown twice.
+    const seenTransfers = new Set<number>();
     for (const t of [...transfersFrom, ...transfersTo]) {
-      const direction = t.fromEmployeeId === id ? 'from' : 'to';
+      if (seenTransfers.has(t.id)) continue;
+      seenTransfers.add(t.id);
+      const locationOnly = t.fromEmployeeId === id && t.toEmployeeId === id;
+      const direction = locationOnly ? 'moved' : t.fromEmployeeId === id ? 'from' : 'to';
+      const verb =
+        direction === 'moved' ? 'Moved' : direction === 'from' ? 'Transferred' : 'Received';
       events.push({
-        id: `transfer-${t.id}-${direction}`,
+        id: `transfer-${t.id}`,
         at: t.transferredAt.toISOString(),
         kind: 'Asset transfer',
-        summary: `${direction === 'from' ? 'Transferred' : 'Received'} ${t.asset.assetCode}`,
+        summary: `${verb} ${t.asset.assetCode}`,
         detail: t.reason ?? undefined,
         href: `/assets/show/${t.asset.id}`,
       });
@@ -235,9 +257,20 @@ export class EmployeesService {
         id: `request-${r.id}`,
         at: r.createdAt.toISOString(),
         kind: 'Asset request',
-        summary: `${r.kind === 'asset' ? r.category?.name ?? 'Asset' : r.accessoryName ?? 'Accessory'} — ${r.status}`,
+        summary: `${r.kind === 'asset' ? (r.category?.name ?? 'Asset') : (r.accessoryName ?? 'Accessory')} — ${r.status}`,
         detail: r.reason,
         href: `/requests`,
+      });
+    }
+
+    for (const t of tickets) {
+      events.push({
+        id: `maint-${t.id}`,
+        at: t.reportedAt.toISOString(),
+        kind: 'Maintenance',
+        summary: `${t.asset.assetCode}: ${t.issue}`,
+        detail: t.status,
+        href: `/assets/show/${t.asset.id}`,
       });
     }
 
@@ -251,7 +284,7 @@ export class EmployeesService {
     }
 
     events.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
-    return events.slice(0, 200);
+    return events;
   }
 
   async offboard(id: number, dto: OffboardEmployeeDto, actor: AuthUser) {
@@ -269,7 +302,10 @@ export class EmployeesService {
     if (!employee.isActive) {
       throw new BadRequestException(`${employee.employeeCode} is already inactive`);
     }
-    if (dto.reassignAssetsToId && dto.returnAssets === false) {
+    if (dto.reassignAssetsToId) {
+      if (dto.reassignAssetsToId === id) {
+        throw new BadRequestException('Cannot reassign assets to the employee being offboarded');
+      }
       const target = await this.prisma.employee.findUnique({
         where: { id: dto.reassignAssetsToId },
       });
@@ -279,6 +315,12 @@ export class EmployeesService {
     }
 
     const returnToPool = dto.reassignAssetsToId ? false : dto.returnAssets !== false;
+    const target = dto.reassignAssetsToId
+      ? await this.prisma.employee.findUnique({
+          where: { id: dto.reassignAssetsToId },
+          select: { firstName: true, lastName: true, employeeCode: true },
+        })
+      : null;
 
     const result = await this.prisma.$transaction(async (tx) => {
       for (const asset of employee.assignedAssets) {
@@ -286,10 +328,15 @@ export class EmployeesService {
           where: { assetId: asset.id, returnedAt: null },
           data: { returnedAt: new Date() },
         });
+        // An asset in the repair shop stays `under_repair` (the ticket flow returns it to the pool);
+        // we only detach it from the leaver so nothing is left pointing at a departed employee.
+        const inRepair = asset.status === 'under_repair';
+        let newStatus: AssetStatus = asset.status;
         if (returnToPool) {
+          newStatus = inRepair ? asset.status : ('available' as AssetStatus);
           await tx.asset.update({
             where: { id: asset.id },
-            data: { status: 'available' as AssetStatus, assignedEmployeeId: null },
+            data: { status: newStatus, assignedEmployeeId: null },
           });
         } else if (dto.reassignAssetsToId) {
           await tx.assetAssignment.create({
@@ -300,11 +347,29 @@ export class EmployeesService {
               notes: dto.notes,
             },
           });
+          newStatus = inRepair ? asset.status : ('assigned' as AssetStatus);
           await tx.asset.update({
             where: { id: asset.id },
-            data: { assignedEmployeeId: dto.reassignAssetsToId, status: 'assigned' as AssetStatus },
+            data: { assignedEmployeeId: dto.reassignAssetsToId, status: newStatus },
           });
         }
+        await this.audit.record(
+          {
+            entityType: 'Asset',
+            entityId: asset.id,
+            action: returnToPool ? 'status_change' : 'assign',
+            summary: returnToPool
+              ? `Returned ${asset.assetCode} on offboarding of ${employee.employeeCode}`
+              : `Reassigned ${asset.assetCode} to ${target?.firstName ?? ''} ${target?.lastName ?? ''} (${target?.employeeCode ?? dto.reassignAssetsToId}) on offboarding of ${employee.employeeCode}`,
+            changedById: actor.id,
+            oldValue: { status: asset.status, assignedEmployeeId: id },
+            newValue: {
+              status: newStatus,
+              assignedEmployeeId: returnToPool ? null : dto.reassignAssetsToId,
+            },
+          },
+          tx,
+        );
       }
 
       for (const checkout of employee.accessoryCheckouts) {
@@ -316,6 +381,17 @@ export class EmployeesService {
           where: { id: checkout.accessoryId },
           data: { quantityCheckedOut: { decrement: checkout.quantity } },
         });
+        await this.audit.record(
+          {
+            entityType: 'Accessory',
+            entityId: checkout.accessoryId,
+            action: 'checkin',
+            summary: `Checked in ${checkout.quantity}× ${checkout.accessory.name} on offboarding of ${employee.employeeCode}`,
+            changedById: actor.id,
+            newValue: { checkoutId: checkout.id },
+          },
+          tx,
+        );
       }
 
       const updated = await tx.employee.update({
@@ -353,6 +429,43 @@ export class EmployeesService {
     });
 
     return result;
+  }
+
+  /** Rehire: set the employee active again and re-enable their login. History is untouched. */
+  async reinstate(id: number, actor: AuthUser) {
+    const employee = await this.prisma.employee.findUnique({
+      where: { id },
+      include: { user: { select: { id: true } } },
+    });
+    if (!employee) {
+      throw new NotFoundException(`Employee ${id} not found`);
+    }
+    if (employee.isActive) {
+      throw new BadRequestException(`${employee.employeeCode} is already active`);
+    }
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.employee.update({
+        where: { id },
+        data: { isActive: true },
+        include: employeeInclude,
+      });
+      if (employee.user) {
+        await tx.user.update({ where: { id: employee.user.id }, data: { isActive: true } });
+      }
+      await this.audit.record(
+        {
+          entityType: 'Employee',
+          entityId: id,
+          action: 'update',
+          summary: `Reinstated ${employee.employeeCode}`,
+          changedById: actor.id,
+          oldValue: { isActive: false },
+          newValue: { isActive: true },
+        },
+        tx,
+      );
+      return updated;
+    });
   }
 
   async create(dto: CreateEmployeeDto, actor: AuthUser) {

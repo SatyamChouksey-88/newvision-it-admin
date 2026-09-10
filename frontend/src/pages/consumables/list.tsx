@@ -1,9 +1,20 @@
 import { PlusOutlined, UserAddOutlined, WarningOutlined } from '@ant-design/icons';
 import { useGetIdentity } from '@refinedev/core';
-import { Button, Card, Form, Input, InputNumber, Modal, Space, Tag, Typography } from 'antd';
+import {
+  Button,
+  Card,
+  Checkbox,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Space,
+  Tag,
+  Typography,
+} from 'antd';
 import { useCallback, useEffect, useState } from 'react';
-import { CopyButton } from '../../components/CopyButton';
 import { PrimaryWithSub } from '../../components/Cells';
+import { CopyButton } from '../../components/CopyButton';
 import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid';
 import { EmployeeSelect } from '../../components/EmployeeSelect';
 import { EmptyState } from '../../components/EmptyState';
@@ -11,7 +22,7 @@ import { TablePagination } from '../../components/TablePagination';
 import { TableSkeleton } from '../../components/TableSkeleton';
 import { useToast } from '../../components/Toast';
 import type { Identity } from '../../providers/authProvider';
-import { httpClient } from '../../providers/axios';
+import { apiErrorMessage, httpClient } from '../../providers/axios';
 import { tabularNums } from '../../theme';
 import type { Consumable } from '../../types';
 
@@ -34,18 +45,30 @@ export function ConsumablesPage() {
   const [employeeId, setEmployeeId] = useState<number>();
   const [form] = Form.useForm();
 
+  const [lowOnly, setLowOnly] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [issueQty, setIssueQty] = useState(1);
+
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const { data } = await httpClient.get('/consumables', {
-        params: { _start: (page - 1) * pageSize, _end: page * pageSize },
+        params: {
+          _start: (page - 1) * pageSize,
+          _end: page * pageSize,
+          ...(lowOnly ? { lowStock: 'true' } : {}),
+        },
       });
       setRows(data.data ?? []);
       setTotal(data.total ?? 0);
+    } catch {
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize]);
+  }, [page, pageSize, lowOnly]);
 
   useEffect(() => {
     void load();
@@ -57,40 +80,89 @@ export function ConsumablesPage() {
     quantityTotal: number;
     lowStockThreshold?: number;
   }) => {
-    await httpClient.post('/consumables', values);
-    toast.success(`Added ${values.name}`);
-    setCreateOpen(false);
-    form.resetFields();
-    void load();
+    setBusy(true);
+    try {
+      await httpClient.post('/consumables', values);
+      toast.success(`Added ${values.name}`);
+      setCreateOpen(false);
+      form.resetFields();
+      void load();
+    } catch (e) {
+      toast.error(apiErrorMessage(e, 'Could not add the consumable'));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const issue = async () => {
-    if (!issueTarget || !employeeId) return;
-    await httpClient.post(`/consumables/${issueTarget.id}/issue`, { employeeId });
-    toast.success(`Issued ${issueTarget.name}`);
-    setIssueTarget(null);
-    setEmployeeId(undefined);
-    void load();
+    if (!issueTarget || !employeeId) {
+      toast.warning('Pick an employee');
+      return;
+    }
+    setBusy(true);
+    try {
+      await httpClient.post(`/consumables/${issueTarget.id}/issue`, {
+        employeeId,
+        quantity: issueQty,
+      });
+      toast.success(`Issued ${issueQty}× ${issueTarget.name}`);
+      setIssueTarget(null);
+      setEmployeeId(undefined);
+      setIssueQty(1);
+      void load();
+    } catch (e) {
+      toast.error(apiErrorMessage(e, 'Issue failed'));
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
     <Card
-      title="Consumables"
+      title={
+        <Space size="middle" wrap>
+          <Typography.Text strong>Consumables</Typography.Text>
+          <Checkbox
+            checked={lowOnly}
+            onChange={(e) => {
+              setLowOnly(e.target.checked);
+              setPage(1);
+            }}
+          >
+            Low stock only
+          </Checkbox>
+        </Space>
+      }
       extra={
         canManage ? (
-          <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
+          <Button
+            type="primary"
+            size="small"
+            icon={<PlusOutlined />}
+            onClick={() => setCreateOpen(true)}
+          >
             Add consumable
           </Button>
         ) : null
       }
     >
-      {loading ? (
+      {loading && rows.length === 0 ? (
         <TableSkeleton />
+      ) : loadError ? (
+        <EmptyState
+          description="Could not load consumables. Check your connection and try again."
+          actionLabel="Retry"
+          onAction={() => void load()}
+        />
       ) : rows.length === 0 ? (
         <EmptyState
-          description="No consumables tracked yet"
-          actionLabel={canManage ? 'Add consumable' : undefined}
-          onAction={canManage ? () => setCreateOpen(true) : undefined}
+          description={
+            lowOnly ? 'Nothing is below its low-stock threshold' : 'No consumables tracked yet'
+          }
+          actionLabel={lowOnly ? 'Show all' : canManage ? 'Add consumable' : undefined}
+          onAction={
+            lowOnly ? () => setLowOnly(false) : canManage ? () => setCreateOpen(true) : undefined
+          }
         />
       ) : (
         <>
@@ -111,10 +183,7 @@ export function ConsumablesPage() {
                   Recent issues:{' '}
                   {(r.issues ?? [])
                     .slice(0, 5)
-                    .map(
-                      (i) =>
-                        `${i.quantity}× → ${i.employee?.firstName} ${i.employee?.lastName}`,
-                    )
+                    .map((i) => `${i.quantity}× → ${i.employee?.firstName} ${i.employee?.lastName}`)
                     .join(' · ') || 'None yet'}
                 </Typography.Text>
               ),
@@ -186,34 +255,88 @@ export function ConsumablesPage() {
               },
             ]}
           />
-          <TablePagination total={total} page={page} pageSize={pageSize} onChange={(p, s) => { setPage(p); setPageSize(s); }} />
+          <TablePagination
+            total={total}
+            page={page}
+            pageSize={pageSize}
+            onChange={(p, s) => {
+              setPage(p);
+              setPageSize(s);
+            }}
+          />
         </>
       )}
 
-      <Modal open={createOpen} title="Add consumable" onCancel={() => setCreateOpen(false)} onOk={() => form.submit()}>
-        <Form form={form} layout="vertical" onFinish={create} initialValues={{ lowStockThreshold: 5 }}>
-          <Form.Item name="name" label="Name" rules={[{ required: true }]}>
+      <Modal
+        open={createOpen}
+        title="Add consumable"
+        onCancel={() => setCreateOpen(false)}
+        onOk={() => form.submit()}
+        confirmLoading={busy}
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={create}
+          initialValues={{ lowStockThreshold: 5 }}
+        >
+          <Form.Item name="name" label="Name" rules={[{ required: true, whitespace: true }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="category" label="Category" rules={[{ required: true }]}>
-            <Input />
+          <Form.Item
+            name="category"
+            label="Category"
+            rules={[{ required: true, whitespace: true }]}
+          >
+            <Input placeholder="Cables, Toner, Batteries, …" />
           </Form.Item>
-          <Form.Item name="quantityTotal" label="Starting quantity" rules={[{ required: true }]}>
-            <InputNumber min={0} style={{ width: '100%' }} />
+          <Form.Item
+            name="quantityTotal"
+            label="Starting quantity"
+            rules={[
+              { required: true, type: 'integer', min: 0, message: 'Enter a whole number ≥ 0' },
+            ]}
+          >
+            <InputNumber min={0} precision={0} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="lowStockThreshold" label="Low-stock threshold">
-            <InputNumber min={0} style={{ width: '100%' }} />
+          <Form.Item
+            name="lowStockThreshold"
+            label="Low-stock threshold"
+            rules={[{ type: 'integer', min: 0, message: 'Enter a whole number ≥ 0' }]}
+          >
+            <InputNumber min={0} precision={0} style={{ width: '100%' }} />
           </Form.Item>
         </Form>
       </Modal>
 
       <Modal
         open={!!issueTarget}
-        title={`Issue ${issueTarget?.name}`}
-        onCancel={() => setIssueTarget(null)}
+        title={`Issue ${issueTarget?.name ?? ''}`}
+        onCancel={() => {
+          setIssueTarget(null);
+          setEmployeeId(undefined);
+          setIssueQty(1);
+        }}
         onOk={() => void issue()}
+        okText="Issue"
+        okButtonProps={{ disabled: !employeeId }}
+        confirmLoading={busy}
       >
-        <EmployeeSelect value={employeeId} onChange={setEmployeeId} />
+        <Form layout="vertical">
+          <Form.Item label="Employee" required>
+            <EmployeeSelect value={employeeId} onChange={setEmployeeId} />
+          </Form.Item>
+          <Form.Item label={`Quantity (${issueTarget?.quantityAvailable ?? 0} available)`}>
+            <InputNumber
+              min={1}
+              max={issueTarget?.quantityAvailable ?? 1}
+              precision={0}
+              value={issueQty}
+              onChange={(v) => setIssueQty(Math.max(1, Number(v) || 1))}
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
+        </Form>
       </Modal>
     </Card>
   );

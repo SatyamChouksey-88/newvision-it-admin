@@ -88,6 +88,23 @@ a:hover {
   border-radius: 10px;
 }
 
+/* ── Grid text wrapping (opt-in via Columns menu) ── */
+.nv-grid--wrap .ant-table-tbody > tr > td {
+  white-space: normal !important;
+  word-break: break-word;
+}
+
+.nv-grid--wrap .nv-cell-ellipsis {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+/* ── Inactive (offboarded) employee rows ── */
+.nv-row-inactive > td {
+  color: #94a3b8 !important;
+}
+
 /* ── Table row focus ── */
 .nv-row-focused > td {
   background: #f0f7ff !important;

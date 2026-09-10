@@ -52,6 +52,37 @@ describe('Employees — history & offboarding (e2e)', () => {
     }
   });
 
+  it('includes maintenance tickets on the employee history timeline', async () => {
+    const created = await request(server())
+      .post('/api/assets')
+      .set(auth(adminToken))
+      .send({ categoryId: ids.categoryLap, locationId: ids.locationPune, model: 'MaintHistory' })
+      .expect(201);
+    await request(server())
+      .post(`/api/assets/${created.body.id}/assign`)
+      .set(auth(adminToken))
+      .send({ employeeId: ids.employeeA })
+      .expect(201);
+    const ticket = await request(server())
+      .post('/api/maintenance')
+      .set(auth(adminToken))
+      .send({ assetId: created.body.id, issue: 'Fan rattles under load' })
+      .expect(201);
+
+    const history = await request(server())
+      .get(`/api/employees/${ids.employeeA}/history`)
+      .set(auth(adminToken))
+      .expect(200);
+    const kinds = history.body.map((e: { kind: string }) => e.kind);
+    expect(kinds).toContain('Maintenance');
+    expect(
+      history.body.some(
+        (e: { id: string; summary: string }) =>
+          e.id === `maint-${ticket.body.id}` && /Fan rattles/i.test(e.summary),
+      ),
+    ).toBe(true);
+  });
+
   it('offboards employee: returns assets, checks in accessories, deactivates account', async () => {
     const accessory = await prisma.accessory.create({
       data: { name: 'Test Mouse', category: 'Peripherals', quantityTotal: 5, quantityCheckedOut: 0 },

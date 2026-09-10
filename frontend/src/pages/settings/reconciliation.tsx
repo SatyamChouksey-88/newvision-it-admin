@@ -1,7 +1,7 @@
 import { UploadOutlined } from '@ant-design/icons';
 import { App as AntdApp, Button, Select, Space, Table, Typography, Upload } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
-import { httpClient } from '../../providers/axios';
+import { apiErrorMessage, httpClient } from '../../providers/axios';
 import type { ReconciliationRun } from '../../types';
 
 export function ReconciliationPanel() {
@@ -11,13 +11,23 @@ export function ReconciliationPanel() {
   const [matchField, setMatchField] = useState('employeeCode');
   const [latest, setLatest] = useState<ReconciliationRun | null>(null);
 
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
   const reload = useCallback(async () => {
-    const { data } = await httpClient.get('/reconciliation', { params: { _start: 0, _end: 20 } });
-    setRuns(data.data ?? []);
-  }, []);
+    setLoading(true);
+    try {
+      const { data } = await httpClient.get('/reconciliation', { params: { _start: 0, _end: 20 } });
+      setRuns(data.data ?? []);
+    } catch (e) {
+      message.error(apiErrorMessage(e, 'Could not load reconciliation runs'));
+    } finally {
+      setLoading(false);
+    }
+  }, [message]);
 
   useEffect(() => {
-    reload();
+    void reload();
   }, [reload]);
 
   useEffect(() => {
@@ -27,6 +37,7 @@ export function ReconciliationPanel() {
   const upload = async (file: File) => {
     const form = new FormData();
     form.append('file', file);
+    setUploading(true);
     try {
       const { data } = await httpClient.post(
         `/reconciliation?kind=${kind}&matchField=${matchField}`,
@@ -36,9 +47,11 @@ export function ReconciliationPanel() {
       message.success(
         `Matched ${data.matched} · only in file ${data.inFileOnly} · only in system ${data.inSystemOnly}`,
       );
-      reload();
-    } catch {
-      message.error('Reconciliation failed');
+      void reload();
+    } catch (e) {
+      message.error(apiErrorMessage(e, 'Reconciliation failed'));
+    } finally {
+      setUploading(false);
     }
     return false;
   };
@@ -70,17 +83,29 @@ export function ReconciliationPanel() {
             { label: 'Assets', value: 'assets' },
           ]}
         />
-        <Select value={matchField} onChange={setMatchField} style={{ width: 180 }} options={matchOptions} />
-        <Upload showUploadList={false} accept=".csv,.xlsx" beforeUpload={upload}>
-          <Button icon={<UploadOutlined />}>Upload export</Button>
+        <Select
+          value={matchField}
+          onChange={setMatchField}
+          style={{ width: 180 }}
+          options={matchOptions}
+        />
+        <Upload
+          showUploadList={false}
+          accept=".csv,.xlsx"
+          beforeUpload={upload}
+          disabled={uploading}
+        >
+          <Button icon={<UploadOutlined />} loading={uploading}>
+            Upload export
+          </Button>
         </Upload>
       </Space>
 
       {latest && (
         <Space direction="vertical" style={{ width: '100%' }} size={12}>
           <Typography.Text strong>
-            Last run: {latest.matched} matched · {latest.inFileOnly} only in file · {latest.inSystemOnly}{' '}
-            only in system
+            Last run: {latest.matched} matched · {latest.inFileOnly} only in file ·{' '}
+            {latest.inSystemOnly} only in system
           </Typography.Text>
           <Space align="start" style={{ width: '100%' }} size={16}>
             <Table
@@ -115,7 +140,10 @@ export function ReconciliationPanel() {
         size="small"
         rowKey="id"
         dataSource={runs}
-        onRow={(r) => ({ onClick: () => setLatest(r) })}
+        loading={loading}
+        locale={{ emptyText: 'No reconciliation runs yet' }}
+        rowClassName={(r) => (r.id === latest?.id ? 'ant-table-row-selected' : '')}
+        onRow={(r) => ({ onClick: () => setLatest(r), style: { cursor: 'pointer' } })}
         columns={[
           { title: 'ID', dataIndex: 'id', width: 60 },
           { title: 'File', dataIndex: 'filename' },

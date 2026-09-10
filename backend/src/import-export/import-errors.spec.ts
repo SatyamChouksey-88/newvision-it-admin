@@ -1,3 +1,4 @@
+import { describe, expect, it } from '@jest/globals';
 import { classifyImportMessage, ImportErrorCode } from './import-errors';
 
 describe('classifyImportMessage', () => {

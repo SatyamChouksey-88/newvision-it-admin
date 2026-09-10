@@ -5,10 +5,13 @@
 const SEQ_WIDTH = 4;
 
 export function formatAssetCode(locationCode: string, categoryCode: string, seq: number): string {
-  const loc = sanitize(locationCode);
-  const cat = sanitize(categoryCode);
   const seqStr = String(seq).padStart(SEQ_WIDTH, '0');
-  return `AST-${loc}-${cat}-${seqStr}`;
+  return `${assetCodePrefix(locationCode, categoryCode)}${seqStr}`;
+}
+
+/** `AST-{LOC}-{CAT}-` — everything before the sequence number. */
+export function assetCodePrefix(locationCode: string, categoryCode: string): string {
+  return `AST-${sanitize(locationCode)}-${sanitize(categoryCode)}-`;
 }
 
 /** Parse a well-formed asset code back into its parts. Returns null if it doesn't match. */

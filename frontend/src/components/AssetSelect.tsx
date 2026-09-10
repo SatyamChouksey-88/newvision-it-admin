@@ -1,5 +1,6 @@
 import { Select } from 'antd';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useDebouncedCallback } from '../hooks/useDebouncedCallback';
 import { httpClient } from '../providers/axios';
 
 interface Opt {
@@ -18,32 +19,51 @@ export function AssetSelect({
   placeholder?: string;
 }) {
   const [options, setOptions] = useState<Opt[]>([]);
+  const [loading, setLoading] = useState(false);
+  const seq = useRef(0);
 
-  const load = useCallback(async (q?: string) => {
-    const { data } = await httpClient.get('/assets', {
-      params: { _start: 0, _end: 20, ...(q ? { q } : {}) },
-    });
-    setOptions(
-      (data.data ?? []).map((a: any) => ({
-        label: `${a.assetCode} — ${a.brand ?? ''} ${a.model ?? ''}`.trim(),
-        value: a.id,
-      })),
-    );
-  }, []);
+  const load = async (q?: string) => {
+    const mine = ++seq.current;
+    setLoading(true);
+    try {
+      const { data } = await httpClient.get('/assets', {
+        params: { _start: 0, _end: 20, ...(q ? { q } : {}) },
+      });
+      if (mine !== seq.current) return;
+      setOptions(
+        (data.data ?? []).map(
+          (a: { id: number; assetCode: string; brand?: string; model?: string }) => ({
+            label: `${a.assetCode} — ${a.brand ?? ''} ${a.model ?? ''}`.trim().replace(/—\s*$/, ''),
+            value: a.id,
+          }),
+        ),
+      );
+    } catch {
+      if (mine === seq.current) setOptions([]);
+    } finally {
+      if (mine === seq.current) setLoading(false);
+    }
+  };
+  const debouncedLoad = useDebouncedCallback((q: string) => void load(q), 250);
 
+  // Initial page only; searches go through `debouncedLoad`.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
   useEffect(() => {
-    load();
-  }, [load]);
+    void load();
+  }, []);
 
   return (
     <Select
       showSearch
+      allowClear
       filterOption={false}
-      onSearch={load}
+      loading={loading}
+      onSearch={debouncedLoad}
       value={value}
-      onChange={onChange}
+      onChange={(v) => onChange?.(v as number)}
       options={options}
       placeholder={placeholder}
+      notFoundContent={loading ? 'Searching…' : 'No matching asset'}
       style={{ width: '100%' }}
     />
   );

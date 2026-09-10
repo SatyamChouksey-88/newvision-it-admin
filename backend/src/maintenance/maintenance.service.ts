@@ -61,6 +61,7 @@ export class MaintenanceService {
               { issue: { contains: query.q, mode: 'insensitive' } },
               { vendor: { contains: query.q, mode: 'insensitive' } },
               { asset: { assetCode: { contains: query.q, mode: 'insensitive' } } },
+              ...(/^\d+$/.test(query.q) ? [{ id: Number(query.q) }] : []),
             ],
           }
         : {}),

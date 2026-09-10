@@ -30,8 +30,9 @@ The stack is a **React + Refine + Ant Design** frontend talking to a **NestJS + 
 | **Prompt 6** — DataGrid, Help, ship | Shared `DataGrid`, `/help` section, structured import errors, seed accessories/consumables | **Done** |
 | **Prompt 8** — Self-audit | Offboarding, employee history, full DataGrid sweep, dashboard drill-down, RBAC hardening | **Done** |
 | **Prompt 9** — Visual alignment | Match approved Claude Design mockup; `DESIGN_TOKENS.md`, `KpiCard`, theme/CSS refresh, Help screenshots | **Done** |
+| **Audit** — Functionality | History truncation, DataGrid overflow tooltips, ticket search wiring, inactive-employee guards | **Done** |
 
-**Test counts (current):** 49 backend unit + 50 backend integration = **99**; **24** Playwright e2e tests passing.
+**Test counts (current):** 50 backend unit + 66 backend integration = **116**; **31** Playwright e2e tests passing.
 
 **Design reference:** `design-reference/NewVision_Asset_Manager.html` (approved mockup) and `design-reference/DESIGN_TOKENS.md` (extracted tokens — source of truth for colors, typography, spacing, shadows).
 

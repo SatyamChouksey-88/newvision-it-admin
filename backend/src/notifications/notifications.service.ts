@@ -38,6 +38,14 @@ export class NotificationsService {
     return { id, isRead: true };
   }
 
+  async markAllRead(actor: AuthUser) {
+    const { count } = await this.prisma.notification.updateMany({
+      where: { isRead: false, OR: [{ userId: actor.id }, { userId: null }] },
+      data: { isRead: true },
+    });
+    return { updated: count };
+  }
+
   /** Emails of users who should receive IT alerts (warranty, issues). */
   async itRecipients(): Promise<string[]> {
     const users = await this.prisma.user.findMany({

@@ -159,6 +159,24 @@ Definition of Done: Prompt 8 audit complete; Section 3 re-verification confirmed
 
 Definition of Done: UI matches approved mockup look-and-feel; no functional regressions; Help screenshots current; all tests green; pushed. ✅
 
+## Functionality audit — history, tables, search, guards ✅ COMPLETE
+
+- [x] Asset detail no longer silently drops assignment/transfer/maintenance history after 10 rows
+- [x] Employee History includes maintenance tickets; per-source caps raised from 50–100 to 500; 200-event hard slice removed
+- [x] DataGrid shows a full-text tooltip whenever a cell overflows; wrap-text still available
+- [x] Asset detail + dashboard warranty tables use DataGrid (sort/filter/export/resize)
+- [x] Global search ticket hits now land on `/maintenance` with a real `q` filter (ticket id searchable)
+- [x] Inactive employees blocked from assign/transfer/checkout/issue; reinstate + list status filter
+- [x] Tests: **50 unit + 66 integration** backend; **31 Playwright**
+- [x] Branch `audit/functionality-and-truncation` + PR
+
+## Dashboard lists, inline status, editable requests (2026-09-10)
+
+- [x] Replaced Status mix / Assets by location / Assets added charts with color-coded bullet lists
+- [x] Inline status dropdown on Assets, Maintenance, and Requests (allowed transitions only)
+- [x] Requests stay editable after fulfill; expand-row shows who changed what
+- [x] Tests updated
+
 ## Known issues
 
 - **Seed resets demo data on container start** when `SEED_ON_START=true` (the compose default). Convenient for demos, but restarting the backend wipes manual changes. Set `SEED_ON_START: "false"` in `docker-compose.yml` after the first boot to persist changes. Documented in README.

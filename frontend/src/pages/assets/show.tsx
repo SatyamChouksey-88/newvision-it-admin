@@ -1,18 +1,55 @@
 import { Show } from '@refinedev/antd';
-import { useShow } from '@refinedev/core';
-import { Button, Card, Descriptions, Space, Table, Tag, Typography } from 'antd';
+import { useGetIdentity, useShow } from '@refinedev/core';
+import { Alert, App as AntdApp, Button, Card, Descriptions, Space, Tag, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
-import { CopyButton } from '../../components/CopyButton';
+import { AssetStatusSelect } from '../../components/AssetStatusSelect';
 import { WarrantyDays } from '../../components/Cells';
+import { CopyButton } from '../../components/CopyButton';
+import { DataGrid } from '../../components/DataGrid/DataGrid';
+import { MaintenanceStatusTag } from '../../components/MaintenanceStatusTag';
 import { StatusTag } from '../../components/StatusTag';
-import { httpClient } from '../../providers/axios';
+import type { Identity } from '../../providers/authProvider';
+import { apiErrorMessage, httpClient } from '../../providers/axios';
+import type { AssetStatus } from '../../types';
 import { formatCurrency, formatDate } from '../../utils/format';
 
+function EmployeeLink({
+  emp,
+  fallbackId,
+}: {
+  emp?: { id: number; firstName: string; lastName: string; employeeCode?: string } | null;
+  fallbackId?: number | null;
+}) {
+  if (emp) {
+    return (
+      <Link to={`/employees/show/${emp.id}`}>
+        {emp.firstName} {emp.lastName}
+        {emp.employeeCode ? ` (${emp.employeeCode})` : ''}
+      </Link>
+    );
+  }
+  return fallbackId ? <Link to={`/employees/show/${fallbackId}`}>#{fallbackId}</Link> : <>—</>;
+}
+
 export function AssetShow() {
+  const { message } = AntdApp.useApp();
+  const { data: identity } = useGetIdentity<Identity>();
+  const canManage = ['SUPER_ADMIN', 'IT_ADMIN'].includes(identity?.role ?? '');
   const { query } = useShow({ resource: 'assets' });
   const asset: any = query.data?.data;
   const [qrUrl, setQrUrl] = useState<string | null>(null);
+
+  const changeStatus = async (status: AssetStatus) => {
+    if (!asset?.id) return;
+    try {
+      await httpClient.post(`/assets/${asset.id}/status`, { status });
+      message.success(`Status updated to ${status.replace('_', ' ')}`);
+      void query.refetch();
+    } catch (e) {
+      message.error(apiErrorMessage(e, 'Could not change status'));
+    }
+  };
 
   useEffect(() => {
     if (!asset?.id) return;
@@ -30,7 +67,16 @@ export function AssetShow() {
   }, [asset?.id]);
 
   return (
-    <Show isLoading={query.isFetching} title={asset?.assetCode ?? 'Asset'}>
+    <Show isLoading={query.isLoading} title={asset?.assetCode ?? 'Asset'}>
+      {query.isError && (
+        <Alert
+          type="error"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="Could not load this asset"
+          description="It may have been deleted, or you may not have access to it."
+        />
+      )}
       <Space direction="vertical" size={16} style={{ width: '100%' }}>
         <Descriptions bordered column={2} size="small">
           <Descriptions.Item label="Asset Code">
@@ -40,11 +86,17 @@ export function AssetShow() {
             </Space>
           </Descriptions.Item>
           <Descriptions.Item label="Status">
-            {asset ? <StatusTag status={asset.status} /> : null}
+            {asset ? (
+              canManage ? (
+                <AssetStatusSelect value={asset.status} onChange={(s) => void changeStatus(s)} />
+              ) : (
+                <StatusTag status={asset.status} />
+              )
+            ) : null}
           </Descriptions.Item>
           <Descriptions.Item label="Category">{asset?.category?.name}</Descriptions.Item>
           <Descriptions.Item label="Condition">
-            <Tag>{asset?.condition}</Tag>
+            {asset?.condition ? <Tag>{asset.condition}</Tag> : '—'}
           </Descriptions.Item>
           <Descriptions.Item label="Brand / Model">
             {`${asset?.brand ?? ''} ${asset?.model ?? ''}`.trim() || '—'}
@@ -94,9 +146,7 @@ export function AssetShow() {
               <Typography.Text type="secondary">
                 Print this on the device. A phone camera opens a public audit card — no login.
               </Typography.Text>
-              {asset?.assetCode && (
-                <Link to={`/scan/${asset.assetCode}`}>Open scan page</Link>
-              )}
+              {asset?.assetCode && <Link to={`/scan/${asset.assetCode}`}>Open scan page</Link>}
               {qrUrl && (
                 <Button
                   size="small"
@@ -111,18 +161,38 @@ export function AssetShow() {
         </Card>
 
         <Card size="small" title="Assignment history">
-          <Table
+          <DataGrid<any>
+            tableKey={`asset-${asset?.id ?? 'x'}-assignments`}
             dataSource={asset?.assignments ?? []}
             rowKey="id"
-            size="small"
-            pagination={false}
+            density="Compact"
+            pagination={{ pageSize: 10, hideOnSinglePage: true, size: 'small' }}
             columns={[
-              { title: 'Employee ID', dataIndex: 'employeeId' },
-              { title: 'Assigned', dataIndex: 'assignedAt', render: (v) => formatDate(v) },
+              {
+                title: 'Employee',
+                gridKey: 'employee',
+                render: (_, r: any) => <EmployeeLink emp={r.employee} fallbackId={r.employeeId} />,
+                getExportValue: (r: any) =>
+                  r.employee
+                    ? `${r.employee.firstName} ${r.employee.lastName}`
+                    : String(r.employeeId ?? ''),
+              },
+              {
+                title: 'Assigned by',
+                gridKey: 'assignedBy',
+                render: (_: unknown, r: any) => r.assignedBy?.fullName ?? '—',
+                getExportValue: (r: any) => r.assignedBy?.fullName ?? '',
+              },
+              {
+                title: 'Assigned',
+                dataIndex: 'assignedAt',
+                render: (v) => formatDate(v),
+              },
               {
                 title: 'Returned',
                 dataIndex: 'returnedAt',
                 render: (v) => (v ? formatDate(v) : <Tag color="green">Active</Tag>),
+                getExportValue: (r: any) => r.returnedAt ?? 'Active',
               },
               { title: 'Notes', dataIndex: 'notes', render: (v) => v ?? '—' },
             ]}
@@ -130,14 +200,19 @@ export function AssetShow() {
         </Card>
 
         <Card size="small" title="Maintenance history">
-          <Table
+          <DataGrid<any>
+            tableKey={`asset-${asset?.id ?? 'x'}-maintenance`}
             dataSource={asset?.maintenance ?? []}
             rowKey="id"
-            size="small"
-            pagination={false}
+            density="Compact"
+            pagination={{ pageSize: 10, hideOnSinglePage: true, size: 'small' }}
             columns={[
               { title: 'Issue', dataIndex: 'issue' },
-              { title: 'Status', dataIndex: 'status', render: (v) => <Tag>{v}</Tag> },
+              {
+                title: 'Status',
+                dataIndex: 'status',
+                render: (v) => <MaintenanceStatusTag status={v} />,
+              },
               { title: 'Vendor', dataIndex: 'vendor', render: (v) => v ?? '—' },
               {
                 title: 'Est. Cost',
@@ -151,14 +226,49 @@ export function AssetShow() {
 
         {(asset?.transfers?.length ?? 0) > 0 && (
           <Card size="small" title="Transfer history">
-            <Table
+            <DataGrid<any>
+              tableKey={`asset-${asset?.id ?? 'x'}-transfers`}
               dataSource={asset?.transfers ?? []}
               rowKey="id"
-              size="small"
-              pagination={false}
+              density="Compact"
+              pagination={{ pageSize: 10, hideOnSinglePage: true, size: 'small' }}
               columns={[
-                { title: 'From Emp', dataIndex: 'fromEmployeeId', render: (v) => v ?? '—' },
-                { title: 'To Emp', dataIndex: 'toEmployeeId', render: (v) => v ?? '—' },
+                {
+                  title: 'From',
+                  gridKey: 'fromEmployee',
+                  render: (_: unknown, r: any) => (
+                    <EmployeeLink emp={r.fromEmployee} fallbackId={r.fromEmployeeId} />
+                  ),
+                  getExportValue: (r: any) =>
+                    r.fromEmployee
+                      ? `${r.fromEmployee.firstName} ${r.fromEmployee.lastName}`
+                      : String(r.fromEmployeeId ?? ''),
+                },
+                {
+                  title: 'To',
+                  gridKey: 'toEmployee',
+                  render: (_: unknown, r: any) => (
+                    <EmployeeLink emp={r.toEmployee} fallbackId={r.toEmployeeId} />
+                  ),
+                  getExportValue: (r: any) =>
+                    r.toEmployee
+                      ? `${r.toEmployee.firstName} ${r.toEmployee.lastName}`
+                      : String(r.toEmployeeId ?? ''),
+                },
+                {
+                  title: 'Location',
+                  gridKey: 'location',
+                  render: (_: unknown, r: any) =>
+                    r.fromLocation?.code &&
+                    r.toLocation?.code &&
+                    r.fromLocation.code !== r.toLocation.code
+                      ? `${r.fromLocation.code} → ${r.toLocation.code}`
+                      : (r.toLocation?.code ?? '—'),
+                  getExportValue: (r: any) =>
+                    r.fromLocation?.code && r.toLocation?.code
+                      ? `${r.fromLocation.code} → ${r.toLocation.code}`
+                      : (r.toLocation?.code ?? ''),
+                },
                 { title: 'When', dataIndex: 'transferredAt', render: (v) => formatDate(v) },
                 { title: 'Reason', dataIndex: 'reason', render: (v) => v ?? '—' },
               ]}

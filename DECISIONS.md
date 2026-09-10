@@ -99,3 +99,11 @@ Every judgment call made while building NewVision, and why. Newest at the bottom
 - **Secondary text bumped to 12–13px** — KPI labels, table body, attention panel details use `#334155`/`#475569` for readability on tinted backgrounds.
 - **Global chrome via `theme.ts` + `index.css`** — canvas `#F8FAFC`, borders `#E9EDF2`, card radius 16/10px, subtle two-tier shadows. Screens not depicted in the mockup inherit the same tokens consistently.
 - **Help screenshots re-captured after the visual pass** — `node scripts/capture-screenshots.mjs`; logout flow hardened (cookie clear + fallback storage wipe).
+
+## Functionality audit (2026-09-10)
+
+- **Related-record `take: 10` on asset GET was a data-loss bug** — assignment/transfer/maintenance history is now returned in full; the UI paginates at 10 rows so the page stays responsive.
+- **Employee History omitted maintenance tickets** — now merged from tickets reported by the employee’s user account or filed against assets they have held. Per-source cap raised to 500; the old `slice(0, 200)` cutoff is gone so long-tenured staff are not silently truncated.
+- **Truncated table cells must remain readable** — DataGrid wraps every cell in an overflow detector and shows the full value in a tooltip; “Wrap long text” in the Columns menu remains the Excel-style alternative.
+- **Header ticket search used `?q=` which Refine never read** — it now writes the same `filters[0][field]=q` query the list already syncs, and the maintenance API matches numeric `q` to ticket id.
+- **Styling left alone** — only functional CSS added (`nv-grid--wrap`, inactive row tint). Visual tokens from Prompt 9 were not revisited.

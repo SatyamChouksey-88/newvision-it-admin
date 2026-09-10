@@ -16,11 +16,19 @@ export const authProvider: AuthProvider = {
       const { data } = await httpClient.post('/auth/login', { email, password });
       localStorage.setItem(TOKEN_KEY, data.access_token);
       localStorage.setItem(USER_KEY, JSON.stringify(data.user));
-      return { success: true, redirectTo: '/' };
-    } catch {
+      // Return the user to the page they were on when their session expired (same-origin paths only).
+      const to = new URLSearchParams(window.location.search).get('to');
+      const redirectTo = to?.startsWith('/') && !to.startsWith('//') ? to : '/';
+      return { success: true, redirectTo };
+    } catch (error) {
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      const message =
+        status === 401 || status === 400
+          ? 'Invalid email or password'
+          : 'Could not reach the server. Check your connection and try again.';
       return {
         success: false,
-        error: { name: 'LoginError', message: 'Invalid email or password' },
+        error: { name: 'LoginError', message },
       };
     }
   },

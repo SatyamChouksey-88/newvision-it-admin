@@ -2,8 +2,8 @@ import { PlusOutlined, RollbackOutlined, UserAddOutlined } from '@ant-design/ico
 import { useGetIdentity } from '@refinedev/core';
 import { Button, Card, Form, Input, InputNumber, Modal, Space, Typography } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
-import { CopyButton } from '../../components/CopyButton';
 import { PrimaryWithSub } from '../../components/Cells';
+import { CopyButton } from '../../components/CopyButton';
 import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid';
 import { EmployeeSelect } from '../../components/EmployeeSelect';
 import { EmptyState } from '../../components/EmptyState';
@@ -12,7 +12,7 @@ import { TablePagination } from '../../components/TablePagination';
 import { TableSkeleton } from '../../components/TableSkeleton';
 import { useToast } from '../../components/Toast';
 import type { Identity } from '../../providers/authProvider';
-import { httpClient } from '../../providers/axios';
+import { apiErrorMessage, httpClient } from '../../providers/axios';
 import { tabularNums } from '../../theme';
 import type { Accessory } from '../../types';
 
@@ -35,14 +35,20 @@ export function AccessoriesPage() {
   const [employeeId, setEmployeeId] = useState<number>();
   const [form] = Form.useForm();
 
+  const [loadError, setLoadError] = useState(false);
+  const [busy, setBusy] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const { data } = await httpClient.get('/accessories', {
         params: { _start: (page - 1) * pageSize, _end: page * pageSize },
       });
       setRows(data.data ?? []);
       setTotal(data.total ?? 0);
+    } catch {
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -53,26 +59,47 @@ export function AccessoriesPage() {
   }, [load]);
 
   const create = async (values: { name: string; category: string; quantityTotal: number }) => {
-    await httpClient.post('/accessories', values);
-    toast.success(`Added ${values.name}`);
-    setCreateOpen(false);
-    form.resetFields();
-    void load();
+    setBusy(true);
+    try {
+      await httpClient.post('/accessories', values);
+      toast.success(`Added ${values.name}`);
+      setCreateOpen(false);
+      form.resetFields();
+      void load();
+    } catch (e) {
+      toast.error(apiErrorMessage(e, 'Could not add the accessory'));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const checkout = async () => {
-    if (!checkoutTarget || !employeeId) return;
-    await httpClient.post(`/accessories/${checkoutTarget.id}/checkout`, { employeeId });
-    toast.success(`Checked out ${checkoutTarget.name}`);
-    setCheckoutTarget(null);
-    setEmployeeId(undefined);
-    void load();
+    if (!checkoutTarget || !employeeId) {
+      toast.warning('Pick an employee');
+      return;
+    }
+    setBusy(true);
+    try {
+      await httpClient.post(`/accessories/${checkoutTarget.id}/checkout`, { employeeId });
+      toast.success(`Checked out ${checkoutTarget.name}`);
+      setCheckoutTarget(null);
+      setEmployeeId(undefined);
+      void load();
+    } catch (e) {
+      toast.error(apiErrorMessage(e, 'Check-out failed'));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const checkin = async (accessoryId: number, checkoutId: number) => {
-    await httpClient.post(`/accessories/${accessoryId}/checkin`, { checkoutId });
-    toast.success('Checked in');
-    void load();
+    try {
+      await httpClient.post(`/accessories/${accessoryId}/checkin`, { checkoutId });
+      toast.success('Checked in');
+      void load();
+    } catch (e) {
+      toast.error(apiErrorMessage(e, 'Check-in failed'));
+    }
   };
 
   return (
@@ -85,14 +112,25 @@ export function AccessoriesPage() {
       }
       extra={
         canManage ? (
-          <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
+          <Button
+            type="primary"
+            size="small"
+            icon={<PlusOutlined />}
+            onClick={() => setCreateOpen(true)}
+          >
             Add accessory
           </Button>
         ) : null
       }
     >
-      {loading ? (
+      {loading && rows.length === 0 ? (
         <TableSkeleton />
+      ) : loadError ? (
+        <EmptyState
+          description="Could not load accessories. Check your connection and try again."
+          actionLabel="Retry"
+          onAction={() => void load()}
+        />
       ) : rows.length === 0 ? (
         <EmptyState
           description="No accessories in catalog"
@@ -113,17 +151,36 @@ export function AccessoriesPage() {
             expandable={{
               expandedRowKeys: expanded,
               onExpandedRowsChange: (keys) => setExpanded(keys as number[]),
-              expandedRowRender: (r) => (
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  Open checkouts:{' '}
-                  {(r.checkouts ?? [])
-                    .map(
-                      (c) =>
-                        `${c.quantity}× → ${c.employee?.firstName} ${c.employee?.lastName} (${c.employee?.employeeCode})`,
-                    )
-                    .join(' · ') || 'None'}
-                </Typography.Text>
-              ),
+              expandedRowRender: (r) =>
+                (r.checkouts ?? []).length === 0 ? (
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                    No open checkouts
+                  </Typography.Text>
+                ) : (
+                  <Space wrap size={[8, 4]}>
+                    {(r.checkouts ?? []).map((c) => (
+                      <Space key={c.id} size={4}>
+                        <Typography.Text style={{ fontSize: 12 }}>
+                          {c.quantity}× → {c.employee?.firstName} {c.employee?.lastName} (
+                          {c.employee?.employeeCode})
+                        </Typography.Text>
+                        {canCheckout && (
+                          <Button
+                            size="small"
+                            type="link"
+                            style={{ padding: 0, height: 'auto' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void checkin(r.id, c.id);
+                            }}
+                          >
+                            Check in
+                          </Button>
+                        )}
+                      </Space>
+                    ))}
+                  </Space>
+                ),
             }}
             columns={[
               {
@@ -188,48 +245,94 @@ export function AccessoriesPage() {
                       </Button>
                     )}
                     {canCheckout &&
-                      (r.checkouts ?? []).map((c) => (
+                      (r.checkouts ?? []).slice(0, 3).map((c) => (
                         <Button
                           key={c.id}
                           size="small"
                           icon={<RollbackOutlined />}
+                          title={`Check in ${c.quantity}× from ${c.employee?.firstName ?? ''} ${c.employee?.lastName ?? ''}`}
                           onClick={(e) => {
                             e.stopPropagation();
                             void checkin(r.id, c.id);
                           }}
                         >
-                          Check in
+                          Check in · {c.employee?.employeeCode ?? `#${c.id}`}
                         </Button>
                       ))}
+                    {canCheckout && (r.checkouts?.length ?? 0) > 3 && (
+                      <Button
+                        size="small"
+                        type="link"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpanded((prev) => (prev.includes(r.id) ? prev : [...prev, r.id]));
+                        }}
+                      >
+                        +{(r.checkouts?.length ?? 0) - 3} more
+                      </Button>
+                    )}
                   </Space>
                 ),
               },
             ]}
           />
-          <TablePagination total={total} page={page} pageSize={pageSize} onChange={(p, s) => { setPage(p); setPageSize(s); }} />
+          <TablePagination
+            total={total}
+            page={page}
+            pageSize={pageSize}
+            onChange={(p, s) => {
+              setPage(p);
+              setPageSize(s);
+            }}
+          />
         </>
       )}
 
-      <Modal open={createOpen} title="Add accessory" onCancel={() => setCreateOpen(false)} onOk={() => form.submit()}>
+      <Modal
+        open={createOpen}
+        title="Add accessory"
+        onCancel={() => setCreateOpen(false)}
+        onOk={() => form.submit()}
+        confirmLoading={busy}
+      >
         <Form form={form} layout="vertical" onFinish={create}>
-          <Form.Item name="name" label="Name" rules={[{ required: true }]}>
+          <Form.Item name="name" label="Name" rules={[{ required: true, whitespace: true }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="category" label="Category" rules={[{ required: true }]}>
+          <Form.Item
+            name="category"
+            label="Category"
+            rules={[{ required: true, whitespace: true }]}
+          >
             <Input placeholder="Peripherals, Bags, …" />
           </Form.Item>
-          <Form.Item name="quantityTotal" label="Quantity" rules={[{ required: true }]}>
-            <InputNumber min={0} style={{ width: '100%' }} />
+          <Form.Item
+            name="quantityTotal"
+            label="Quantity"
+            rules={[
+              { required: true, type: 'integer', min: 0, message: 'Enter a whole number ≥ 0' },
+            ]}
+          >
+            <InputNumber min={0} precision={0} style={{ width: '100%' }} />
           </Form.Item>
         </Form>
       </Modal>
 
       <Modal
         open={!!checkoutTarget}
-        title={`Check out ${checkoutTarget?.name}`}
-        onCancel={() => setCheckoutTarget(null)}
+        title={`Check out ${checkoutTarget?.name ?? ''}`}
+        onCancel={() => {
+          setCheckoutTarget(null);
+          setEmployeeId(undefined);
+        }}
         onOk={() => void checkout()}
+        okText="Check out"
+        okButtonProps={{ disabled: !employeeId }}
+        confirmLoading={busy}
       >
+        <Typography.Paragraph type="secondary" style={{ fontSize: 12 }}>
+          {checkoutTarget?.quantityAvailable ?? 0} available. One unit is checked out per action.
+        </Typography.Paragraph>
         <EmployeeSelect value={employeeId} onChange={setEmployeeId} />
       </Modal>
     </Card>
