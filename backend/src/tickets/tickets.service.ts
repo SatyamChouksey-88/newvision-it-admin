@@ -641,6 +641,12 @@ export class TicketsService {
       summary: l.summary,
       actor: l.changedBy?.fullName ?? 'System',
       manual: l.action === 'manual_override',
+      backfilled: Boolean(
+        l.newValue &&
+          typeof l.newValue === 'object' &&
+          !Array.isArray(l.newValue) &&
+          (l.newValue as { isBackfilled?: boolean }).isBackfilled,
+      ),
     }));
   }
 

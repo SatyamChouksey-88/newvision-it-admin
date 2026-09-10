@@ -232,7 +232,10 @@ export interface DashboardMetrics {
 export interface DashboardTrendPoint {
   month: string;
   label: string;
+  /** Cumulative estate size at month end (alias of total). */
   count: number;
+  added?: number;
+  total?: number;
 }
 
 export interface LocationBreakdown {

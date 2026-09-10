@@ -39,6 +39,50 @@ test.describe('Support tickets', () => {
     await expect(page.getByRole('heading', { name: 'Notes, manual correction, and backfilling' })).toBeVisible();
   });
 
+  test('IT staff can comment, log time, export, and set digest preference', async ({ page }) => {
+    await login(page, DEMO_USERS.employee);
+    await page.goto('/tickets/create');
+    await page.getByRole('combobox', { name: 'Category' }).click();
+    await page
+      .locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option', { hasText: 'Software' })
+      .first()
+      .click();
+    await page.getByLabel('Subject').fill('Outlook search is empty');
+    await page.getByLabel('Description').fill('Search returns no results after the last patch.');
+    await page.getByTestId('submit-ticket').click();
+    await expect(page.getByTestId('ticket-number')).toBeVisible({ timeout: 15_000 });
+    const ticketUrl = page.url();
+
+    await login(page);
+    await page.goto(ticketUrl);
+    await expect(page.getByTestId('ticket-number')).toBeVisible();
+    await expect(page.getByLabel('Assignee')).toBeVisible();
+    await page.getByLabel('Comment').fill('We are looking into the search index.');
+    await page.getByRole('button', { name: 'Send' }).click();
+    await expect(page.getByTestId('public-comment').first()).toBeVisible({ timeout: 10_000 });
+    await page.getByLabel('Comment').fill('Internal: rebuild the index tonight.');
+    await page.getByRole('checkbox', { name: /Internal note/ }).check();
+    await page.getByRole('button', { name: 'Send' }).click();
+    await expect(page.getByTestId('internal-note').first()).toBeVisible({ timeout: 10_000 });
+    await page.getByLabel('Minutes spent').fill('15');
+    await page.getByRole('button', { name: 'Log time' }).click();
+    await expect(page.getByText(/15 min/)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('No watchers yet.')).toBeVisible();
+
+    await page.goto('/tickets');
+    await expect(page.locator('thead .ant-table-selection-column').first().getByRole('checkbox')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'CSV' })).toBeVisible();
+
+    await page.goto('/settings');
+    await expect(page.getByText('Ticket email notifications')).toBeVisible();
+    const digest = page.getByRole('radio', { name: 'Daily digest' });
+    await expect(digest).toBeVisible();
+    if (!(await digest.isChecked())) {
+      await digest.check();
+      await expect(page.getByText('Daily digest enabled')).toBeVisible();
+    }
+  });
+
   test('asset notes and manual correction require a reason', async ({ page }) => {
     await login(page);
     await page.goto('/assets');

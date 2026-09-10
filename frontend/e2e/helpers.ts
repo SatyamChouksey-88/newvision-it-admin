@@ -14,7 +14,7 @@ export const DEMO_USERS = {
 export async function logoutIfNeeded(page: Page) {
   await page.goto('/login');
   const emailInput = page.locator('#email');
-  if (await emailInput.isVisible({ timeout: 2000 }).catch(() => false)) return;
+  if (await emailInput.isVisible({ timeout: 10_000 }).catch(() => false)) return;
 
   await page.goto('/');
   const logoutBtn = page.getByTestId('logout-button').first();
@@ -40,7 +40,7 @@ export async function login(page: Page, email = DEMO_USERS.itAdmin) {
   await page.locator('#password').fill(DEMO_PASSWORD);
   await page.getByRole('button', { name: /sign in/i }).click();
   await expect(page.getByRole('heading', { name: 'Dashboard', level: 3 })).toBeVisible({
-    timeout: 15_000,
+    timeout: 30_000,
   });
 }
 

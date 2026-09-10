@@ -1,4 +1,4 @@
-import { Button, Form, Input, Popconfirm, Select, Space, Table, Typography } from 'antd';
+import { Button, Card, Form, Input, Popconfirm, Select, Skeleton, Space, Table, Typography } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { apiErrorMessage, httpClient } from '../../providers/axios';
 import { useToast } from '../../components/Toast';
@@ -9,23 +9,36 @@ export function HelpdeskSettings() {
   const [canned, setCanned] = useState<CannedResponse[]>([]);
   const [templates, setTemplates] = useState<TicketTemplate[]>([]);
   const [categories, setCategories] = useState<TicketCategory[]>([]);
+  const [ready, setReady] = useState(false);
   const [cannedForm] = Form.useForm();
   const [tplForm] = Form.useForm();
 
   const load = useCallback(async () => {
-    const [c, t, cat] = await Promise.all([
-      httpClient.get('/canned-responses'),
-      httpClient.get('/ticket-templates'),
-      httpClient.get('/ticket-categories'),
-    ]);
-    setCanned(Array.isArray(c.data) ? c.data : []);
-    setTemplates(Array.isArray(t.data) ? t.data : []);
-    setCategories(Array.isArray(cat.data) ? cat.data : []);
+    try {
+      const [c, t, cat] = await Promise.all([
+        httpClient.get('/canned-responses'),
+        httpClient.get('/ticket-templates'),
+        httpClient.get('/ticket-categories'),
+      ]);
+      setCanned(Array.isArray(c.data) ? c.data : []);
+      setTemplates(Array.isArray(t.data) ? t.data : []);
+      setCategories(Array.isArray(cat.data) ? cat.data : []);
+    } finally {
+      setReady(true);
+    }
   }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  if (!ready) {
+    return (
+      <Card size="small">
+        <Skeleton active paragraph={{ rows: 8 }} />
+      </Card>
+    );
+  }
 
   return (
     <Space direction="vertical" size={24} style={{ width: '100%' }}>
@@ -35,6 +48,7 @@ export function HelpdeskSettings() {
           rowKey="id"
           size="small"
           pagination={false}
+          locale={{ emptyText: 'No canned responses yet.' }}
           dataSource={canned}
           columns={[
             { title: 'Title', dataIndex: 'title' },
@@ -88,6 +102,7 @@ export function HelpdeskSettings() {
           rowKey="id"
           size="small"
           pagination={false}
+          locale={{ emptyText: 'No templates yet.' }}
           dataSource={templates}
           columns={[
             { title: 'Title', dataIndex: 'title' },

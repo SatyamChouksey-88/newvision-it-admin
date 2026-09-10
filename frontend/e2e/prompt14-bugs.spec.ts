@@ -12,10 +12,14 @@ test.describe('Prompt 14 bug fixes', () => {
       headers: { Authorization: `Bearer ${access_token}` },
     });
     expect(trends.ok()).toBeTruthy();
-    const body = (await trends.json()) as { count: number }[];
+    const body = (await trends.json()) as { count: number; total?: number; added?: number }[];
     expect(body.length).toBe(12);
-    const max = Math.max(...body.map((p) => Number(p.count)));
+    const totals = body.map((p) => Number(p.total ?? p.count));
+    const max = Math.max(...totals);
     expect(max).toBeGreaterThan(1);
+    for (let i = 1; i < totals.length; i++) {
+      expect(totals[i]).toBeGreaterThanOrEqual(totals[i - 1]);
+    }
   });
 
   test('assets select-all is a checkbox, not wrapped “Select all assets” text', async ({ page }) => {

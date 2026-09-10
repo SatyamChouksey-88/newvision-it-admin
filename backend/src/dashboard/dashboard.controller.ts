@@ -69,24 +69,37 @@ export class DashboardController {
     };
   }
 
-  /** Monthly asset additions for trend charts (last N months, zero-filled, UTC month keys). */
+  /**
+   * Estate growth over the last N months (UTC).
+   * Each point has `added` (that month) and `total`/`count` (cumulative estate size at month end).
+   * Assets created before the window are the baseline so the line starts at the real estate size.
+   */
   @Get('trends')
   async trends(@Query('months') monthsRaw = '12', @Query('locationId') locationIdRaw?: string) {
     const months = Math.min(24, Math.max(3, Number(monthsRaw) || 12));
     const locationId = locationIdRaw ? Number(locationIdRaw) : undefined;
     const start = trendWindowStart(months);
+    const locFilter = locationId ? Prisma.sql`AND location_id = ${locationId}` : Prisma.empty;
 
-    const rows = await this.prisma.$queryRaw<Array<{ month: string; count: number }>>`
-      SELECT to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM') AS month,
-             COUNT(*)::int AS count
-      FROM assets
-      WHERE created_at >= ${start}
-      ${locationId ? Prisma.sql`AND location_id = ${locationId}` : Prisma.empty}
-      GROUP BY 1
-      ORDER BY 1
-    `;
+    const [rows, baselineRows] = await Promise.all([
+      this.prisma.$queryRaw<Array<{ month: string; count: number }>>`
+        SELECT to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM') AS month,
+               COUNT(*)::int AS count
+        FROM assets
+        WHERE created_at >= ${start}
+        ${locFilter}
+        GROUP BY 1
+        ORDER BY 1
+      `,
+      this.prisma.$queryRaw<Array<{ count: number }>>`
+        SELECT COUNT(*)::int AS count
+        FROM assets
+        WHERE created_at < ${start}
+        ${locFilter}
+      `,
+    ]);
 
-    return buildTrendPoints(rows, months);
+    return buildTrendPoints(rows, months, new Date(), Number(baselineRows[0]?.count ?? 0));
   }
 
   /** Per-location breakdown for the all-locations view. */

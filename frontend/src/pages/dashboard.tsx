@@ -386,8 +386,19 @@ export function DashboardPage() {
                 Growth ({months} months)
               </Space>
             }
+            extra={
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                Running estate total
+              </Typography.Text>
+            }
           >
-            <AssetTrendChart data={trends} height={240} />
+            {trends.length === 0 ? (
+              <Typography.Text type="secondary" style={{ display: 'block', padding: '24px 0', textAlign: 'center' }}>
+                No growth data yet.
+              </Typography.Text>
+            ) : (
+              <AssetTrendChart data={trends} height={240} />
+            )}
           </Card>
         </Col>
       </Row>

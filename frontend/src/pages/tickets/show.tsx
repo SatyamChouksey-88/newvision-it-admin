@@ -15,9 +15,10 @@ import {
   Upload,
 } from 'antd';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { ContactCard } from '../../components/ContactCard';
 import { CopyButton } from '../../components/CopyButton';
+import { EmptyState } from '../../components/EmptyState';
 import { EmployeeSelect } from '../../components/EmployeeSelect';
 import { EventTimeline, type TimelineEvent } from '../../components/EventTimeline';
 import { ManualEditButton } from '../../components/ManualEdit';
@@ -37,6 +38,7 @@ const STAFF = ['SUPER_ADMIN', 'IT_ADMIN', 'IT_SUPPORT'];
 const MANUAL = ['SUPER_ADMIN', 'IT_ADMIN'];
 
 export function TicketShow() {
+  const navigate = useNavigate();
   const toast = useToast();
   const { data: identity } = useGetIdentity<Identity>();
   const isStaff = STAFF.includes(identity?.role ?? '');
@@ -73,6 +75,7 @@ export function TicketShow() {
             summary: e.summary,
             actor: e.actor,
             manual: e.manual || e.action === 'manual_override',
+            backfilled: Boolean((e as { backfilled?: boolean }).backfilled),
             color: e.action === 'manual_override' ? '#DC2626' : undefined,
           })),
         ),
@@ -111,6 +114,15 @@ export function TicketShow() {
   };
 
   if (!ticket && query.isLoading) return <Card loading />;
+  if (query.isError || !ticket) {
+    return (
+      <EmptyState
+        description="This ticket could not be loaded."
+        actionLabel="Back to tickets"
+        onAction={() => navigate('/tickets')}
+      />
+    );
+  }
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
@@ -177,6 +189,7 @@ export function TicketShow() {
               <Select
                 allowClear
                 placeholder="Unassigned"
+                aria-label="Assignee"
                 style={{ minWidth: 200 }}
                 value={ticket?.assignedToId ?? undefined}
                 options={staff.map((s) => ({ label: s.fullName, value: s.id }))}
@@ -236,6 +249,9 @@ export function TicketShow() {
 
       <Card title="Conversation">
         <Space direction="vertical" size={12} style={{ width: '100%' }}>
+          {(ticket?.comments ?? []).length === 0 ? (
+            <Typography.Text type="secondary">No comments yet. Add a public reply or an internal note.</Typography.Text>
+          ) : null}
           {(ticket?.comments ?? []).map((c: TicketComment) => (
             <div
               key={c.id}
@@ -287,6 +303,9 @@ export function TicketShow() {
       </Card>
 
       <Card title="Watchers">
+        {(ticket?.watchers ?? []).length === 0 ? (
+          <Typography.Text type="secondary">No watchers yet.</Typography.Text>
+        ) : null}
         <Space wrap>
           {(ticket?.watchers ?? []).map((w) => (
             <Tag
@@ -316,6 +335,9 @@ export function TicketShow() {
 
       <Card title="Attachments">
         <Space direction="vertical">
+          {(ticket?.attachments ?? []).length === 0 ? (
+            <Typography.Text type="secondary">No attachments yet.</Typography.Text>
+          ) : null}
           {(ticket?.attachments ?? []).map((a) => (
             <Button
               key={a.id}
@@ -352,6 +374,9 @@ export function TicketShow() {
 
       {isStaff ? (
         <Card title="Time log">
+          {(ticket?.timeLogs ?? []).length === 0 ? (
+            <Typography.Text type="secondary">No time logged yet.</Typography.Text>
+          ) : null}
           {(ticket?.timeLogs ?? []).map((t) => (
             <div key={t.id}>
               {t.minutes} min — {t.staff.fullName}

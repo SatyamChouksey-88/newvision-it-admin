@@ -17,15 +17,18 @@ export function TicketCreate() {
   const [templates, setTemplates] = useState<TicketTemplate[]>([]);
   const [busy, setBusy] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    httpClient.get('/ticket-categories').then(({ data }) => {
-      const rows = Array.isArray(data) ? data : (data.data ?? []);
-      setCategories(rows);
-    });
-    httpClient.get('/ticket-templates').then(({ data }) => {
-      setTemplates(Array.isArray(data) ? data : (data.data ?? []));
-    });
+    Promise.all([
+      httpClient.get('/ticket-categories').then(({ data }) => {
+        const rows = Array.isArray(data) ? data : (data.data ?? []);
+        setCategories(rows);
+      }),
+      httpClient.get('/ticket-templates').then(({ data }) => {
+        setTemplates(Array.isArray(data) ? data : (data.data ?? []));
+      }),
+    ]).finally(() => setReady(true));
   }, []);
 
   const applyTemplate = (id: number) => {
@@ -76,7 +79,7 @@ export function TicketCreate() {
   };
 
   return (
-    <Card title="Raise a ticket">
+    <Card title="Raise a ticket" loading={!ready}>
       <Typography.Paragraph type="secondary">
         For hardware repairs on a specific asset, use Maintenance. To request a new laptop or accessory, use Requests.
         Use this form for everything else.

@@ -182,7 +182,15 @@ export function TicketList() {
       ) : tableQuery.isError ? (
         <EmptyState description="Could not load tickets." actionLabel="Retry" onAction={() => void tableQuery.refetch()} />
       ) : rows.length === 0 ? (
-        <EmptyState description="No tickets match these filters." />
+        <EmptyState
+          description={
+            activeFilters.q || activeFilters.status || activeFilters.view
+              ? 'No tickets match these filters.'
+              : 'No tickets yet.'
+          }
+          actionLabel="Raise a ticket"
+          onAction={() => navigate('/tickets/create')}
+        />
       ) : (
         <>
           <DataGrid<SupportTicket>

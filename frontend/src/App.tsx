@@ -21,38 +21,51 @@ import routerProvider, {
   UnsavedChangesNotifier,
 } from '@refinedev/react-router';
 import { App as AntdApp, ConfigProvider, theme } from 'antd';
+import { lazy, Suspense, type ComponentType } from 'react';
 import { BrowserRouter, Outlet, Route, Routes } from 'react-router';
 import { AppSider } from './components/AppSider';
 import { Header } from './components/Header';
+import { RouteFallback } from './components/RouteFallback';
 import { TabletCollapse } from './components/TabletCollapse';
 import { Title } from './components/Title';
-import { AccessoriesPage } from './pages/accessories/list';
-import { AssetCreate } from './pages/assets/create';
-import { ConsumablesPage } from './pages/consumables/list';
-import { RequestsPage } from './pages/requests/list';
-import { AssetEdit } from './pages/assets/edit';
-import { AssetList } from './pages/assets/list';
-import { AssetShow } from './pages/assets/show';
-import { AuditList } from './pages/audit/list';
-import { DashboardPage } from './pages/dashboard';
-import { EmployeeList } from './pages/employees/list';
-import { EmployeeProfile } from './pages/employees/profile';
-import { LocationCreate } from './pages/locations/create';
-import { LocationEdit } from './pages/locations/edit';
-import { LocationList } from './pages/locations/list';
-import { LoginPage } from './pages/login';
-import { MaintenancePage } from './pages/maintenance';
-import { ReportsPage } from './pages/reports';
-import { HelpSection } from './pages/help/HelpSection';
-import { ScanPage } from './pages/scan';
-import { SettingsPage } from './pages/settings';
-import { TicketCreate } from './pages/tickets/create';
-import { TicketList } from './pages/tickets/list';
-import { TicketReports } from './pages/tickets/reports';
-import { TicketShow } from './pages/tickets/show';
 import { authProvider } from './providers/authProvider';
 import { dataProvider } from './providers/dataProvider';
 import { newVisionTheme } from './theme';
+
+function lazyNamed<T extends Record<string, ComponentType>>(
+  loader: () => Promise<T>,
+  exportName: keyof T,
+) {
+  return lazy(async () => {
+    const mod = await loader();
+    return { default: mod[exportName] };
+  });
+}
+
+const DashboardPage = lazyNamed(() => import('./pages/dashboard'), 'DashboardPage');
+const AssetList = lazyNamed(() => import('./pages/assets/list'), 'AssetList');
+const AssetCreate = lazyNamed(() => import('./pages/assets/create'), 'AssetCreate');
+const AssetEdit = lazyNamed(() => import('./pages/assets/edit'), 'AssetEdit');
+const AssetShow = lazyNamed(() => import('./pages/assets/show'), 'AssetShow');
+const EmployeeList = lazyNamed(() => import('./pages/employees/list'), 'EmployeeList');
+const EmployeeProfile = lazyNamed(() => import('./pages/employees/profile'), 'EmployeeProfile');
+const LocationList = lazyNamed(() => import('./pages/locations/list'), 'LocationList');
+const LocationCreate = lazyNamed(() => import('./pages/locations/create'), 'LocationCreate');
+const LocationEdit = lazyNamed(() => import('./pages/locations/edit'), 'LocationEdit');
+const AccessoriesPage = lazyNamed(() => import('./pages/accessories/list'), 'AccessoriesPage');
+const ConsumablesPage = lazyNamed(() => import('./pages/consumables/list'), 'ConsumablesPage');
+const RequestsPage = lazyNamed(() => import('./pages/requests/list'), 'RequestsPage');
+const MaintenancePage = lazyNamed(() => import('./pages/maintenance'), 'MaintenancePage');
+const TicketList = lazyNamed(() => import('./pages/tickets/list'), 'TicketList');
+const TicketCreate = lazyNamed(() => import('./pages/tickets/create'), 'TicketCreate');
+const TicketReports = lazyNamed(() => import('./pages/tickets/reports'), 'TicketReports');
+const TicketShow = lazyNamed(() => import('./pages/tickets/show'), 'TicketShow');
+const ReportsPage = lazyNamed(() => import('./pages/reports'), 'ReportsPage');
+const AuditList = lazyNamed(() => import('./pages/audit/list'), 'AuditList');
+const SettingsPage = lazyNamed(() => import('./pages/settings'), 'SettingsPage');
+const HelpSection = lazyNamed(() => import('./pages/help/HelpSection'), 'HelpSection');
+const LoginPage = lazyNamed(() => import('./pages/login'), 'LoginPage');
+const ScanPage = lazyNamed(() => import('./pages/scan'), 'ScanPage');
 
 export default function App() {
   return (
@@ -140,67 +153,71 @@ export default function App() {
               disableTelemetry: true,
             }}
           >
-            <Routes>
-              <Route path="/scan/:code" element={<ScanPage />} />
-              <Route
-                element={
-                  <Authenticated key="auth" fallback={<CatchAllNavigate to="/login" />}>
-                    <ThemedLayout Header={Header} Title={Title} Sider={AppSider}>
-                      <TabletCollapse />
-                      <Outlet />
-                    </ThemedLayout>
-                  </Authenticated>
-                }
-              >
-                <Route index element={<DashboardPage />} />
+            <Suspense fallback={<RouteFallback />}>
+              <Routes>
+                <Route path="/scan/:code" element={<ScanPage />} />
+                <Route
+                  element={
+                    <Authenticated key="auth" fallback={<CatchAllNavigate to="/login" />}>
+                      <ThemedLayout Header={Header} Title={Title} Sider={AppSider}>
+                        <TabletCollapse />
+                        <Suspense fallback={<RouteFallback />}>
+                          <Outlet />
+                        </Suspense>
+                      </ThemedLayout>
+                    </Authenticated>
+                  }
+                >
+                  <Route index element={<DashboardPage />} />
 
-                <Route path="/assets">
-                  <Route index element={<AssetList />} />
-                  <Route path="create" element={<AssetCreate />} />
-                  <Route path="edit/:id" element={<AssetEdit />} />
-                  <Route path="show/:id" element={<AssetShow />} />
+                  <Route path="/assets">
+                    <Route index element={<AssetList />} />
+                    <Route path="create" element={<AssetCreate />} />
+                    <Route path="edit/:id" element={<AssetEdit />} />
+                    <Route path="show/:id" element={<AssetShow />} />
+                  </Route>
+
+                  <Route path="/employees">
+                    <Route index element={<EmployeeList />} />
+                    <Route path="show/:id" element={<EmployeeProfile />} />
+                  </Route>
+
+                  <Route path="/locations">
+                    <Route index element={<LocationList />} />
+                    <Route path="create" element={<LocationCreate />} />
+                    <Route path="edit/:id" element={<LocationEdit />} />
+                  </Route>
+
+                  <Route path="/accessories" element={<AccessoriesPage />} />
+                  <Route path="/consumables" element={<ConsumablesPage />} />
+                  <Route path="/requests" element={<RequestsPage />} />
+
+                  <Route path="/maintenance" element={<MaintenancePage />} />
+                  <Route path="/tickets">
+                    <Route index element={<TicketList />} />
+                    <Route path="create" element={<TicketCreate />} />
+                    <Route path="reports" element={<TicketReports />} />
+                    <Route path="show/:id" element={<TicketShow />} />
+                  </Route>
+                  <Route path="/reports" element={<ReportsPage />} />
+                  <Route path="/audit-logs" element={<AuditList />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/help/*" element={<HelpSection />} />
+
+                  <Route path="*" element={<ErrorComponent />} />
                 </Route>
 
-                <Route path="/employees">
-                  <Route index element={<EmployeeList />} />
-                  <Route path="show/:id" element={<EmployeeProfile />} />
+                <Route
+                  element={
+                    <Authenticated key="auth-pages" fallback={<Outlet />}>
+                      <NavigateToResource resource="dashboard" />
+                    </Authenticated>
+                  }
+                >
+                  <Route path="/login" element={<LoginPage />} />
                 </Route>
-
-                <Route path="/locations">
-                  <Route index element={<LocationList />} />
-                  <Route path="create" element={<LocationCreate />} />
-                  <Route path="edit/:id" element={<LocationEdit />} />
-                </Route>
-
-                <Route path="/accessories" element={<AccessoriesPage />} />
-                <Route path="/consumables" element={<ConsumablesPage />} />
-                <Route path="/requests" element={<RequestsPage />} />
-
-                <Route path="/maintenance" element={<MaintenancePage />} />
-                <Route path="/tickets">
-                  <Route index element={<TicketList />} />
-                  <Route path="create" element={<TicketCreate />} />
-                  <Route path="reports" element={<TicketReports />} />
-                  <Route path="show/:id" element={<TicketShow />} />
-                </Route>
-                <Route path="/reports" element={<ReportsPage />} />
-                <Route path="/audit-logs" element={<AuditList />} />
-                <Route path="/settings" element={<SettingsPage />} />
-                <Route path="/help/*" element={<HelpSection />} />
-
-                <Route path="*" element={<ErrorComponent />} />
-              </Route>
-
-              <Route
-                element={
-                  <Authenticated key="auth-pages" fallback={<Outlet />}>
-                    <NavigateToResource resource="dashboard" />
-                  </Authenticated>
-                }
-              >
-                <Route path="/login" element={<LoginPage />} />
-              </Route>
-            </Routes>
+              </Routes>
+            </Suspense>
 
             <UnsavedChangesNotifier />
             <DocumentTitleHandler />

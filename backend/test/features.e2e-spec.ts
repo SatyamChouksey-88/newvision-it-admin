@@ -77,6 +77,12 @@ describe('Dashboard, search, scoping & import (e2e)', () => {
     expect(trends.body.length).toBe(6);
     expect(trends.body[0]).toHaveProperty('month');
     expect(trends.body[0]).toHaveProperty('count');
+    expect(trends.body[0]).toHaveProperty('added');
+    expect(trends.body[0]).toHaveProperty('total');
+    const totals = trends.body.map((p: { total: number }) => p.total);
+    for (let i = 1; i < totals.length; i++) {
+      expect(totals[i]).toBeGreaterThanOrEqual(totals[i - 1]);
+    }
   });
 
   it('reports a non-fresh setup status against seeded fixture data', async () => {

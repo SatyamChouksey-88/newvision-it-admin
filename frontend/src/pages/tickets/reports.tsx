@@ -1,8 +1,9 @@
 import { DownloadOutlined } from '@ant-design/icons';
-import { Button, Card, Col, Row, Space, Table, Typography } from 'antd';
+import { Button, Card, Col, Row, Skeleton, Space, Table, Typography } from 'antd';
 import { Pie } from '@ant-design/plots';
 import { useEffect, useState } from 'react';
 import { CHART_PALETTE } from '../../chartColors';
+import { EmptyState } from '../../components/EmptyState';
 import { httpClient } from '../../providers/axios';
 
 interface Reports {
@@ -36,12 +37,13 @@ function Donut({ data, name }: { data: { label: string; count: number }[]; name:
 
 export function TicketReports() {
   const [data, setData] = useState<Reports | null>(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     httpClient
       .get('/support-tickets/reports')
       .then(({ data: d }) => setData(d))
-      .catch(() => undefined);
+      .catch(() => setFailed(true));
   }, []);
 
   const download = async (format: 'csv' | 'pdf') => {
@@ -72,6 +74,14 @@ export function TicketReports() {
           </Button>
         </Space>
       </Space>
+      {failed ? (
+        <EmptyState description="Could not load ticket reports." />
+      ) : data == null ? (
+        <Card>
+          <Skeleton active paragraph={{ rows: 8 }} />
+        </Card>
+      ) : (
+      <>
       <Row gutter={[16, 16]}>
         <Col xs={24} md={8}>
           <Card size="small" title="Avg. resolution (hours)">
@@ -140,6 +150,8 @@ export function TicketReports() {
           ]}
         />
       </Card>
+      </>
+      )}
     </Space>
   );
 }
