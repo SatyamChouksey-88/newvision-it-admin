@@ -144,7 +144,8 @@ export function DashboardPage() {
     config: { query: { months, ...(locationId ? { locationId } : {}) } },
     queryOptions: { queryKey: ['dashboard-trends', locationId, months] },
   });
-  const trends = trendsQuery.data?.data ?? [];
+  const rawTrends = trendsQuery.data?.data as DashboardTrendPoint[] | undefined;
+  const trends = Array.isArray(rawTrends) ? rawTrends : [];
 
   const { query: byLocationQuery } = useCustom<LocationBreakdown[]>({
     url: 'dashboard/by-location',

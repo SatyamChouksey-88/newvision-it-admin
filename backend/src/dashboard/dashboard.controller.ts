@@ -4,6 +4,7 @@ import { AssetStatus, Prisma } from '@prisma/client';
 import { daysRemaining } from '../common/warranty';
 import { PrismaService } from '../prisma/prisma.service';
 import { isFreshInstall } from './fresh-install';
+import { buildTrendPoints, trendWindowStart } from './trends';
 
 @ApiTags('dashboard')
 @Controller('dashboard')
@@ -68,18 +69,16 @@ export class DashboardController {
     };
   }
 
-  /** Monthly asset additions for trend charts (last N months, zero-filled). */
+  /** Monthly asset additions for trend charts (last N months, zero-filled, UTC month keys). */
   @Get('trends')
   async trends(@Query('months') monthsRaw = '12', @Query('locationId') locationIdRaw?: string) {
     const months = Math.min(24, Math.max(3, Number(monthsRaw) || 12));
     const locationId = locationIdRaw ? Number(locationIdRaw) : undefined;
-    const start = new Date();
-    start.setDate(1);
-    start.setHours(0, 0, 0, 0);
-    start.setMonth(start.getMonth() - (months - 1));
+    const start = trendWindowStart(months);
 
-    const rows = await this.prisma.$queryRaw<Array<{ month: Date; count: bigint }>>`
-      SELECT date_trunc('month', created_at) AS month, COUNT(*)::bigint AS count
+    const rows = await this.prisma.$queryRaw<Array<{ month: string; count: number }>>`
+      SELECT to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM') AS month,
+             COUNT(*)::int AS count
       FROM assets
       WHERE created_at >= ${start}
       ${locationId ? Prisma.sql`AND location_id = ${locationId}` : Prisma.empty}
@@ -87,19 +86,7 @@ export class DashboardController {
       ORDER BY 1
     `;
 
-    const byMonth = new Map(rows.map((r) => [r.month.toISOString().slice(0, 7), Number(r.count)]));
-    const points: { month: string; label: string; count: number }[] = [];
-    const cursor = new Date(start);
-    for (let i = 0; i < months; i++) {
-      const key = cursor.toISOString().slice(0, 7);
-      points.push({
-        month: key,
-        label: cursor.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' }),
-        count: byMonth.get(key) ?? 0,
-      });
-      cursor.setMonth(cursor.getMonth() + 1);
-    }
-    return points;
+    return buildTrendPoints(rows, months);
   }
 
   /** Per-location breakdown for the all-locations view. */

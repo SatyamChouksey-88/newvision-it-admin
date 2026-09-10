@@ -26,9 +26,7 @@ export function LoginPage() {
     <div className="nv-login-split">
       <div className="nv-login-form-col">
         <div className="nv-login-brand">
-          <div className="nv-logo-mark" aria-hidden>
-            N
-          </div>
+          <img src="/brand/header-logo.png" alt="NewVision" className="nv-brand-img nv-brand-img--login" />
           <div className="nv-login-wordmark">
             NewVision
             <span> Asset Manager</span>

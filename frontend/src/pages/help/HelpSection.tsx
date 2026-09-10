@@ -131,6 +131,12 @@ function HelpHome() {
         <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
           Guides for every NewVision feature — search the sidebar or pick a topic below.
         </Typography.Paragraph>
+        <img
+          src="/brand/footer-logo.png"
+          alt="NewVision"
+          className="nv-brand-img nv-brand-img--help"
+          style={{ marginTop: 8 }}
+        />
       </div>
       {cards.map(({ category, articles }) => (
         <div key={category}>

@@ -477,10 +477,9 @@ export function AssetList() {
               ? {
                   selectedRowKeys: selectedIds,
                   onChange: (keys) => setSelectedIds(keys as number[]),
-                  columnTitle: 'Select all assets',
-                  getCheckboxProps: (record) => ({
-                    title: `Select asset ${record.assetCode}`,
-                  }),
+                  columnTitle: (checkbox) => (
+                    <span title="Select all assets">{checkbox}</span>
+                  ),
                 }
               : undefined
           }

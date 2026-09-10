@@ -1,6 +1,6 @@
 import { ThemedSider, type RefineThemedLayoutSiderProps } from '@refinedev/antd';
 import { useGetIdentity, useLogout } from '@refinedev/core';
-import { Avatar } from 'antd';
+import { Avatar, Menu } from 'antd';
 import { useEffect, useState, type ReactNode } from 'react';
 import { httpClient } from '../providers/axios';
 import type { Identity } from '../providers/authProvider';
@@ -23,6 +23,7 @@ function decorateNav(_items: ReactNode[], counts: Record<string, number | undefi
       '/employees': counts.employees,
       '/maintenance': counts.maintenance,
       '/requests': counts.requests,
+      '/tickets': counts.tickets,
     };
     for (const [href, n] of Object.entries(map)) {
       if (n == null) continue;
@@ -51,13 +52,15 @@ export function AppSider(props: RefineThemedLayoutSiderProps) {
       httpClient.get('/dashboard/metrics').catch(() => null),
       httpClient.get('/dashboard/attention').catch(() => null),
       httpClient.get('/employees', { params: { _start: 0, _end: 1, isActive: 'true' } }).catch(() => null),
-    ]).then(([metrics, attention, employees]) => {
+      httpClient.get('/support-tickets/counts').catch(() => null),
+    ]).then(([metrics, attention, employees, tickets]) => {
       if (cancelled) return;
       setCounts({
         assets: metrics?.data?.total,
         maintenance: metrics?.data?.underRepair,
         requests: attention?.data?.pendingRequestCount,
         employees: employees?.data?.total,
+        tickets: tickets?.data?.openUnassigned,
       });
     });
     return () => {
@@ -74,7 +77,14 @@ export function AppSider(props: RefineThemedLayoutSiderProps) {
         return (
           <>
             {!collapsed && (
-              <div className="nv-sider-section">MANAGE</div>
+              <Menu.ItemGroup
+                key="manage-label"
+                title={
+                  <span className="nv-sider-section" data-testid="sider-manage-label">
+                    MANAGE
+                  </span>
+                }
+              />
             )}
             {items}
             <div className="nv-sider-user">

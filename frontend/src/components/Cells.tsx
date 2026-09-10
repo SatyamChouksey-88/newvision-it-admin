@@ -21,7 +21,7 @@ export function WarrantyDays({ warrantyEnd }: { warrantyEnd?: string | null }) {
   } else if (days !== null && days <= 14) {
     color = '#DC2626';
   } else if (days !== null && days <= 45) {
-    color = '#D97706';
+    color = '#B45309';
   }
   return <span style={{ ...tabularNums, color }}>{text}</span>;
 }

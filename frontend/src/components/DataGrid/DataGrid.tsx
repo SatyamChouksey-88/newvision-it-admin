@@ -7,7 +7,7 @@ import {
 import type { TableProps } from 'antd';
 import { Button, Checkbox, Dropdown, Input, Segmented, Space, Table, Tooltip } from 'antd';
 import type { ColumnType } from 'antd/es/table';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTableKeyboard } from '../../hooks/useTableKeyboard';
 import { exportToCsv } from './exportCsv';
 import { ResizableTitle } from './ResizableTitle';
@@ -471,7 +471,33 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
         sticky={sticky}
         scroll={scroll ?? { x: 'max-content' }}
         pagination={pagination}
-        rowSelection={rowSelection}
+        rowSelection={
+          rowSelection
+            ? {
+                columnWidth: 48,
+                ...rowSelection,
+                getCheckboxProps: (record: T) => {
+                  const extra = rowSelection.getCheckboxProps?.(record) ?? {};
+                  const key =
+                    typeof rowKey === 'function'
+                      ? rowKey(record)
+                      : (record[rowKey] as string | number);
+                  return {
+                    ...extra,
+                    name: extra.name ?? `select-row-${String(key)}`,
+                    'aria-label': `Select row ${String(key)}`,
+                  } as typeof extra;
+                },
+                // A string here replaces the checkbox with wrapped visible text.
+                columnTitle:
+                  typeof rowSelection.columnTitle === 'string'
+                    ? (checkbox: ReactNode) => (
+                        <span title={rowSelection.columnTitle as string}>{checkbox}</span>
+                      )
+                    : rowSelection.columnTitle,
+              }
+            : undefined
+        }
         expandable={expandable}
         onChange={onChange}
         rowClassName={(record, index) => {
