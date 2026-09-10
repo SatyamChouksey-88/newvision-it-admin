@@ -53,7 +53,7 @@ function shell(opts: { preheader: string; heading: string; bodyHtml: string; cta
             </tr>
             <tr>
               <td style="padding:16px 28px 24px;border-top:1px solid #F1F4F8;font-size:11.5px;color:#94A3B8;">
-                NewVision IT Helpdesk — this is an automated notification, please don't reply to this address.
+                Reply to this email to add a comment. Please don't remove the ticket number from the subject line.
               </td>
             </tr>
           </table>

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -92,6 +93,12 @@ export class CategoriesController {
   @Roles(RoleName.SUPER_ADMIN)
   @Delete(':id')
   async remove(@Param('id', ParseIntPipe) id: number, @CurrentUser('id') userId: number) {
+    const assetCount = await this.prisma.asset.count({ where: { categoryId: id } });
+    if (assetCount > 0) {
+      throw new BadRequestException(
+        `Cannot delete: ${assetCount} asset(s) still use this category. Recategorise them first.`,
+      );
+    }
     const cat = await this.prisma.assetCategory.delete({ where: { id } });
     await this.audit.record({
       entityType: 'AssetCategory',

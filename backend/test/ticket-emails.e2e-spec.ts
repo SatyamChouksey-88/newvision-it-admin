@@ -57,13 +57,13 @@ describe('Support ticket lifecycle emails (e2e)', () => {
     const ticketNumber = res.body.ticketNumber as string;
 
     const calls = sendSpy.mock.calls.map(([msg]) => msg);
-    const confirmation = calls.find((m) => m.subject.startsWith("We've got your ticket"));
+    const confirmation = calls.find((m) => m.subject.includes("We've got your ticket"));
     expect(confirmation).toBeDefined();
     expect(confirmation?.to).toBe('employee@newvision.local');
     expect(confirmation?.html).toContain(ticketNumber);
     expect(confirmation?.html).toContain('Your ticket has been logged');
 
-    const staffAlert = calls.find((m) => m.subject === `New ticket ${ticketNumber}`);
+    const staffAlert = calls.find((m) => m.subject.includes(`New ticket ${ticketNumber}`));
     expect(staffAlert).toBeDefined();
     expect(staffAlert?.html).toContain('New ticket needs an owner');
   });
@@ -83,7 +83,7 @@ describe('Support ticket lifecycle emails (e2e)', () => {
       .expect(201);
 
     const calls = sendSpy.mock.calls.map(([msg]) => msg);
-    const assigned = calls.find((m) => m.subject === `${created.body.ticketNumber} assigned to you`);
+    const assigned = calls.find((m) => m.subject.includes(`${created.body.ticketNumber} assigned to you`));
     expect(assigned).toBeDefined();
     expect(assigned?.to).toBe('support@newvision.local');
     expect(assigned?.html).toContain('A ticket was assigned to you');
@@ -104,7 +104,7 @@ describe('Support ticket lifecycle emails (e2e)', () => {
       .expect(201);
 
     const calls = sendSpy.mock.calls.map(([msg]) => msg);
-    const commentMail = calls.find((m) => m.subject === `New comment on ${created.body.ticketNumber}`);
+    const commentMail = calls.find((m) => m.subject.includes(`New comment on ${created.body.ticketNumber}`));
     expect(commentMail).toBeDefined();
     expect(commentMail?.to).toBe('employee@newvision.local');
     expect(commentMail?.html).toContain('New comment on your ticket');
@@ -131,7 +131,7 @@ describe('Support ticket lifecycle emails (e2e)', () => {
       .expect(200);
 
     let calls = sendSpy.mock.calls.map(([msg]) => msg);
-    const inProgress = calls.find((m) => m.subject === `${created.body.ticketNumber} is now in progress`);
+    const inProgress = calls.find((m) => m.subject.includes(`${created.body.ticketNumber} is now in progress`));
     expect(inProgress).toBeDefined();
     expect(inProgress?.html).toContain('Ticket status: in progress');
 
@@ -143,9 +143,9 @@ describe('Support ticket lifecycle emails (e2e)', () => {
       .expect(200);
 
     calls = sendSpy.mock.calls.map(([msg]) => msg);
-    const resolved = calls.find((m) => m.subject === `${created.body.ticketNumber} is now resolved`);
+    const resolved = calls.find((m) => m.subject.includes(`${created.body.ticketNumber} is now resolved`));
     expect(resolved).toBeDefined();
-    const rating = calls.find((m) => m.subject === `How did we do on ${created.body.ticketNumber}?`);
+    const rating = calls.find((m) => m.subject.includes(`How did we do on ${created.body.ticketNumber}?`));
     expect(rating).toBeDefined();
     expect(rating?.to).toBe('employee@newvision.local');
     expect(rating?.html).toContain('How did we do?');

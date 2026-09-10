@@ -255,6 +255,36 @@ export class TicketsController {
     return this.tickets.timeline(id, user);
   }
 
+  @Get('support-tickets/:id/requester-assets')
+  requesterAssets(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
+    return this.tickets.requesterAssets(id, user);
+  }
+
+  @Roles(...STAFF)
+  @Post('support-tickets/:id/link-asset')
+  linkAsset(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { assetId?: number | null },
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.tickets.linkAsset(id, body.assetId ?? null, user);
+  }
+
+  @Roles(...STAFF)
+  @Get('ticket-priority-targets')
+  priorityTargets() {
+    return this.tickets.listPriorityTargets();
+  }
+
+  @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
+  @Put('ticket-priority-targets')
+  savePriorityTargets(
+    @Body() body: { targets: { priority: 'low' | 'medium' | 'high' | 'urgent'; targetMinutes: number | null }[] },
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.tickets.upsertPriorityTargets(body.targets ?? [], user);
+  }
+
   @Roles(...ALL_ROLES)
   @Post('support-tickets')
   create(@Body() dto: CreateTicketDto, @CurrentUser() user: AuthUser) {

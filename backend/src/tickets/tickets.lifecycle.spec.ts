@@ -11,6 +11,8 @@ describe('ticket lifecycle', () => {
     expect(canTransitionTicket('closed', 'reopened')).toBe(true);
     expect(canTransitionTicket('reopened', 'assigned')).toBe(true);
     expect(canTransitionTicket('resolved', 'reopened')).toBe(true);
+    expect(canTransitionTicket('in_progress', 'waiting_on_employee')).toBe(true);
+    expect(canTransitionTicket('waiting_on_employee', 'in_progress')).toBe(true);
   });
 
   it('blocks illegal jumps', () => {

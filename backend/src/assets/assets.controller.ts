@@ -53,9 +53,28 @@ export class AssetsController {
   }
 
   @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
+  @Post('labels')
+  async labels(
+    @Body() body: { ids?: number[] },
+    @CurrentUser() user: AuthUser,
+    @Res() res: Response,
+  ) {
+    const pdf = await this.assets.labelsPdf(body?.ids, user);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="asset-labels.pdf"');
+    res.send(pdf);
+  }
+
+  @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
   @Post()
   create(@Body() dto: CreateAssetDto, @CurrentUser() user: AuthUser) {
     return this.assets.create(dto, user);
+  }
+
+  @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
+  @Post(':id/duplicate')
+  duplicate(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
+    return this.assets.duplicate(id, user);
   }
 
   @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)

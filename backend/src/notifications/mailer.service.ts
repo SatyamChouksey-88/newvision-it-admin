@@ -7,6 +7,11 @@ export interface MailMessage {
   text: string;
   /** Optional HTML body. Falls back to `text` when a transport isn't configured (console log). */
   html?: string;
+  replyTo?: string;
+  messageId?: string;
+  inReplyTo?: string;
+  references?: string;
+  headers?: Record<string, string>;
 }
 
 /**
@@ -54,6 +59,11 @@ export class MailerService {
       subject: message.subject,
       text: message.text,
       html: message.html,
+      replyTo: message.replyTo,
+      messageId: message.messageId,
+      inReplyTo: message.inReplyTo,
+      references: message.references,
+      headers: message.headers,
     });
     this.logger.log(`[email:sent] To: ${to} | ${message.subject}`);
   }

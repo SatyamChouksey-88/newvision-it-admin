@@ -27,9 +27,17 @@ import {
 } from '../notifications/ticket-email-templates';
 import { PrismaService } from '../prisma/prisma.service';
 import { canTransitionTicket } from './tickets.lifecycle';
+import { computeSla, DEFAULT_PRIORITY_TARGETS, type SlaDecor } from './ticket-sla';
 
 const STAFF: RoleName[] = [RoleName.SUPER_ADMIN, RoleName.IT_ADMIN, RoleName.IT_SUPPORT];
-const OPEN_STATUSES: TicketStatus[] = ['open', 'assigned', 'in_progress', 'reopened'];
+const OPEN_STATUSES: TicketStatus[] = [
+  'open',
+  'assigned',
+  'in_progress',
+  'reopened',
+  'waiting_on_employee',
+];
+const DUE_OPEN_STATUSES: TicketStatus[] = ['open', 'assigned', 'in_progress', 'reopened'];
 
 export function isTicketStaff(role: RoleName) {
   return STAFF.includes(role);
@@ -86,9 +94,10 @@ export class TicketsService {
     if (query.view === 'awaiting_reply' || query.awaitingReply === 'true') {
       where.assignedToId = actor.id;
     }
+    if (query.view === 'email') where.channel = 'email';
     if (query.overdue === 'true' || query.view === 'overdue') {
       where.dueDate = { lt: new Date() };
-      where.status = { in: OPEN_STATUSES };
+      where.status = { in: DUE_OPEN_STATUSES };
     }
     if (query.q?.trim()) {
       const q = query.q.trim();
@@ -131,7 +140,7 @@ export class TicketsService {
       data = data.slice(skip, skip + take);
     }
 
-    return { data: data.map((t) => this.decorate(t)), total };
+    return { data: await this.decorateMany(data), total };
   }
 
   async counts(actor: AuthUser) {
@@ -146,9 +155,15 @@ export class TicketsService {
       where: { ...base, assignedToId: null, status: { in: OPEN_STATUSES } },
     });
     const overdue = await this.prisma.supportTicket.count({
-      where: { ...base, dueDate: { lt: new Date() }, status: { in: OPEN_STATUSES } },
+      where: { ...base, dueDate: { lt: new Date() }, status: { in: DUE_OPEN_STATUSES } },
     });
-    return { byStatus, unassigned, overdue, openUnassigned: unassigned };
+    const emailIn = await this.prisma.supportTicket.count({
+      where: { ...base, channel: 'email' },
+    });
+    const waiting = await this.prisma.supportTicket.count({
+      where: { ...base, status: 'waiting_on_employee' },
+    });
+    return { byStatus, unassigned, overdue, openUnassigned: unassigned, emailIn, waiting };
   }
 
   async get(id: number, actor: AuthUser) {
@@ -174,7 +189,7 @@ export class TicketsService {
     const comments = isTicketStaff(actor.role)
       ? ticket.comments
       : ticket.comments.filter((c) => !c.isInternal);
-    return this.decorate({ ...ticket, comments });
+    return this.decorateOne({ ...ticket, comments });
   }
 
   async create(
@@ -190,6 +205,8 @@ export class TicketsService {
       raisedByEmployeeId?: number;
       watcherEmployeeIds?: number[];
       autoAssign?: boolean;
+      channel?: 'portal' | 'email';
+      unmatchedSender?: string | null;
     },
     actor: AuthUser,
   ) {
@@ -234,6 +251,8 @@ export class TicketsService {
           assetId: dto.assetId ?? null,
           locationId: dto.locationId ?? emp.locationId,
           dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
+          channel: dto.channel ?? 'portal',
+          unmatchedSender: dto.unmatchedSender ?? null,
         },
       });
       const numbered = await tx.supportTicket.update({
@@ -303,7 +322,7 @@ export class TicketsService {
         statusEmail.html,
       );
     }
-    return this.decorate(updated);
+    return this.decorateOne(updated);
   }
 
   async transition(id: number, status: TicketStatus, actor: AuthUser) {
@@ -312,7 +331,10 @@ export class TicketsService {
     if (!canTransitionTicket(ticket.status, status)) {
       throw new BadRequestException(`Cannot move ${ticket.status} → ${status}`);
     }
-    const data: Prisma.SupportTicketUpdateInput = { status };
+    const data: Prisma.SupportTicketUpdateInput = {
+      status,
+      ...this.waitingClockPatch(ticket, status),
+    };
     if (status === 'resolved') data.resolvedAt = new Date();
     if (status === 'closed') data.closedAt = new Date();
     if (status === 'reopened') {
@@ -351,7 +373,7 @@ export class TicketsService {
         );
       }
     }
-    return this.decorate(updated);
+    return this.decorateOne(updated);
   }
 
   async comment(id: number, body: string, isInternal: boolean, actor: AuthUser) {
@@ -366,33 +388,104 @@ export class TicketsService {
       });
       if (!watching) throw new ForbiddenException('You cannot comment on this ticket');
     }
+    return this.addPublicOrInternalComment({
+      ticket,
+      body,
+      isInternal,
+      authorId: actor.id,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      actorEmployeeId: actor.employeeId,
+    });
+  }
+
+  /**
+   * Shared by the portal comment endpoint and email-in replies (including unmatched senders).
+   */
+  async addPublicOrInternalComment(args: {
+    ticket: {
+      id: number;
+      ticketNumber: string;
+      subject: string;
+      status: TicketStatus;
+      raisedById: number;
+      assignedToId: number | null;
+      firstResponseAt: Date | null;
+      waitingSince: Date | null;
+      waitingTotalMinutes: number;
+    };
+    body: string;
+    isInternal: boolean;
+    authorId: number | null;
+    actorName: string;
+    actorRole?: RoleName;
+    actorEmployeeId?: number | null;
+    unmatchedSender?: string | null;
+  }) {
+    const { ticket } = args;
+    const isStaffAuthor = args.actorRole ? isTicketStaff(args.actorRole) : false;
+    const isRequester =
+      args.actorEmployeeId != null && args.actorEmployeeId === ticket.raisedById;
+
     const row = await this.prisma.ticketComment.create({
-      data: { ticketId: id, authorId: actor.id, body, isInternal },
+      data: {
+        ticketId: ticket.id,
+        authorId: args.authorId,
+        unmatchedSender: args.unmatchedSender ?? null,
+        body: args.body,
+        isInternal: args.isInternal,
+      },
       include: { author: { select: { id: true, fullName: true } } },
     });
-    await this.prisma.supportTicket.update({ where: { id }, data: { updatedAt: new Date() } });
+
+    const patch: Prisma.SupportTicketUpdateInput = { updatedAt: new Date() };
+    if (!args.isInternal && isStaffAuthor && !ticket.firstResponseAt) {
+      patch.firstResponseAt = new Date();
+    }
+    if (!args.isInternal && isRequester && ticket.status === 'waiting_on_employee') {
+      const resume: TicketStatus = ticket.assignedToId ? 'in_progress' : 'assigned';
+      Object.assign(patch, this.waitingClockPatch(ticket, resume), { status: resume });
+    }
+    if (
+      !args.isInternal &&
+      isRequester &&
+      (ticket.status === 'resolved' || ticket.status === 'closed')
+    ) {
+      Object.assign(patch, {
+        status: 'reopened' as TicketStatus,
+        closedAt: null,
+        resolvedAt: null,
+        ratingPromptDropped: true,
+      });
+    }
+    await this.prisma.supportTicket.update({ where: { id: ticket.id }, data: patch });
     await this.audit.record({
       entityType: 'SupportTicket',
-      entityId: id,
+      entityId: ticket.id,
       action: 'comment',
-      summary: `${isInternal ? 'Internal note' : 'Comment'} on ${ticket.ticketNumber}`,
-      changedById: actor.id,
+      summary: `${args.isInternal ? 'Internal note' : 'Comment'} on ${ticket.ticketNumber}`,
+      changedById: args.authorId ?? undefined,
     });
-    if (!isInternal) {
-      const excerpt = body.slice(0, 200);
+    if (!args.isInternal) {
+      const excerpt = args.body.slice(0, 200);
       const commentEmail = ticketCommentEmail({
-        ticketId: id,
+        ticketId: ticket.id,
         ticketNumber: ticket.ticketNumber,
-        authorLabel: actor.fullName,
+        authorLabel: args.actorName,
         excerpt,
       });
-      await this.notifyRequesterAndWatchers(ticket, commentEmail.subject, excerpt, commentEmail.html);
-      if (ticket.assignedToId && ticket.assignedToId !== actor.id) {
+      await this.notifyRequesterAndWatchers(
+        ticket,
+        commentEmail.subject,
+        excerpt,
+        commentEmail.html,
+      );
+      if (ticket.assignedToId && ticket.assignedToId !== args.authorId) {
         await this.notifyUsers(
           [ticket.assignedToId],
           `Requester commented on ${ticket.ticketNumber}`,
           excerpt,
-          id,
+          ticket.id,
           true,
           commentEmail.html,
         );
@@ -464,7 +557,7 @@ export class TicketsService {
       data: { satisfactionRating: rating, satisfactionComment: comment ?? null, ratedAt: new Date() },
       include: INCLUDE,
     });
-    return this.decorate(updated);
+    return this.decorateOne(updated);
   }
 
   async markDuplicate(id: number, originalNumber: string, actor: AuthUser) {
@@ -649,26 +742,210 @@ export class TicketsService {
   }
 
   async timeline(id: number, actor: AuthUser) {
-    await this.get(id, actor);
+    const ticket = await this.get(id, actor);
     const logs = await this.prisma.auditLog.findMany({
       where: { entityType: 'SupportTicket', entityId: String(id) },
       orderBy: { createdAt: 'asc' },
       include: { changedBy: { select: { id: true, fullName: true } } },
     });
-    return logs.map((l) => ({
-      id: l.id,
-      at: l.createdAt,
-      action: l.action,
-      summary: l.summary,
-      actor: l.changedBy?.fullName ?? 'System',
-      manual: l.action === 'manual_override',
-      backfilled: Boolean(
-        l.newValue &&
+    const comments = await this.prisma.ticketComment.findMany({
+      where: { ticketId: id, isInternal: false },
+      orderBy: { createdAt: 'asc' },
+      include: { author: { select: { fullName: true } } },
+    });
+    const events: {
+      id: string;
+      at: Date | null;
+      action: string;
+      summary: string;
+      actor: string;
+      color: string;
+      manual?: boolean;
+      backfilled?: boolean;
+    }[] = [];
+
+    const requester = `${ticket.raisedBy.firstName} ${ticket.raisedBy.lastName}`;
+    events.push({
+      id: 'created',
+      at: new Date(ticket.createdAt),
+      action: 'created',
+      summary: `${requester} raised this ticket${ticket.channel === 'email' ? ' by email' : ''}`,
+      actor: requester,
+      color: '#1677FF',
+    });
+
+    const startLog = logs.find(
+      (l) =>
+        l.action === 'assign' ||
+        (l.action === 'status_change' &&
           typeof l.newValue === 'object' &&
-          !Array.isArray(l.newValue) &&
-          (l.newValue as { isBackfilled?: boolean }).isBackfilled,
-      ),
-    }));
+          l.newValue !== null &&
+          (l.newValue as { status?: string }).status === 'in_progress'),
+    );
+    if (startLog) {
+      events.push({
+        id: 'started',
+        at: startLog.createdAt,
+        action: 'started',
+        summary: 'Work started',
+        actor: startLog.changedBy?.fullName ?? 'IT',
+        color: '#15803D',
+      });
+    } else {
+      events.push({
+        id: 'not-started',
+        at: null,
+        action: 'not_started',
+        summary: 'Not started',
+        actor: '',
+        color: '#94A3B8',
+      });
+    }
+
+    if (ticket.firstResponseAt) {
+      const mins = Math.max(
+        0,
+        Math.round(
+          (new Date(ticket.firstResponseAt).getTime() - new Date(ticket.createdAt).getTime()) /
+            60_000,
+        ),
+      );
+      events.push({
+        id: 'first-reply',
+        at: new Date(ticket.firstResponseAt),
+        action: 'first_reply',
+        summary: `First reply (${mins}m after open)`,
+        actor: comments[0]?.author?.fullName ?? 'IT',
+        color: '#7C3AED',
+      });
+    }
+
+    for (const l of logs) {
+      if (l.action === 'status_change') {
+        const next = (l.newValue as { status?: string } | null)?.status;
+        if (next === 'waiting_on_employee') {
+          events.push({
+            id: `wait-${l.id}`,
+            at: l.createdAt,
+            action: 'waiting',
+            summary: 'Waiting on employee',
+            actor: l.changedBy?.fullName ?? 'IT',
+            color: '#D97706',
+          });
+        }
+        if (next === 'resolved') {
+          events.push({
+            id: `res-${l.id}`,
+            at: l.createdAt,
+            action: 'resolved',
+            summary: 'Resolved',
+            actor: l.changedBy?.fullName ?? 'IT',
+            color: '#15803D',
+          });
+        }
+        if (next === 'closed') {
+          events.push({
+            id: `cls-${l.id}`,
+            at: l.createdAt,
+            action: 'closed',
+            summary: 'Closed',
+            actor: l.changedBy?.fullName ?? 'IT',
+            color: '#64748B',
+          });
+        }
+      }
+      if (l.action === 'manual_override') {
+        events.push({
+          id: `man-${l.id}`,
+          at: l.createdAt,
+          action: 'manual_override',
+          summary: l.summary,
+          actor: l.changedBy?.fullName ?? 'System',
+          color: '#DC2626',
+          manual: true,
+        });
+      }
+    }
+
+    for (const c of comments) {
+      events.push({
+        id: `c-${c.id}`,
+        at: c.createdAt,
+        action: 'reply',
+        summary: c.body.slice(0, 140),
+        actor: c.author?.fullName ?? c.unmatchedSender ?? 'Unknown',
+        color: '#1677FF',
+      });
+    }
+
+    events.sort((a, b) => {
+      if (!a.at && !b.at) return 0;
+      if (!a.at) return 1;
+      if (!b.at) return -1;
+      return a.at.getTime() - b.at.getTime();
+    });
+    return events;
+  }
+
+  async requesterAssets(id: number, actor: AuthUser) {
+    const ticket = await this.require(id);
+    await this.assertCanView(ticket, actor);
+    return this.prisma.asset.findMany({
+      where: { assignedEmployeeId: ticket.raisedById, status: 'assigned' },
+      select: {
+        id: true,
+        assetCode: true,
+        brand: true,
+        model: true,
+        status: true,
+        category: { select: { name: true } },
+      },
+      take: 20,
+    });
+  }
+
+  async linkAsset(id: number, assetId: number | null, actor: AuthUser) {
+    this.assertStaff(actor);
+    const ticket = await this.require(id);
+    if (assetId) {
+      const asset = await this.prisma.asset.findUnique({ where: { id: assetId } });
+      if (!asset) throw new NotFoundException('Asset not found');
+    }
+    const updated = await this.prisma.supportTicket.update({
+      where: { id },
+      data: { assetId },
+      include: INCLUDE,
+    });
+    await this.audit.record({
+      entityType: 'SupportTicket',
+      entityId: id,
+      action: 'update',
+      summary: assetId
+        ? `Linked asset #${assetId} to ${ticket.ticketNumber}`
+        : `Unlinked asset from ${ticket.ticketNumber}`,
+      changedById: actor.id,
+    });
+    return this.decorateOne(updated);
+  }
+
+  async listPriorityTargets() {
+    await this.ensurePriorityTargets();
+    return this.prisma.ticketPriorityTarget.findMany({ orderBy: { id: 'asc' } });
+  }
+
+  async upsertPriorityTargets(
+    rows: { priority: TicketPriority; targetMinutes: number | null }[],
+    actor: AuthUser,
+  ) {
+    this.assertStaff(actor);
+    for (const row of rows) {
+      await this.prisma.ticketPriorityTarget.upsert({
+        where: { priority: row.priority },
+        create: { priority: row.priority, targetMinutes: row.targetMinutes },
+        update: { targetMinutes: row.targetMinutes },
+      });
+    }
+    return this.listPriorityTargets();
   }
 
   listCategories() {
@@ -836,11 +1113,89 @@ export class TicketsService {
     return row;
   }
 
-  private decorate<T extends { dueDate?: Date | null; status: TicketStatus }>(t: T) {
+  private waitingClockPatch(
+    ticket: { status: TicketStatus; waitingSince: Date | null; waitingTotalMinutes: number },
+    next: TicketStatus,
+  ): Prisma.SupportTicketUpdateInput {
+    const patch: Prisma.SupportTicketUpdateInput = {};
+    if (next === 'waiting_on_employee' && ticket.status !== 'waiting_on_employee') {
+      patch.waitingSince = new Date();
+    }
+    if (ticket.status === 'waiting_on_employee' && next !== 'waiting_on_employee') {
+      const extra = ticket.waitingSince
+        ? Math.max(0, Math.round((Date.now() - ticket.waitingSince.getTime()) / 60_000))
+        : 0;
+      patch.waitingTotalMinutes = ticket.waitingTotalMinutes + extra;
+      patch.waitingSince = null;
+    }
+    return patch;
+  }
+
+  private async priorityTargetMap(): Promise<Record<TicketPriority, number | null>> {
+    await this.ensurePriorityTargets();
+    const rows = await this.prisma.ticketPriorityTarget.findMany();
+    const map = { ...DEFAULT_PRIORITY_TARGETS };
+    for (const r of rows) map[r.priority] = r.targetMinutes;
+    return map;
+  }
+
+  private async ensurePriorityTargets() {
+    const count = await this.prisma.ticketPriorityTarget.count();
+    if (count > 0) return;
+    await this.prisma.ticketPriorityTarget.createMany({
+      data: (Object.keys(DEFAULT_PRIORITY_TARGETS) as TicketPriority[]).map((priority) => ({
+        priority,
+        targetMinutes: DEFAULT_PRIORITY_TARGETS[priority],
+      })),
+    });
+  }
+
+  private async decorateMany<
+    T extends {
+      dueDate?: Date | null;
+      status: TicketStatus;
+      priority: TicketPriority;
+      createdAt: Date;
+      firstResponseAt?: Date | null;
+      waitingSince?: Date | null;
+      waitingTotalMinutes?: number;
+    },
+  >(rows: T[]) {
+    const targets = await this.priorityTargetMap();
+    return rows.map((t) => this.applyDecor(t, targets));
+  }
+
+  private async decorateOne<
+    T extends {
+      dueDate?: Date | null;
+      status: TicketStatus;
+      priority: TicketPriority;
+      createdAt: Date;
+      firstResponseAt?: Date | null;
+      waitingSince?: Date | null;
+      waitingTotalMinutes?: number;
+    },
+  >(t: T) {
+    const targets = await this.priorityTargetMap();
+    return this.applyDecor(t, targets);
+  }
+
+  private applyDecor<
+    T extends {
+      dueDate?: Date | null;
+      status: TicketStatus;
+      priority: TicketPriority;
+      createdAt: Date;
+      firstResponseAt?: Date | null;
+      waitingSince?: Date | null;
+      waitingTotalMinutes?: number;
+    },
+  >(t: T, targets: Record<TicketPriority, number | null>) {
+    const sla: SlaDecor = computeSla(t, targets[t.priority]);
     const overdue = Boolean(
-      t.dueDate && t.dueDate < new Date() && OPEN_STATUSES.includes(t.status),
+      t.dueDate && t.dueDate < new Date() && DUE_OPEN_STATUSES.includes(t.status),
     );
-    return { ...t, overdue };
+    return { ...t, overdue: overdue || sla.slaOverdue, ...sla };
   }
 
   private async visibilityWhere(actor: AuthUser): Promise<Prisma.SupportTicketWhereInput> {
@@ -984,7 +1339,83 @@ export class TicketsService {
       if (honorDigest && isTicketStaff(u.role.name) && u.emailNotifyPref === EmailNotifyPref.daily_digest) {
         continue;
       }
-      await this.mailer.send({ to: u.email, subject: title, text: message, html });
+      await this.sendTicketMail({
+        ticketId,
+        to: u.email,
+        subject: title,
+        text: message,
+        html,
+      });
     }
   }
+
+  /** Threadable outbound ticket mail — stores Message-ID so inbound replies can match. */
+  async sendTicketMail(opts: {
+    ticketId: number;
+    to: string;
+    subject: string;
+    text: string;
+    html?: string;
+  }) {
+    const ticket = await this.prisma.supportTicket.findUnique({
+      where: { id: opts.ticketId },
+      select: { ticketNumber: true },
+    });
+    const number = ticket?.ticketNumber ?? '';
+    const subject = withTicketRef(number, opts.subject);
+    const last = await this.prisma.ticketMessage.findFirst({
+      where: { ticketId: opts.ticketId, direction: 'outbound' },
+      orderBy: { id: 'desc' },
+    });
+    const messageId = `<${cryptoRandom()}@newvision.tickets>`;
+    const mailbox = helpdeskMailbox();
+    const references = [last?.references, last?.messageId].filter(Boolean).join(' ') || null;
+    await this.mailer.send({
+      to: opts.to,
+      subject,
+      text: opts.text,
+      html: opts.html,
+      replyTo: mailbox,
+      messageId,
+      inReplyTo: last?.messageId ?? undefined,
+      references: references ?? undefined,
+    });
+    await this.prisma.ticketMessage.create({
+      data: {
+        ticketId: opts.ticketId,
+        direction: 'outbound',
+        messageId: messageId.replace(/^<|>$/g, ''),
+        inReplyTo: last?.messageId ?? null,
+        references,
+        fromAddress: process.env.MAIL_FROM || mailbox,
+        toAddress: opts.to,
+        subject,
+      },
+    });
+  }
+}
+
+function withTicketRef(ticketNumber: string, subject: string): string {
+  if (!ticketNumber) return subject;
+  if (subject.includes(ticketNumber)) return subject.startsWith('[') ? subject : `[${ticketNumber}] ${subject}`;
+  return `[${ticketNumber}] ${subject}`;
+}
+
+function helpdeskMailbox(): string {
+  return (
+    process.env.HELPDESK_MAILBOX ||
+    process.env.MAIL_REPLY_TO ||
+    extractMailbox(process.env.MAIL_FROM) ||
+    'it@newvision.local'
+  );
+}
+
+function extractMailbox(from?: string): string {
+  if (!from) return '';
+  const m = from.match(/<([^>]+)>/);
+  return (m ? m[1] : from).trim();
+}
+
+function cryptoRandom(): string {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 }

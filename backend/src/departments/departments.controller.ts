@@ -36,10 +36,23 @@ export class DepartmentsController {
   @Get()
   async list(@Query() query: ListQuery) {
     const { skip, take, orderBy } = parseListQuery(query, ['id', 'name']);
-    const [data, total] = await Promise.all([
-      this.prisma.department.findMany({ skip, take, orderBy }),
+    const [rows, total] = await Promise.all([
+      this.prisma.department.findMany({
+        skip,
+        take,
+        orderBy,
+        include: { _count: { select: { employees: true } } },
+      }),
       this.prisma.department.count(),
     ]);
+    const data = rows.map((d) => ({
+      id: d.id,
+      name: d.name,
+      description: d.description,
+      createdAt: d.createdAt,
+      updatedAt: d.updatedAt,
+      employeeCount: d._count.employees,
+    }));
     return { data, total };
   }
 

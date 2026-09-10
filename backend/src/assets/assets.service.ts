@@ -62,6 +62,82 @@ export class AssetsService {
     return this.qr.pngForCode(asset.assetCode);
   }
 
+  /** Clone category/brand/model/location into a new available asset with a fresh code. */
+  async duplicate(id: number, actor: AuthUser) {
+    const src = await this.get(id, actor);
+    return this.create(
+      {
+        categoryId: src.categoryId,
+        locationId: src.locationId,
+        departmentId: src.departmentId ?? undefined,
+        brand: src.brand ?? undefined,
+        model: src.model ?? undefined,
+        condition: src.condition,
+        vendor: src.vendor ?? undefined,
+      },
+      actor,
+    );
+  }
+
+  /** 20 QR labels per A4 page for the given asset ids (or the latest 20 if none). */
+  async labelsPdf(ids: number[] | undefined, actor: AuthUser): Promise<Buffer> {
+    const where = {
+      ...this.scopeWhere(actor),
+      ...(ids?.length ? { id: { in: ids } } : {}),
+    };
+    const assets = await this.prisma.asset.findMany({
+      where,
+      orderBy: { id: 'desc' },
+      take: ids?.length ? ids.length : 20,
+      select: { assetCode: true, brand: true, model: true },
+    });
+    if (assets.length === 0) {
+      throw new NotFoundException('No assets to print labels for');
+    }
+    const PDFDocument = (await import('pdfkit')).default;
+    const doc = new PDFDocument({ size: 'A4', margin: 24 });
+    const chunks: Buffer[] = [];
+    doc.on('data', (c: Buffer) => chunks.push(c));
+    const done = new Promise<Buffer>((resolve) => {
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+    });
+
+    const cols = 4;
+    const rows = 5;
+    const gap = 8;
+    const pageW = 595.28 - 48;
+    const pageH = 841.89 - 48;
+    const cellW = (pageW - gap * (cols - 1)) / cols;
+    const cellH = (pageH - gap * (rows - 1)) / rows;
+    let i = 0;
+    for (const a of assets) {
+      if (i > 0 && i % 20 === 0) doc.addPage();
+      const slot = i % 20;
+      const col = slot % cols;
+      const row = Math.floor(slot / cols);
+      const x = 24 + col * (cellW + gap);
+      const y = 24 + row * (cellH + gap);
+      doc.roundedRect(x, y, cellW, cellH, 4).stroke('#E9EDF2');
+      const png = await this.qr.pngForCode(a.assetCode);
+      doc.image(png, x + 18, y + 8, { width: cellW - 36, height: cellW - 36 });
+      doc
+        .fontSize(8)
+        .fillColor('#1F1F1F')
+        .text(a.assetCode, x + 4, y + cellH - 28, { width: cellW - 8, align: 'center' });
+      doc
+        .fontSize(7)
+        .fillColor('#64748B')
+        .text(`${a.brand ?? ''} ${a.model ?? ''}`.trim() || ' ', x + 4, y + cellH - 16, {
+          width: cellW - 8,
+          align: 'center',
+          ellipsis: true,
+        });
+      i += 1;
+    }
+    doc.end();
+    return done;
+  }
+
   // -------------------------------------------------------------------------
   // Read
   // -------------------------------------------------------------------------
