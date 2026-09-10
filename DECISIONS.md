@@ -145,3 +145,12 @@ Every judgment call made while building NewVision, and why. Newest at the bottom
 - **Warranty 15–45 day text uses `#B45309`** not `#D97706`. Amber-500 on white is 3.18:1 (fails WCAG AA); amber-700 matches the existing StatusTag repair colour and passes axe after a reseed put “20 days” on the first assets page.
 - **Jest e2e `forceExit: true`** because `ScheduleModule` cron (warranty + ticket digest) keeps handles open after suites finish. Tests themselves pass; without forceExit the process can hang/crash on Windows.
 
+## Prompt 17 — Bundle split, cumulative growth, polish (2026-09-10)
+
+- **Growth stays named “Growth”** and is now a cumulative running total (assets created before the window are the baseline). Per-month additions stay as a second series labelled “Added this month” so the primary line actually climbs. Renaming the card to “Assets added per month” was the worse option for this audience.
+- **Ant Design cannot be split below ~1.2 MB** without circular chunks (`antd` ↔ `@ant-design/icons` ↔ `rc-*`). Charts (G2) are their own chunks so login never downloads them. `chunkSizeWarningLimit` is 1300 KB for that one irreducible vendor chunk; every other JS chunk is under 800 KB.
+- **React Router does not bubble `Outlet` suspends** to a `Suspense` wrapped around `<Routes>`. An inner `<Suspense>` around `<Outlet>` inside `ThemedLayout` is required or the first lazy dashboard paint can miss Playwright’s login wait.
+- **Prisma adapter uses an explicit `pg.Pool`** (`max: 10`) instead of relying on `PrismaPg({ connectionString })` alone, so concurrent Nest requests do not serialize on one client.
+- **Global search is the ⌘K command palette**, not a header AutoComplete. Playwright and the `/` shortcut open that palette.
+- **Placeholder text uses `#64748B`** (same as muted body) so 13px Ant Design placeholders pass WCAG AA. `#94A3B8` on white is 2.56:1.
+

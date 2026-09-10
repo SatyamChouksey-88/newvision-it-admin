@@ -212,6 +212,52 @@ Definition of Done: UI matches approved mockup look-and-feel; no functional regr
 - [x] Deliberately excluded: SLA engine, routing rules, KB suggestions, email-in, AI triage, leaderboards, custom fields, merge/split, bulk manual edit, rewriting audit/notes
 - [x] Tests: **57 unit + 79 integration = 136** backend; **47 Playwright** (incl. axe-core). Lint/tsc clean.
 
+## Prompt 17 — Verified enhancement pass ✅ COMPLETE
+
+- [x] Route-level `React.lazy` + `Suspense` (including inner Outlet fallback); Vite `manualChunks` for charts / Ant Design / Refine / React
+- [x] Growth chart is a cumulative climbing estate total (`added` + `total`/`count`); HTML legend labels both series
+- [x] Docs test counts re-verified: **58 unit + 84 integration = 142** backend; **55 Playwright**
+- [x] Four reported bugs confirmed in the running UI (growth scale, select-all checkbox, MANAGE color, logos/favicon)
+- [x] Helpdesk/notes polish (empty/loading, axe on tickets + notes); command-palette search covered by Playwright
+- [x] Lint/tsc/production build clean; full suites green
+
+## Prompt 18 — Futuristic redesign + real helpdesk emails ⏸ PAUSED MID-WORK (checkpoint)
+
+Paused per Prompt 19's explicit instruction to stop, checkpoint, and switch priority to
+matching `design-reference/NewVision-standalone-src.html` exactly instead. Everything below is
+committed, builds clean, and all existing tests still pass — nothing here is broken, it's just
+an unfinished direction that Prompt 19 supersedes (visually). The **email work is not superseded**
+and stays.
+
+**Done and verified (kept):**
+- [x] Real, branded HTML email templates (`backend/src/notifications/ticket-email-templates.ts`) for:
+      ticket created (confirmation to requester), ticket assigned, new unassigned ticket (staff),
+      new comment, status change, resolution rating prompt, daily digest. `MailerService.send`
+      now accepts an optional `html` body; falls back to plain text / console log when SMTP isn't
+      configured (unchanged graceful-degradation behavior).
+- [x] Wired into every `TicketsService` lifecycle call site that previously only sent plain text.
+      Requester now gets a creation confirmation email, which did not exist before.
+- [x] New `backend/test/ticket-emails.e2e-spec.ts` (5 tests) spies on `MailerService.send` and
+      asserts the right subject/template fires for create/assign/comment/status-change/resolve/digest.
+      Full suite: **58 unit + 84 integration = 142** backend tests, all green; lint/tsc clean.
+- [x] `.env.example` comment updated to describe SMTP as covering the full ticket lifecycle, and
+      that `PUBLIC_APP_URL` now also feeds the email logo/CTA links.
+
+**In progress, left mid-flight when paused (visual layer — now being redone against the
+reference file per Prompt 19, not resumed as-is):**
+- A "futuristic light theme" pass had started: glow on primary buttons/active nav
+  (`--nv-accent-glow` box-shadows), glass/backdrop-blur on floating layers (modals, dropdowns,
+  the notification panel), a gradient-mesh background utility (`.nv-mesh-bg`) applied to the
+  login estate panel and the first-run welcome card, a bento-style dashboard grid (hero KPI tile
+  with an inline sparkline + a live-pulse "Updated Ns ago" indicator, supporting tiles, a wider
+  hero growth chart), and a new `⌘K` command palette (`frontend/src/components/CommandPalette.tsx`)
+  replacing the old header `AutoComplete` as the single search/jump entry point.
+- Frontend typechecks and builds clean with all of this in; backend is untouched by it.
+- **Not yet done when paused**: a full visual redo against the Prompt 19 reference file. Command-palette Playwright + axe-core were completed in Prompt 17 (`search.spec.ts`, `audit-fixes.spec.ts`, `a11y.spec.ts`).
+- Per Prompt 19, this visual direction is superseded by the reference file. Anything from it
+  that survives the redo (e.g. the command palette as a feature, kept because it's a genuine
+  UX improvement, not a color/theme choice) will be noted in `DECISIONS.md`.
+
 ## Known issues
 
 - **Seed resets demo data on container start** when `SEED_ON_START=true` (the compose default). Convenient for demos, but restarting the backend wipes manual changes. Set `SEED_ON_START: "false"` in `docker-compose.yml` after the first boot to persist changes. Documented in README.

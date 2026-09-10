@@ -99,4 +99,13 @@ Audit date: 2026-09-10. Each item lists the finding and resolution status.
 | T2 | IT email notification flood | **Added** — Immediate vs Daily digest (email only; in-app always on) |
 | T3 | No escape hatch for typos / historical backfill | **Added** — Notes + Manual correction with mandatory reason |
 
+## Prompt 17
+
+| # | Finding | Resolution |
+|---|---------|------------|
+| B1 | Single ~3.6 MB JS chunk; Vite size warning on every build | **Fixed** — `React.lazy` routes + `manualChunks`; Ant Design ~1.2 MB is the one irreducible vendor chunk |
+| B2 | “Growth” chart plotted per-month additions, not estate size | **Fixed** — cumulative running total + labelled “Added this month” |
+| B3 | Docs claimed 47 Playwright tests | **Fixed** — re-counted: 58 unit + 84 integration + 55 Playwright |
+| B4 | Helpdesk/notes skipped some empty/loading/a11y states | **Fixed** — empty copy, skeletons, axe on tickets + notes |
+
 

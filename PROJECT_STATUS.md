@@ -1,6 +1,6 @@
 # NewVision — Project Status & Gap Audit
 
-This document is the current gap audit, cross-checked against the codebase after **Prompts 14–16** (helpdesk ticketing, CSAT/digest, notes and manual edit). It is not a copy of an earlier prompt’s status. For the build log see `PROGRESS.md`; for judgment calls see `DECISIONS.md`.
+This document is the current gap audit, cross-checked against the codebase after **Prompt 17** (bundle splitting, cumulative growth chart, helpdesk/notes polish). It is not a copy of an earlier prompt’s status. For the build log see `PROGRESS.md`; for judgment calls see `DECISIONS.md`.
 
 ## 1. What’s covered (Phases 1–4 — core product)
 
@@ -29,7 +29,7 @@ This document is the current gap audit, cross-checked against the codebase after
 - Copy-to-clipboard on IDs/codes; scope-aware export
 - Import run history; field-level failure reasons
 - In-app notifications; loading/empty/skeleton states
-- axe-core Playwright checks on dashboard, assets list, and asset detail
+- axe-core Playwright checks on dashboard, assets list, tickets list, raise-ticket form, and asset notes
 - Official branding in `frontend/public/brand/`
 
 ## 3. What’s covered (Prompts 3–4 — visual hierarchy and charts)
@@ -82,6 +82,14 @@ This document is the current gap audit, cross-checked against the codebase after
 - CSAT 1–5 on resolve (once; dropped on reopen); IT staff email Immediate vs Daily digest (in-app always immediate); quick/saved views; full-text search; contact cards; duplicate-of linking; bulk assign/close; category default priority; CSV/PDF export
 - Append-only **Notes** on major records; **Manual correction** for Super Admin and IT Admin (mandatory reason + confirm old→new); backfilled history tagged; audit log filter `manual_override`
 
+## 7c. What’s covered (Prompt 17 — verified enhancement pass)
+
+- Route-level `React.lazy` + inner `Suspense` around the layout `Outlet`; vendor `manualChunks` (G2 charts, Ant Design, Refine, React). Production build: no 3.6 MB monolith; Ant Design ~1.2 MB is the one irreducible vendor chunk
+- Growth card shows a **cumulative estate total** (climbing line) plus labelled monthly additions; API carries a pre-window baseline
+- Confirmed in the running UI: growth chart scales with seed data, select-all is a checkbox, MANAGE is one muted color, logos/favicon on login, sider, collapsed sider, and tab
+- Helpdesk/notes empty and loading states; axe-core on ticketing + notes; command palette is the global search entry
+- Verified tests (2026-09-10): **58** backend unit + **84** backend integration + **55** Playwright
+
 ## 8. What’s explicitly and deliberately excluded (by design, not by oversight)
 
 These came up in the original research document but were kept out because they belong to full enterprise ITSM/CMDB suites and don’t fit a ~1,250-asset, 3-location internal tool:
@@ -109,7 +117,7 @@ If any of these become a real, demonstrated need later, they should be scoped as
 - **Keyboard shortcuts** are strongest on assets/employees lists (`/` global search works everywhere)
 - **No self-service admin bootstrap** — a migrate-only database has no login until an admin user exists (seed, or create via a one-off). First-run UI assumes someone can already authenticate
 
-None of Prompt 6/8/9/12/13/14/15/16 product work is sitting as an undocumented gap.
+None of Prompt 6/8/9/12/13/14/15/16/17 product work is sitting as an undocumented gap.
 
 ## 10. Recommended next step
 

@@ -1,6 +1,6 @@
 # NewVision — Project Documentation
 
-> Internal reference for developers and operators. Last aligned with the codebase after **Prompts 14–16** (IT helpdesk, CSAT/digest, notes and manual edit). Everything below is verified against the actual repo — not the original build prompts.
+> Internal reference for developers and operators. Last aligned with the codebase after **Prompt 17** (bundle splitting, cumulative growth chart, helpdesk/notes polish). Everything below is verified against the actual repo — not the original build prompts.
 
 ---
 
@@ -36,8 +36,9 @@ The stack is a **React + Refine + Ant Design** frontend talking to a **NestJS + 
 | **Prompt 14 v2** — Bugs + helpdesk | Growth chart, select-all, MANAGE/logos; Spiceworks-style support tickets | **Done** |
 | **Prompt 15** — Helpdesk enhancements | CSAT, digest email, quick views, search, contact cards, duplicate-of, bulk, export | **Done** |
 | **Prompt 16** — Notes & manual edit | Append-only notes; reason-required manual override; backfill; audit filter | **Done** |
+| **Prompt 17** — Verified enhancement pass | Route-level code splitting + vendor chunks; cumulative growth chart; docs test-count correction; helpdesk/notes polish | **Done** |
 
-**Test counts (current):** 57 backend unit + 79 backend integration = **136**; **47** Playwright (incl. axe-core).
+**Test counts (current, re-run 2026-09-10):** 58 backend unit + 84 backend integration = **142**; **55** Playwright (incl. axe-core).
 
 **Design reference:** `design-reference/NewVision-standalone-src.html` (Prompt 12 source of truth) and `design-reference/DESIGN_TOKENS.md`. Earlier `NewVision_Asset_Manager.html` is historical.
 
@@ -460,7 +461,7 @@ Separate from Maintenance (hardware repairs on one asset) and Asset Requests (as
 | **Copy to clipboard** | `CopyButton` component on asset codes/serials with toast feedback | Done |
 | **Keyboard shortcuts** | `/` global search, `Esc`, ↑↓ on assets/employees tables | Partial — not all list screens |
 | **Branding** | `frontend/public/brand/` logos + favicon; used in `Title.tsx`, login | Done |
-| **Accessibility** | axe-core in Playwright on dashboard, assets list, asset detail | Done — `a11y.spec.ts` |
+| **Accessibility** | axe-core in Playwright on dashboard, assets list, tickets list, raise-ticket form, asset notes | Done — `a11y.spec.ts` |
 
 ---
 
@@ -575,9 +576,9 @@ npm run dev                     # → http://localhost:5173
 
 ## 9. How to test it
 
-### Backend unit tests (46 tests)
+### Backend unit tests (58 tests)
 
-Pure logic: asset lifecycle transitions, RBAC matrix, warranty date math, asset code generation, import column mapping/duplicates, reconciliation diff, maintenance transitions, webhook HMAC, scan URL builder.
+Pure logic: asset lifecycle transitions, RBAC matrix, warranty date math, asset code generation, import column mapping/duplicates, reconciliation diff, maintenance transitions, webhook HMAC, scan URL builder, cumulative growth-trend points.
 
 ```bash
 cd backend
@@ -586,9 +587,9 @@ npm run typecheck
 npm test
 ```
 
-### Backend integration / API tests (47 tests)
+### Backend integration / API tests (84 tests)
 
-Hit real HTTP endpoints against `newvision_test` Postgres. Suites: `auth`, `assets`, `features`, `phase2`, `phase3`, `phase4`, `prompt2`.
+Hit real HTTP endpoints against `newvision_test` Postgres. Suites: `auth`, `assets`, `features`, `phase2`, `phase3`, `phase4`, `prompt2`, `audit-fixes`, `employees-offboard`, `tickets`, `ticket-emails`.
 
 ```bash
 cd backend
@@ -604,7 +605,7 @@ npm run typecheck
 npm run build
 ```
 
-### Playwright e2e (19 tests)
+### Playwright e2e (55 tests)
 
 Drives real UI against seeded backend on `:3000`; auto-starts Vite dev server.
 
@@ -623,16 +624,20 @@ npm run test:e2e:report           # HTML report
 |-----------|--------|
 | `auth.spec.ts` | Login, logout, employee RBAC UI |
 | `assets.spec.ts` | Create, assign, transfer, CSV import |
-| `search.spec.ts` | Global search → asset detail |
+| `search.spec.ts` | Command-palette search → asset detail |
 | `maintenance.spec.ts` | Report issue, start repair |
 | `reports.spec.ts` | CSV + PDF downloads |
 | `governance.spec.ts` | Saved view, import dry-run, HR reconcile |
 | `scan.spec.ts` | Public scan page without login |
 | `requests.spec.ts` | Employee submit → manager approve → IT fulfill |
-| `a11y.spec.ts` | axe-core WCAG2a/2aa on dashboard, assets list, asset detail |
+| `a11y.spec.ts` | axe-core WCAG2a/2aa on dashboard, assets, tickets, raise-ticket, asset notes |
 | `prompt13.spec.ts` | First-run welcome, tablet sider, light-only, phone scan |
 | `prompt14-bugs.spec.ts` | Growth chart scale, select-all checkbox, MANAGE color + logos |
-| `tickets.spec.ts` | Raise ticket (blank + template), IT queue, Help, notes/manual edit |
+| `prompt17.spec.ts` | Lazy routes, cumulative growth API + chart, favicon/collapsed mark |
+| `tickets.spec.ts` | Raise ticket (blank + template), IT queue, comments/time/export, Help, notes/manual edit |
+| `help.spec.ts` | Help home, search, articles |
+| `employee-history.spec.ts` | History tab + dashboard drill-down |
+| `audit-fixes.spec.ts` | Offboard/reinstate, audit filter, search → maintenance |
 
 **Accessibility:** Implemented as Playwright tests using `@axe-core/playwright` — not a separate npm script. Serious/critical violations fail the build.
 

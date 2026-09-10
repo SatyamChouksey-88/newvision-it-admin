@@ -89,7 +89,7 @@ npm test              # unit tests
 npm run test:e2e      # integration/API tests (needs Postgres reachable)
 ```
 
-Current status: **57 unit + 79 integration = 136 passing.**
+Current status: **58 unit + 84 integration = 142 passing.**
 
 ### Frontend — lint, type-check, build
 
@@ -111,11 +111,11 @@ cd backend && npm run start:dev
 # 2) In another terminal, run the e2e suite
 cd frontend
 npx playwright install chromium   # first time only
-npm run test:e2e                  # 47 tests
+npm run test:e2e                  # 55 tests
 npm run test:e2e:report           # open the last HTML report
 ```
 
-Current status: **47 Playwright tests passing** (includes axe-core a11y, help docs, first-run onboarding, tablet/light-only checks, helpdesk tickets, and the asset-request approval flow).
+Current status: **55 Playwright tests passing** (includes axe-core a11y on dashboard/assets/tickets/notes, help docs, first-run onboarding, tablet/light-only checks, helpdesk tickets, lazy-route smoke, cumulative growth chart, and the asset-request approval flow).
 
 ---
 
@@ -244,7 +244,7 @@ See `PROJECT_STATUS.md` for the full gap audit and deliberate exclusions.
 - **Light-only** — OS dark preference cannot invert chrome. Documented in `DECISIONS.md`.
 - **First-run** — a migrate-only empty estate shows **Welcome to NewVision** (locations → categories → employees → assets). Seeded demo is unchanged. Settings → Categories and Employees → Add employee back those steps.
 
-Current status: **57 unit + 79 integration = 136** backend tests; **47 Playwright**.
+Current status: **58 unit + 84 integration = 142** backend tests; **55 Playwright**.
 
 ## Prompts 14–16 — Helpdesk, CSAT, notes & manual edit (complete)
 
@@ -252,3 +252,11 @@ Current status: **57 unit + 79 integration = 136** backend tests; **47 Playwrigh
 - **Support Tickets** — Spiceworks-simple helpdesk (lifecycle, public/internal comments, watchers, time, canned replies, templates, attachments, optional asset link, overdue flag, reports). Separate from Maintenance and Requests.
 - **IT queue extras** — CSAT on resolve, Immediate vs Daily digest email, quick/saved views, full-text search, contact cards, duplicate-of linking, bulk assign/close, category default priority, CSV/PDF export.
 - **Notes & manual correction** — append-only notes on major records; Super Admin / IT Admin override with mandatory reason + confirm; backfilled entries tagged; audit filter for `manual_override`.
+
+## Prompt 17 — Verified enhancement pass (complete)
+
+- **Bundle splitting** — route-level `React.lazy` + `Suspense`; vendor `manualChunks` (charts, Ant Design, Refine, React). Login/dashboard no longer download the 3.6 MB monolith. Ant Design’s used subset is ~1.2 MB minified and is the one irreducible vendor chunk (`chunkSizeWarningLimit` 1300 KB).
+- **Growth chart** — cumulative running estate total (climbing line) plus labelled “Added this month”; baseline includes assets created before the window.
+- **Helpdesk/notes polish** — empty/loading states, axe-core on tickets + notes, command-palette global search.
+
+Current status: **58 unit + 84 integration = 142** backend tests; **55 Playwright**.
