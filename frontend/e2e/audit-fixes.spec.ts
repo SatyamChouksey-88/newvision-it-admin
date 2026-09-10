@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { DEMO_PASSWORD, DEMO_USERS, expectSuccess, login } from './helpers';
+import { DEMO_PASSWORD, DEMO_USERS, expectSuccess, login, openGlobalSearch } from './helpers';
 
 const API = 'http://localhost:3000/api';
 
@@ -140,7 +140,7 @@ test.describe('Functionality audit — browser regressions', () => {
     const body = await ticket.json();
 
     await page.goto('/');
-    const search = page.getByLabel('Global search');
+    const search = await openGlobalSearch(page);
     await search.fill(String(body.id));
     await expect(page.getByText(`#${body.id}`).first()).toBeVisible({ timeout: 10_000 });
     await page.getByText(`#${body.id}`).first().click();

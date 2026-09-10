@@ -96,7 +96,7 @@ export function LoginPage() {
         </div>
       </div>
 
-      <aside className="nv-login-estate" aria-label="Estate at a glance">
+      <aside className="nv-login-estate nv-mesh-bg" aria-label="Estate at a glance">
         <div
           style={{
             fontSize: 11,

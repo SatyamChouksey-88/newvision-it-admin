@@ -104,10 +104,12 @@ export function EmployeeMultiSelect({
   value,
   onChange,
   placeholder = 'Select employees',
+  'aria-label': ariaLabel,
 }: {
   value?: number[];
   onChange?: (v: number[]) => void;
   placeholder?: string;
+  'aria-label'?: string;
 }) {
   const [options, setOptions] = useState<Opt[]>([]);
   const [loading, setLoading] = useState(false);
@@ -143,6 +145,7 @@ export function EmployeeMultiSelect({
       onChange={(v) => onChange?.(v as number[])}
       options={options}
       placeholder={placeholder}
+      aria-label={ariaLabel ?? placeholder}
       style={{ width: '100%' }}
     />
   );

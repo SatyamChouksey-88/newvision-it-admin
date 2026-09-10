@@ -1,14 +1,14 @@
 import { expect, test } from '@playwright/test';
-import { login } from './helpers';
+import { login, openGlobalSearch } from './helpers';
 
 test('global search jumps to an asset detail page', async ({ page }) => {
   await login(page);
-  const search = page.getByPlaceholder(/Search assets, employees, tickets/i);
+  const search = await openGlobalSearch(page);
   await search.fill('AST-PUN');
 
-  const dropdown = page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)').last();
-  await dropdown.waitFor({ state: 'visible' });
-  await dropdown.locator('.ant-select-item-option').first().click();
+  const hit = page.getByRole('option').filter({ hasText: 'AST-PUN' }).first();
+  await expect(hit).toBeVisible({ timeout: 10_000 });
+  await hit.click();
 
   await expect(page).toHaveURL(/\/assets\/show\/\d+/);
 });

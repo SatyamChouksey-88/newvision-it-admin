@@ -32,6 +32,14 @@ export async function logoutIfNeeded(page: Page) {
   await page.goto('/login');
 }
 
+/** Open the ⌘K command palette and return its search field. */
+export async function openGlobalSearch(page: Page) {
+  await page.getByRole('button', { name: /command palette/i }).click();
+  const input = page.getByLabel('Global search');
+  await expect(input).toBeVisible();
+  return input;
+}
+
 /** Log in through the UI and wait for the dashboard to render. */
 export async function login(page: Page, email = DEMO_USERS.itAdmin) {
   await logoutIfNeeded(page);

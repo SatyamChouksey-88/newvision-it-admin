@@ -6,8 +6,8 @@ test.describe('Prompt 17 — bundle routes, growth, branding', () => {
     await login(page);
     await expect(page.getByTestId('growth-chart')).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText('Running estate total')).toBeVisible();
-    await expect(page.getByText('Total assets')).toBeVisible();
-    await expect(page.getByText('Added this month')).toBeVisible();
+    await expect(page.getByTestId('growth-chart').getByText('Total assets')).toBeVisible();
+    await expect(page.getByTestId('growth-chart').getByText('Added this month')).toBeVisible();
   });
 
   test('lazy routes render dashboard, tickets, settings, and help', async ({ page }) => {
@@ -16,9 +16,9 @@ test.describe('Prompt 17 — bundle routes, growth, branding', () => {
     await page.goto('/tickets');
     await expect(page.getByRole('heading', { name: 'Support Tickets' })).toBeVisible();
     await page.goto('/tickets/create');
-    await expect(page.getByRole('heading', { name: 'Raise a ticket' }).or(page.getByText('Raise a ticket'))).toBeVisible();
+    await expect(page.getByText('Raise a ticket').first()).toBeVisible();
     await page.goto('/settings');
-    await expect(page.getByText('Your account').or(page.getByText('Account'))).toBeVisible();
+    await expect(page.getByText('Your account')).toBeVisible();
     await page.goto('/help');
     await expect(page.getByRole('heading', { name: 'Help & Documentation' })).toBeVisible();
   });

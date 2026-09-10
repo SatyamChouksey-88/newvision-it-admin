@@ -72,6 +72,7 @@ export function AssetShow() {
     <Show
       isLoading={query.isLoading}
       title={asset?.assetCode ?? 'Asset'}
+      goBack={false}
       headerButtons={
         canManage && asset ? (
           <ManualEditButton
@@ -213,7 +214,14 @@ export function AssetShow() {
               {
                 title: 'Returned',
                 dataIndex: 'returnedAt',
-                render: (v) => (v ? formatDate(v) : <Tag color="green">Active</Tag>),
+                render: (v) =>
+                  v ? (
+                    formatDate(v)
+                  ) : (
+                    <Tag style={{ color: '#15803D', background: '#F0FDF4', borderColor: '#BBF7D0' }}>
+                      Active
+                    </Tag>
+                  ),
                 getExportValue: (r: any) => r.returnedAt ?? 'Active',
               },
               { title: 'Notes', dataIndex: 'notes', render: (v) => v ?? '—' },

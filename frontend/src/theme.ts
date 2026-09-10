@@ -11,7 +11,7 @@ export const COLOR_BORDER_SECONDARY = '#E2E8F0';
 export const COLOR_TEXT_PRIMARY = '#1F1F1F';
 export const COLOR_TEXT_SECONDARY = '#595959';
 export const COLOR_TEXT_MUTED = '#64748B';
-export const COLOR_TEXT_PLACEHOLDER = '#94A3B8';
+export const COLOR_TEXT_PLACEHOLDER = '#64748B';
 export const COLOR_TEXT_DISABLED = '#CBD5E1';
 
 /** Buttons/KPI use #1677FF; links use #0958D9 so body text stays WCAG AA. */
@@ -25,6 +25,18 @@ export const COLOR_INPUT_BORDER = '#E4E9F0';
 
 export const SHADOW_RAISED = '0 2px 6px rgba(16, 24, 40, 0.06)';
 export const SHADOW_FLOATING = '0 2px 6px rgba(16, 24, 40, 0.06)';
+
+/**
+ * Prompt 18 — futuristic light theme. The accent stays #0958D9/#1677FF (already
+ * verified WCAG AA on white); these are decorative-only additions layered on top
+ * via box-shadow/background, so they never touch text contrast.
+ */
+export const COLOR_ACCENT_SOFT = 'rgba(9, 88, 217, 0.14)';
+export const COLOR_ACCENT_GLOW = 'rgba(9, 88, 217, 0.32)';
+export const COLOR_VIOLET = '#7C6FEF';
+export const COLOR_CYAN = '#22D3EE';
+export const SHADOW_GLOW = `0 0 0 3px ${COLOR_ACCENT_SOFT}, 0 6px 18px ${COLOR_ACCENT_GLOW}`;
+export const SHADOW_GLOW_SM = `0 4px 14px -2px ${COLOR_ACCENT_GLOW}`;
 
 export const RADIUS_SM = 6;
 export const RADIUS_MD = 8;

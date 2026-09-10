@@ -30,7 +30,7 @@ export function AssetTrendChart({ data, height = 280, compact = false }: Props) 
   const peak = Math.max(1, ...series.map((d) => d.total));
 
   return (
-    <div data-testid="growth-chart" className="nv-trend-chart">
+    <div data-testid={compact ? 'growth-sparkline' : 'growth-chart'} className="nv-trend-chart">
       <Line
         data={long}
         encode={{ x: 'label', y: 'value', color: 'series' }}
@@ -40,15 +40,57 @@ export function AssetTrendChart({ data, height = 280, compact = false }: Props) 
           y: { domainMin: 0, domainMax: peak, nice: true, type: 'linear' },
           color: { range: [CHART_PALETTE[0], CHART_PALETTE[2]] },
         }}
-        legend={compact ? false : { position: 'bottom' }}
+        legend={false}
         axis={{
           x: { title: false, label: compact ? false : undefined },
-          y: { title: false },
+          y: { title: false, label: compact ? false : undefined, grid: compact ? false : undefined },
         }}
+        animate={{ enter: { type: 'pathIn', duration: 600 } }}
         tooltip={{
           title: (d: { label: string }) => d.label,
         }}
       />
+      {compact ? null : (
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            gap: 20,
+            fontSize: 12,
+            color: '#475569',
+            marginTop: 4,
+          }}
+        >
+          <span>
+            <span
+              aria-hidden
+              style={{
+                display: 'inline-block',
+                width: 10,
+                height: 10,
+                borderRadius: 2,
+                background: CHART_PALETTE[0],
+                marginRight: 6,
+              }}
+            />
+            Total assets
+          </span>
+          <span>
+            <span
+              aria-hidden
+              style={{
+                display: 'inline-block',
+                width: 10,
+                height: 10,
+                borderRadius: 2,
+                background: CHART_PALETTE[2],
+                marginRight: 6,
+              }}
+            />
+            Added this month
+          </span>
+        </div>
+      )}
     </div>
   );
 }

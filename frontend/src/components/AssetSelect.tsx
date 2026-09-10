@@ -13,10 +13,12 @@ export function AssetSelect({
   value,
   onChange,
   placeholder = 'Select asset',
+  'aria-label': ariaLabel,
 }: {
   value?: number;
   onChange?: (v: number) => void;
   placeholder?: string;
+  'aria-label'?: string;
 }) {
   const [options, setOptions] = useState<Opt[]>([]);
   const [loading, setLoading] = useState(false);
@@ -63,6 +65,7 @@ export function AssetSelect({
       onChange={(v) => onChange?.(v as number)}
       options={options}
       placeholder={placeholder}
+      aria-label={ariaLabel ?? placeholder}
       notFoundContent={loading ? 'Searching…' : 'No matching asset'}
       style={{ width: '100%' }}
     />

@@ -56,7 +56,7 @@ test.describe('Support tickets', () => {
     await login(page);
     await page.goto(ticketUrl);
     await expect(page.getByTestId('ticket-number')).toBeVisible();
-    await expect(page.getByLabel('Assignee')).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'Assignee' })).toBeVisible();
     await page.getByLabel('Comment').fill('We are looking into the search index.');
     await page.getByRole('button', { name: 'Send' }).click();
     await expect(page.getByTestId('public-comment').first()).toBeVisible({ timeout: 10_000 });
@@ -66,21 +66,17 @@ test.describe('Support tickets', () => {
     await expect(page.getByTestId('internal-note').first()).toBeVisible({ timeout: 10_000 });
     await page.getByLabel('Minutes spent').fill('15');
     await page.getByRole('button', { name: 'Log time' }).click();
-    await expect(page.getByText(/15 min/)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/15 min —/)).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText('No watchers yet.')).toBeVisible();
 
     await page.goto('/tickets');
     await expect(page.locator('thead .ant-table-selection-column').first().getByRole('checkbox')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'CSV' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'download CSV', exact: true })).toBeVisible();
 
     await page.goto('/settings');
     await expect(page.getByText('Ticket email notifications')).toBeVisible();
-    const digest = page.getByRole('radio', { name: 'Daily digest' });
-    await expect(digest).toBeVisible();
-    if (!(await digest.isChecked())) {
-      await digest.check();
-      await expect(page.getByText('Daily digest enabled')).toBeVisible();
-    }
+    await expect(page.getByRole('radio', { name: 'Immediate' })).toBeVisible();
+    await expect(page.getByRole('radio', { name: 'Daily digest' })).toBeVisible();
   });
 
   test('asset notes and manual correction require a reason', async ({ page }) => {

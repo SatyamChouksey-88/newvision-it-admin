@@ -3,7 +3,7 @@ import { useTable } from '@refinedev/antd';
 import { useGetIdentity } from '@refinedev/core';
 import { Button, Card, Input, Select, Space, Tag, Typography } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { PrimaryWithSub } from '../../components/Cells';
 import { CopyButton } from '../../components/CopyButton';
 import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid';
@@ -34,7 +34,24 @@ export function EmployeeList() {
   const canManage = IT_ROLES.includes(identity?.role ?? '');
   const { freshInstall } = useSetupStatus();
   const [density, setDensity] = useState<TableDensity>('Compact');
+  const [searchParams, setSearchParams] = useSearchParams();
   const [createOpen, setCreateOpen] = useState(false);
+
+  // Command palette "New employee" jumps here with ?action=new so the create modal opens
+  // without a dedicated /employees/create route.
+  useEffect(() => {
+    if (canManage && searchParams.get('action') === 'new') {
+      setCreateOpen(true);
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete('action');
+          return next;
+        },
+        { replace: true },
+      );
+    }
+  }, [canManage, searchParams, setSearchParams]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const { tableProps, filters, setFilters, tableQuery } = useTable<Employee>({

@@ -101,14 +101,27 @@ export function TicketCreate() {
             }}
           />
         </Form.Item>
-        <Form.Item name="categoryId" label="Category" rules={[{ required: true }]}>
-          <Select
-            options={categories.map((c) => ({ label: c.name, value: c.id }))}
-            onChange={(id) => onCategory(id as number)}
-          />
+        <Form.Item label="Category" required>
+          <Form.Item
+            name="categoryId"
+            noStyle
+            rules={[
+              {
+                validator: async (_, v) => {
+                  if (v == null || v === '') throw new Error('Select a category');
+                },
+              },
+            ]}
+          >
+            <Select
+              aria-label="Category"
+              options={categories.map((c) => ({ label: c.name, value: c.id }))}
+              onChange={(id) => onCategory(id as number)}
+            />
+          </Form.Item>
         </Form.Item>
         <Form.Item name="priority" label="Priority">
-          <Select options={TICKET_PRIORITY_OPTIONS} />
+          <Select aria-label="Priority" options={TICKET_PRIORITY_OPTIONS} />
         </Form.Item>
         <Form.Item name="subject" label="Subject" rules={[{ required: true, min: 3 }]}>
           <Input />
@@ -117,10 +130,10 @@ export function TicketCreate() {
           <Input.TextArea rows={5} />
         </Form.Item>
         <Form.Item name="assetId" label="Linked asset (optional)">
-          <AssetSelect />
+          <AssetSelect aria-label="Linked asset" />
         </Form.Item>
         <Form.Item name="watcherEmployeeIds" label="Watchers (optional)">
-          <EmployeeMultiSelect placeholder="People who should be notified" />
+          <EmployeeMultiSelect aria-label="Watchers" placeholder="People who should be notified" />
         </Form.Item>
         <Form.Item label="Attachment (optional)">
           <Upload
