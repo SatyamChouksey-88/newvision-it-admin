@@ -6,14 +6,17 @@ import { useNavigate } from 'react-router';
 import { CopyButton } from '../../components/CopyButton';
 import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid';
 import { EmptyState } from '../../components/EmptyState';
+import { FirstRunWelcome } from '../../components/FirstRunWelcome';
 import { TablePagination } from '../../components/TablePagination';
 import { TableSkeleton } from '../../components/TableSkeleton';
 import { useRefinePagination } from '../../hooks/useRefinePagination';
+import { useSetupStatus } from '../../hooks/useSetupStatus';
 import type { Identity } from '../../providers/authProvider';
 import type { Location } from '../../types';
 
 export function LocationList() {
   const [density, setDensity] = useState<TableDensity>('Compact');
+  const { freshInstall } = useSetupStatus();
   const navigate = useNavigate();
   const { tableProps, tableQuery } = useTable<Location>({
     resource: 'locations',
@@ -35,6 +38,8 @@ export function LocationList() {
           actionLabel="Retry"
           onAction={() => void tableQuery.refetch()}
         />
+      ) : rows.length === 0 && freshInstall ? (
+        <FirstRunWelcome />
       ) : rows.length === 0 ? (
         <EmptyState
           description="No locations defined"

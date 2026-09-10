@@ -240,3 +240,11 @@ export interface LocationBreakdown {
   total: number;
   byStatus?: Partial<Record<AssetStatus, number>>;
 }
+
+export interface SetupStatus {
+  assetCount: number;
+  employeeCount: number;
+  locationCount: number;
+  categoryCount: number;
+  freshInstall: boolean;
+}

@@ -49,8 +49,12 @@ All seeded accounts use password **Password123!**:
 
 ### First steps for a new admin
 
+**Empty database (migrate only, no seed):** the Dashboard shows a **Welcome to NewVision** card with four setup steps — locations, categories, employees, then assets. That card is hidden when the demo seed has already populated the estate.
+
+**Seeded demo:**
+
 1. **Locations** — confirm Pune (PUN), Hyderabad (HYD), Bhopal (BHO) exist under **Locations**.
-2. **Categories** — asset types (LAP, DES, MON, …) are seeded; add more via API if needed.
+2. **Categories** — **Settings → Categories** to add LAP, MON, DES, etc. Seeded databases already have these.
 3. **Import** — **Settings → Import jobs** upload a CSV/XLSX of assets or employees.
 4. **Assign** — open **Assets**, pick an available asset, click **Assign**.
 

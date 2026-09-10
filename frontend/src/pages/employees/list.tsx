@@ -1,16 +1,22 @@
+import { PlusOutlined } from '@ant-design/icons';
 import { useTable } from '@refinedev/antd';
-import { Card, Input, Select, Space, Tag, Typography } from 'antd';
+import { useGetIdentity } from '@refinedev/core';
+import { Button, Card, Input, Select, Space, Tag, Typography } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { PrimaryWithSub } from '../../components/Cells';
 import { CopyButton } from '../../components/CopyButton';
 import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid';
 import { EmptyState } from '../../components/EmptyState';
+import { FirstRunWelcome } from '../../components/FirstRunWelcome';
 import { TablePagination } from '../../components/TablePagination';
 import { TableSkeleton } from '../../components/TableSkeleton';
 import { useRefinePagination } from '../../hooks/useRefinePagination';
+import { useSetupStatus } from '../../hooks/useSetupStatus';
+import type { Identity } from '../../providers/authProvider';
 import { httpClient } from '../../providers/axios';
 import type { Department, Employee, Location } from '../../types';
+import { CreateEmployeeModal } from './CreateEmployeeModal';
 
 type StatusFilter = 'active' | 'inactive' | 'all';
 
@@ -20,9 +26,15 @@ const STATUS_OPTIONS: { label: string; value: StatusFilter }[] = [
   { label: 'All employees', value: 'all' },
 ];
 
+const IT_ROLES = ['SUPER_ADMIN', 'IT_ADMIN'];
+
 export function EmployeeList() {
   const navigate = useNavigate();
+  const { data: identity } = useGetIdentity<Identity>();
+  const canManage = IT_ROLES.includes(identity?.role ?? '');
+  const { freshInstall } = useSetupStatus();
   const [density, setDensity] = useState<TableDensity>('Compact');
+  const [createOpen, setCreateOpen] = useState(false);
   const [locations, setLocations] = useState<Location[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const { tableProps, filters, setFilters, tableQuery } = useTable<Employee>({
@@ -109,7 +121,22 @@ export function EmployeeList() {
           />
         </Space>
       }
+      extra={
+        canManage ? (
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
+            Add employee
+          </Button>
+        ) : null
+      }
     >
+      <CreateEmployeeModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onDone={() => {
+          setCreateOpen(false);
+          void tableQuery.refetch();
+        }}
+      />
       {tableQuery.isLoading ? (
         <TableSkeleton columns={5} />
       ) : tableQuery.isError ? (
@@ -118,6 +145,12 @@ export function EmployeeList() {
           actionLabel="Retry"
           onAction={() => void tableQuery.refetch()}
         />
+      ) : rows.length === 0 &&
+        !tableQuery.isFetching &&
+        freshInstall &&
+        !hasNarrowing &&
+        statusValue !== 'inactive' ? (
+        <FirstRunWelcome />
       ) : rows.length === 0 && !tableQuery.isFetching ? (
         <EmptyState
           description={

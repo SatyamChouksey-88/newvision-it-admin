@@ -20,7 +20,9 @@ import { LocationBarChart } from '../components/charts/LocationBarChart';
 import { StatusDonutChart } from '../components/charts/StatusDonutChart';
 import { WarrantyDays } from '../components/Cells';
 import { DataGrid } from '../components/DataGrid/DataGrid';
+import { FirstRunWelcome } from '../components/FirstRunWelcome';
 import { KpiCard } from '../components/KpiCard';
+import { useSetupStatus } from '../hooks/useSetupStatus';
 import { httpClient } from '../providers/axios';
 import {
   COLOR_ACCENT,
@@ -96,6 +98,7 @@ export function DashboardPage() {
 
   const [locations, setLocations] = useState<Location[]>([]);
   const [dismissed, setDismissed] = useState(() => sessionStorage.getItem(DISMISS_KEY) === '1');
+  const { freshInstall } = useSetupStatus();
 
   useEffect(() => {
     httpClient
@@ -185,9 +188,12 @@ export function DashboardPage() {
             Dashboard
           </Typography.Title>
           <Typography.Text style={{ fontSize: 12.5, color: COLOR_TEXT_SECONDARY }}>
-            {(m?.total ?? 0).toLocaleString()} assets across Pune, Hyderabad and Bhopal.
+            {freshInstall
+              ? 'Empty estate — follow the setup steps below.'
+              : `${(m?.total ?? 0).toLocaleString()} assets across Pune, Hyderabad and Bhopal.`}
           </Typography.Text>
         </Col>
+        {!freshInstall && (
         <Col>
           <Space>
             <Select
@@ -212,8 +218,13 @@ export function DashboardPage() {
             />
           </Space>
         </Col>
+        )}
       </Row>
 
+      {freshInstall ? (
+        <FirstRunWelcome />
+      ) : (
+      <>
       <Row gutter={[10, 10]}>
         <Col xs={12} sm={8} lg={4}>
           <KpiCard
@@ -424,6 +435,8 @@ export function DashboardPage() {
           ]}
         />
       </Card>
+      </>
+      )}
     </Space>
   );
 }

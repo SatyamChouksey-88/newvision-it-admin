@@ -27,6 +27,7 @@ import { CopyButton } from '../../components/CopyButton';
 import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid';
 import { EmployeeSelect } from '../../components/EmployeeSelect';
 import { EmptyState } from '../../components/EmptyState';
+import { FirstRunWelcome } from '../../components/FirstRunWelcome';
 import { AssetStatusSelect } from '../../components/AssetStatusSelect';
 import { StatusLegend } from '../../components/StatusLegend';
 import { ASSET_STATUS_OPTIONS, StatusTag } from '../../components/StatusTag';
@@ -34,6 +35,7 @@ import { TablePagination } from '../../components/TablePagination';
 import { TableSkeleton } from '../../components/TableSkeleton';
 import { useToast } from '../../components/Toast';
 import { useRefinePagination } from '../../hooks/useRefinePagination';
+import { useSetupStatus } from '../../hooks/useSetupStatus';
 import type { Identity } from '../../providers/authProvider';
 import { apiErrorMessage, httpClient } from '../../providers/axios';
 import { tabularNums } from '../../theme';
@@ -56,6 +58,7 @@ export function AssetList() {
   const toast = useToast();
   const { data: identity } = useGetIdentity<Identity>();
   const canManage = IT_ROLES.includes(identity?.role ?? '');
+  const { freshInstall } = useSetupStatus();
 
   const { tableProps, filters, setFilters, tableQuery } = useTable<Asset>({
     resource: 'assets',
@@ -436,6 +439,8 @@ export function AssetList() {
           actionLabel="Retry"
           onAction={() => void tableQuery.refetch()}
         />
+      ) : rows.length === 0 && freshInstall && activeFilterCount === 0 ? (
+        <FirstRunWelcome />
       ) : rows.length === 0 ? (
         <EmptyState
           description={
