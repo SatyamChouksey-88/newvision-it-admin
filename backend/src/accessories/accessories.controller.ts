@@ -28,7 +28,7 @@ export class AccessoriesController {
   constructor(private readonly svc: AccessoriesService) {}
 
   @Get()
-  list(@Query() query: ListQuery & { category?: string }) {
+  list(@Query() query: ListQuery & { category?: string; locationId?: string }) {
     return this.svc.list(query);
   }
 

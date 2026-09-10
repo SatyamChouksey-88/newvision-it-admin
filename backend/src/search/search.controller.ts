@@ -20,13 +20,22 @@ export class SearchController {
   async search(@Query('q') q: string | undefined, @CurrentUser() user: AuthUser) {
     const term = (q ?? '').trim();
     if (term.length < 1) {
-      return { assets: [], employees: [], locations: [], tickets: [], helpdesk: [], query: term };
+      return {
+        assets: [],
+        employees: [],
+        locations: [],
+        tickets: [],
+        helpdesk: [],
+        accessories: [],
+        consumables: [],
+        query: term,
+      };
     }
     const like = { contains: term, mode: 'insensitive' as const };
     const isIt = IT_ROLES.includes(user.role);
     const ticketId = /^#?\d+$/.test(term) ? Number(term.replace('#', '')) : undefined;
 
-    const [assets, employees, locations, tickets, helpdesk] = await Promise.all([
+    const [assets, employees, locations, tickets, helpdesk, accessories, consumables] = await Promise.all([
       this.prisma.asset.findMany({
         where: {
           ...this.assetScope(user),
@@ -100,9 +109,23 @@ export class SearchController {
         select: { id: true, ticketNumber: true, subject: true, status: true },
         take: 10,
       }),
+      isIt
+        ? this.prisma.accessory.findMany({
+            where: { OR: [{ name: like }, { category: like }] },
+            select: { id: true, name: true, category: true, quantityTotal: true, quantityCheckedOut: true },
+            take: 10,
+          })
+        : Promise.resolve([]),
+      isIt
+        ? this.prisma.consumable.findMany({
+            where: { OR: [{ name: like }, { category: like }] },
+            select: { id: true, name: true, category: true, quantityAvailable: true },
+            take: 10,
+          })
+        : Promise.resolve([]),
     ]);
 
-    return { query: term, assets, employees, locations, tickets, helpdesk };
+    return { query: term, assets, employees, locations, tickets, helpdesk, accessories, consumables };
   }
 
   private assetScope(actor: AuthUser): Prisma.AssetWhereInput {

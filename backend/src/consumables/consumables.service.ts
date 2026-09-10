@@ -18,10 +18,11 @@ export class ConsumablesService {
     private readonly audit: AuditService,
   ) {}
 
-  async list(query: ListQuery & { category?: string; lowStock?: string }) {
+  async list(query: ListQuery & { category?: string; lowStock?: string; locationId?: string }) {
     const { skip, take, orderBy } = parseListQuery(query, ['id', 'name', 'category', 'createdAt']);
     const where: Prisma.ConsumableWhereInput = {
       ...(query.category ? { category: query.category } : {}),
+      ...(query.locationId ? { locationId: Number(query.locationId) } : {}),
       // Column-to-column comparison in SQL so low-stock filtering paginates correctly.
       ...(query.lowStock === 'true'
         ? { quantityAvailable: { lte: this.prisma.consumable.fields.lowStockThreshold } }
@@ -36,7 +37,13 @@ export class ConsumablesService {
         : {}),
     };
     const [data, total] = await Promise.all([
-      this.prisma.consumable.findMany({ where, skip, take, orderBy }),
+      this.prisma.consumable.findMany({
+        where,
+        skip,
+        take,
+        orderBy,
+        include: { location: { select: { id: true, code: true, name: true } } },
+      }),
       this.prisma.consumable.count({ where }),
     ]);
     return { data, total };
@@ -46,6 +53,7 @@ export class ConsumablesService {
     const consumable = await this.prisma.consumable.findUnique({
       where: { id },
       include: {
+        location: { select: { id: true, code: true, name: true } },
         issues: {
           include: {
             employee: {
@@ -72,6 +80,7 @@ export class ConsumablesService {
         quantityTotal: dto.quantityTotal,
         quantityAvailable: dto.quantityTotal,
         lowStockThreshold: dto.lowStockThreshold ?? 5,
+        locationId: dto.locationId ?? null,
       },
     });
     await this.audit.record({
@@ -103,6 +112,7 @@ export class ConsumablesService {
         quantityTotal: dto.quantityTotal,
         quantityAvailable: dto.quantityTotal !== undefined ? nextTotal - issued : undefined,
         lowStockThreshold: dto.lowStockThreshold,
+        ...(dto.locationId !== undefined ? { locationId: dto.locationId } : {}),
       },
     });
     await this.audit.record({
@@ -209,17 +219,23 @@ export class ConsumablesService {
     name: string;
     quantityAvailable: number;
     lowStockThreshold: number;
+    locationId?: number | null;
   }) {
     const itUsers = await this.prisma.user.findMany({
       where: { isActive: true, role: { name: { in: [RoleName.SUPER_ADMIN, RoleName.IT_ADMIN] } } },
       select: { id: true },
     });
+    // Named per-site rather than only an aggregate count, so the alert is actionable.
+    const site = consumable.locationId
+      ? await this.prisma.location.findUnique({ where: { id: consumable.locationId }, select: { name: true } })
+      : null;
+    const siteLabel = site ? ` at ${site.name}` : '';
     await this.prisma.notification.createMany({
       data: itUsers.map((u) => ({
         userId: u.id,
         type: NotificationType.low_stock,
         title: 'Low stock alert',
-        message: `${consumable.name} has ${consumable.quantityAvailable} left (threshold ${consumable.lowStockThreshold})`,
+        message: `${consumable.name}${siteLabel} has ${consumable.quantityAvailable} left (threshold ${consumable.lowStockThreshold})`,
       })),
     });
   }

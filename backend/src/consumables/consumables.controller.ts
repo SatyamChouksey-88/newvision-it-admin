@@ -28,7 +28,7 @@ export class ConsumablesController {
   constructor(private readonly svc: ConsumablesService) {}
 
   @Get()
-  list(@Query() query: ListQuery & { category?: string; lowStock?: string }) {
+  list(@Query() query: ListQuery & { category?: string; lowStock?: string; locationId?: string }) {
     return this.svc.list(query);
   }
 

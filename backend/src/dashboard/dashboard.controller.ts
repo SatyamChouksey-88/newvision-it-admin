@@ -75,6 +75,10 @@ export class DashboardController {
       locationCount: locations,
       categoryCount: categories,
       freshInstall: isFreshInstall({ assets, employees, locations }),
+      // B12: SEED_ON_START (docker-entrypoint.sh) wipes and reseeds on every container
+      // restart if left on — surfaced so IT Admin/Super Admin sees a clear warning rather
+      // than losing real data silently. Only meaningful in the docker-compose deployment.
+      seedOnStart: process.env.SEED_ON_START === 'true',
     };
   }
 

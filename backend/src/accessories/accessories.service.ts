@@ -12,6 +12,7 @@ import {
 } from './dto';
 
 const accessoryInclude = {
+  location: { select: { id: true, code: true, name: true } },
   checkouts: {
     where: { checkedInAt: null },
     include: {
@@ -31,10 +32,11 @@ export class AccessoriesService {
     private readonly audit: AuditService,
   ) {}
 
-  async list(query: ListQuery & { category?: string }) {
+  async list(query: ListQuery & { category?: string; locationId?: string }) {
     const { skip, take, orderBy } = parseListQuery(query, ['id', 'name', 'category', 'createdAt']);
     const where: Prisma.AccessoryWhereInput = {
       ...(query.category ? { category: query.category } : {}),
+      ...(query.locationId ? { locationId: Number(query.locationId) } : {}),
       ...(query.q
         ? {
             OR: [
@@ -61,6 +63,7 @@ export class AccessoriesService {
     const accessory = await this.prisma.accessory.findUnique({
       where: { id },
       include: {
+        location: { select: { id: true, code: true, name: true } },
         checkouts: {
           include: {
             employee: {
@@ -89,6 +92,7 @@ export class AccessoriesService {
         category: dto.category.trim(),
         quantityTotal: dto.quantityTotal,
         quantityCheckedOut: 0,
+        locationId: dto.locationId ?? null,
       },
     });
     await this.audit.record({
@@ -116,6 +120,7 @@ export class AccessoriesService {
         name: dto.name?.trim(),
         category: dto.category?.trim(),
         quantityTotal: dto.quantityTotal,
+        ...(dto.locationId !== undefined ? { locationId: dto.locationId } : {}),
       },
     });
     await this.audit.record({

@@ -614,17 +614,26 @@ async function main() {
     })),
   });
 
-  // ---- accessories & consumables (Prompt 6) ----
+  // ---- accessories & consumables (Prompt 6; per-location stock added Prompt 20) ----
   console.log('Seeding accessories & consumables...');
+  const punId = locationIds.get('PUN');
+  const hydId = locationIds.get('HYD');
+  const bhoId = locationIds.get('BHO');
   const accMouse = await prisma.accessory.create({
-    data: { name: 'Wireless Mouse', category: 'Peripherals', quantityTotal: 120, quantityCheckedOut: 45 },
+    data: {
+      name: 'Wireless Mouse',
+      category: 'Peripherals',
+      quantityTotal: 120,
+      quantityCheckedOut: 45,
+      locationId: punId,
+    },
   });
   await prisma.accessory.createMany({
     data: [
-      { name: 'USB-C Charger 65W', category: 'Power', quantityTotal: 80, quantityCheckedOut: 32 },
-      { name: 'Laptop Docking Station', category: 'Peripherals', quantityTotal: 40, quantityCheckedOut: 28 },
-      { name: 'Headset USB', category: 'Audio', quantityTotal: 60, quantityCheckedOut: 22 },
-      { name: 'HDMI Cable 2m', category: 'Cables', quantityTotal: 200, quantityCheckedOut: 90 },
+      { name: 'USB-C Charger 65W', category: 'Power', quantityTotal: 80, quantityCheckedOut: 32, locationId: punId },
+      { name: 'Laptop Docking Station', category: 'Peripherals', quantityTotal: 40, quantityCheckedOut: 28, locationId: hydId },
+      { name: 'Headset USB', category: 'Audio', quantityTotal: 60, quantityCheckedOut: 22, locationId: hydId },
+      { name: 'HDMI Cable 2m', category: 'Cables', quantityTotal: 200, quantityCheckedOut: 90, locationId: bhoId },
     ],
   });
   const sampleEmp = await prisma.employee.findFirst({ where: { employeeCode: 'EMP-PUN-0001' } });
@@ -640,11 +649,11 @@ async function main() {
   }
   await prisma.consumable.createMany({
     data: [
-      { name: 'AA Batteries (4-pack)', category: 'Power', quantityTotal: 500, quantityAvailable: 420, lowStockThreshold: 50 },
-      { name: 'Toner Cartridge HP 85A', category: 'Printer', quantityTotal: 80, quantityAvailable: 12, lowStockThreshold: 15 },
-      { name: 'Ethernet Patch Cable 3m', category: 'Cables', quantityTotal: 300, quantityAvailable: 180, lowStockThreshold: 40 },
-      { name: 'Screen Wipes (100ct)', category: 'Cleaning', quantityTotal: 150, quantityAvailable: 95, lowStockThreshold: 20 },
-      { name: 'USB Flash Drive 32GB', category: 'Storage', quantityTotal: 100, quantityAvailable: 8, lowStockThreshold: 10 },
+      { name: 'AA Batteries (4-pack)', category: 'Power', quantityTotal: 500, quantityAvailable: 420, lowStockThreshold: 50, locationId: punId },
+      { name: 'Toner Cartridge HP 85A', category: 'Printer', quantityTotal: 80, quantityAvailable: 12, lowStockThreshold: 15, locationId: punId },
+      { name: 'Ethernet Patch Cable 3m', category: 'Cables', quantityTotal: 300, quantityAvailable: 180, lowStockThreshold: 40, locationId: hydId },
+      { name: 'Screen Wipes (100ct)', category: 'Cleaning', quantityTotal: 150, quantityAvailable: 95, lowStockThreshold: 20, locationId: hydId },
+      { name: 'USB Flash Drive 32GB', category: 'Storage', quantityTotal: 100, quantityAvailable: 8, lowStockThreshold: 10, locationId: bhoId },
     ],
   });
 
@@ -657,6 +666,15 @@ async function main() {
       { code: 'access_account', name: 'Access & Account', defaultPriority: 'high' },
       { code: 'hardware_other', name: 'Hardware-other', defaultPriority: 'medium' },
       { code: 'general', name: 'General', defaultPriority: 'low' },
+    ],
+  });
+  // First-response targets (Settings — a plain number per priority, not a rules engine).
+  await prisma.ticketPriorityTarget.createMany({
+    data: [
+      { priority: 'urgent', targetMinutes: 120 },
+      { priority: 'high', targetMinutes: 480 },
+      { priority: 'medium', targetMinutes: 1440 },
+      { priority: 'low', targetMinutes: null },
     ],
   });
   const ticketCats = await prisma.ticketCategory.findMany();

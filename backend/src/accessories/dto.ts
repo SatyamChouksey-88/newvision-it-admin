@@ -12,6 +12,11 @@ export class CreateAccessoryDto {
   @IsInt()
   @Min(0)
   quantityTotal!: number;
+
+  /** Which office holds this stock. Omit for shared/estate-wide stock. */
+  @IsOptional()
+  @IsInt()
+  locationId?: number;
 }
 
 export class UpdateAccessoryDto {
@@ -29,6 +34,10 @@ export class UpdateAccessoryDto {
   @IsInt()
   @Min(0)
   quantityTotal?: number;
+
+  @IsOptional()
+  @IsInt()
+  locationId?: number;
 }
 
 export class CheckoutAccessoryDto {

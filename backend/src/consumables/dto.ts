@@ -17,6 +17,11 @@ export class CreateConsumableDto {
   @IsInt()
   @Min(0)
   lowStockThreshold?: number;
+
+  /** Which office holds this stock. Omit for shared/estate-wide stock. */
+  @IsOptional()
+  @IsInt()
+  locationId?: number;
 }
 
 export class UpdateConsumableDto {
@@ -39,6 +44,10 @@ export class UpdateConsumableDto {
   @IsInt()
   @Min(0)
   lowStockThreshold?: number;
+
+  @IsOptional()
+  @IsInt()
+  locationId?: number;
 }
 
 export class IssueConsumableDto {
