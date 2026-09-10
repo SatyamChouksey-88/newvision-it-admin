@@ -6,7 +6,6 @@ import {
   Popconfirm,
   Select,
   Space,
-  Table,
   Tag,
   Typography,
   Upload,
@@ -48,7 +47,7 @@ export function ImportJobsPanel() {
   const reload = useCallback(async () => {
     setLoadingJobs(true);
     try {
-      const { data } = await httpClient.get('/import-jobs', { params: { _start: 0, _end: 50 } });
+      const { data } = await httpClient.get('/import-jobs', { params: { _start: 0, _end: 200 } });
       setJobs(data.data ?? []);
     } catch (e) {
       message.error(apiErrorMessage(e, 'Could not load import jobs'));
@@ -179,11 +178,13 @@ export function ImportJobsPanel() {
             Job #{active.id} · {active.filename} ·{' '}
             <Tag color={STATUS_COLOR[active.status]}>{active.status}</Tag>
           </Typography.Text>
-          <Table
-            size="small"
+          <DataGrid
+            tableKey="import-column-map"
             pagination={false}
             rowKey="header"
             dataSource={headers.map((h) => ({ header: h }))}
+            density="Compact"
+            quickFilter={false}
             columns={[
               { title: 'File column', dataIndex: 'header' },
               {
@@ -239,11 +240,12 @@ export function ImportJobsPanel() {
               active.failedCount > 0 ||
               (active.updatedCount ?? 0) > 0) && <ImportResultChart job={active} />}
           {!!active.errors?.length && (
-            <Table
-              size="small"
-              pagination={{ pageSize: 5 }}
+            <DataGrid
+              tableKey="import-errors"
+              pagination={{ pageSize: 5, size: 'small' }}
               rowKey={(r) => `${r.row}-${r.message}`}
               dataSource={active.errors}
+              density="Compact"
               columns={[
                 { title: 'Row', dataIndex: 'row', width: 70 },
                 { title: 'Error', dataIndex: 'message' },

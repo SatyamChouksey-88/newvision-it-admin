@@ -1,6 +1,7 @@
 import { UploadOutlined } from '@ant-design/icons';
-import { App as AntdApp, Button, Select, Space, Table, Typography, Upload } from 'antd';
+import { App as AntdApp, Button, Select, Space, Typography, Upload } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
+import { DataGrid } from '../../components/DataGrid/DataGrid';
 import { apiErrorMessage, httpClient } from '../../providers/axios';
 import type { ReconciliationRun } from '../../types';
 
@@ -17,7 +18,7 @@ export function ReconciliationPanel() {
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await httpClient.get('/reconciliation', { params: { _start: 0, _end: 20 } });
+      const { data } = await httpClient.get('/reconciliation', { params: { _start: 0, _end: 100 } });
       setRuns(data.data ?? []);
     } catch (e) {
       message.error(apiErrorMessage(e, 'Could not load reconciliation runs'));
@@ -108,40 +109,48 @@ export function ReconciliationPanel() {
             {latest.inSystemOnly} only in system
           </Typography.Text>
           <Space align="start" style={{ width: '100%' }} size={16}>
-            <Table
-              size="small"
-              style={{ flex: 1 }}
-              title={() => 'Only in uploaded file'}
-              pagination={{ pageSize: 8 }}
-              rowKey="key"
-              dataSource={latest.findings.inFileOnly}
-              columns={[
-                { title: 'Key', dataIndex: 'key' },
-                { title: 'Label', dataIndex: 'label' },
-              ]}
-            />
-            <Table
-              size="small"
-              style={{ flex: 1 }}
-              title={() => 'Only in NewVision'}
-              pagination={{ pageSize: 8 }}
-              rowKey="key"
-              dataSource={latest.findings.inSystemOnly}
-              columns={[
-                { title: 'Key', dataIndex: 'key' },
-                { title: 'Label', dataIndex: 'label' },
-              ]}
-            />
+            <div style={{ flex: 1 }}>
+              <Typography.Text strong style={{ display: 'block', marginBottom: 8 }}>
+                Only in uploaded file
+              </Typography.Text>
+              <DataGrid
+                tableKey="recon-file-only"
+                rowKey="key"
+                dataSource={latest.findings.inFileOnly}
+                density="Compact"
+                pagination={{ pageSize: 8, size: 'small' }}
+                columns={[
+                  { title: 'Key', dataIndex: 'key' },
+                  { title: 'Label', dataIndex: 'label' },
+                ]}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <Typography.Text strong style={{ display: 'block', marginBottom: 8 }}>
+                Only in NewVision
+              </Typography.Text>
+              <DataGrid
+                tableKey="recon-system-only"
+                rowKey="key"
+                dataSource={latest.findings.inSystemOnly}
+                density="Compact"
+                pagination={{ pageSize: 8, size: 'small' }}
+                columns={[
+                  { title: 'Key', dataIndex: 'key' },
+                  { title: 'Label', dataIndex: 'label' },
+                ]}
+              />
+            </div>
           </Space>
         </Space>
       )}
 
-      <Table<ReconciliationRun>
-        size="small"
+      <DataGrid<ReconciliationRun>
+        tableKey="reconciliation-runs"
         rowKey="id"
         dataSource={runs}
         loading={loading}
-        locale={{ emptyText: 'No reconciliation runs yet' }}
+        density="Compact"
         rowClassName={(r) => (r.id === latest?.id ? 'ant-table-row-selected' : '')}
         onRow={(r) => ({ onClick: () => setLatest(r), style: { cursor: 'pointer' } })}
         columns={[

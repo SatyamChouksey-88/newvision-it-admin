@@ -17,7 +17,7 @@ export async function logoutIfNeeded(page: Page) {
   if (await emailInput.isVisible({ timeout: 2000 }).catch(() => false)) return;
 
   await page.goto('/');
-  const logoutBtn = page.getByTestId('logout-button');
+  const logoutBtn = page.getByTestId('logout-button').first();
   if (await logoutBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
     await logoutBtn.click();
     await expect(emailInput).toBeVisible({ timeout: 10_000 });

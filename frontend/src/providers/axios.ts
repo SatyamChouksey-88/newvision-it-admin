@@ -1,13 +1,13 @@
 import axios from 'axios';
+import { clearSession, readSession, TOKEN_KEY } from './session';
 
 export const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
-export const TOKEN_KEY = 'newvision:token';
-export const USER_KEY = 'newvision:user';
+export { TOKEN_KEY, USER_KEY } from './session';
 
 export const httpClient = axios.create({ baseURL: API_URL });
 
 httpClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem(TOKEN_KEY);
+  const token = readSession(TOKEN_KEY);
   if (token) {
     config.headers = config.headers ?? {};
     config.headers.Authorization = `Bearer ${token}`;
@@ -25,9 +25,8 @@ httpClient.interceptors.response.use(
   (error) => {
     const status = error?.response?.status;
     const url: string = error?.config?.url ?? '';
-    if (status === 401 && !url.includes('/auth/login') && localStorage.getItem(TOKEN_KEY)) {
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem(USER_KEY);
+    if (status === 401 && !url.includes('/auth/login') && readSession(TOKEN_KEY)) {
+      clearSession();
       if (!window.location.pathname.startsWith('/login')) {
         const next = window.location.pathname + window.location.search;
         window.location.assign(`/login?to=${encodeURIComponent(next)}`);

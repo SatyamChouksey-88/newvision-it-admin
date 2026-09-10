@@ -21,6 +21,7 @@ import routerProvider, {
 } from '@refinedev/react-router';
 import { App as AntdApp, ConfigProvider } from 'antd';
 import { BrowserRouter, Outlet, Route, Routes } from 'react-router';
+import { AppSider } from './components/AppSider';
 import { Header } from './components/Header';
 import { Title } from './components/Title';
 import { AccessoriesPage } from './pages/accessories/list';
@@ -131,7 +132,7 @@ export default function App() {
               <Route
                 element={
                   <Authenticated key="auth" fallback={<CatchAllNavigate to="/login" />}>
-                    <ThemedLayout Header={Header} Title={Title}>
+                    <ThemedLayout Header={Header} Title={Title} Sider={AppSider}>
                       <Outlet />
                     </ThemedLayout>
                   </Authenticated>

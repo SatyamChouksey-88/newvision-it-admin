@@ -60,21 +60,21 @@ Press **/** anywhere to focus global search. Press **?** in the header to return
     id: 'dashboard',
     title: 'Dashboard & Analytics',
     category: 'Operations',
-    summary: 'Metric cards, color-coded breakdowns, warranty panel, and needs-attention alerts.',
-    keywords: ['dashboard', 'status', 'metrics', 'warranty', 'attention'],
+    summary: 'KPI cards, status donut, location bars, growth chart, warranty table, and needs-attention alerts.',
+    keywords: ['dashboard', 'status', 'metrics', 'warranty', 'attention', 'charts'],
     screenshot: '/docs/screenshots/dashboard.png',
     callouts: [
       { n: 1, label: 'Metric cards' },
-      { n: 2, label: 'Status mix list' },
-      { n: 3, label: 'Location breakdown' },
-      { n: 4, label: 'Assets added list' },
+      { n: 2, label: 'Needs attention' },
+      { n: 3, label: 'Status donut' },
+      { n: 4, label: 'Warranty table' },
     ],
     body: `The **Dashboard** shows fleet health at a glance.
 
 - **Metric cards** — Total, Assigned, Available, Under Repair, Retired, Warranty ≤90d. Click a card to open the assets list pre-filtered.
-- **Needs attention** — warranty ≤7 days, stale repairs (>14 days open), low consumable stock, approved requests awaiting IT fulfillment.
-- **Breakdown lists** — Status mix, assets by location, and assets added (12 months) as color-coded bullets (no charts). Click a status or location row to filter the assets list.
-- **Location filter** — top-right dropdown scopes all metrics and lists.
+- **Needs attention** — warranty, stale repairs, low stock, and requests awaiting fulfillment. Use **Dismiss all** to hide the panel for this browser session.
+- **Charts** — status donut with legend, per-location stacked bar, and 12-month growth. Use **Last 12 months** / **All locations** to scope the view.
+- **Warranty expiring** — DataGrid sorted by urgency; open an asset or jump to the filtered Assets list.
 
 Click any attention item to jump to the relevant screen.`,
   },

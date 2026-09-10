@@ -2,8 +2,8 @@ import { FilePdfOutlined, FileTextOutlined } from '@ant-design/icons';
 import { App as AntdApp, Button, Card, Col, Row, Space, Typography } from 'antd';
 import { useState } from 'react';
 import { apiErrorMessage, httpClient } from '../providers/axios';
+import { COLOR_TEXT_MUTED, COLOR_TEXT_SECONDARY, FONT_MONO } from '../theme';
 
-/** Pull the server-suggested filename from Content-Disposition (exposed via CORS), else fall back. */
 function filenameFrom(disposition: string | undefined, fallback: string) {
   const m = disposition?.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
   return m ? decodeURIComponent(m[1]) : fallback;
@@ -22,36 +22,40 @@ async function download(type: string, format: 'csv' | 'pdf') {
   document.body.appendChild(a);
   a.click();
   a.remove();
-  // Revoke on the next tick — revoking synchronously cancels the download in some browsers.
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   return Number(res.headers['x-row-count'] ?? Number.NaN);
 }
 
-const REPORTS: { type: string; title: string; desc: string }[] = [
+const REPORTS: { type: string; title: string; desc: string; meta: string }[] = [
   {
     type: 'assets',
     title: 'Asset Report',
     desc: 'Full inventory with status, location, assignee and cost.',
+    meta: 'CSV · PDF · estate-wide',
   },
   {
     type: 'employees',
     title: 'Employee Report',
     desc: 'Everyone, with their location, department and asset count.',
+    meta: 'CSV · PDF · includes inactive',
   },
   {
     type: 'locations',
     title: 'Location Report',
     desc: 'Per-site asset totals broken down by status.',
+    meta: 'CSV · PDF · Pune · HYD · BHO',
   },
   {
     type: 'warranty',
     title: 'Warranty Report',
     desc: 'Assets sorted by warranty days remaining (most urgent first).',
+    meta: 'CSV · PDF · ≤90 days first',
   },
   {
     type: 'supplies',
     title: 'Accessories & Consumables',
     desc: 'Stock levels, open checkouts, recent issues, and low-stock flags.',
+    meta: 'CSV · PDF · live stock',
   },
 ];
 
@@ -79,19 +83,33 @@ export function ReportsPage() {
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <div>
-        <Typography.Title level={4} style={{ margin: 0 }}>
+        <Typography.Title level={3} className="nv-page-title" style={{ margin: 0 }}>
           Reports
         </Typography.Title>
-        <Typography.Text type="secondary">
+        <Typography.Text style={{ fontSize: 12.5, color: COLOR_TEXT_SECONDARY }}>
           Download any report as CSV (spreadsheet) or PDF (print-ready).
         </Typography.Text>
       </div>
+      <div className="nv-filters-banner">
+        No filters applied — exports include the full estate.
+        <Button type="link" size="small" disabled style={{ paddingInline: 8 }}>
+          Reset
+        </Button>
+      </div>
       <Row gutter={[16, 16]}>
         {REPORTS.map((r) => (
-          <Col xs={24} md={12} lg={12} key={r.type}>
-            <Card size="small" title={r.title}>
-              <Space direction="vertical" style={{ width: '100%' }}>
-                <Typography.Text type="secondary">{r.desc}</Typography.Text>
+          <Col xs={24} md={12} lg={8} key={r.type}>
+            <Card size="small" className="nv-card-interactive" hoverable>
+              <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                <Typography.Text strong style={{ fontSize: 13 }}>
+                  {r.title}
+                </Typography.Text>
+                <Typography.Text style={{ fontSize: 12.5, color: COLOR_TEXT_SECONDARY }}>
+                  {r.desc}
+                </Typography.Text>
+                <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: COLOR_TEXT_MUTED }}>
+                  {r.meta}
+                </div>
                 <Space>
                   <Button
                     icon={<FileTextOutlined />}
@@ -99,7 +117,7 @@ export function ReportsPage() {
                     disabled={!!busy && busy !== `${r.type}:csv`}
                     onClick={() => get(r.type, 'csv')}
                   >
-                    CSV
+                    Export CSV
                   </Button>
                   <Button
                     icon={<FilePdfOutlined />}
@@ -107,7 +125,7 @@ export function ReportsPage() {
                     disabled={!!busy && busy !== `${r.type}:pdf`}
                     onClick={() => get(r.type, 'pdf')}
                   >
-                    PDF
+                    Export PDF
                   </Button>
                 </Space>
               </Space>

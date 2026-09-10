@@ -1,5 +1,6 @@
 import type { AuthProvider } from '@refinedev/core';
-import { httpClient, TOKEN_KEY, USER_KEY } from './axios';
+import { httpClient } from './axios';
+import { clearSession, hasSession, readSession, TOKEN_KEY, USER_KEY, writeSession } from './session';
 
 export interface Identity {
   id: number;
@@ -11,11 +12,12 @@ export interface Identity {
 }
 
 export const authProvider: AuthProvider = {
-  login: async ({ email, password }) => {
+  login: async ({ email, password, remember }) => {
     try {
       const { data } = await httpClient.post('/auth/login', { email, password });
-      localStorage.setItem(TOKEN_KEY, data.access_token);
-      localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+      const persist = remember !== false;
+      writeSession(TOKEN_KEY, data.access_token, persist);
+      writeSession(USER_KEY, JSON.stringify(data.user), persist);
       // Return the user to the page they were on when their session expired (same-origin paths only).
       const to = new URLSearchParams(window.location.search).get('to');
       const redirectTo = to?.startsWith('/') && !to.startsWith('//') ? to : '/';
@@ -34,14 +36,12 @@ export const authProvider: AuthProvider = {
   },
 
   logout: async () => {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
+    clearSession();
     return { success: true, redirectTo: '/login' };
   },
 
   check: async () => {
-    const token = localStorage.getItem(TOKEN_KEY);
-    if (token) {
+    if (hasSession()) {
       return { authenticated: true };
     }
     return { authenticated: false, redirectTo: '/login' };
@@ -55,7 +55,7 @@ export const authProvider: AuthProvider = {
   },
 
   getIdentity: async (): Promise<Identity | null> => {
-    const raw = localStorage.getItem(USER_KEY);
+    const raw = readSession(USER_KEY);
     if (!raw) {
       return null;
     }
@@ -67,7 +67,7 @@ export const authProvider: AuthProvider = {
   },
 
   getPermissions: async (): Promise<string | null> => {
-    const raw = localStorage.getItem(USER_KEY);
+    const raw = readSession(USER_KEY);
     if (!raw) {
       return null;
     }

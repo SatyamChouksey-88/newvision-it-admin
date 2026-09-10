@@ -2,8 +2,10 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import {
   COLOR_BORDER,
-  COLOR_SURFACE_MUTED,
+  COLOR_SURFACE,
+  COLOR_TEXT_MUTED,
   COLOR_TEXT_PRIMARY,
+  COLOR_TEXT_SECONDARY,
   KPI_TOTAL,
   tabularNums,
 } from '../theme';
@@ -16,11 +18,12 @@ export interface KpiCardProps {
   valueColor?: string;
   href?: string;
   sparkline?: ReactNode;
+  subtitle?: string;
 }
 
 /**
  * Signature KPI tile from the approved Claude Design mockup:
- * muted surface, 4px top accent bar, label + value + icon.
+ * white surface, 3px top accent bar, glyph + label, mono value, muted sub-line.
  */
 export function KpiCard({
   title,
@@ -30,57 +33,52 @@ export function KpiCard({
   valueColor = COLOR_TEXT_PRIMARY,
   href,
   sparkline,
+  subtitle,
 }: KpiCardProps) {
   const inner = (
     <div
       style={{
-        background: COLOR_SURFACE_MUTED,
-        borderRadius: 10,
+        background: COLOR_SURFACE,
+        borderRadius: 8,
         border: `1px solid ${COLOR_BORDER}`,
         overflow: 'hidden',
-        transition: 'box-shadow 0.15s ease, transform 0.15s ease',
+        boxShadow: '0 1px 1px rgba(16,24,40,0.03)',
+        transition: 'box-shadow 0.15s ease, border-color 0.15s ease',
       }}
       className={href ? 'nv-kpi-card nv-kpi-card--clickable' : 'nv-kpi-card'}
     >
-      <div style={{ height: 4, background: accentColor }} aria-hidden />
-      <div style={{ padding: '14px 16px 16px' }}>
+      <div style={{ height: 3, background: accentColor }} aria-hidden />
+      <div style={{ padding: '12px 14px 13px' }}>
         <div
+          className="nv-kpi-label"
           style={{
+            fontSize: 11.5,
+            fontWeight: 500,
+            color: COLOR_TEXT_SECONDARY,
             display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            gap: 8,
+            alignItems: 'center',
+            gap: 6,
           }}
         >
-          <div style={{ minWidth: 0 }}>
-            <div
-              className="nv-kpi-label"
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                marginBottom: 4,
-                letterSpacing: '0.02em',
-                textTransform: 'uppercase',
-              }}
-            >
-              {title}
-            </div>
-            <div
-              style={{
-                fontSize: 28,
-                fontWeight: 600,
-                lineHeight: 1.1,
-                color: valueColor,
-                ...tabularNums,
-              }}
-            >
-              {value.toLocaleString()}
-            </div>
-          </div>
-          <span style={{ color: accentColor, fontSize: 20, lineHeight: 1, flexShrink: 0 }}>
-            {icon}
-          </span>
+          <span style={{ color: accentColor, fontSize: 12, lineHeight: 1 }}>{icon}</span>
+          {title}
         </div>
+        <div
+          style={{
+            fontSize: 23,
+            fontWeight: 600,
+            lineHeight: 1.1,
+            color: valueColor,
+            marginTop: 6,
+            letterSpacing: '-0.02em',
+            ...tabularNums,
+          }}
+        >
+          {value.toLocaleString()}
+        </div>
+        {subtitle ? (
+          <div style={{ fontSize: 11, color: COLOR_TEXT_MUTED, marginTop: 3 }}>{subtitle}</div>
+        ) : null}
         {sparkline ? <div style={{ marginTop: 10 }}>{sparkline}</div> : null}
       </div>
     </div>

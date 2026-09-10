@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+<template id="__bundler_thumbnail" data-bg-color="#F8FAFC">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#F8FAFC"/>
+    <rect x="180" y="230" width="180" height="340" rx="16" fill="#FFFFFF" stroke="#E9EDF2" stroke-width="4"/>
+    <rect x="210" y="262" width="60" height="60" rx="16" fill="#1677FF"/>
+    <rect x="210" y="356" width="120" height="16" rx="8" fill="#E4E9F0"/>
+    <rect x="210" y="396" width="120" height="16" rx="8" fill="#E4E9F0"/>
+    <rect x="210" y="436" width="120" height="16" rx="8" fill="#E4E9F0"/>
+    <rect x="392" y="230" width="628" height="340" rx="16" fill="#FFFFFF" stroke="#E9EDF2" stroke-width="4"/>
+    <rect x="424" y="262" width="180" height="18" rx="9" fill="#D9DEE5"/>
+    <rect x="424" y="320" width="180" height="70" rx="10" fill="#F1F4F8"/>
+    <rect x="424" y="320" width="180" height="8" rx="4" fill="#16A34A"/>
+    <rect x="620" y="320" width="180" height="70" rx="10" fill="#F1F4F8"/>
+    <rect x="620" y="320" width="180" height="8" rx="4" fill="#D97706"/>
+    <rect x="816" y="320" width="172" height="70" rx="10" fill="#F1F4F8"/>
+    <rect x="816" y="320" width="172" height="8" rx="4" fill="#1677FF"/>
+    <rect x="424" y="424" width="564" height="14" rx="7" fill="#EDF1F6"/>
+    <rect x="424" y="464" width="564" height="14" rx="7" fill="#EDF1F6"/>
+    <rect x="424" y="504" width="380" height="14" rx="7" fill="#EDF1F6"/>
+  </svg>
+</template>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#F8FAFC; font-family:Inter, Helvetica, Arial, sans-serif; -webkit-font-smoothing:antialiased; color:#1F1F1F; }
+  * { box-sizing:border-box; }
+  a { color:#1677FF; text-decoration:none; }
+  a:hover { color:#0958D9; text-decoration:underline; }
+  input, button, select { font-family:inherit; }
+  ::-webkit-scrollbar { width:10px; height:10px; }
+  ::-webkit-scrollbar-thumb { background:#DDE3EA; border-radius:6px; border:3px solid #F8FAFC; }
+  @keyframes shimmer { 0% { opacity:.45 } 50% { opacity:.85 } 100% { opacity:.45 } }
+</style>
+</helmet>
+
+<sc-if value="{{ isLogin }}" hint-placeholder-val="{{ false }}">
+<div style="min-height:100vh;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);background:#FFFFFF">
+  <div style="display:flex;flex-direction:column;justify-content:center;padding:48px 8vw">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:44px">
+      <div style="width:28px;height:28px;border-radius:7px;background:#1677FF;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:700">N</div>
+      <div style="font-size:15px;font-weight:600;letter-spacing:-0.01em">NewVision<span style="color:#64748B;font-weight:450"> Asset Manager</span></div>
+    </div>
+    <div style="font-size:26px;font-weight:600;letter-spacing:-0.02em;margin-bottom:6px">Sign in</div>
+    <div style="font-size:13px;color:#595959;margin-bottom:28px">Use your NewVision Softcom directory account.</div>
+    <div style="display:flex;flex-direction:column;gap:14px;max-width:360px">
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <label style="font-size:12px;font-weight:500;color:#1F1F1F">Work email</label>
+        <input value="a.deshpande@newvisionsoftcom.com" style="height:36px;border:1px solid #D9DEE5;border-radius:6px;padding:0 11px;font-size:13px;color:#1F1F1F;outline:none;background:#fff" style-focus="border-color:#1677FF;box-shadow:0 0 0 3px rgba(22,119,255,0.12)">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <label style="font-size:12px;font-weight:500;color:#1F1F1F">Password</label>
+        <input type="password" value="passwordvalue" style="height:36px;border:1px solid #D9DEE5;border-radius:6px;padding:0 11px;font-size:13px;color:#1F1F1F;outline:none;background:#fff" style-focus="border-color:#1677FF;box-shadow:0 0 0 3px rgba(22,119,255,0.12)">
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#595959;margin-top:2px">
+        <label style="display:flex;align-items:center;gap:7px;cursor:pointer"><input type="checkbox" checked style="accent-color:#1677FF;width:14px;height:14px">Keep me signed in</label>
+        <a href="#">Forgot password?</a>
+      </div>
+      <button onClick="{{ signIn }}" style="height:36px;margin-top:8px;border:none;border-radius:6px;background:#1677FF;color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 1px 2px rgba(16,24,40,0.08)" style-hover="background:#0958D9">Sign in</button>
+      <div style="font-size:12px;color:#64748B;margin-top:6px">Trouble signing in? Contact <a href="#">IT Helpdesk</a> — ext. 4120.</div>
+    </div>
+  </div>
+  <div style="border-left:1px solid #E9EDF2;background:#FAFAFA;padding:48px;display:flex;flex-direction:column;justify-content:center;gap:18px">
+    <div style="font-size:11px;font-family:'JetBrains Mono',monospace;letter-spacing:0.08em;text-transform:uppercase;color:#64748B">Estate at a glance</div>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;max-width:420px">
+      <div style="background:#fff;border:1px solid #E9EDF2;border-radius:8px;padding:14px 15px"><div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:600;font-variant-numeric:tabular-nums">1,250</div><div style="font-size:12px;color:#595959;margin-top:2px">Assets tracked</div></div>
+      <div style="background:#fff;border:1px solid #E9EDF2;border-radius:8px;padding:14px 15px"><div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:600;font-variant-numeric:tabular-nums">1,180</div><div style="font-size:12px;color:#595959;margin-top:2px">Employees</div></div>
+      <div style="background:#fff;border:1px solid #E9EDF2;border-radius:8px;padding:14px 15px"><div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:600;font-variant-numeric:tabular-nums">3</div><div style="font-size:12px;color:#595959;margin-top:2px">Locations</div></div>
+      <div style="background:#fff;border:1px solid #E9EDF2;border-radius:8px;padding:14px 15px"><div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:600;font-variant-numeric:tabular-nums">98.2%</div><div style="font-size:12px;color:#595959;margin-top:2px">Records reconciled</div></div>
+    </div>
+    <div style="font-size:12px;color:#64748B;max-width:420px;line-height:1.55">Pune · Hyderabad · Bhopal. All asset movements are logged and auditable.</div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isApp }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;min-height:100vh;background:#F8FAFC;font-size:13px;position:relative">
+
+  <aside style="width:216px;flex:0 0 216px;background:#FFFFFF;border-right:1px solid #E9EDF2;display:flex;flex-direction:column;position:sticky;top:0;height:100vh">
+    <div style="height:52px;display:flex;align-items:center;gap:9px;padding:0 16px;border-bottom:1px solid #F1F4F8">
+      <div style="width:24px;height:24px;border-radius:6px;background:#1677FF;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700">N</div>
+      <div style="font-size:13px;font-weight:600;letter-spacing:-0.01em">NewVision</div>
+    </div>
+    <div style="padding:12px 10px;display:flex;flex-direction:column;gap:2px;overflow:auto">
+      <div style="font-size:10px;font-family:'JetBrains Mono',monospace;letter-spacing:0.08em;color:#94A3B8;padding:6px 8px 4px">MANAGE</div>
+      <sc-for list="{{ nav }}" as="n" hint-placeholder-count="7">
+        <div onClick="{{ n.go }}" style="{{ n.style }}">
+          <span style="width:14px;text-align:center;font-size:11px">{{ n.glyph }}</span>
+          <span style="flex:1">{{ n.label }}</span>
+          <sc-if value="{{ n.badge }}" hint-placeholder-val="{{ false }}"><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#64748B;background:#F1F5F9;border-radius:4px;padding:1px 5px">{{ n.badge }}</span></sc-if>
+        </div>
+      </sc-for>
+    </div>
+    <div style="margin-top:auto;padding:12px 10px;border-top:1px solid #F1F4F8">
+      <div style="display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:6px;cursor:pointer" style-hover="background:#F6F8FA">
+        <div style="width:26px;height:26px;border-radius:50%;background:#EEF2F7;border:1px solid #E4E9F0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#475569">AD</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Aditi Deshpande</div>
+          <div style="font-size:11px;color:#64748B">IT Admin · Pune</div>
+        </div>
+      </div>
+      <div onClick="{{ signOut }}" style="font-size:11px;color:#64748B;padding:6px 8px;cursor:pointer;border-radius:6px" style-hover="background:#F6F8FA;color:#1F1F1F">Sign out</div>
+    </div>
+  </aside>
+
+  <main style="flex:1;min-width:0;display:flex;flex-direction:column">
+    <header style="height:52px;flex:0 0 52px;background:rgba(255,255,255,0.92);border-bottom:1px solid #E9EDF2;display:flex;align-items:center;gap:12px;padding:0 20px;position:sticky;top:0;z-index:30">
+      <div style="display:flex;align-items:center;gap:7px;font-size:12px;color:#64748B;min-width:0">
+        <span>NewVision</span><span style="color:#CBD5E1">/</span><span style="color:#1F1F1F;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ crumb }}</span>
+      </div>
+      <div style="flex:1"></div>
+      <div style="display:flex;align-items:center;gap:8px;height:30px;border:1px solid #E4E9F0;border-radius:6px;background:#FAFBFC;padding:0 10px;width:260px;max-width:32vw">
+        <span style="color:#94A3B8;font-size:12px">⌕</span>
+        <input placeholder="Search assets, people, tickets" style="border:none;background:transparent;outline:none;font-size:12px;flex:1;min-width:0;color:#1F1F1F">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#94A3B8;border:1px solid #E4E9F0;border-radius:3px;padding:1px 4px;background:#fff">⌘K</span>
+      </div>
+      <div style="position:relative">
+        <div onClick="{{ toggleNotif }}" style="width:30px;height:30px;border:1px solid #E4E9F0;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:#fff;position:relative" style-hover="background:#F6F8FA">
+          <span style="font-size:13px;color:#475569">✷</span>
+          <span style="position:absolute;top:-5px;right:-5px;min-width:15px;height:15px;border-radius:8px;background:#DC2626;color:#fff;font-size:9px;font-weight:600;display:flex;align-items:center;justify-content:center;padding:0 4px;border:2px solid #fff">4</span>
+        </div>
+        <sc-if value="{{ notifOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;right:0;top:38px;width:340px;background:#fff;border:1px solid #E4E9F0;border-radius:8px;box-shadow:0 6px 20px rgba(16,24,40,0.10),0 1px 2px rgba(16,24,40,0.06);overflow:hidden;z-index:60">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #F1F4F8">
+              <div style="font-size:12px;font-weight:600">Notifications</div>
+              <div style="font-size:11px;color:#1677FF;cursor:pointer">Mark all read</div>
+            </div>
+            <sc-for list="{{ notifications }}" as="x" hint-placeholder-count="4">
+              <div style="display:flex;gap:10px;padding:10px 12px;border-bottom:1px solid #F5F7FA;cursor:pointer" style-hover="background:#FAFBFC">
+                <span style="font-size:10px;margin-top:3px;color:{{ x.color }}">{{ x.glyph }}</span>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:12px;font-weight:500;line-height:1.35">{{ x.title }}</div>
+                  <div style="font-size:11.5px;color:#595959;line-height:1.45;margin-top:2px">{{ x.body }}</div>
+                  <div style="font-size:10.5px;color:#94A3B8;margin-top:3px;font-family:'JetBrains Mono',monospace">{{ x.time }}</div>
+                </div>
+              </div>
+            </sc-for>
+            <div style="padding:9px 12px;text-align:center;font-size:11.5px;color:#1677FF;cursor:pointer;background:#FAFBFC">View all notifications</div>
+          </div>
+        </sc-if>
+      </div>
+      <button onClick="{{ openAssign }}" style="height:30px;border:none;border-radius:6px;background:#1677FF;color:#fff;font-size:12px;font-weight:500;padding:0 12px;cursor:pointer;box-shadow:0 1px 2px rgba(16,24,40,0.08)" style-hover="background:#0958D9">Assign asset</button>
+    </header>
+
+    <div style="flex:1;min-width:0;padding:20px 20px 64px">
+
+      <sc-if value="{{ isDash }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+          <div>
+            <div style="font-size:24px;font-weight:600;letter-spacing:-0.02em">Dashboard</div>
+            <div style="font-size:12.5px;color:#595959;margin-top:3px">1,250 assets across Pune, Hyderabad and Bhopal. Updated 6 minutes ago.</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button style="height:30px;border:1px solid #E4E9F0;background:#fff;border-radius:6px;font-size:12px;padding:0 11px;color:#1F1F1F;cursor:pointer" style-hover="background:#F6F8FA">Last 12 months</button>
+            <button style="height:30px;border:1px solid #E4E9F0;background:#fff;border-radius:6px;font-size:12px;padding:0 11px;color:#1F1F1F;cursor:pointer" style-hover="background:#F6F8FA">All locations</button>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px">
+          <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="6">
+            <div onClick="{{ k.go }}" style="background:#fff;border:1px solid #E9EDF2;border-radius:8px;overflow:hidden;cursor:pointer;box-shadow:0 1px 1px rgba(16,24,40,0.03)" style-hover="border-color:#C9D3DF;box-shadow:0 2px 6px rgba(16,24,40,0.06)">
+              <div style="height:3px;background:{{ k.color }}"></div>
+              <div style="padding:12px 14px 13px">
+                <div style="font-size:11.5px;color:#595959;display:flex;align-items:center;gap:6px"><span style="color:{{ k.color }};font-size:9px">{{ k.glyph }}</span>{{ k.label }}</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:23px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:6px;letter-spacing:-0.02em">{{ k.value }}</div>
+                <div style="font-size:11px;color:#64748B;margin-top:3px">{{ k.sub }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="background:#fff;border:1px solid #E9EDF2;border-radius:8px;margin-bottom:16px">
+          <div style="display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid #F1F4F8">
+            <span style="color:#D97706;font-size:11px">▲</span>
+            <div style="font-size:13px;font-weight:600">Needs attention</div>
+            <div style="font-size:11.5px;color:#64748B">4 items · today</div>
+            <div style="flex:1"></div>
+            <div style="font-size:11.5px;color:#1677FF;cursor:pointer">Dismiss all</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr))">
+            <sc-for list="{{ attention }}" as="a" hint-placeholder-count="4">
+              <div style="padding:12px 14px;border-right:1px solid #F1F4F8;display:flex;gap:10px">
+                <span style="font-size:10px;color:{{ a.color }};margin-top:3px">{{ a.glyph }}</span>
+                <div style="min-width:0">
+                  <div style="font-size:12.5px;font-weight:500">{{ a.title }}</div>
+                  <div style="font-size:11.5px;color:#595959;line-height:1.45;margin-top:2px">{{ a.body }}</div>
+                  <div style="font-size:11.5px;color:#1677FF;margin-top:5px;cursor:pointer">{{ a.cta }} →</div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-bottom:16px">
+          <div style="background:#fff;border:1px solid #E9EDF2;border-radius:8px;padding:14px">
+            <div style="font-size:12.5px;font-weight:600;margin-bottom:2px">Status distribution</div>
+            <div style="font-size:11.5px;color:#64748B;margin-bottom:10px">All categories</div>
+            <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+              <svg width="132" height="132" viewBox="0 0 132 132" style="flex:0 0 auto">
+                <circle cx="66" cy="66" r="52" fill="none" stroke="#F1F4F8" stroke-width="16"></circle>
+                <sc-for list="{{ donut }}" as="d" hint-placeholder-count="5">
+                  <circle cx="66" cy="66" r="52" fill="none" stroke="{{ d.color }}" stroke-width="16" stroke-dasharray="{{ d.dash }}" stroke-dashoffset="{{ d.offset }}" transform="rotate(-90 66 66)"></circle>
+                </sc-for>
+                <text x="66" y="62" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="20" font-weight="600" fill="#1F1F1F">1250</text>
+                <text x="66" y="78" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#64748B">total assets</text>
+              </svg>
+              <div style="display:flex;flex-direction:column;gap:7px;min-width:132px;flex:1">
+                <sc-for list="{{ donut }}" as="d" hint-placeholder-count="5">
+                  <div style="display:flex;align-items:center;gap:8px;font-size:11.5px">
+                    <span style="width:8px;height:8px;border-radius:2px;background:{{ d.color }};flex:0 0 auto"></span>
+                    <span style="flex:1;color:#1F1F1F">{{ d.label }}</span>
+                    <span style="font-family:'JetBrains Mono',monospace;color:#1F1F1F;font-variant-numeric:tabular-nums">{{ d.value }}</span>
+                    <span style="font-family:'JetBrains Mono',monospace;color:#64748B;width:38px;text-align:right">{{ d.pctLabel }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+
+          <div style="background:#fff;border:1px solid #E9EDF2;border-radius:8px;padding:14px">
+            <div style="font-size:12.5px;font-weight:600;margin-bottom:2px">Assets by location</div>
+            <div style="font-size:11.5px;color:#64748B;margin-bottom:14px">Stacked by status</div>
+            <div style="display:flex;flex-direction:column;gap:13px">
+              <sc-for list="{{ locations }}" as="l" hint-placeholder-count="3">
+                <div>
+                  <div style="display:flex;justify-content:space-between;font-size:11.5px;margin-bottom:5px">
+                    <span style="font-weight:500">{{ l.name }}</span>
+                    <span style="font-family:'JetBrains Mono',monospace;color:#595959;font-variant-numeric:tabular-nums">{{ l.total }}</span>
+                  </div>
+                  <div style="display:flex;height:10px;border-radius:3px;overflow:hidden;background:#F1F4F8">
+                    <sc-for list="{{ l.parts }}" as="p" hint-placeholder-count="3">
+                      <div style="width:{{ p.w }}%;background:{{ p.color }}"></div>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display:flex;gap:14px;margin-top:16px;font-size:11px;color:#595959;flex-wrap:wrap">
+              <span style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:2px;background:#16A34A"></span>Assigned</span>
+              <span style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:2px;background:#94A3B8"></span>Available</span>
+              <span style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:2px;background:#D97706"></span>Under repair</span>
+            </div>
+          </div>
+
+          <div style="background:#fff;border:1px solid #E9EDF2;border-radius:8px;padding:14px">
+            <div style="font-size:12.5px;font-weight:600;margin-bottom:2px">Asset growth</div>
+            <div style="font-size:11.5px;color:#64748B;margin-bottom:10px">Total tracked, last 12 months</div>
+            <svg viewBox="0 0 320 140" preserveAspectRatio="none" style="width:100%;height:140px;display:block">
+              <line x1="0" y1="20" x2="320" y2="20" stroke="#F1F4F8" stroke-width="1"></line>
+              <line x1="0" y1="60" x2="320" y2="60" stroke="#F1F4F8" stroke-width="1"></line>
+              <line x1="0" y1="100" x2="320" y2="100" stroke="#F1F4F8" stroke-width="1"></line>
+              <line x1="0" y1="130" x2="320" y2="130" stroke="#E9EDF2" stroke-width="1"></line>
+              <path d="{{ trendArea }}" fill="rgba(22,119,255,0.07)"></path>
+              <polyline points="{{ trendPoints }}" fill="none" stroke="#1677FF" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"></polyline>
+            </svg>
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:#94A3B8;font-family:'JetBrains Mono',monospace;margin-top:4px">
+              <sc-for list="{{ months }}" as="m" hint-placeholder-count="12"><span>{{ m }}</span></sc-for>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:#fff;border:1px solid #E9EDF2;border-radius:8px;overflow:hidden">
+          <div style="display:flex;align-items:center;padding:11px 14px;border-bottom:1px solid #F1F4F8">
+            <div style="font-size:12.5px;font-weight:600">Warranty expiring</div>
+            <div style="font-size:11.5px;color:#64748B;margin-left:8px">sorted by urgency</div>
+            <div style="flex:1"></div>
+            <div onClick="{{ goAssets }}" style="font-size:11.5px;color:#1677FF;cursor:pointer">Open in Assets →</div>
+          </div>
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="background:#FAFBFC">
+                <th style="text-align:left;font-size:11px;font-weight:600;color:#64748B;padding:7px 14px;border-bottom:1px solid #F1F4F8">Asset code</th>
+                <th style="text-align:left;font-size:11px;font-weight:600;color:#64748B;padding:7px 14px;border-bottom:1px solid #F1F4F8">Model</th>
+                <th style="text-align:left;font-size:11px;font-weight:600;color:#64748B;padding:7px 14px;border-bottom:1px solid #F1F4F8">Assigned to</th>
+                <th style="text-align:left;font-size:11px;font-weight:600;color:#64748B;padding:7px 14px;border-bottom:1px solid #F1F4F8">Location</th>
+                <th style="text-align:left;font-size:11px;font-weight:600;color:#64748B;padding:7px 14px;border-bottom:1px solid #F1F4F8">Expires</th>
+                <th style="text-align:right;font-size:11px;font-weight:600;color:#64748B;padding:7px 14px;border-bottom:1px solid #F1F4F8">Days left</th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{ warranty }}" as="w" hint-placeholder-count="5">
+                <tr style="border-bottom:1px solid #F5F7FA;cursor:pointer" style-hover="background:#FAFBFC">
+                  <td style="padding:{{ pad }} 14px"><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#1677FF">{{ w.code }}</span></td>
+                  <td style="padding:{{ pad }} 14px;font-size:12.5px">{{ w.model }}</td>
+                  <td style="padding:{{ pad }} 14px;font-size:12.5px;color:#595959">{{ w.person }}</td>
+                  <td style="padding:{{ pad }} 14px;font-size:12.5px;color:#595959">{{ w.loc }}</td>
+                  <td style="padding:{{ pad }} 14px;font-size:12px;font-family:'JetBrains Mono',monospace;color:#595959">{{ w.date }}</td>
+                  <td style="padding:{{ pad }} 14px;text-align:right">
+                    <span style="font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:500;color:{{ w.color }};background:{{ w.bg }};border:1px solid {{ w.border }};border-radius:4px;padding:2px 7px">{{ w.days }}d</span>
+                  </td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isAssets }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:14px;flex-wrap:wrap">
+          <div>
+            <div style="font-size:24px;font-weight:600;letter-spacing:-0.02em">Assets</div>
+            <div style="font-size:12.5px;color:#595959;margin-top:3px">1,250 records · 14 shown</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <div style="display:flex;border:1px solid #E4E9F0;border-radius:6px;overflow:hidden;background:#fff">
+              <div onClick="{{ setCompact }}" style="{{ compactBtn }}">Compact</div>
+              <div onClick="{{ setComfy }}" style="{{ comfyBtn }}">Comfortable</div>
+            </div>
+            <button onClick="{{ simulateLoad }}" style="height:30px;border:1px solid #E4E9F0;background:#fff;border-radius:6px;font-size:12px;padding:0 11px;cursor:pointer" style-hover="background:#F6F8FA">Reload</button>
+            <button style="height:30px;border:1px solid #E4E9F0;background:#fff;border-radius:6px;font-size:12px;padding:0 11px;cursor:pointer" style-hover="background:#F6F8FA">Export CSV</button>
+            <button onClick="{{ openAssign }}" style="height:30px;border:none;border-radius:6px;background:#1677FF;color:#fff;font-size:12px;font-weight:500;padding:0 12px;cursor:pointer" style-hover="background:#0958D9">New asset</button>
+          </div>
+        </div>
+
+        <div style="background:#fff;border:1px solid #E9EDF2;border-radius:8px;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #F1F4F8;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:7px;height:30px;border:1px solid #E4E9F0;border-radius:6px;background:#FAFBFC;padding:0 10px;flex:1;min-width:200px">
+              <span style="color:#94A3B8;font-size:12px">⌕</span>
+              <input placeholder="Search by code, serial, model or assignee" style="border:none;background:transparent;outline:none;font-size:12px;flex:1;min-width:0">
+            </div>
+            <sc-for list="{{ filters }}" as="f" hint-placeholder-count="4">
+              <div style="height:30px;border:1px solid #E4E9F0;border-radius:6px;background:#fff;padding:0 10px;display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;color:#1F1F1F" style-hover="background:#F6F8FA">
+                <span style="color:#64748B">{{ f.label }}</span><span style="font-weight:500">{{ f.value }}</span><span style="color:#94A3B8;font-size:9px">▾</span>
+              </div>
+            </sc-for>
+            <div style="font-size:11.5px;color:#1677FF;cursor:pointer;padding:0 4px">Clear</div>
+          </div>
+
+          <sc-if value="{{ selectedCount }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:12px;padding:8px 12px;background:#F0F7FF;border-bottom:1px solid #D6E8FF">
+              <span style="font-size:12px;font-weight:500;color:#0958D9">{{ selectedCount }} selected</span>
+              <div style="display:flex;gap:6px">
+                <button style="height:26px;border:1px solid #BBD9FF;background:#fff;border-radius:5px;font-size:11.5px;padding:0 9px;cursor:pointer;color:#1F1F1F">Assign</button>
+                <button style="height:26px;border:1px solid #BBD9FF;background:#fff;border-radius:5px;font-size:11.5px;padding:0 9px;cursor:pointer;color:#1F1F1F">Transfer</button>
+                <button style="height:26px;border:1px solid #BBD9FF;background:#fff;border-radius:5px;font-size:11.5px;padding:0 9px;cursor:pointer;color:#1F1F1F">Send to repair</button>
+                <button style="height:26px;border:1px solid #FFD3D3;background:#fff;border-radius:5px;font-size:11.5px;padding:0 9px;cursor:pointer;color:#DC2626">Retire</button>
+              </div>
+              <div style="flex:1"></div>
+              <div onClick="{{ clearSel }}" style="font-size:11.5px;color:#0958D9;cursor:pointer">Clear selection</div>
+            </div>
+          </sc-if>
+
+          <div style="overflow-x:auto">
+          <table style="width:100%;min-width:1020px;border-collapse:collapse">
+            <thead>
+              <tr style="background:#FAFBFC">
+                <th style="width:34px;padding:7px 0 7px 12px;border-bottom:1px solid #EDF1F6"><input type="checkbox" onClick="{{ selectAll }}" style="accent-color:#1677FF;width:13px;height:13px"></th>
+                <sc-for list="{{ columns }}" as="c" hint-placeholder-count="9">
+                  <th style="text-align:left;font-size:11px;font-weight:600;color:#64748B;padding:7px 12px;border-bottom:1px solid #EDF1F6;border-right:1px solid #F5F7FA;white-space:nowrap;cursor:pointer;user-select:none" style-hover="color:#1F1F1F;background:#F4F7FA">
+                    <span style="display:inline-flex;align-items:center;gap:5px">{{ c.label }}<span style="font-size:8px;color:{{ c.sortColor }}">{{ c.sortGlyph }}</span></span>
+                  </th>
+                </sc-for>
+                <th style="width:32px;border-bottom:1px solid #EDF1F6"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-if value="{{ loading }}" hint-placeholder-val="{{ false }}">
+                <sc-for list="{{ skeletons }}" as="s" hint-placeholder-count="8">
+                  <tr style="border-bottom:1px solid #F5F7FA">
+                    <td style="padding:9px 0 9px 12px"><div style="width:13px;height:13px;border-radius:3px;background:#EEF2F7;animation:shimmer 1.4s ease-in-out infinite"></div></td>
+                    <td colspan="9" style="padding:9px 12px">
+                      <div style="display:flex;gap:10px">
+                        <div style="height:9px;border-radius:4px;background:#EEF2F7;width:{{ s.a }}%;animation:shimmer 1.4s ease-in-out infinite"></div>
+                        <div style="height:9px;border-radius:4px;background:#F1F4F8;width:{{ s.b }}%;animation:shimmer 1.4s ease-in-out infinite"></div>
+                        <div style="height:9px;border-radius:4px;background:#F1F4F8;width:{{ s.c }}%;animation:shimmer 1.4s ease-in-out infinite"></div>
+                      </div>
+                    </td>
+                  </tr>
+                </sc-for>
+              </sc-if>
+              <sc-if value="{{ notLoading }}" hint-placeholder-val="{{ true }}">
+                <sc-for list="{{ assets }}" as="r" hint-placeholder-count="14">
+                  <tr style="{{ r.rowStyle }}" style-hover="background:#FAFBFC">
+                    <td style="padding:0 0 0 12px"><input type="checkbox" checked="{{ r.checked }}" onChange="{{ r.toggle }}" style="accent-color:#1677FF;width:13px;height:13px"></td>
+                    <td style="padding:{{ pad }} 12px;white-space:nowrap">
+                      <span style="display:inline-flex;align-items:center;gap:6px">
+                        <span onClick="{{ goAssetDetail }}" style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#1677FF;cursor:pointer">{{ r.code }}</span>
+                        <span onClick="{{ r.copyCode }}" title="Copy" style="font-size:10px;color:#94A3B8;cursor:pointer;border:1px solid #E9EDF2;border-radius:3px;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center" style-hover="color:#1677FF;border-color:#BBD9FF">⧉</span>
+                      </span>
+                    </td>
+                    <td style="padding:{{ pad }} 12px;white-space:nowrap">
+                      <span style="display:inline-flex;align-items:center;gap:6px">
+                        <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#595959">{{ r.serial }}</span>
+                        <span onClick="{{ r.copySerial }}" title="Copy" style="font-size:10px;color:#94A3B8;cursor:pointer;border:1px solid #E9EDF2;border-radius:3px;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center" style-hover="color:#1677FF;border-color:#BBD9FF">⧉</span>
+                      </span>
+                    </td>
+                    <td style="padding:{{ pad }} 12px;font-size:12.5px;color:#595959;white-space:nowrap">{{ r.category }}</td>
+                    <td style="padding:{{ pad }} 12px;font-size:12.5px;white-space:nowrap">{{ r.model }}</td>
+                    <td style="padding:{{ pad }} 12px;white-space:nowrap">
+                      <span style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:500;color:{{ r.st.color }};background:{{ r.st.bg }};border:1px solid {{ r.st.border }};border-radius:4px;padding:1px 7px">
+                        <span style="font-size:8px">{{ r.st.glyph }}</span>{{ r.st.label }}
+                      </span>
+                    </td>
+                    <td style="padding:{{ pad }} 12px;font-size:12.5px;white-space:nowrap">{{ r.person }}</td>
+                    <td style="padding:{{ pad }} 12px;font-size:12.5px;color:#595959;white-space:nowrap">{{ r.loc }}</td>
+                    <td style="padding:{{ pad }} 12px;font-size:12px;font-family:'JetBrains Mono',monospace;color:#595959;white-space:nowrap">{{ r.warranty }}</td>
+                    <td style="padding:{{ pad }} 12px;text-align:center"><span onClick="{{ r.expand }}" style="font-size:9px;color:#94A3B8;cursor:pointer">{{ r.caret }}</span></td>
+                  </tr>
+                  <sc-if value="{{ r.open }}" hint-placeholder-val="{{ false }}">
+                    <tr style="background:#FAFBFC;border-bottom:1px solid #EDF1F6">
+                      <td colspan="10" style="padding:14px 46px">
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px 24px">
+                          <sc-for list="{{ r.detail }}" as="d" hint-placeholder-count="6">
+                            <div>
+                              <div style="font-size:10.5px;color:#64748B;text-transform:uppercase;letter-spacing:0.05em;font-family:'JetBrains Mono',monospace">{{ d.k }}</div>
+                              <div style="font-size:12.5px;margin-top:3px">{{ d.v }}</div>
+                            </div>
+                          </sc-for>
+                        </div>
+                        <div style="display:flex;gap:8px;margin-top:14px">
+                          <button onClick="{{ goAssetDetail }}" style="height:27px;border:1px solid #E4E9F0;background:#fff;border-radius:5px;font-size:11.5px;padding:0 10px;cursor:pointer">Open full record</button>
+                          <button onClick="{{ openAssign }}" style="height:27px;border:1px solid #E4E9F0;background:#fff;border-radius:5px;font-size:11.5px;padding:0 10px;cursor:pointer">Transfer</button>
+                          <button style="height:27px;border:1px solid #E4E9F0;background:#fff;border-radius:5px;font-size:11.5px;padding:0 10px;cursor:pointer">Log repair</button>
+                        </div>
+                      </td>
+                    </tr>
+                  </sc-if>
+                </sc-for>
+              </sc-if>
+            </tbody>
+          </table>
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-top:1px solid #F1F4F8;background:#FAFBFC;flex-wrap:wrap;gap:8px">
+            <div style="font-size:11.5px;color:#64748B">Showing <span style="font-family:'JetBrains Mono',monospace;color:#1F1F1F">1–14</span> of <span style="font-family:'JetBrains Mono',monospace;color:#1F1F1F">1,250</span></div>
+            <div style="display:flex;align-items:center;gap:4px">
+              <div style="height:26px;min-width:26px;border:1px solid #E4E9F0;border-radius:5px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:11.5px;color:#94A3B8;padding:0 7px">‹</div>
+              <sc-for list="{{ pages }}" as="p" hint-placeholder-count="5"><div style="{{ p.style }}">{{ p.n }}</div></sc-for>
+              <div style="height:26px;min-width:26px;border:1px solid #E4E9F0;border-radius:5px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:11.5px;padding:0 7px;cursor:pointer">›</div>
+              <div style="height:26px;border:1px solid #E4E9F0;border-radius:5px;background:#fff;display:flex;align-items:center;padding:0 8px;font-size:11.5px;color:#595959;margin-left:6px;cursor:pointer">50 / page ▾</div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isDetail }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ goAssets }}" style="font-size:11.5px;color:#1677FF;cursor:pointer;margin-bottom:10px">← Back to assets</div>
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+          <div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <div style="font-size:24px;font-weight:600;letter-spacing:-0.02em;font-family:'JetBrains Mono',monospace">NV-LAP-0428</div>
+              <span style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:500;color:#15803D;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:4px;padding:2px 8px"><span style="font-size:8px">●</span>Assigned</span>
+            </div>
+            <div style="font-size:12.5px;color:#595959;margin-top:4px">Dell Latitude 5440 · i7-1355U / 16 GB / 512 GB · Pune HQ, Floor 3</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button style="height:30px;border:1px solid #E4E9F0;background:#fff;border-radius:6px;font-size:12px;padding:0 11px;cursor:pointer" style-hover="background:#F6F8FA">Log repair</button>
+            <button style="height:30px;border:1px solid #E4E9F0;background:#fff;border-radius:6px;font-size:12px;padding:0 11px;cursor:pointer" style-hover="background:#F6F8FA">Print label</button>
+            <button onClick="{{ openAssign }}" style="height:30px;border:none;border-radius:6px;background:#1677FF;color:#fff;font-size:12px;font-weight:500;padding:0 12px;cursor:pointer" style-hover="background:#0958D9">Transfer</button>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:minmax(0,2fr) minmax(260px,1fr);gap:12px;align-items:start">
+          <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+            <div style="background:#fff;border:1px solid #E9EDF2;border-radius:8px">
+              <div style="padding:11px 14px;border-bottom:1px solid #F1F4F8;font-size:12.5px;font-weight:600">Asset information</div>
+              <div style="padding:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px 20px">
+                <sc-for list="{{ assetInfo }}" as="i" hint-placeholder-count="10">
+                  <div>
+                    <div style="font-size:10.5px;color:#64748B;text-transform:uppercase;letter-spacing:0.05em;font-family:'JetBrains Mono',monospace">{{ i.k }}</div>
+                    <div style="font-size:12.5px;margin-top:3px;display:flex;align-items:center;gap:6px">{{ i.v }}<sc-if value="{{ i.copy }}" hint-placeholder-val="{{ false }}"><span style="font-size:10px;color:#94A3B8;cursor:pointer;border:1px solid #E9EDF2;border-radius:3px;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center">⧉</span></sc-if></div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="background:#fff;border:1px solid #E9EDF2;border-radius:8px">
+              <div style="padding:11px 14px;border-bottom:1px solid #F1F4F8;display:flex;align-items:center">
+                <div style="font-size:12.5px;font-weight:600">History</div>
+                <div style="font-size:11.5px;color:#64748B;margin-left:8px">7 events</div>
+                <div style="flex:1"></div>
+                <div style="font-size:11.5px;color:#1677FF;cursor:pointer">Export audit trail</div>
+              </div>
+              <div style="padding:16px 14px">
+                <sc-for list="{{ history }}" as="h" hint-placeholder-count="7">
+                  <div style="display:flex;gap:12px">
+                    <div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto">
+                      <div style="width:9px;height:9px;border-radius:50%;background:{{ h.color }};border:2px solid #fff;box-shadow:0 0 0 1.5px {{ h.color }};margin-top:4px"></div>
+                      <div style="width:1px;flex:1;background:#EDF1F6;min-height:26px"></div>
+                    </div>
+                    <div style="padding-bottom:16px;min-width:0">
+                      <div style="font-size:12.5px;font-weight:500">{{ h.title }}</div>
+                      <div style="font-size:12px;color:#595959;line-height:1.5;margin-top:2px">{{ h.body }}</div>
+                      <div style="font-size:10.5px;color:#94A3B8;font-family:'JetBrains Mono',monospace;margin-top:4px">{{ h.meta }}</div>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+            <div style="background:#fff;border:1px solid #E9EDF2;border-radius:8px;padding:14px">
+              <div style="font-size:12.5px;font-weight:600;margin-bottom:12px">Current assignment</div>
+              <div style="display:flex;gap:10px;align-items:center">
+                <div style="width:36px;height:36px;border-radius:50%;background:#EEF2F7;border:1px solid #E4E9F0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#475569">RK</div>
+                <div style="min-width:0">
+                  <div onClick="{{ goEmployee }}" style="font-size:13px;font-weight:500;color:#1677FF;cursor:pointer">Rahul Kulkarni</div>
+                  <div style="font-size:11.5px;color:#595959">Senior Engineer · Delivery</div>
+                </div>
+              </div>
+              <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
+                <div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:#64748B">Employee ID</span><span style="font-family:'JetBrains Mono',monospace">NVS-2291</span></div>
+                <div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:#64748B">Assigned on</span><span style="font-family:'JetBrains Mono',monospace">2025-03-11</span></div>
+                <div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:#64748B">Acknowledged</span><span style="color:#15803D">Yes</span></div>
+              </div>
+              <div style="margin-top:12px;padding-top:12px;border-top:1px solid #F1F4F8">
+                <div style="font-size:11px;color:#64748B;margin-bottom:7px;font-family:'JetBrains Mono',monospace;letter-spacing:0.05em">ISSUED WITH</div>
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <sc-for list="{{ issuedWith }}" as="a" hint-placeholder-count="3">
+                    <div style="display:flex;justify-content:space-between;font-size:12px"><span>{{ a.name }}</span><span style="font-family:'JetBrains Mono',monospace;color:#64748B">{{ a.code }}</span></div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+
+            <div style="background:#fff;border:1px solid #E9EDF2;border-radius:8px;padding:14px;display:flex;flex-direction:column;align-items:center;gap:10px">
+              <div style="font-size:12.5px;font-weight:600;align-self:flex-start">Asset QR</div>
+              <svg viewBox="0 0 25 25" width="148" height="148" style="border:1px solid #EDF1F6;border-radius:6px;padding:6px;background:#fff">
+                <path d="{{ qrPath }}" fill="#1F1F1F"></path>
+              </svg>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#64748B">NV-LAP-0428</div>
+              <button style="height:28px;width:100%;border:1px solid #E4E9F0;background:#fff;border-radius:6px;font-size:11.5px;cursor:pointer" style-hover="background:#F6F8FA">Download label (PDF)</button>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isEmployee }}" hint-placeholder-val="{{ false }}">
+        <div style="background:#fff;border:1px solid #E9EDF2;border-radius:8px;padding:16px;margin-bottom:12px">
+          <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+            <div style="width:48px;height:48px;border-radius:50%;background:#EEF2F7;border:1px solid #E4E9F0;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;color:#475569">RK</div>
+            <div style="min-width:0;flex:1">
+              <div style="font-size:20px;font-weight:600;letter-spacing:-0.015em">Rahul Kulkarni</div>
+              <div style="font-size:12.5px;color:#595959;margin-top:2px">Senior Engineer · Delivery · Pune HQ</div>
+              <div style="display:flex;gap:18px;margin-top:10px;flex-wrap:wrap">
+                <sc-for list="{{ empMeta }}" as="m" hint-placeholder-count="4">
+                  <div><div style="font-size:10.5px;color:#64748B;font-family:'JetBrains Mono',monospace;letter-spacing:0.05em">{{ m.k }}</div><div style="font-size:12.5px;margin-top:2px">{{ m.v }}</div></div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button style="height:30px;border:1px solid #E4E9F0;background:#fff;border-radius:6px;font-size:12px;padding:0 11px;cursor:pointer" style-hover="background:#F6F8FA">Email</button>
+              <button onClick="{{ openAssign }}" style="height:30px;border:none;border-radius:6px;background:#1677FF;color:#fff;font-size:12px;font-weight:500;padding:0 12px;cursor:pointer" style-hover="background:#0958D9">Assign asset</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:#fff;border:1px solid #E9EDF2;border-radius:8px;overflow:hidden">
+          <div style="display:flex;gap:2px;padding:0 12px;border-bottom:1px solid #F1F4F8">
+            <sc-for list="{{ empTabs }}" as="t" hint-placeholder-count="4">
+              <div onClick="{{ t.go }}" style="{{ t.style }}">{{ t.label }}<sc-if value="{{ t.count }}" hint-placeholder-val="{{ false }}"><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#64748B;background:#F1F5F9;border-radius:4px;padding:1px 5px;margin-left:6px">{{ t.count }}</span></sc-if></div>
+            </sc-for>
+          </div>
+
+          <sc-if value="{{ tabAssets }}" hint-placeholder-val="{{ true }}">
+            <table style="width:100%;border-collapse:collapse">
+              <thead><tr style="background:#FAFBFC">
+                <th style="text-align:left;font-size:11px;font-weight:600;color:#64748B;padding:7px 14px;border-bottom:1px solid #F1F4F8">Asset code</th>
+                <th style="text-align:left;font-size:11px;font-weight:600;color:#64748B;padding:7px 14px;border-bottom:1px solid #F1F4F8">Category</th>
+                <th style="text-align:left;font-size:11px;font-weight:600;color:#64748B;padding:7px 14px;border-bottom:1px solid #F1F4F8">Model</th>
+                <th style="text-align:left;font-size:11px;font-weight:600;color:#64748B;padding:7px 14px;border-bottom:1px solid #F1F4F8">Status</th>
+                <th style="text-align:left;font-size:11px;font-weight:600;color:#64748B;padding:7px 14px;border-bottom:1px solid #F1F4F8">Assigned on</th>
+              </tr></thead>
+              <tbody>
+                <sc-for list="{{ empAssets }}" as="r" hint-placeholder-count="3">
+                  <tr style="border-bottom:1px solid #F5F7FA" style-hover="background:#FAFBFC">
+                    <td style="padding:{{ pad }} 14px"><span style="display:inline-flex;align-items:center;gap:6px"><span onClick="{{ goAssetDetail }}" style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#1677FF;cursor:pointer">{{ r.code }}</span><span style="font-size:10px;color:#94A3B8;cursor:pointer;border:1px solid #E9EDF2;border-radius:3px;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center">⧉</span></span></td>
+                    <td style="padding:{{ pad }} 14px;font-size:12.5px;color:#595959">{{ r.category }}</td>
+                    <td style="padding:{{ pad }} 14px;font-size:12.5px">{{ r.model }}</td>
+                    <td style="padding:{{ pad }} 14px"><span style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:500;color:{{ r.st.color }};background:{{ r.st.bg }};border:1px solid {{ r.st.border }};border-radius:4px;padding:1px 7px"><span style="font-size:8px">{{ r.st.glyph }}</span>{{ r.st.label }}</span></td>
+                    <td style="padding:{{ pad }} 14px;font-size:12px;font-family:'JetBrains Mono',monospace;color:#595959">{{ r.date }}</td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </sc-if>
+
+          <sc-if value="{{ tabAcc }}" hint-placeholder-val="{{ false }}">
+            <table style="width:100%;border-collapse:collapse">
+              <thead><tr style="background:#FAFBFC">
+                <th style="text-align:left;font-size:11px;font-weight:600;color:#64748B;padding:7px 14px;border-bottom:1px solid #F1F4F8">Item</th>
+                <th style="text-align:left;font-size:11px;font-weight:600;color:#64748B;padding:7px 14px;border-bottom:1px solid #F1F4F8">Type</th>
+                <th style="text-align:left;font-size:11px;font-weight:600;color:#64748B;padding:7px 14px;border-bottom:1px solid #F1F4F8">Qty</th>
+                <th style="text-align:left;font-size:11px;font-weight:600;color:#64748B;padding:7px 14px;border-bottom:1px solid #F1F4F8">Issued</th>
+                <th style="text-align:left;font-size:11px;font-weight:600;color:#64748B;padding:7px 14px;border-bottom:1px solid #F1F4F8">Returnable</th>
+              </tr></thead>
+              <tbody>
+                <sc-for list="{{ empAcc }}" as="r" hint-placeholder-count="4">
+                  <tr style="border-bottom:1px solid #F5F7FA" style-hover="background:#FAFBFC">
+                    <td style="padding:{{ pad }} 14px;font-size:12.5px">{{ r.name }}</td>
+                    <td style="padding:{{ pad }} 14px;font-size:12.5px;color:#595959">{{ r.type }}</td>
+                    <td style="padding:{{ pad }} 14px;font-size:12px;font-family:'JetBrains Mono',monospace">{{ r.qty }}</td>
+                    <td style="padding:{{ pad }} 14px;font-size:12px;font-family:'JetBrains Mono',monospace;color:#595959">{{ r.date }}</td>
+                    <td style="padding:{{ pad }} 14px;font-size:12.5px;color:#595959">{{ r.ret }}</td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </sc-if>
+
+          <sc-if value="{{ tabHist }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:16px 14px">
+              <sc-for list="{{ empHistory }}" as="h" hint-placeholder-count="6">
+                <div style="display:flex;gap:12px">
+                  <div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto">
+                    <div style="width:9px;height:9px;border-radius:50%;background:{{ h.color }};border:2px solid #fff;box-shadow:0 0 0 1.5px {{ h.color }};margin-top:4px"></div>
+                    <div style="width:1px;flex:1;background:#EDF1F6;min-height:24px"></div>
+                  </div>
+                  <div style="padding-bottom:16px;min-width:0">
+                    <div style="font-size:12.5px;font-weight:500">{{ h.title }}</div>
+                    <div style="font-size:12px;color:#595959;line-height:1.5;margin-top:2px">{{ h.body }}</div>
+                    <div style="font-size:10.5px;color:#94A3B8;font-family:'JetBrains Mono',monospace;margin-top:4px">{{ h.meta }}</div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ tabReq }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:56px 20px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px">
+              <div style="width:38px;height:38px;border-radius:8px;border:1px solid #E9EDF2;background:#FAFBFC;display:flex;align-items:center;justify-content:center;color:#94A3B8;font-size:15px">◇</div>
+              <div style="font-size:13px;font-weight:500;margin-top:4px">No open requests</div>
+              <div style="font-size:12px;color:#595959;max-width:320px;line-height:1.5">Rahul has no pending hardware or accessory requests. Raise one on his behalf if he reported an issue over a call.</div>
+              <button style="height:30px;border:1px solid #E4E9F0;background:#fff;border-radius:6px;font-size:12px;padding:0 12px;cursor:pointer;margin-top:6px" style-hover="background:#F6F8FA">Raise a request</button>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isMaint }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:14px;flex-wrap:wrap">
+          <div>
+            <div style="font-size:24px;font-weight:600;letter-spacing:-0.02em">Maintenance queue</div>
+            <div style="font-size:12.5px;color:#595959;margin-top:3px">18 open tickets · 3 overdue</div>
+          </div>
+          <button style="height:30px;border:none;border-radius:6px;background:#1677FF;color:#fff;font-size:12px;font-weight:500;padding:0 12px;cursor:pointer" style-hover="background:#0958D9">New ticket</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <sc-for list="{{ maintTabs }}" as="t" hint-placeholder-count="5"><div style="{{ t.style }}">{{ t.label }} <span style="font-family:'JetBrains Mono',monospace;color:#64748B">{{ t.count }}</span></div></sc-for>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <sc-for list="{{ tickets }}" as="t" hint-placeholder-count="6">
+            <div style="background:#fff;border:1px solid #E9EDF2;border-radius:8px;padding:12px 14px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;cursor:pointer" style-hover="border-color:#C9D3DF">
+              <div style="min-width:190px;flex:1">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#64748B">{{ t.id }}</span>
+                  <span style="font-size:12.5px;font-weight:500">{{ t.title }}</span>
+                </div>
+                <div style="font-size:11.5px;color:#595959;margin-top:3px">{{ t.sub }}</div>
+              </div>
+              <span style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:500;color:{{ t.st.color }};background:{{ t.st.bg }};border:1px solid {{ t.st.border }};border-radius:4px;padding:2px 8px"><span style="font-size:8px">{{ t.st.glyph }}</span>{{ t.st.label }}</span>
+              <div style="width:130px"><div style="font-size:10.5px;color:#64748B;font-family:'JetBrains Mono',monospace">VENDOR</div><div style="font-size:12px;margin-top:2px">{{ t.vendor }}</div></div>
+              <div style="width:88px"><div style="font-size:10.5px;color:#64748B;font-family:'JetBrains Mono',monospace">COST</div><div style="font-size:12px;margin-top:2px;font-family:'JetBrains Mono',monospace">{{ t.cost }}</div></div>
+              <div style="width:100px"><div style="font-size:10.5px;color:#64748B;font-family:'JetBrains Mono',monospace">UPDATED</div><div style="font-size:12px;margin-top:2px;font-family:'JetBrains Mono',monospace;color:#595959">{{ t.updated }}</div></div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isAcc }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:14px;flex-wrap:wrap">
+          <div>
+            <div style="font-size:24px;font-weight:600;letter-spacing:-0.02em">Accessories &amp; consumables</div>
+            <div style="font-size:12.5px;color:#595959;margin-top:3px">Stock held across three store rooms</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button style="height:30px;border:1px solid #E4E9F0;background:#fff;border-radius:6px;font-size:12px;padding:0 11px;cursor:pointer" style-hover="background:#F6F8FA">Record intake</button>
+            <button style="height:30px;border:none;border-radius:6px;background:#1677FF;color:#fff;font-size:12px;font-weight:500;padding:0 12px;cursor:pointer" style-hover="background:#0958D9">Issue item</button>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:9px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:10px 13px;margin-bottom:12px">
+          <span style="color:#D97706;font-size:10px">▲</span>
+          <div style="font-size:12.5px;color:#1F1F1F">3 items are below their reorder threshold.</div>
+          <div style="flex:1"></div>
+          <div style="font-size:11.5px;color:#B45309;cursor:pointer;font-weight:500">Create purchase request →</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px">
+          <sc-for list="{{ accessories }}" as="a" hint-placeholder-count="8">
+            <div style="background:#fff;border:1px solid {{ a.border }};border-radius:8px;padding:13px 14px">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+                <div style="min-width:0">
+                  <div style="font-size:13px;font-weight:500">{{ a.name }}</div>
+                  <div style="font-size:11.5px;color:#64748B;margin-top:2px">{{ a.type }} · {{ a.loc }}</div>
+                </div>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:19px;font-weight:600;color:{{ a.countColor }};font-variant-numeric:tabular-nums">{{ a.count }}</span>
+              </div>
+              <div style="height:4px;border-radius:2px;background:#F1F4F8;margin-top:11px;overflow:hidden"><div style="height:100%;width:{{ a.pct }}%;background:{{ a.barColor }}"></div></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">
+                <span style="font-size:11px;color:{{ a.noteColor }};display:inline-flex;align-items:center;gap:5px"><span style="font-size:8px">{{ a.glyph }}</span>{{ a.note }}</span>
+                <span style="font-size:11.5px;color:#1677FF;cursor:pointer">Issue</span>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isReports }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-bottom:14px">
+          <div style="font-size:24px;font-weight:600;letter-spacing:-0.02em">Reports</div>
+          <div style="font-size:12.5px;color:#595959;margin-top:3px">Exports respect the filters currently applied on each source page.</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:9px;background:#F0F7FF;border:1px solid #D6E8FF;border-radius:8px;padding:10px 13px;margin-bottom:12px">
+          <span style="color:#1677FF;font-size:10px">●</span>
+          <div style="font-size:12.5px">Active filters: <span style="font-weight:500">Location — Pune</span>, <span style="font-weight:500">Category — Laptops</span></div>
+          <div style="flex:1"></div>
+          <div style="font-size:11.5px;color:#0958D9;cursor:pointer">Reset to all records</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">
+          <sc-for list="{{ reports }}" as="r" hint-placeholder-count="5">
+            <div style="background:#fff;border:1px solid #E9EDF2;border-radius:8px;padding:15px">
+              <div style="font-size:13px;font-weight:600">{{ r.name }}</div>
+              <div style="font-size:12px;color:#595959;line-height:1.5;margin-top:4px;min-height:36px">{{ r.desc }}</div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:10px;font-size:11px;color:#64748B;font-family:'JetBrains Mono',monospace">{{ r.meta }}</div>
+              <div style="display:flex;gap:8px;margin-top:13px">
+                <button style="height:28px;border:1px solid #E4E9F0;background:#fff;border-radius:6px;font-size:11.5px;padding:0 11px;cursor:pointer;flex:1" style-hover="background:#F6F8FA">Export CSV</button>
+                <button style="height:28px;border:1px solid #E4E9F0;background:#fff;border-radius:6px;font-size:11.5px;padding:0 11px;cursor:pointer;flex:1" style-hover="background:#F6F8FA">Export PDF</button>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isHelp }}" hint-placeholder-val="{{ false }}">
+        <div style="display:grid;grid-template-columns:200px minmax(0,1fr);gap:16px;align-items:start">
+          <div style="background:#fff;border:1px solid #E9EDF2;border-radius:8px;padding:12px;position:sticky;top:72px">
+            <div style="display:flex;align-items:center;gap:7px;height:28px;border:1px solid #E4E9F0;border-radius:6px;background:#FAFBFC;padding:0 9px;margin-bottom:12px">
+              <span style="color:#94A3B8;font-size:11px">⌕</span>
+              <input placeholder="Search docs" style="border:none;background:transparent;outline:none;font-size:11.5px;flex:1;min-width:0">
+            </div>
+            <sc-for list="{{ docNav }}" as="g" hint-placeholder-count="4">
+              <div style="margin-bottom:12px">
+                <div style="font-size:10px;font-family:'JetBrains Mono',monospace;letter-spacing:0.07em;color:#94A3B8;margin-bottom:5px">{{ g.group }}</div>
+                <sc-for list="{{ g.items }}" as="i" hint-placeholder-count="4">
+                  <div onClick="{{ i.go }}" style="{{ i.style }}">{{ i.label }}</div>
+                </sc-for>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="min-width:0">
+            <sc-if value="{{ docLanding }}" hint-placeholder-val="{{ true }}">
+              <div style="margin-bottom:16px">
+                <div style="font-size:24px;font-weight:600;letter-spacing:-0.02em">Help &amp; documentation</div>
+                <div style="font-size:12.5px;color:#595959;margin-top:3px">Everything the IT team needs to run NewVision asset operations.</div>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px">
+                <sc-for list="{{ helpCards }}" as="c" hint-placeholder-count="6">
+                  <div onClick="{{ goArticle }}" style="background:#fff;border:1px solid #E9EDF2;border-radius:8px;padding:15px;cursor:pointer" style-hover="border-color:#C9D3DF;box-shadow:0 2px 6px rgba(16,24,40,0.05)">
+                    <div style="font-size:13px;font-weight:600">{{ c.title }}</div>
+                    <div style="font-size:12px;color:#595959;line-height:1.5;margin-top:4px">{{ c.desc }}</div>
+                    <div style="font-size:11px;color:#64748B;font-family:'JetBrains Mono',monospace;margin-top:9px">{{ c.count }} articles</div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ docArticle }}" hint-placeholder-val="{{ false }}">
+              <div onClick="{{ goHelp }}" style="font-size:11.5px;color:#1677FF;cursor:pointer;margin-bottom:10px">← Help centre</div>
+              <div style="background:#fff;border:1px solid #E9EDF2;border-radius:8px;padding:24px 26px;max-width:760px">
+                <div style="font-size:11px;font-family:'JetBrains Mono',monospace;letter-spacing:0.07em;color:#64748B">ASSIGNING ASSETS</div>
+                <div style="font-size:22px;font-weight:600;letter-spacing:-0.02em;margin-top:6px">Assign a laptop and issue accessories together</div>
+                <div style="font-size:11.5px;color:#94A3B8;font-family:'JetBrains Mono',monospace;margin-top:6px">Updated 2026-08-21 · 3 min read</div>
+                <div style="font-size:13.5px;color:#1F1F1F;line-height:1.65;margin-top:18px">A single assignment action can cover the machine and everything issued with it, so the employee's record shows one event rather than four. Use this flow whenever hardware leaves the store room.</div>
+
+                <div style="font-size:14px;font-weight:600;margin-top:22px;margin-bottom:8px">Steps</div>
+                <div style="display:flex;flex-direction:column;gap:10px">
+                  <sc-for list="{{ steps }}" as="s" hint-placeholder-count="4">
+                    <div style="display:flex;gap:11px">
+                      <div style="width:19px;height:19px;border-radius:50%;background:#1677FF;color:#fff;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:0 0 auto;margin-top:1px">{{ s.n }}</div>
+                      <div style="font-size:13.5px;line-height:1.6;color:#1F1F1F">{{ s.text }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+
+                <div style="font-size:14px;font-weight:600;margin-top:24px;margin-bottom:8px">The assignment modal, annotated</div>
+                <div style="border:1px solid #E9EDF2;border-radius:8px;overflow:hidden;background:#FAFBFC">
+                  <svg viewBox="0 0 640 300" style="width:100%;height:auto;display:block">
+                    <defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#F4F6F9"></rect><rect width="2" height="6" fill="#EAEEF3"></rect></pattern></defs>
+                    <rect width="640" height="300" fill="url(#hatch)"></rect>
+                    <rect x="90" y="26" width="460" height="248" rx="8" fill="#FFFFFF" stroke="#E4E9F0"></rect>
+                    <rect x="90" y="26" width="460" height="38" rx="8" fill="#FFFFFF" stroke="#F1F4F8"></rect>
+                    <rect x="106" y="40" width="130" height="9" rx="4" fill="#D9DEE5"></rect>
+                    <rect x="106" y="82" width="200" height="7" rx="3" fill="#E6EAEF"></rect>
+                    <rect x="106" y="96" width="428" height="28" rx="5" fill="#FAFBFC" stroke="#E4E9F0"></rect>
+                    <rect x="106" y="138" width="120" height="7" rx="3" fill="#E6EAEF"></rect>
+                    <rect x="106" y="152" width="428" height="28" rx="5" fill="#FAFBFC" stroke="#E4E9F0"></rect>
+                    <rect x="106" y="196" width="428" height="40" rx="5" fill="#F7FAFF" stroke="#D6E8FF"></rect>
+                    <rect x="118" y="211" width="10" height="10" rx="2" fill="#1677FF"></rect>
+                    <rect x="136" y="212" width="150" height="8" rx="4" fill="#C9D9EE"></rect>
+                    <rect x="452" y="248" width="82" height="24" rx="5" fill="#1677FF"></rect>
+                    <rect x="360" y="248" width="80" height="24" rx="5" fill="#FFFFFF" stroke="#E4E9F0"></rect>
+                    <sc-for list="{{ callouts }}" as="c" hint-placeholder-count="4">
+                      <g>
+                        <circle cx="{{ c.x }}" cy="{{ c.y }}" r="11" fill="#1677FF"></circle>
+                        <text x="{{ c.x }}" y="{{ c.ty }}" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#FFFFFF">{{ c.n }}</text>
+                      </g>
+                    </sc-for>
+                  </svg>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:7px;margin-top:12px">
+                  <sc-for list="{{ callouts }}" as="c" hint-placeholder-count="4">
+                    <div style="display:flex;gap:9px;align-items:flex-start">
+                      <span style="width:17px;height:17px;border-radius:50%;background:#1677FF;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 auto;margin-top:2px">{{ c.n }}</span>
+                      <span style="font-size:13px;line-height:1.55">{{ c.text }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+
+                <div style="margin-top:24px;padding:13px 15px;border:1px solid #FDE68A;background:#FFFBEB;border-radius:8px;display:flex;gap:10px">
+                  <span style="color:#D97706;font-size:10px;margin-top:3px">▲</span>
+                  <div style="font-size:13px;line-height:1.55">Consumables such as cables and batteries are deducted from stock and never come back. Issue them from the Accessories page, not from an assignment, if the employee already holds the laptop.</div>
+                </div>
+
+                <div style="margin-top:24px;padding-top:16px;border-top:1px solid #F1F4F8;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                  <span style="font-size:12.5px;color:#595959">Was this helpful?</span>
+                  <button style="height:28px;border:1px solid #E4E9F0;background:#fff;border-radius:6px;font-size:11.5px;padding:0 12px;cursor:pointer">Yes</button>
+                  <button style="height:28px;border:1px solid #E4E9F0;background:#fff;border-radius:6px;font-size:11.5px;padding:0 12px;cursor:pointer">No</button>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+      </sc-if>
+
+    </div>
+  </main>
+
+  <sc-if value="{{ showHelpLauncher }}" hint-placeholder-val="{{ true }}">
+    <div onClick="{{ goHelp }}" title="Help" style="position:fixed;right:20px;bottom:20px;width:40px;height:40px;border-radius:50%;background:#1F1F1F;color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(16,24,40,0.18);z-index:80" style-hover="background:#000000">?</div>
+  </sc-if>
+
+  <sc-if value="{{ modalOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;background:rgba(15,23,42,0.32);z-index:100;display:flex;align-items:flex-start;justify-content:center;padding:60px 20px;overflow:auto">
+      <div style="width:100%;max-width:520px;background:#fff;border:1px solid #E4E9F0;border-radius:10px;box-shadow:0 12px 32px rgba(16,24,40,0.16)">
+        <div style="display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid #F1F4F8">
+          <div style="font-size:14px;font-weight:600">Assign / transfer asset</div>
+          <div style="flex:1"></div>
+          <div onClick="{{ closeModal }}" style="font-size:14px;color:#94A3B8;cursor:pointer;line-height:1">✕</div>
+        </div>
+        <div style="padding:18px;display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;align-items:center;gap:10px;background:#FAFBFC;border:1px solid #EDF1F6;border-radius:6px;padding:10px 12px">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#1677FF">NV-LAP-0428</span>
+            <span style="font-size:12.5px;color:#595959">Dell Latitude 5440</span>
+            <div style="flex:1"></div>
+            <span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:500;color:#15803D;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:4px;padding:1px 7px"><span style="font-size:8px">●</span>Assigned</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <label style="font-size:12px;font-weight:500">Action</label>
+              <div style="display:flex;border:1px solid #E4E9F0;border-radius:6px;overflow:hidden">
+                <div style="flex:1;text-align:center;font-size:12px;padding:7px 0;background:#1677FF;color:#fff;cursor:pointer">Transfer</div>
+                <div style="flex:1;text-align:center;font-size:12px;padding:7px 0;background:#fff;cursor:pointer;color:#595959">Return to stock</div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <label style="font-size:12px;font-weight:500">Effective date</label>
+              <input value="2026-09-10" style="height:34px;border:1px solid #D9DEE5;border-radius:6px;padding:0 10px;font-size:12.5px;font-family:'JetBrains Mono',monospace;outline:none" style-focus="border-color:#1677FF;box-shadow:0 0 0 3px rgba(22,119,255,0.12)">
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <label style="font-size:12px;font-weight:500">Assign to</label>
+            <input value="Priya Nair — NVS-3117 · QA Lead · Hyderabad" style="height:34px;border:1px solid #D9DEE5;border-radius:6px;padding:0 10px;font-size:12.5px;outline:none" style-focus="border-color:#1677FF;box-shadow:0 0 0 3px rgba(22,119,255,0.12)">
+            <div style="font-size:11.5px;color:#64748B">Location will update to Hyderabad automatically.</div>
+          </div>
+          <div style="border:1px solid #EDF1F6;border-radius:6px">
+            <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #F5F7FA;background:#FAFBFC">
+              <input type="checkbox" checked style="accent-color:#1677FF;width:13px;height:13px">
+              <span style="font-size:12.5px;font-weight:500">Also issue accessories with this asset</span>
+            </div>
+            <div style="padding:6px 12px 10px">
+              <sc-for list="{{ modalAcc }}" as="m" hint-placeholder-count="4">
+                <div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid #F7F9FB">
+                  <input type="checkbox" checked="{{ m.on }}" style="accent-color:#1677FF;width:13px;height:13px">
+                  <span style="font-size:12.5px;flex:1">{{ m.name }}</span>
+                  <span style="font-size:11.5px;color:#64748B;font-family:'JetBrains Mono',monospace">{{ m.stock }} in stock</span>
+                  <input value="1" style="width:44px;height:26px;border:1px solid #E4E9F0;border-radius:5px;text-align:center;font-size:12px;font-family:'JetBrains Mono',monospace;outline:none">
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <label style="font-size:12px;font-weight:500">Note <span style="color:#94A3B8;font-weight:400">(optional)</span></label>
+            <textarea rows="2" placeholder="Reason for transfer, condition on handover, ticket reference…" style="border:1px solid #D9DEE5;border-radius:6px;padding:8px 10px;font-size:12.5px;outline:none;resize:vertical;font-family:inherit" style-focus="border-color:#1677FF;box-shadow:0 0 0 3px rgba(22,119,255,0.12)"></textarea>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:12px 18px;border-top:1px solid #F1F4F8;background:#FAFBFC;border-radius:0 0 10px 10px">
+          <span style="font-size:11.5px;color:#64748B">An acknowledgement email goes to Priya on save.</span>
+          <div style="flex:1"></div>
+          <button onClick="{{ closeModal }}" style="height:30px;border:1px solid #E4E9F0;background:#fff;border-radius:6px;font-size:12px;padding:0 13px;cursor:pointer">Cancel</button>
+          <button onClick="{{ closeModal }}" style="height:30px;border:none;border-radius:6px;background:#1677FF;color:#fff;font-size:12px;font-weight:500;padding:0 14px;cursor:pointer" style-hover="background:#0958D9">Confirm transfer</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1F1F1F;color:#fff;font-size:12px;padding:8px 14px;border-radius:6px;z-index:120;box-shadow:0 6px 18px rgba(16,24,40,0.2)">{{ toast }}</div>
+  </sc-if>
+</div>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;initialScreen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;dashboard&quot;,&quot;options&quot;:[&quot;login&quot;,&quot;dashboard&quot;,&quot;assets&quot;,&quot;asset&quot;,&quot;employee&quot;,&quot;maintenance&quot;,&quot;accessories&quot;,&quot;reports&quot;,&quot;help&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Demo&quot;},&quot;density&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;compact&quot;,&quot;options&quot;:[&quot;compact&quot;,&quot;comfortable&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Table&quot;},&quot;showHelpLauncher&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Chrome&quot;}}">
+const ST = {
+  assigned: { label: 'Assigned', color: '#15803D', bg: '#F0FDF4', border: '#BBF7D0', glyph: '●' },
+  available: { label: 'Available', color: '#475569', bg: '#F8FAFC', border: '#E2E8F0', glyph: '○' },
+  repair: { label: 'Under repair', color: '#B45309', bg: '#FFFBEB', border: '#FDE68A', glyph: '▲' },
+  retired: { label: 'Retired', color: '#64748B', bg: '#F5F7FA', border: '#E4E9F0', glyph: '■' },
+  lost: { label: 'Lost / damaged', color: '#B91C1C', bg: '#FEF2F2', border: '#FECACA', glyph: '✕' }
+};
+
+const RAW = [
+  ['NV-LAP-0428','5CG2419XYZ','Laptop','Dell Latitude 5440','assigned','Rahul Kulkarni','Pune','2026-11-04'],
+  ['NV-LAP-0431','5CG2419ABQ','Laptop','Dell Latitude 5440','assigned','Sneha Rao','Pune','2026-11-04'],
+  ['NV-MON-1180','CN0X7742LM','Monitor','Dell P2422H 24"','available','—','Pune','2027-02-19'],
+  ['NV-LAP-0362','JH8821TTQ2','Laptop','Lenovo ThinkPad E14','repair','Imran Sheikh','Hyderabad','2026-09-30'],
+  ['NV-LAP-0299','MP4410RRB1','Laptop','HP ProBook 450 G9','assigned','Priya Nair','Hyderabad','2026-10-12'],
+  ['NV-MON-1204','CN0X7761PP','Monitor','LG 27UP550','assigned','Vikram Joshi','Bhopal','2027-05-02'],
+  ['NV-LAP-0117','5CG1908KKD','Laptop','Dell Latitude 5420','retired','—','Pune','2025-06-30'],
+  ['NV-DSK-0044','DTX9920WWQ','Desktop','HP EliteDesk 800 G6','assigned','Anand Menon','Pune','2026-12-15'],
+  ['NV-LAP-0455','5CG2503MMN','Laptop','Dell Latitude 5450','available','—','Bhopal','2028-01-22'],
+  ['NV-MON-1092','CN0X7610JJ','Monitor','Dell P2419H','repair','—','Hyderabad','2026-09-18'],
+  ['NV-LAP-0388','JH8840QQP7','Laptop','Lenovo ThinkPad L14','assigned','Meera Iyer','Hyderabad','2026-10-28'],
+  ['NV-LAP-0203','MP4392LLC4','Laptop','HP ProBook 440 G8','lost','Karan Bhatia','Pune','2026-08-01'],
+  ['NV-DSK-0051','DTX9974PPZ','Desktop','Dell OptiPlex 7010','assigned','Ritu Sharma','Bhopal','2027-03-09'],
+  ['NV-MON-1233','CN0X7803QA','Monitor','Dell P2723DE','available','—','Pune','2027-08-14']
+];
+
+class Component extends DCLogic {
+  state = {
+    screen: this.props.initialScreen || 'dashboard',
+    dense: (this.props.density || 'compact') === 'compact',
+    notifOpen: false, modal: false, sel: {}, expanded: null,
+    loading: false, empTab: 'assets', doc: 'landing', toast: ''
+  };
+
+  go = (s) => () => this.setState({ screen: s, notifOpen: false });
+  flash = (m) => { clearTimeout(this._t); this.setState({ toast: m }); this._t = setTimeout(() => this.setState({ toast: '' }), 1600); };
+  copy = (v) => () => { try { navigator.clipboard.writeText(v); } catch (e) {} this.flash('Copied ' + v); };
+
+  navBtn(active) {
+    return 'display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:12.5px;user-select:none;' +
+      (active ? 'background:#F0F7FF;color:#0958D9;font-weight:500;' : 'color:#475569;font-weight:450;');
+  }
+
+  renderVals() {
+    const s = this.state;
+    const scr = s.screen;
+    const pad = s.dense ? '6px' : '11px';
+    const selCount = Object.values(s.sel).filter(Boolean).length;
+
+    const nav = [
+      ['dashboard', 'Dashboard', '◱', ''],
+      ['assets', 'Assets', '▤', '1250'],
+      ['employee', 'Employees', '◔', '1180'],
+      ['maintenance', 'Maintenance', '✚', '18'],
+      ['accessories', 'Accessories', '◧', ''],
+      ['reports', 'Reports', '◲', ''],
+      ['help', 'Help', '?', '']
+    ].map(([id, label, glyph, badge]) => ({
+      label, glyph, badge,
+      go: this.go(id),
+      style: this.navBtn(scr === id || (id === 'assets' && scr === 'asset') || (id === 'employee' && scr === 'employee'))
+    }));
+
+    const crumbs = { dashboard: 'Dashboard', assets: 'Assets', asset: 'Assets / NV-LAP-0428', employee: 'Employees / Rahul Kulkarni', maintenance: 'Maintenance queue', accessories: 'Accessories & consumables', reports: 'Reports', help: 'Help centre' };
+
+    const donutRaw = [
+      ['Assigned', 812, '#16A34A'], ['Available', 246, '#94A3B8'],
+      ['Under repair', 84, '#D97706'], ['Retired', 92, '#CBD5E1'], ['Lost / damaged', 16, '#DC2626']
+    ];
+    const C = 2 * Math.PI * 52, total = 1250;
+    let acc = 0;
+    const donut = donutRaw.map(([label, value, color]) => {
+      const len = (value / total) * C;
+      const seg = { label, value, color, dash: len.toFixed(1) + ' ' + (C - len).toFixed(1), offset: (-acc).toFixed(1), pctLabel: ((value / total) * 100).toFixed(1) + '%' };
+      acc += len; return seg;
+    });
+
+    const locations = [
+      { name: 'Pune HQ', total: 640, parts: [{ w: 66, color: '#16A34A' }, { w: 24, color: '#94A3B8' }, { w: 10, color: '#D97706' }] },
+      { name: 'Hyderabad', total: 402, parts: [{ w: 61, color: '#16A34A' }, { w: 28, color: '#94A3B8' }, { w: 11, color: '#D97706' }] },
+      { name: 'Bhopal', total: 208, parts: [{ w: 58, color: '#16A34A' }, { w: 35, color: '#94A3B8' }, { w: 7, color: '#D97706' }] }
+    ];
+
+    const series = [905, 940, 968, 1002, 1031, 1048, 1080, 1112, 1139, 1178, 1214, 1250];
+    const min = 880, max = 1280;
+    const pts = series.map((v, i) => [(i / 11) * 320, 130 - ((v - min) / (max - min)) * 108]);
+    const trendPoints = pts.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+    const trendArea = 'M0,130 ' + pts.map(p => 'L' + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ') + ' L320,130 Z';
+
+    const warranty = [
+      ['NV-LAP-0362', 'Lenovo ThinkPad E14', 'Imran Sheikh', 'Hyderabad', '2026-09-18', 8],
+      ['NV-MON-1092', 'Dell P2419H', 'Unassigned', 'Hyderabad', '2026-09-24', 14],
+      ['NV-LAP-0299', 'HP ProBook 450 G9', 'Priya Nair', 'Hyderabad', '2026-10-12', 32],
+      ['NV-LAP-0388', 'Lenovo ThinkPad L14', 'Meera Iyer', 'Hyderabad', '2026-10-28', 48],
+      ['NV-LAP-0428', 'Dell Latitude 5440', 'Rahul Kulkarni', 'Pune', '2026-11-04', 55]
+    ].map(([code, model, person, loc, date, days]) => ({
+      code, model, person, loc, date, days,
+      color: days <= 14 ? '#B91C1C' : days <= 45 ? '#B45309' : '#475569',
+      bg: days <= 14 ? '#FEF2F2' : days <= 45 ? '#FFFBEB' : '#F8FAFC',
+      border: days <= 14 ? '#FECACA' : days <= 45 ? '#FDE68A' : '#E2E8F0'
+    }));
+
+    const columns = [
+      ['Asset code', '▲', '#1677FF'], ['Serial no.', '⇅', '#CBD5E1'], ['Category', '⇅', '#CBD5E1'],
+      ['Model', '⇅', '#CBD5E1'], ['Status', '⇅', '#CBD5E1'], ['Assigned to', '⇅', '#CBD5E1'],
+      ['Location', '⇅', '#CBD5E1'], ['Warranty end', '⇅', '#CBD5E1']
+    ].map(([label, sortGlyph, sortColor]) => ({ label, sortGlyph, sortColor }));
+
+    const assets = RAW.map(([code, serial, category, model, st, person, loc, warrantyEnd]) => {
+      const checked = !!s.sel[code], open = s.expanded === code;
+      return {
+        code, serial, category, model, person, loc, warranty: warrantyEnd, checked, open,
+        st: ST[st],
+        caret: open ? '▼' : '▶',
+        rowStyle: 'border-bottom:1px solid #F5F7FA;cursor:default;' + (checked ? 'background:#F5FAFF;' : ''),
+        toggle: () => this.setState(p => ({ sel: Object.assign({}, p.sel, { [code]: !p.sel[code] }) })),
+        expand: () => this.setState(p => ({ expanded: p.expanded === code ? null : code })),
+        copyCode: this.copy(code),
+        copySerial: this.copy(serial),
+        detail: [
+          { k: 'PO number', v: 'PO-2024-' + code.slice(-4) },
+          { k: 'Purchase date', v: '2024-03-18' },
+          { k: 'Vendor', v: 'Redington India' },
+          { k: 'Cost', v: '₹ 78,400' },
+          { k: 'Condition', v: 'Good' },
+          { k: 'Last audited', v: '2026-07-02' }
+        ]
+      };
+    });
+
+    const pageStyle = (a) => 'height:26px;min-width:26px;border:1px solid ' + (a ? '#1677FF' : '#E4E9F0') + ';border-radius:5px;background:' + (a ? '#1677FF' : '#fff') + ';color:' + (a ? '#fff' : '#1F1F1F') + ';display:flex;align-items:center;justify-content:center;font-size:11.5px;padding:0 7px;cursor:pointer;font-family:JetBrains Mono, monospace';
+
+    const segBtn = (a) => 'height:30px;display:flex;align-items:center;padding:0 11px;font-size:12px;cursor:pointer;' + (a ? 'background:#1677FF;color:#fff;font-weight:500;' : 'background:#fff;color:#595959;');
+
+    const tabStyle = (a) => 'padding:10px 12px;font-size:12.5px;cursor:pointer;border-bottom:2px solid ' + (a ? '#1677FF' : 'transparent') + ';color:' + (a ? '#1F1F1F' : '#64748B') + ';font-weight:' + (a ? '500' : '450') + ';display:flex;align-items:center';
+
+    const empTabs = [
+      ['assets', 'Assigned assets', '3'], ['acc', 'Accessories & consumables', '4'],
+      ['hist', 'History', ''], ['req', 'Requests', '']
+    ].map(([id, label, count]) => ({ label, count, go: () => this.setState({ empTab: id }), style: tabStyle(s.empTab === id) }));
+
+    const chipStyle = (a) => 'height:28px;display:flex;align-items:center;gap:6px;padding:0 11px;border-radius:6px;font-size:12px;cursor:pointer;border:1px solid ' + (a ? '#BBD9FF' : '#E4E9F0') + ';background:' + (a ? '#F0F7FF' : '#fff') + ';color:' + (a ? '#0958D9' : '#475569');
+
+    const docItemStyle = (a) => 'font-size:12px;padding:5px 8px;border-radius:5px;cursor:pointer;' + (a ? 'background:#F0F7FF;color:#0958D9;font-weight:500;' : 'color:#475569;');
+
+    // QR-style deterministic pattern, drawn as one path
+    let seed = 20260910, d = '';
+    const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+    const finder = (ox, oy) => { for (let y = 0; y < 7; y++) for (let x = 0; x < 7; x++) { const edge = x === 0 || y === 0 || x === 6 || y === 6; const core = x > 1 && x < 5 && y > 1 && y < 5; if (edge || core) d += 'M' + (ox + x) + ' ' + (oy + y) + 'h1v1h-1z'; } };
+    finder(0, 0); finder(18, 0); finder(0, 18);
+    const inFinder = (x, y) => (x < 8 && y < 8) || (x > 16 && y < 8) || (x < 8 && y > 16);
+    for (let y = 0; y < 25; y++) for (let x = 0; x < 25; x++) if (!inFinder(x, y) && rnd() > 0.52) d += 'M' + x + ' ' + y + 'h1v1h-1z';
+
+    return {
+      isLogin: scr === 'login', isApp: scr !== 'login',
+      isDash: scr === 'dashboard', isAssets: scr === 'assets', isDetail: scr === 'asset',
+      isEmployee: scr === 'employee', isMaint: scr === 'maintenance', isAcc: scr === 'accessories',
+      isReports: scr === 'reports', isHelp: scr === 'help',
+      crumb: crumbs[scr] || 'Dashboard',
+      nav, pad, toast: s.toast,
+      showHelpLauncher: this.props.showHelpLauncher !== false,
+      notifOpen: s.notifOpen, modalOpen: s.modal,
+      toggleNotif: () => this.setState(p => ({ notifOpen: !p.notifOpen })),
+      openAssign: () => this.setState({ modal: true, notifOpen: false }),
+      closeModal: () => this.setState({ modal: false }),
+      signIn: this.go('dashboard'), signOut: this.go('login'),
+      goAssets: this.go('assets'), goAssetDetail: this.go('asset'),
+      goEmployee: this.go('employee'), goHelp: () => this.setState({ screen: 'help', doc: 'landing', notifOpen: false }),
+      goArticle: () => this.setState({ screen: 'help', doc: 'article' }),
+
+      notifications: [
+        { glyph: '▲', color: '#D97706', title: 'Warranty expiring in 8 days', body: 'NV-LAP-0362 · Lenovo ThinkPad E14 · Imran Sheikh', time: 'Today 09:14' },
+        { glyph: '●', color: '#1677FF', title: 'Repair marked complete', body: 'TCK-2291 · Screen replacement · Sai Infotech', time: 'Today 08:02' },
+        { glyph: '▲', color: '#B45309', title: 'Low stock: Type-C 65W chargers', body: '6 left in Pune store room, threshold is 15', time: 'Yesterday 17:40' },
+        { glyph: '◇', color: '#64748B', title: 'New request from Priya Nair', body: 'Requesting an external monitor for Hyderabad desk', time: 'Yesterday 12:26' }
+      ],
+
+      kpis: [
+        { label: 'Total assets', value: '1,250', sub: '+36 this quarter', color: '#1677FF', glyph: '●', go: this.go('assets') },
+        { label: 'Assigned', value: '812', sub: '65.0% of estate', color: '#16A34A', glyph: '●', go: this.go('assets') },
+        { label: 'Available', value: '246', sub: 'ready to issue', color: '#94A3B8', glyph: '○', go: this.go('assets') },
+        { label: 'Under repair', value: '84', sub: '3 overdue with vendor', color: '#D97706', glyph: '▲', go: this.go('maintenance') },
+        { label: 'Retired', value: '92', sub: 'pending disposal: 21', color: '#CBD5E1', glyph: '■', go: this.go('assets') },
+        { label: 'Warranty < 60d', value: '47', sub: '8 expire this week', color: '#DC2626', glyph: '✕', go: this.go('assets') }
+      ],
+
+      attention: [
+        { glyph: '▲', color: '#DC2626', title: '8 warranties expire this week', body: 'Six laptops and two monitors, mostly Hyderabad.', cta: 'Review list' },
+        { glyph: '▲', color: '#D97706', title: '3 repairs overdue with vendor', body: 'Sai Infotech is past the 5-day SLA on TCK-2264.', cta: 'Open tickets' },
+        { glyph: '●', color: '#B45309', title: '3 accessory lines below reorder', body: 'Type-C chargers, HDMI cables, AAA batteries.', cta: 'Raise purchase' },
+        { glyph: '◇', color: '#1677FF', title: '5 requests awaiting approval', body: 'Oldest has been waiting 4 days.', cta: 'Approve' }
+      ],
+
+      donut, locations, trendPoints, trendArea, warranty,
+      months: ['O', 'N', 'D', 'J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S'],
+
+      columns, assets,
+      loading: s.loading, notLoading: !s.loading,
+      skeletons: [[38, 26, 18], [30, 34, 20], [42, 22, 16], [26, 30, 28], [36, 28, 18], [32, 24, 26], [40, 20, 22], [28, 32, 24]].map(([a, b, c]) => ({ a, b, c })),
+      simulateLoad: () => { this.setState({ loading: true }); setTimeout(() => this.setState({ loading: false }), 1300); },
+      selectedCount: selCount ? selCount : null,
+      clearSel: () => this.setState({ sel: {} }),
+      selectAll: () => this.setState(p => {
+        const all = Object.values(p.sel).filter(Boolean).length === RAW.length;
+        const next = {}; if (!all) RAW.forEach(r => { next[r[0]] = true; });
+        return { sel: next };
+      }),
+      filters: [
+        { label: 'Location', value: 'All' }, { label: 'Status', value: 'All' },
+        { label: 'Category', value: 'All' }, { label: 'Warranty', value: 'Any' }
+      ],
+      pages: [1, 2, 3, 4, 25].map(n => ({ n, style: pageStyle(n === 1) })),
+      compactBtn: segBtn(s.dense), comfyBtn: segBtn(!s.dense),
+      setCompact: () => this.setState({ dense: true }), setComfy: () => this.setState({ dense: false }),
+
+      assetInfo: [
+        { k: 'Asset code', v: 'NV-LAP-0428', copy: true }, { k: 'Serial no.', v: '5CG2419XYZ', copy: true },
+        { k: 'Category', v: 'Laptop' }, { k: 'Make / model', v: 'Dell Latitude 5440' },
+        { k: 'Purchase date', v: '2024-03-18' }, { k: 'Vendor', v: 'Redington India' },
+        { k: 'PO number', v: 'PO-2024-0428', copy: true }, { k: 'Cost', v: '₹ 78,400' },
+        { k: 'Warranty end', v: '2026-11-04' }, { k: 'Condition', v: 'Good' }
+      ],
+      issuedWith: [
+        { name: '65W Type-C charger', code: 'ACC-CHG-2210' },
+        { name: 'Wireless mouse', code: 'ACC-MSE-0871' },
+        { name: 'Laptop bag', code: 'ACC-BAG-0334' }
+      ],
+      qrPath: d,
+      history: [
+        { color: '#1677FF', title: 'Warranty reminder sent', body: 'Automated 60-day notice emailed to the asset owner and IT admin.', meta: '2026-09-05 · system' },
+        { color: '#16A34A', title: 'Audit passed', body: 'Physical verification at Pune HQ, Floor 3. Condition recorded as good.', meta: '2026-07-02 · Aditi Deshpande' },
+        { color: '#D97706', title: 'Returned from repair', body: 'Keyboard replaced by Sai Infotech. Cost ₹ 3,200 booked against TCK-2104.', meta: '2026-02-14 · Sai Infotech' },
+        { color: '#D97706', title: 'Sent for repair', body: 'Reported by Rahul Kulkarni — intermittent keyboard failure.', meta: '2026-02-06 · Rahul Kulkarni' },
+        { color: '#16A34A', title: 'Assigned to Rahul Kulkarni', body: 'Issued with 65W charger, wireless mouse and laptop bag. Acknowledged same day.', meta: '2025-03-11 · Aditi Deshpande' },
+        { color: '#94A3B8', title: 'Returned to stock', body: 'Previous holder left the organisation. Wiped and reimaged.', meta: '2025-03-04 · IT Store, Pune' },
+        { color: '#64748B', title: 'Added to inventory', body: 'Received against PO-2024-0428 from Redington India.', meta: '2024-03-18 · Procurement' }
+      ],
+
+      empMeta: [
+        { k: 'EMPLOYEE ID', v: 'NVS-2291' }, { k: 'EMAIL', v: 'r.kulkarni@newvisionsoftcom.com' },
+        { k: 'JOINED', v: '2021-06-14' }, { k: 'REPORTING TO', v: 'Anand Menon' }
+      ],
+      empTabs,
+      tabAssets: s.empTab === 'assets', tabAcc: s.empTab === 'acc', tabHist: s.empTab === 'hist', tabReq: s.empTab === 'req',
+      empAssets: [
+        { code: 'NV-LAP-0428', category: 'Laptop', model: 'Dell Latitude 5440', st: ST.assigned, date: '2025-03-11' },
+        { code: 'NV-MON-1204', category: 'Monitor', model: 'LG 27UP550', st: ST.assigned, date: '2025-03-11' },
+        { code: 'NV-PHN-0088', category: 'Phone', model: 'Samsung Galaxy A25', st: ST.assigned, date: '2025-09-02' }
+      ],
+      empAcc: [
+        { name: '65W Type-C charger', type: 'Accessory', qty: '1', date: '2025-03-11', ret: 'Yes' },
+        { name: 'Wireless mouse', type: 'Accessory', qty: '1', date: '2025-03-11', ret: 'Yes' },
+        { name: 'Laptop bag', type: 'Accessory', qty: '1', date: '2025-03-11', ret: 'No' },
+        { name: 'HDMI cable 2m', type: 'Consumable', qty: '2', date: '2026-01-19', ret: 'No' }
+      ],
+      empHistory: [
+        { color: '#1677FF', title: 'Requested external monitor', body: 'Approved by Anand Menon; fulfilled from Pune stock.', meta: '2026-05-21' },
+        { color: '#D97706', title: 'Repair logged for NV-LAP-0428', body: 'Keyboard failure. Returned 8 days later.', meta: '2026-02-06' },
+        { color: '#16A34A', title: 'HDMI cable issued', body: 'Two units, consumable — not returnable.', meta: '2026-01-19' },
+        { color: '#16A34A', title: 'Phone assigned', body: 'NV-PHN-0088 · Samsung Galaxy A25 for on-call rota.', meta: '2025-09-02' },
+        { color: '#16A34A', title: 'Laptop and accessories assigned', body: 'NV-LAP-0428 with charger, mouse and bag.', meta: '2025-03-11' },
+        { color: '#64748B', title: 'Employee record created', body: 'Onboarded to Delivery, Pune HQ.', meta: '2021-06-14' }
+      ],
+
+      maintTabs: [['All', '18', true], ['Reported', '5', false], ['Under repair', '9', false], ['Repaired', '3', false], ['Reassigned', '1', false]]
+        .map(([label, count, a]) => ({ label, count, style: chipStyle(a) })),
+      tickets: [
+        { id: 'TCK-2264', title: 'Screen flicker on external display', sub: 'NV-MON-1092 · Hyderabad · reported by Imran Sheikh', st: ST.repair, vendor: 'Sai Infotech', cost: '₹ 4,100', updated: '2026-09-04' },
+        { id: 'TCK-2288', title: 'Battery not holding charge', sub: 'NV-LAP-0362 · Hyderabad · reported by Imran Sheikh', st: ST.repair, vendor: 'Lenovo Care', cost: '₹ 6,800', updated: '2026-09-08' },
+        { id: 'TCK-2291', title: 'Cracked lid after transit', sub: 'NV-LAP-0203 · Pune · reported by Karan Bhatia', st: ST.lost, vendor: 'HP Service', cost: '₹ 12,500', updated: '2026-09-09' },
+        { id: 'TCK-2295', title: 'Keyboard keys unresponsive', sub: 'NV-LAP-0431 · Pune · reported by Sneha Rao', st: { label: 'Reported', color: '#0958D9', bg: '#F0F7FF', border: '#D6E8FF', glyph: '●' }, vendor: 'Unassigned', cost: '—', updated: '2026-09-10' },
+        { id: 'TCK-2251', title: 'Docking station port failure', sub: 'NV-DSK-0044 · Pune · reported by Anand Menon', st: { label: 'Repaired', color: '#15803D', bg: '#F0FDF4', border: '#BBF7D0', glyph: '●' }, vendor: 'Redington', cost: '₹ 2,300', updated: '2026-08-29' },
+        { id: 'TCK-2240', title: 'Overheating under load', sub: 'NV-DSK-0051 · Bhopal · reported by Ritu Sharma', st: { label: 'Reassigned', color: '#475569', bg: '#F8FAFC', border: '#E2E8F0', glyph: '○' }, vendor: 'Dell Pro Support', cost: '₹ 0', updated: '2026-08-22' }
+      ],
+
+      accessories: [
+        ['65W Type-C charger', 'Accessory', 'Pune store', 6, 15, true],
+        ['Wireless mouse', 'Accessory', 'Pune store', 48, 20, false],
+        ['USB headset', 'Accessory', 'Pune store', 27, 15, false],
+        ['HDMI cable 2m', 'Consumable', 'Pune store', 9, 25, true],
+        ['AAA batteries (pair)', 'Consumable', 'Hyderabad store', 12, 30, true],
+        ['Laptop bag', 'Accessory', 'Hyderabad store', 33, 15, false],
+        ['Ethernet cable 3m', 'Consumable', 'Bhopal store', 41, 20, false],
+        ['Docking station', 'Accessory', 'Bhopal store', 18, 10, false]
+      ].map(([name, type, loc, count, thr, low]) => ({
+        name, type, loc, count,
+        pct: Math.min(100, Math.round((count / (thr * 2)) * 100)),
+        border: low ? '#FDE68A' : '#E9EDF2',
+        countColor: low ? '#B45309' : '#1F1F1F',
+        barColor: low ? '#D97706' : '#16A34A',
+        noteColor: low ? '#B45309' : '#64748B',
+        glyph: low ? '▲' : '●',
+        note: low ? 'Below reorder level of ' + thr : 'Threshold ' + thr
+      })),
+
+      reports: [
+        { name: 'Asset register', desc: 'Full inventory with status, assignment, warranty and purchase details.', meta: 'LAST RUN 2026-09-08 · 1,250 ROWS' },
+        { name: 'Employee holdings', desc: 'Every employee with the assets and accessories currently issued to them.', meta: 'LAST RUN 2026-09-01 · 1,180 ROWS' },
+        { name: 'Location summary', desc: 'Counts by status per office, with movement in and out over the period.', meta: 'LAST RUN 2026-09-08 · 3 SHEETS' },
+        { name: 'Warranty expiry', desc: 'Assets expiring in the next 30, 60 and 90 days, grouped by vendor.', meta: 'LAST RUN 2026-09-09 · 47 ROWS' },
+        { name: 'Accessories & stock', desc: 'Stock on hand, issue history and items below their reorder threshold.', meta: 'LAST RUN 2026-09-07 · 8 LINES' }
+      ],
+
+      docLanding: s.doc === 'landing', docArticle: s.doc === 'article',
+      docNav: [
+        { group: 'GETTING STARTED', items: [['Overview', false], ['Roles and permissions', false], ['Reading the dashboard', false]] },
+        { group: 'ASSETS', items: [['Adding an asset', false], ['Assigning assets', s.doc === 'article'], ['Transfers between offices', false], ['Retiring and disposal', false]] },
+        { group: 'MAINTENANCE', items: [['Raising a repair ticket', false], ['Vendor and cost tracking', false]] },
+        { group: 'REPORTS', items: [['Exporting with filters', false], ['Scheduled reports', false]] }
+      ].map(g => ({ group: g.group, items: g.items.map(([label, a]) => ({ label, style: docItemStyle(a), go: () => this.setState({ doc: 'article' }) })) })),
+      helpCards: [
+        { title: 'Getting started', desc: 'Set up your account, understand roles, and learn the dashboard.', count: 6 },
+        { title: 'Managing assets', desc: 'Add, assign, transfer and retire hardware across the three offices.', count: 12 },
+        { title: 'Accessories & consumables', desc: 'Stock levels, issuing items, and reorder thresholds.', count: 5 },
+        { title: 'Maintenance & repairs', desc: 'Raise tickets, track vendors, and record repair costs.', count: 7 },
+        { title: 'Reports & exports', desc: 'Run filtered CSV and PDF exports for audit and finance.', count: 4 },
+        { title: 'Troubleshooting', desc: 'Common issues with imports, duplicates and permissions.', count: 9 }
+      ],
+      steps: [
+        { n: 1, text: 'Open the asset record, or select rows in the Assets table for a bulk assignment.' },
+        { n: 2, text: 'Choose Transfer, then search for the employee by name or employee ID.' },
+        { n: 3, text: 'Tick "Also issue accessories" and set quantities. Stock is deducted on save.' },
+        { n: 4, text: 'Add a note if the handover has conditions, then confirm. The employee is emailed automatically.' }
+      ],
+      callouts: [
+        { n: 1, x: 118, y: 110, ty: 114, text: 'Employee search — matches on name, employee ID and email.' },
+        { n: 2, x: 118, y: 166, ty: 170, text: 'Effective date. Backdating is allowed for up to 30 days.' },
+        { n: 3, x: 118, y: 216, ty: 220, text: 'Accessory checklist. Consumables show remaining stock inline.' },
+        { n: 4, x: 493, y: 260, ty: 264, text: 'Confirm writes one combined event to both asset and employee history.' }
+      ],
+      modalAcc: [
+        { name: '65W Type-C charger', stock: 6, on: true },
+        { name: 'Wireless mouse', stock: 48, on: true },
+        { name: 'USB headset', stock: 27, on: false },
+        { name: 'HDMI cable 2m (consumable)', stock: 9, on: false }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

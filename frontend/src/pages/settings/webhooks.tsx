@@ -7,11 +7,11 @@ import {
   Popconfirm,
   Space,
   Switch,
-  Table,
   Tag,
   Typography,
 } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
+import { DataGrid } from '../../components/DataGrid/DataGrid';
 import { apiErrorMessage, httpClient } from '../../providers/axios';
 
 const EVENT_OPTIONS = [
@@ -128,12 +128,12 @@ export function WebhooksPanel() {
         </Typography.Paragraph>
       )}
 
-      <Table<Hook>
-        size="small"
+      <DataGrid<Hook>
+        tableKey="webhooks"
         rowKey="id"
         dataSource={hooks}
         loading={loading}
-        locale={{ emptyText: 'No webhooks configured' }}
+        density="Compact"
         columns={[
           { title: 'URL', dataIndex: 'url', ellipsis: true },
           {

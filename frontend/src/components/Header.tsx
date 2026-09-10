@@ -1,12 +1,10 @@
-import { BookOutlined, LogoutOutlined, SearchOutlined, UserOutlined } from '@ant-design/icons';
-import { useGetIdentity, useLogout } from '@refinedev/core';
-import { AutoComplete, Avatar, Button, Input, Layout, Space, Tag, Typography } from 'antd';
-import { useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { BookOutlined, SearchOutlined } from '@ant-design/icons';
+import { AutoComplete, Button, Input, Layout, Space, Tag, Typography } from 'antd';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import { useDebouncedCallback } from '../hooks/useDebouncedCallback';
-import type { Identity } from '../providers/authProvider';
 import { httpClient } from '../providers/axios';
-import { COLOR_BORDER, COLOR_TEXT_MUTED } from '../theme';
+import { COLOR_BORDER, COLOR_TEXT_MUTED, FONT_MONO } from '../theme';
 import { NotificationBell } from './NotificationBell';
 
 interface Option {
@@ -39,21 +37,53 @@ interface SearchLocation {
   name: string;
 }
 
+const CRUMBS: Record<string, string> = {
+  '/': 'Dashboard',
+  '/assets': 'Assets',
+  '/employees': 'Employees',
+  '/locations': 'Locations',
+  '/accessories': 'Accessories',
+  '/consumables': 'Consumables',
+  '/requests': 'Requests',
+  '/maintenance': 'Maintenance',
+  '/reports': 'Reports',
+  '/audit-logs': 'Audit Log',
+  '/settings': 'Settings',
+  '/help': 'Help',
+};
+
+function crumbFor(pathname: string) {
+  const hit = Object.keys(CRUMBS)
+    .sort((a, b) => b.length - a.length)
+    .find((p) => pathname === p || (p !== '/' && pathname.startsWith(`${p}/`)));
+  return CRUMBS[hit ?? '/'] ?? 'NewVision';
+}
+
 export function Header() {
-  const { data: identity } = useGetIdentity<Identity>();
-  const { mutate: logout } = useLogout();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [options, setOptions] = useState<Option[]>([]);
   const [value, setValue] = useState('');
   const [searching, setSearching] = useState(false);
   const seq = useRef(0);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'k' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        document.querySelector<HTMLInputElement>('#global-search-input')?.focus();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const fetchResults = async (q: string) => {
     const mine = ++seq.current;
     setSearching(true);
     try {
       const { data } = await httpClient.get('/search', { params: { q } });
-      if (mine !== seq.current) return; // stale response — a newer query is in flight
+      if (mine !== seq.current) return;
       const assetOpts: Option[] = (data.assets ?? []).slice(0, 6).map((a: SearchAsset) => ({
         value: `asset-${a.id}`,
         label: (
@@ -136,17 +166,25 @@ export function Header() {
         zIndex: 10,
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
         gap: 12,
         padding: '0 20px',
-        background: '#fff',
+        background: 'rgba(255,255,255,0.92)',
         borderBottom: `1px solid ${COLOR_BORDER}`,
-        height: 56,
+        height: 52,
+        lineHeight: '52px',
       }}
     >
+      <nav className="nv-breadcrumb" aria-label="Breadcrumb">
+        <span>NewVision</span>
+        <span className="nv-breadcrumb-sep">/</span>
+        <span className="nv-breadcrumb-current">{crumbFor(pathname)}</span>
+      </nav>
+
+      <div style={{ flex: 1 }} />
+
       <AutoComplete
         className="nv-header-search"
-        style={{ flex: '1 1 420px', maxWidth: 480 }}
+        style={{ width: 260, maxWidth: '32vw' }}
         options={options}
         value={value}
         onSearch={runSearch}
@@ -160,48 +198,29 @@ export function Header() {
       >
         <Input
           id="global-search-input"
-          size="middle"
+          size="small"
           prefix={<SearchOutlined style={{ color: COLOR_TEXT_MUTED }} />}
-          placeholder="Search assets, employees, tickets…"
+          placeholder="Search assets, employees, tickets"
           aria-label="Global search"
           aria-busy={searching}
           allowClear
           suffix={
-            <Typography.Text type="secondary" style={{ fontSize: 11, userSelect: 'none' }}>
-              /
-            </Typography.Text>
+            <span className="nv-kbd" style={{ fontFamily: FONT_MONO }}>
+              ⌘K
+            </span>
           }
         />
       </AutoComplete>
 
-      <Space size="middle" wrap={false} style={{ flexShrink: 0 }}>
+      <Space size={8} wrap={false} style={{ flexShrink: 0 }}>
+        <NotificationBell />
         <Button
-          size="middle"
+          size="small"
           icon={<BookOutlined />}
           onClick={() => navigate('/help')}
           aria-label="Help and documentation"
-          className="nv-header-action-text"
         >
-          Help
-        </Button>
-        <NotificationBell />
-        <Space size={8}>
-          <Avatar size="small" icon={<UserOutlined />} style={{ background: '#0958d9' }} />
-          <div style={{ lineHeight: 1.25 }} className="nv-header-profile">
-            <Typography.Text style={{ fontSize: 13, fontWeight: 500 }}>
-              {identity?.fullName}
-            </Typography.Text>
-            <div style={{ fontSize: 12, color: COLOR_TEXT_MUTED }}>{identity?.role}</div>
-          </div>
-        </Space>
-        <Button
-          size="middle"
-          icon={<LogoutOutlined />}
-          onClick={() => logout()}
-          data-testid="logout-button"
-          style={{ flexShrink: 0 }}
-        >
-          <span className="nv-header-action-text">Logout</span>
+          <span className="nv-header-action-text">Help</span>
         </Button>
       </Space>
     </Layout.Header>

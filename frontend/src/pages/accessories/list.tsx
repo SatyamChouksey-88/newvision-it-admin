@@ -1,6 +1,6 @@
 import { PlusOutlined, RollbackOutlined, UserAddOutlined } from '@ant-design/icons';
 import { useGetIdentity } from '@refinedev/core';
-import { Button, Card, Form, Input, InputNumber, Modal, Space, Typography } from 'antd';
+import { Button, Card, Col, Form, Input, InputNumber, Modal, Row, Segmented, Space, Typography } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { PrimaryWithSub } from '../../components/Cells';
 import { CopyButton } from '../../components/CopyButton';
@@ -30,6 +30,7 @@ export function AccessoriesPage() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<number[]>([]);
   const [density, setDensity] = useState<TableDensity>('Compact');
+  const [view, setView] = useState<'cards' | 'table'>('cards');
   const [createOpen, setCreateOpen] = useState(false);
   const [checkoutTarget, setCheckoutTarget] = useState<Accessory | null>(null);
   const [employeeId, setEmployeeId] = useState<number>();
@@ -108,6 +109,15 @@ export function AccessoriesPage() {
         <Space>
           Accessories
           <StatusLegend kind="asset" />
+          <Segmented
+            size="small"
+            value={view}
+            onChange={(v) => setView(v as 'cards' | 'table')}
+            options={[
+              { label: 'Cards', value: 'cards' },
+              { label: 'Table', value: 'table' },
+            ]}
+          />
         </Space>
       }
       extra={
@@ -139,6 +149,56 @@ export function AccessoriesPage() {
         />
       ) : (
         <>
+          {view === 'cards' && (
+            <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+              {rows.map((r) => {
+                const avail = r.quantityAvailable;
+                const pct = r.quantityTotal > 0 ? Math.round((avail / r.quantityTotal) * 100) : 0;
+                const low = avail <= Math.max(1, Math.round(r.quantityTotal * 0.15));
+                return (
+                  <Col xs={24} sm={12} lg={8} xl={6} key={r.id}>
+                    <div className="nv-stock-card">
+                      <Typography.Text strong style={{ fontSize: 13 }}>
+                        {r.name}
+                      </Typography.Text>
+                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                        {r.category}
+                      </Typography.Text>
+                      <div
+                        style={{
+                          ...tabularNums,
+                          fontSize: 22,
+                          fontWeight: 600,
+                          color: low ? '#D97706' : '#1F1F1F',
+                        }}
+                      >
+                        {avail}
+                        <span style={{ fontSize: 11, color: '#64748B', marginLeft: 6 }}>
+                          / {r.quantityTotal}
+                        </span>
+                      </div>
+                      <div className={`nv-stock-bar${low ? ' is-low' : ''}`}>
+                        <span style={{ width: `${pct}%` }} />
+                      </div>
+                      <Typography.Text style={{ fontSize: 11, color: low ? '#B45309' : '#64748B' }}>
+                        {low ? 'Below comfortable stock — restock soon' : 'Threshold healthy'}
+                      </Typography.Text>
+                      {canCheckout && r.quantityAvailable > 0 && (
+                        <Button
+                          size="small"
+                          icon={<UserAddOutlined />}
+                          onClick={() => setCheckoutTarget(r)}
+                        >
+                          Issue
+                        </Button>
+                      )}
+                    </div>
+                  </Col>
+                );
+              })}
+            </Row>
+          )}
+          {view === 'table' && (
           <DataGrid<Accessory>
             tableKey="accessories"
             searchInputId="accessories-grid-search"
@@ -276,6 +336,7 @@ export function AccessoriesPage() {
               },
             ]}
           />
+          )}
           <TablePagination
             total={total}
             page={page}

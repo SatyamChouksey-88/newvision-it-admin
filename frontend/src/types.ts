@@ -238,4 +238,5 @@ export interface LocationBreakdown {
   name: string;
   city: string;
   total: number;
+  byStatus?: Partial<Record<AssetStatus, number>>;
 }

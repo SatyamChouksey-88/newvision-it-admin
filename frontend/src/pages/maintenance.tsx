@@ -11,11 +11,10 @@ import {
   InputNumber,
   Modal,
   Popconfirm,
-  Select,
   Space,
   Typography,
 } from 'antd';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { AssetSelect } from '../components/AssetSelect';
 import { CopyButton } from '../components/CopyButton';
@@ -23,7 +22,6 @@ import { DataGrid, type TableDensity } from '../components/DataGrid/DataGrid';
 import { EmployeeSelect } from '../components/EmployeeSelect';
 import { EmptyState } from '../components/EmptyState';
 import {
-  MAINTENANCE_STATUS_OPTIONS,
   MaintenanceStatusSelect,
   MaintenanceStatusTag,
 } from '../components/MaintenanceStatusTag';
@@ -61,6 +59,7 @@ export function MaintenancePage() {
     return f && 'value' in f ? String(f.value ?? '') : '';
   }, [filters]);
 
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
   const [reportOpen, setReportOpen] = useState(false);
   const [completeTarget, setCompleteTarget] = useState<Maintenance | null>(null);
   const [reassignTarget, setReassignTarget] = useState<Maintenance | null>(null);
@@ -71,6 +70,32 @@ export function MaintenancePage() {
 
   const refetch = () => tableQuery.refetch();
 
+  const loadCounts = useCallback(async () => {
+    if (!canView) return;
+    const statuses: (MaintenanceStatus | undefined)[] = [
+      undefined,
+      'reported',
+      'under_repair',
+      'repaired',
+      'reassigned',
+    ];
+    const pairs = await Promise.all(
+      statuses.map((s) =>
+        httpClient
+          .get('/maintenance', {
+            params: { _start: 0, _end: 1, ...(s ? { status: s } : {}) },
+          })
+          .then((r) => [s ?? 'all', r.data.total ?? 0] as const)
+          .catch(() => [s ?? 'all', 0] as const),
+      ),
+    );
+    setStatusCounts(Object.fromEntries(pairs));
+  }, [canView]);
+
+  useEffect(() => {
+    void loadCounts();
+  }, [loadCounts]);
+
   const transition = async (
     row: Maintenance,
     status: MaintenanceStatus,
@@ -80,6 +105,7 @@ export function MaintenancePage() {
       await httpClient.patch(`/maintenance/${row.id}/transition`, { status, ...body });
       message.success(`Ticket #${row.id} → ${status.replace('_', ' ')}`);
       refetch();
+      void loadCounts();
     } catch (e) {
       message.error(apiErrorMessage(e, 'Could not update the ticket'));
     }
@@ -107,16 +133,41 @@ export function MaintenancePage() {
                   )
                 }
               />
-              <Select
-                allowClear
-                placeholder="Status"
-                style={{ width: 180 }}
-                options={MAINTENANCE_STATUS_OPTIONS}
-                value={statusFilter}
-                onChange={(v) =>
-                  setFilters([{ field: 'status', operator: 'eq', value: v ?? undefined }], 'merge')
-                }
-              />
+              <div className="nv-status-chips" role="tablist" aria-label="Ticket status">
+                {(
+                  [
+                    ['all', 'All'],
+                    ['reported', 'Reported'],
+                    ['under_repair', 'Under repair'],
+                    ['repaired', 'Repaired'],
+                    ['reassigned', 'Reassigned'],
+                  ] as const
+                ).map(([key, label]) => {
+                  const active = key === 'all' ? !statusFilter : statusFilter === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      className={`nv-status-chip${active ? ' is-active' : ''}`}
+                      onClick={() =>
+                        setFilters(
+                          [
+                            {
+                              field: 'status',
+                              operator: 'eq',
+                              value: key === 'all' ? undefined : key,
+                            },
+                          ],
+                          'merge',
+                        )
+                      }
+                    >
+                      {label}
+                      <span className="nv-status-chip-count">{statusCounts[key] ?? '—'}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </>
           )}
         </Space>

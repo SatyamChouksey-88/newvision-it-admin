@@ -9,37 +9,39 @@ export const COLOR_BORDER = '#E9EDF2';
 export const COLOR_BORDER_SECONDARY = '#E2E8F0';
 
 export const COLOR_TEXT_PRIMARY = '#1F1F1F';
-export const COLOR_TEXT_SECONDARY = '#475569';
+export const COLOR_TEXT_SECONDARY = '#595959';
 export const COLOR_TEXT_MUTED = '#64748B';
 export const COLOR_TEXT_PLACEHOLDER = '#94A3B8';
 export const COLOR_TEXT_DISABLED = '#CBD5E1';
 
-/** WCAG AA link/accent — #0958D9 (6.16:1 on white), not #1677FF */
-export const COLOR_ACCENT = '#0958D9';
-export const COLOR_ACCENT_HOVER = '#1677FF';
+/** Buttons/KPI use #1677FF; links use #0958D9 so body text stays WCAG AA. */
+export const COLOR_ACCENT = '#1677FF';
+export const COLOR_ACCENT_HOVER = '#0958D9';
+export const COLOR_LINK = '#0958D9';
 export const COLOR_ACCENT_BG = '#F0F7FF';
 export const COLOR_ACCENT_BG_HOVER = '#D6E8FF';
+export const COLOR_SELECTED_ROW = '#F5FAFF';
+export const COLOR_INPUT_BORDER = '#E4E9F0';
 
-export const SHADOW_RAISED = '0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06)';
-export const SHADOW_FLOATING =
-  '0 4px 12px rgba(15, 23, 42, 0.08), 0 8px 24px rgba(15, 23, 42, 0.06)';
+export const SHADOW_RAISED = '0 2px 6px rgba(16, 24, 40, 0.06)';
+export const SHADOW_FLOATING = '0 2px 6px rgba(16, 24, 40, 0.06)';
 
 export const RADIUS_SM = 6;
-export const RADIUS_MD = 10;
-export const RADIUS_LG = 16;
+export const RADIUS_MD = 8;
+export const RADIUS_LG = 8;
 
 /** KPI / status accent bar colors from mockup */
 export const KPI_ASSIGNED = '#16A34A';
-export const KPI_AVAILABLE = '#64748B';
+export const KPI_AVAILABLE = '#94A3B8';
 export const KPI_REPAIR = '#D97706';
-export const KPI_TOTAL = '#0958D9';
-export const KPI_RETIRED = '#475569';
+export const KPI_TOTAL = '#1677FF';
+export const KPI_RETIRED = '#CBD5E1';
 export const KPI_WARRANTY = '#DC2626';
 
 export const newVisionTheme: ThemeConfig = {
   token: {
-    colorPrimary: COLOR_ACCENT,
-    colorLink: COLOR_ACCENT,
+    colorPrimary: COLOR_ACCENT_HOVER,
+    colorLink: COLOR_LINK,
     colorLinkHover: COLOR_ACCENT_HOVER,
     colorLinkActive: '#003EB3',
     colorError: '#DC2626',
@@ -48,18 +50,19 @@ export const newVisionTheme: ThemeConfig = {
     colorWarning: KPI_REPAIR,
     borderRadius: RADIUS_SM,
     borderRadiusLG: RADIUS_LG,
-    fontSize: 14,
+    fontSize: 13,
     fontSizeSM: 12,
     fontSizeLG: 16,
     fontFamily:
-      "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+      "'Inter', Helvetica, Arial, sans-serif",
+    fontFamilyCode: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
     colorText: COLOR_TEXT_PRIMARY,
     colorTextSecondary: COLOR_TEXT_SECONDARY,
     colorTextTertiary: COLOR_TEXT_MUTED,
     colorTextQuaternary: COLOR_TEXT_DISABLED,
     colorTextPlaceholder: COLOR_TEXT_PLACEHOLDER,
-    colorBorder: COLOR_BORDER,
-    colorBorderSecondary: COLOR_BORDER_SECONDARY,
+    colorBorder: COLOR_INPUT_BORDER,
+    colorBorderSecondary: COLOR_BORDER,
     boxShadow: SHADOW_FLOATING,
     boxShadowSecondary: SHADOW_RAISED,
     boxShadowTertiary: SHADOW_RAISED,
@@ -67,7 +70,7 @@ export const newVisionTheme: ThemeConfig = {
     colorBgContainer: COLOR_SURFACE,
     colorBgElevated: COLOR_SURFACE,
     lineHeight: 1.5,
-    controlHeight: 36,
+    controlHeight: 30,
   },
   components: {
     Layout: {
@@ -82,16 +85,16 @@ export const newVisionTheme: ThemeConfig = {
       itemHoverBg: '#F1F5F9',
       itemHoverColor: COLOR_TEXT_PRIMARY,
       itemSelectedBg: COLOR_ACCENT_BG,
-      itemSelectedColor: COLOR_ACCENT,
+      itemSelectedColor: COLOR_LINK,
       itemActiveBg: COLOR_ACCENT_BG,
       iconSize: 16,
       itemHeight: 40,
       fontSize: 13,
     },
     Card: {
-      borderRadiusLG: RADIUS_LG,
-      boxShadow: SHADOW_RAISED,
-      boxShadowTertiary: SHADOW_RAISED,
+      borderRadiusLG: RADIUS_MD,
+      boxShadow: 'none',
+      boxShadowTertiary: 'none',
       colorBorderSecondary: COLOR_BORDER,
       paddingLG: 20,
     },
@@ -104,12 +107,12 @@ export const newVisionTheme: ThemeConfig = {
       headerBg: COLOR_SURFACE,
       headerColor: '#334155',
       headerSortActiveBg: COLOR_ACCENT_BG,
-      rowHoverBg: '#F1F5F9',
+      rowHoverBg: COLOR_SELECTED_ROW,
       borderColor: COLOR_BORDER,
     },
     Button: {
       borderRadius: RADIUS_SM,
-      controlHeight: 36,
+      controlHeight: 30,
       fontWeight: 500,
       colorError: '#DC2626',
       colorErrorHover: '#B91C1C',
@@ -117,7 +120,7 @@ export const newVisionTheme: ThemeConfig = {
     },
     Input: {
       borderRadius: RADIUS_SM,
-      colorBorder: COLOR_BORDER,
+      colorBorder: COLOR_INPUT_BORDER,
       activeBorderColor: COLOR_ACCENT,
       hoverBorderColor: COLOR_BORDER_SECONDARY,
     },
@@ -155,7 +158,10 @@ export const newVisionTheme: ThemeConfig = {
   },
 };
 
+export const FONT_MONO = "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace";
+
 export const tabularNums: React.CSSProperties = {
+  fontFamily: FONT_MONO,
   fontVariantNumeric: 'tabular-nums',
   fontFeatureSettings: '"tnum"',
 };
@@ -171,7 +177,12 @@ export const mutedSubtext: React.CSSProperties = {
 
 export const raisedCardStyle: React.CSSProperties = {
   border: `1px solid ${COLOR_BORDER}`,
-  borderRadius: RADIUS_LG,
-  boxShadow: SHADOW_RAISED,
+  borderRadius: RADIUS_MD,
+  boxShadow: 'none',
   background: COLOR_SURFACE,
 };
+
+export const interactiveCardHover = {
+  borderColor: '#C9D3DF',
+  boxShadow: SHADOW_RAISED,
+} as const;

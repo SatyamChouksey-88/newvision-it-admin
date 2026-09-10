@@ -23,7 +23,7 @@ test('employee submits request; manager approves; IT marks fulfilled', async ({ 
   await expect(managerPage.getByText('approved').first()).toBeVisible({ timeout: 10_000 });
   await managerCtx.close();
 
-  await page.getByTestId('logout-button').click();
+  await page.getByTestId('logout-button').first().click();
   await login(page, DEMO_USERS.itAdmin);
   await page.goto('/requests');
   await page.getByRole('button', { name: 'Mark fulfilled' }).first().click();

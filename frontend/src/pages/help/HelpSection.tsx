@@ -1,5 +1,5 @@
 import { BookOutlined, SearchOutlined } from '@ant-design/icons';
-import { Card, Col, Input, Layout, Menu, Row, Space, Typography } from 'antd';
+import { Button, Card, Col, Input, Layout, Menu, Row, Space, Typography } from 'antd';
 import { useMemo, useState } from 'react';
 import { Link, Navigate, Route, Routes, useNavigate, useParams } from 'react-router';
 import {
@@ -9,26 +9,43 @@ import {
   searchArticles,
   type HelpArticle,
 } from '../../help/articles';
-import { COLOR_BORDER, SHADOW_RAISED } from '../../theme';
+import { COLOR_ACCENT, COLOR_BORDER } from '../../theme';
+
+function readMinutes(body: string) {
+  const words = body.trim().split(/\s+/).length;
+  return Math.max(1, Math.round(words / 180));
+}
 
 function ArticleView({ article }: { article: HelpArticle }) {
+  const [vote, setVote] = useState<string | null>(() =>
+    localStorage.getItem(`nv:help-vote:${article.id}`),
+  );
+  const voteOn = (v: 'yes' | 'no') => {
+    localStorage.setItem(`nv:help-vote:${article.id}`, v);
+    setVote(v);
+  };
+
+  const steps = [...article.body.matchAll(/^\d+\.\s+\*\*(.+?)\*\*/gm)].map((m) => m[1]);
+  const hasWarning = /cannot|blocked|never deleted|must not/i.test(article.body);
+
   return (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <div>
-        <Typography.Text type="secondary">{article.category}</Typography.Text>
-        <Typography.Title level={3} style={{ margin: '4px 0 0' }}>
-          {article.title}
-        </Typography.Title>
-        <Typography.Paragraph type="secondary">{article.summary}</Typography.Paragraph>
-      </div>
+    <article>
+      <div className="nv-help-article-eyebrow">{article.category}</div>
+      <Typography.Title level={3} style={{ margin: '6px 0 4px', fontSize: 24, fontWeight: 600, letterSpacing: '-0.02em' }}>
+        {article.title}
+      </Typography.Title>
+      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+        Updated Sep 2026 · {readMinutes(article.body)} min read
+      </Typography.Text>
+      <Typography.Paragraph style={{ marginTop: 12, color: '#595959' }}>{article.summary}</Typography.Paragraph>
+
       {article.screenshot && (
         <figure
           style={{
-            margin: 0,
+            margin: '16px 0',
             border: `1px solid ${COLOR_BORDER}`,
-            borderRadius: 4,
+            borderRadius: 8,
             overflow: 'hidden',
-            boxShadow: SHADOW_RAISED,
           }}
         >
           <img
@@ -40,24 +57,62 @@ function ArticleView({ article }: { article: HelpArticle }) {
             }}
           />
           {article.callouts?.length ? (
-            <figcaption style={{ padding: '8px 12px', fontSize: 12, color: '#64748B' }}>
+            <figcaption style={{ padding: '10px 14px', fontSize: 12, color: '#64748B' }}>
               {article.callouts.map((c) => (
-                <span key={c.n} style={{ marginRight: 12 }}>
+                <div key={c.n} style={{ marginBottom: 4 }}>
                   <strong>{c.n}.</strong> {c.label}
-                </span>
+                </div>
               ))}
             </figcaption>
           ) : null}
-          <figcaption style={{ padding: '4px 12px 8px', fontSize: 11, color: '#64748B' }}>
-            Screenshot: {article.screenshot}. Run <code>npm run screenshots</code> in{' '}
-            <code>frontend/</code> to capture if missing.
-          </figcaption>
         </figure>
       )}
+
       <Typography.Paragraph style={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
         {article.body.replace(/^## /gm, '').replace(/\*\*/g, '')}
       </Typography.Paragraph>
-    </Space>
+
+      {steps.length > 0 && (
+        <div>
+          <Typography.Text strong style={{ fontSize: 13 }}>
+            Steps
+          </Typography.Text>
+          <ol className="nv-help-steps">
+            {steps.map((s) => (
+              <li key={s}>{s}</li>
+            ))}
+          </ol>
+        </div>
+      )}
+
+      {hasWarning && (
+        <div
+          style={{
+            marginTop: 16,
+            padding: '10px 12px',
+            background: '#FEF2F2',
+            border: '1px solid #FECACA',
+            borderRadius: 8,
+            color: '#B91C1C',
+            fontSize: 12.5,
+          }}
+        >
+          Some actions in this article are irreversible or role-gated. Check the warning notes in
+          the body before you proceed.
+        </div>
+      )}
+
+      <div className="nv-help-footer">
+        <span>Was this helpful?</span>
+        <Button size="small" type={vote === 'yes' ? 'primary' : 'default'} onClick={() => voteOn('yes')}>
+          Yes
+        </Button>
+        <Button size="small" type={vote === 'no' ? 'primary' : 'default'} onClick={() => voteOn('no')}>
+          No
+        </Button>
+        {vote ? <span>Thanks — we recorded your feedback on this device.</span> : null}
+      </div>
+    </article>
   );
 }
 
@@ -70,25 +125,23 @@ function HelpHome() {
   return (
     <Space direction="vertical" size={24} style={{ width: '100%' }}>
       <div>
-        <Typography.Title level={4} style={{ margin: 0 }}>
+        <Typography.Title level={3} className="nv-page-title" style={{ margin: 0 }}>
           Help & Documentation
         </Typography.Title>
         <Typography.Paragraph type="secondary" style={{ marginBottom: 0 }}>
-          Guides for every NewVision feature — search above or pick a topic below.
+          Guides for every NewVision feature — search the sidebar or pick a topic below.
         </Typography.Paragraph>
       </div>
       {cards.map(({ category, articles }) => (
         <div key={category}>
-          <Typography.Title level={5}>{category}</Typography.Title>
-          <Row gutter={[16, 16]}>
+          <Typography.Title level={5} style={{ marginBottom: 8 }}>
+            {category}
+          </Typography.Title>
+          <Row gutter={[12, 12]}>
             {articles.map((a) => (
               <Col xs={24} sm={12} lg={8} key={a.id}>
                 <Link to={`/help/${a.id}`} style={{ textDecoration: 'none' }}>
-                  <Card
-                    size="small"
-                    hoverable
-                    style={{ border: `1px solid ${COLOR_BORDER}`, boxShadow: SHADOW_RAISED, height: '100%' }}
-                  >
+                  <Card size="small" hoverable className="nv-card-interactive" style={{ height: '100%' }}>
                     <Typography.Text strong style={{ color: '#1F1F1F' }}>
                       {a.title}
                     </Typography.Text>
@@ -137,12 +190,15 @@ export function HelpSection() {
         style={{
           borderRight: `1px solid ${COLOR_BORDER}`,
           background: '#fff',
-          boxShadow: SHADOW_RAISED,
+          position: 'sticky',
+          top: 72,
+          height: 'calc(100vh - 88px)',
+          overflow: 'auto',
         }}
       >
         <div style={{ padding: 16 }}>
           <Space>
-            <BookOutlined style={{ color: '#2f54eb' }} />
+            <BookOutlined style={{ color: COLOR_ACCENT }} />
             <Typography.Text strong>Documentation</Typography.Text>
           </Space>
           <Input
@@ -159,7 +215,7 @@ export function HelpSection() {
           />
           {q.trim() && (
             <div style={{ marginTop: 8, fontSize: 12 }}>
-              {results.slice(0, 5).map((a) => (
+              {results.slice(0, 8).map((a) => (
                 <div key={a.id}>
                   <Link to={`/help/${a.id}`} onClick={() => setQ('')}>
                     {a.title}

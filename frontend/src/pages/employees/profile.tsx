@@ -19,7 +19,7 @@ import {
   Typography,
 } from 'antd';
 import { useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import { WarrantyDays } from '../../components/Cells';
 import { CopyButton } from '../../components/CopyButton';
 import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid';
@@ -40,6 +40,7 @@ interface HistoryEvent {
 
 export function EmployeeProfile() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const toast = useToast();
   const { data: identity } = useGetIdentity<Identity>();
   const canOffboard = ['SUPER_ADMIN', 'IT_ADMIN'].includes(identity?.role ?? '');
@@ -136,44 +137,6 @@ export function EmployeeProfile() {
           description="They no longer appear in assignment pickers and their login is disabled. History below is preserved."
         />
       )}
-
-      <Card size="small" title="Assigned assets (serialized hardware)">
-        <DataGrid<any>
-          tableKey={`employee-${id}-assets`}
-          rowKey="id"
-          dataSource={assets}
-          density={density}
-          onDensityChange={setDensity}
-          fixFirstColumn
-          columns={[
-            {
-              title: 'Asset',
-              gridKey: 'assetCode',
-              render: (_, r: { id: number; assetCode: string }) => (
-                <Space size={4}>
-                  <Link to={`/assets/show/${r.id}`}>{r.assetCode}</Link>
-                  <CopyButton value={r.assetCode} label="asset code" />
-                </Space>
-              ),
-            },
-            {
-              title: 'Category',
-              render: (_: unknown, r: { category?: { name?: string } }) => r.category?.name ?? '—',
-            },
-            {
-              title: 'Item',
-              render: (_: unknown, r: { brand?: string; model?: string }) =>
-                `${r.brand ?? ''} ${r.model ?? ''}`.trim() || '—',
-            },
-            { title: 'Status', dataIndex: 'status', render: (v) => <StatusTag status={v} /> },
-            {
-              title: 'Warranty',
-              dataIndex: 'warrantyEnd',
-              render: (v) => <WarrantyDays warrantyEnd={v} />,
-            },
-          ]}
-        />
-      </Card>
 
       <Card size="small" title="Accessories checked out">
         <DataGrid<any>
@@ -320,6 +283,21 @@ export function EmployeeProfile() {
           </Col>
           <Col>
             <Space>
+              {emp?.email ? (
+                <Button href={`mailto:${emp.email}`}>Email</Button>
+              ) : null}
+              {canOffboard && emp?.isActive !== false && (
+                <Button
+                  type="primary"
+                  onClick={() =>
+                    navigate(
+                      `/assets?filters[0][field]=status&filters[0][operator]=eq&filters[0][value]=available`,
+                    )
+                  }
+                >
+                  Assign asset
+                </Button>
+              )}
               <Statistic
                 title="Assigned assets"
                 value={assets.length}
@@ -347,12 +325,85 @@ export function EmployeeProfile() {
         </Row>
       </Card>
 
-      <Tabs
-        items={[
-          { key: 'overview', label: 'Overview', children: overview },
-          { key: 'history', label: 'History', children: historyTab },
-        ]}
-      />
+      <Card size="small">
+        <Tabs
+          items={[
+            {
+              key: 'assets',
+              label: 'Assigned assets',
+              children: (
+                <DataGrid<any>
+                  tableKey={`employee-${id}-assets`}
+                  rowKey="id"
+                  dataSource={assets}
+                  density={density}
+                  onDensityChange={setDensity}
+                  fixFirstColumn
+                  columns={[
+                    {
+                      title: 'Asset',
+                      gridKey: 'assetCode',
+                      render: (_, r: { id: number; assetCode: string }) => (
+                        <Space size={4}>
+                          <Link to={`/assets/show/${r.id}`}>{r.assetCode}</Link>
+                          <CopyButton value={r.assetCode} label="asset code" />
+                        </Space>
+                      ),
+                    },
+                    {
+                      title: 'Category',
+                      render: (_: unknown, r: { category?: { name?: string } }) =>
+                        r.category?.name ?? '—',
+                    },
+                    {
+                      title: 'Item',
+                      render: (_: unknown, r: { brand?: string; model?: string }) =>
+                        `${r.brand ?? ''} ${r.model ?? ''}`.trim() || '—',
+                    },
+                    { title: 'Status', dataIndex: 'status', render: (v) => <StatusTag status={v} /> },
+                    {
+                      title: 'Warranty',
+                      dataIndex: 'warrantyEnd',
+                      render: (v) => <WarrantyDays warrantyEnd={v} />,
+                    },
+                  ]}
+                />
+              ),
+            },
+            {
+              key: 'supplies',
+              label: 'Accessories & consumables',
+              children: overview,
+            },
+            { key: 'history', label: 'History', children: historyTab },
+            {
+              key: 'requests',
+              label: 'Requests',
+              children: (
+                <DataGrid<HistoryEvent>
+                  tableKey={`employee-${id}-requests`}
+                  rowKey="id"
+                  dataSource={history.filter((h) => /request/i.test(h.kind))}
+                  density={density}
+                  columns={[
+                    {
+                      title: 'When',
+                      dataIndex: 'at',
+                      render: (v) => new Date(v).toLocaleString(),
+                    },
+                    { title: 'Type', dataIndex: 'kind' },
+                    {
+                      title: 'Summary',
+                      dataIndex: 'summary',
+                      render: (_, r) => (r.href ? <Link to={r.href}>{r.summary}</Link> : r.summary),
+                    },
+                  ]}
+                />
+              ),
+            },
+          ]}
+        />
+      </Card>
 
       <Modal
         open={offboardOpen}

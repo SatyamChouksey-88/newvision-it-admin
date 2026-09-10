@@ -12,11 +12,12 @@ import {
   WarningOutlined,
 } from '@ant-design/icons';
 import { useCustom } from '@refinedev/core';
-import { Alert, Button, Card, Col, List, Row, Select, Space, Typography } from 'antd';
+import { Alert, Button, Card, Col, Row, Select, Space, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { CHART_PALETTE, STATUS_CHART_COLORS, STATUS_LABELS } from '../chartColors';
-import { BreakdownList } from '../components/BreakdownList';
+import { AssetTrendChart } from '../components/charts/AssetTrendChart';
+import { LocationBarChart } from '../components/charts/LocationBarChart';
+import { StatusDonutChart } from '../components/charts/StatusDonutChart';
 import { WarrantyDays } from '../components/Cells';
 import { DataGrid } from '../components/DataGrid/DataGrid';
 import { KpiCard } from '../components/KpiCard';
@@ -33,7 +34,6 @@ import {
   KPI_WARRANTY,
 } from '../theme';
 import type {
-  AssetStatus,
   DashboardAttention,
   DashboardMetrics,
   DashboardTrendPoint,
@@ -51,7 +51,6 @@ interface WarrantyRow {
   daysRemaining: number | null;
 }
 
-/** Build a Refine-compatible `/assets` drill-down URL for a set of eq filters. */
 function assetsHref(filters: Record<string, string | number | undefined>) {
   const parts: string[] = [];
   let i = 0;
@@ -65,11 +64,15 @@ function assetsHref(filters: Record<string, string | number | undefined>) {
   return parts.length ? `/assets?${parts.join('&')}` : '/assets';
 }
 
+const DISMISS_KEY = 'nv:attention-dismissed';
+
 export function DashboardPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const locationParam = Number(searchParams.get('locationId'));
   const locationId =
     Number.isFinite(locationParam) && locationParam > 0 ? locationParam : undefined;
+  const monthsParam = Number(searchParams.get('months'));
+  const months = [6, 12, 24].includes(monthsParam) ? monthsParam : 12;
   const setLocationId = (v?: number) =>
     setSearchParams(
       (prev) => {
@@ -80,7 +83,19 @@ export function DashboardPage() {
       },
       { replace: true },
     );
+  const setMonths = (v: number) =>
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (v === 12) next.delete('months');
+        else next.set('months', String(v));
+        return next;
+      },
+      { replace: true },
+    );
+
   const [locations, setLocations] = useState<Location[]>([]);
+  const [dismissed, setDismissed] = useState(() => sessionStorage.getItem(DISMISS_KEY) === '1');
 
   useEffect(() => {
     httpClient
@@ -123,8 +138,8 @@ export function DashboardPage() {
   const { query: trendsQuery } = useCustom<DashboardTrendPoint[]>({
     url: 'dashboard/trends',
     method: 'get',
-    config: { query: { months: 12, ...(locationId ? { locationId } : {}) } },
-    queryOptions: { queryKey: ['dashboard-trends', locationId] },
+    config: { query: { months, ...(locationId ? { locationId } : {}) } },
+    queryOptions: { queryKey: ['dashboard-trends', locationId, months] },
   });
   const trends = trendsQuery.data?.data ?? [];
 
@@ -145,8 +160,13 @@ export function DashboardPage() {
     if (!locationId) void byLocationQuery.refetch();
   };
 
+  const dismissAll = () => {
+    sessionStorage.setItem(DISMISS_KEY, '1');
+    setDismissed(true);
+  };
+
   return (
-    <Space direction="vertical" size={20} style={{ width: '100%' }}>
+    <Space direction="vertical" size={16} style={{ width: '100%' }}>
       {loadFailed && (
         <Alert
           type="error"
@@ -159,72 +179,42 @@ export function DashboardPage() {
           }
         />
       )}
-      <Row justify="space-between" align="middle" gutter={[16, 12]}>
+      <Row justify="space-between" align="bottom" gutter={[16, 12]}>
         <Col>
-          <Typography.Title level={3} style={{ margin: 0, fontWeight: 600, fontSize: 24 }}>
+          <Typography.Title level={3} className="nv-page-title" style={{ margin: 0 }}>
             Dashboard
           </Typography.Title>
-          <Typography.Text style={{ fontSize: 13, color: COLOR_TEXT_MUTED }}>
-            Fleet overview and items needing attention
+          <Typography.Text style={{ fontSize: 12.5, color: COLOR_TEXT_SECONDARY }}>
+            {(m?.total ?? 0).toLocaleString()} assets across Pune, Hyderabad and Bhopal.
           </Typography.Text>
         </Col>
         <Col>
-          <Select
-            allowClear
-            aria-label="Filter dashboard by location"
-            placeholder="All locations"
-            style={{ width: 220 }}
-            value={locationId}
-            onChange={(v) => setLocationId(v)}
-            options={locations.map((l) => ({ label: `${l.name} (${l.code})`, value: l.id }))}
-          />
+          <Space>
+            <Select
+              aria-label="Trend window"
+              style={{ width: 160 }}
+              value={months}
+              onChange={setMonths}
+              options={[
+                { label: 'Last 6 months', value: 6 },
+                { label: 'Last 12 months', value: 12 },
+                { label: 'Last 24 months', value: 24 },
+              ]}
+            />
+            <Select
+              allowClear
+              aria-label="Filter dashboard by location"
+              placeholder="All locations"
+              style={{ width: 200 }}
+              value={locationId}
+              onChange={(v) => setLocationId(v)}
+              options={locations.map((l) => ({ label: `${l.name} (${l.code})`, value: l.id }))}
+            />
+          </Space>
         </Col>
       </Row>
 
-      {attentionItems.length > 0 && (
-        <Card
-          size="small"
-          className="nv-attention-panel"
-          title={
-            <Space>
-              <AlertOutlined style={{ color: KPI_WARRANTY }} />
-              <Typography.Text strong style={{ fontSize: 14 }}>
-                Needs attention
-              </Typography.Text>
-              {attention?.pendingRequestCount ? (
-                <Typography.Text style={{ fontSize: 12, color: COLOR_TEXT_SECONDARY }}>
-                  {attention.pendingRequestCount} pending request
-                  {attention.pendingRequestCount === 1 ? '' : 's'}
-                </Typography.Text>
-              ) : null}
-            </Space>
-          }
-        >
-          <List
-            size="small"
-            dataSource={attentionItems.slice(0, 8)}
-            renderItem={(item) => (
-              <List.Item>
-                <Space size={8}>
-                  <AlertOutlined style={{ color: KPI_WARRANTY, fontSize: 12 }} aria-hidden />
-                  <Link to={item.href} style={{ fontSize: 13 }}>
-                    <Typography.Text strong style={{ fontSize: 13, color: 'inherit' }}>
-                      {item.label}
-                    </Typography.Text>
-                    <Typography.Text
-                      style={{ fontSize: 12, marginLeft: 8, color: COLOR_TEXT_SECONDARY }}
-                    >
-                      {item.detail}
-                    </Typography.Text>
-                  </Link>
-                </Space>
-              </List.Item>
-            )}
-          />
-        </Card>
-      )}
-
-      <Row gutter={[16, 16]}>
+      <Row gutter={[10, 10]}>
         <Col xs={12} sm={8} lg={4}>
           <KpiCard
             title="Total Assets"
@@ -232,6 +222,7 @@ export function DashboardPage() {
             icon={<DatabaseOutlined />}
             accentColor={KPI_TOTAL}
             href={assetsHref({ locationId })}
+            subtitle="Entire estate"
           />
         </Col>
         <Col xs={12} sm={8} lg={4}>
@@ -240,8 +231,8 @@ export function DashboardPage() {
             value={m?.assigned ?? 0}
             icon={<CheckCircleOutlined />}
             accentColor={KPI_ASSIGNED}
-            valueColor="#15803D"
             href={assetsHref({ status: 'assigned', locationId })}
+            subtitle="In the field"
           />
         </Col>
         <Col xs={12} sm={8} lg={4}>
@@ -251,6 +242,7 @@ export function DashboardPage() {
             icon={<MinusCircleOutlined />}
             accentColor={KPI_AVAILABLE}
             href={assetsHref({ status: 'available', locationId })}
+            subtitle="Ready to issue"
           />
         </Col>
         <Col xs={12} sm={8} lg={4}>
@@ -259,8 +251,8 @@ export function DashboardPage() {
             value={m?.underRepair ?? 0}
             icon={<ToolOutlined />}
             accentColor={KPI_REPAIR}
-            valueColor="#B45309"
             href={assetsHref({ status: 'under_repair', locationId })}
+            subtitle="Open tickets"
           />
         </Col>
         <Col xs={12} sm={8} lg={4}>
@@ -270,6 +262,7 @@ export function DashboardPage() {
             icon={<InboxOutlined />}
             accentColor={KPI_RETIRED}
             href={assetsHref({ status: 'retired', locationId })}
+            subtitle="End of life"
           />
         </Col>
         <Col xs={12} sm={8} lg={4}>
@@ -278,13 +271,59 @@ export function DashboardPage() {
             value={m?.warrantyExpiring ?? 0}
             icon={<WarningOutlined />}
             accentColor={KPI_WARRANTY}
-            valueColor="#B91C1C"
             href={assetsHref({ warrantyExpiringInDays: 90, locationId })}
+            subtitle="Needs renewal"
           />
         </Col>
       </Row>
 
-      <Row gutter={[16, 16]}>
+      {!dismissed && attentionItems.length > 0 && (
+        <Card
+          size="small"
+          className="nv-attention-panel"
+          title={
+            <Space>
+              <AlertOutlined style={{ color: KPI_REPAIR }} />
+              <Typography.Text strong style={{ fontSize: 13 }}>
+                Needs attention
+              </Typography.Text>
+              <Typography.Text style={{ fontSize: 11.5, color: COLOR_TEXT_MUTED }}>
+                {attentionItems.length} item{attentionItems.length === 1 ? '' : 's'}
+                {attention?.pendingRequestCount
+                  ? ` · ${attention.pendingRequestCount} pending request${
+                      attention.pendingRequestCount === 1 ? '' : 's'
+                    }`
+                  : ''}
+              </Typography.Text>
+            </Space>
+          }
+          extra={
+            <Button type="link" size="small" onClick={dismissAll}>
+              Dismiss all
+            </Button>
+          }
+        >
+          <div className="nv-attention-grid">
+            {attentionItems.slice(0, 8).map((item) => (
+              <div key={`${item.href}-${item.label}`} className="nv-attention-item">
+                <Typography.Text strong style={{ fontSize: 12.5, display: 'block' }}>
+                  {item.label}
+                </Typography.Text>
+                <Typography.Text style={{ fontSize: 11.5, color: COLOR_TEXT_SECONDARY }}>
+                  {item.detail}
+                </Typography.Text>
+                <div>
+                  <Link to={item.href} style={{ fontSize: 11.5 }}>
+                    Open →
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      <Row gutter={[12, 12]}>
         <Col xs={24} lg={8}>
           <Card
             size="small"
@@ -292,22 +331,14 @@ export function DashboardPage() {
             title={
               <Space>
                 <PieChartOutlined style={{ color: COLOR_ACCENT }} />
-                Status mix
+                Status distribution
               </Space>
             }
           >
-            <BreakdownList
-              empty="No assets in this view"
-              items={(
-                Object.entries(m?.byStatus ?? {}) as [AssetStatus, number][]
-              ).map(([status, count]) => ({
-                key: status,
-                label: STATUS_LABELS[status] ?? status,
-                count,
-                color: STATUS_CHART_COLORS[status] ?? '#64748B',
-                href: assetsHref({ status, locationId }),
-              }))}
-            />
+            <Typography.Text style={{ fontSize: 11.5, color: COLOR_TEXT_MUTED, display: 'block', marginBottom: 8 }}>
+              All categories
+            </Typography.Text>
+            <StatusDonutChart byStatus={m?.byStatus ?? {}} height={240} />
           </Card>
         </Col>
         <Col xs={24} lg={8}>
@@ -317,7 +348,7 @@ export function DashboardPage() {
             title={
               <Space>
                 <EnvironmentOutlined style={{ color: COLOR_ACCENT }} />
-                {locationId ? 'Filtered view' : 'Assets by location'}
+                Assets by location
               </Space>
             }
           >
@@ -329,16 +360,7 @@ export function DashboardPage() {
                 Clear the location filter to compare all sites.
               </Typography.Text>
             ) : (
-              <BreakdownList
-                empty="No locations"
-                items={byLocation.map((l, i) => ({
-                  key: String(l.locationId),
-                  label: `${l.name} (${l.code})`,
-                  count: l.total,
-                  color: CHART_PALETTE[i % CHART_PALETTE.length],
-                  href: assetsHref({ locationId: l.locationId }),
-                }))}
-              />
+              <LocationBarChart data={byLocation} height={240} />
             )}
           </Card>
         </Col>
@@ -349,19 +371,11 @@ export function DashboardPage() {
             title={
               <Space>
                 <PlusCircleOutlined style={{ color: COLOR_ACCENT }} />
-                Assets added (12 months)
+                Growth ({months} months)
               </Space>
             }
           >
-            <BreakdownList
-              empty="No assets added in the last 12 months"
-              items={[...trends].reverse().map((t, i) => ({
-                key: t.month,
-                label: t.label,
-                count: t.count,
-                color: CHART_PALETTE[i % CHART_PALETTE.length],
-              }))}
-            />
+            <AssetTrendChart data={trends} height={240} />
           </Card>
         </Col>
       </Row>
@@ -371,8 +385,13 @@ export function DashboardPage() {
         title={
           <Space>
             <ClockCircleOutlined style={{ color: COLOR_ACCENT }} />
-            Warranty expiring soon
+            Warranty expiring
           </Space>
+        }
+        extra={
+          <Link to={assetsHref({ warrantyExpiringInDays: 90, locationId })} style={{ fontSize: 12 }}>
+            View all on Assets
+          </Link>
         }
         loading={isFetching}
       >

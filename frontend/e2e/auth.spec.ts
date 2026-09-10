@@ -13,7 +13,7 @@ test('logs in as IT Admin and shows the dashboard metric cards', async ({ page }
 
 test('logs out back to the login screen', async ({ page }) => {
   await login(page, DEMO_USERS.itAdmin);
-  await page.getByTestId('logout-button').click();
+  await page.getByTestId('logout-button').first().click();
   await expect(page.locator('#email')).toBeVisible();
 });
 

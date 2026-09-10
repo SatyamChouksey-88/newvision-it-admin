@@ -25,7 +25,8 @@ export function useTableKeyboard(opts: {
       const tag = (e.target as HTMLElement)?.tagName;
       const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 
-      if (e.key === '/' && !typing) {
+      const chordK = e.key.toLowerCase() === 'k' && (e.metaKey || e.ctrlKey);
+      if ((e.key === '/' && !typing) || chordK) {
         e.preventDefault();
         const el = document.querySelector<HTMLInputElement>(searchSelector);
         el?.focus();
