@@ -194,9 +194,14 @@ export function DashboardPage() {
             Dashboard
           </Typography.Title>
           <Typography.Text style={{ fontSize: 12.5, color: COLOR_TEXT_SECONDARY }}>
-            {freshInstall
-              ? 'Empty estate — follow the setup steps below.'
-              : `${(m?.total ?? 0).toLocaleString()} assets across Pune, Hyderabad and Bhopal.`}
+            {freshInstall ? (
+              'Empty estate — follow the setup steps below.'
+            ) : (
+              <>
+                {`${(m?.total ?? 0).toLocaleString()} assets across Pune, Hyderabad and Bhopal. `}
+                <LiveTimestamp at={lastUpdated} refreshing={isFetching} />
+              </>
+            )}
           </Typography.Text>
         </Col>
         {!freshInstall && (
@@ -231,30 +236,18 @@ export function DashboardPage() {
         <FirstRunWelcome />
       ) : (
       <>
-      <div className="nv-bento nv-mesh-bg" style={{ borderRadius: 14, padding: 12 }}>
-        <div className="nv-bento-hero">
+      <Row gutter={[10, 10]}>
+        <Col xs={12} sm={8} lg={4}>
           <KpiCard
-            hero
             title="Total Assets"
             value={m?.total ?? 0}
             icon={<DatabaseOutlined />}
             accentColor={KPI_TOTAL}
             href={assetsHref({ locationId })}
-            subtitle="Entire estate across Pune, Hyderabad and Bhopal"
-            sparkline={
-              trends.length > 1 ? <AssetTrendChart data={trends.slice(-6)} height={64} compact /> : null
-            }
-            footer={<LiveTimestamp at={lastUpdated} refreshing={isFetching} />}
+            subtitle="Entire estate"
           />
-        </div>
-        <div
-          className="nv-bento-side"
-          style={{
-            display: 'grid',
-            gridTemplateRows: 'repeat(2, 1fr)',
-            gap: 10,
-          }}
-        >
+        </Col>
+        <Col xs={12} sm={8} lg={4}>
           <KpiCard
             title="Assigned"
             value={m?.assigned ?? 0}
@@ -263,6 +256,8 @@ export function DashboardPage() {
             href={assetsHref({ status: 'assigned', locationId })}
             subtitle="In the field"
           />
+        </Col>
+        <Col xs={12} sm={8} lg={4}>
           <KpiCard
             title="Available"
             value={m?.available ?? 0}
@@ -271,8 +266,8 @@ export function DashboardPage() {
             href={assetsHref({ status: 'available', locationId })}
             subtitle="Ready to issue"
           />
-        </div>
-        <div className="nv-bento-third">
+        </Col>
+        <Col xs={12} sm={8} lg={4}>
           <KpiCard
             title="Under Repair"
             value={m?.underRepair ?? 0}
@@ -281,8 +276,8 @@ export function DashboardPage() {
             href={assetsHref({ status: 'under_repair', locationId })}
             subtitle="Open tickets"
           />
-        </div>
-        <div className="nv-bento-third">
+        </Col>
+        <Col xs={12} sm={8} lg={4}>
           <KpiCard
             title="Retired"
             value={m?.retired ?? 0}
@@ -291,8 +286,8 @@ export function DashboardPage() {
             href={assetsHref({ status: 'retired', locationId })}
             subtitle="End of life"
           />
-        </div>
-        <div className="nv-bento-third">
+        </Col>
+        <Col xs={12} sm={8} lg={4}>
           <KpiCard
             title="Warranty ≤90d"
             value={m?.warrantyExpiring ?? 0}
@@ -301,8 +296,8 @@ export function DashboardPage() {
             href={assetsHref({ warrantyExpiringInDays: 90, locationId })}
             subtitle="Needs renewal"
           />
-        </div>
-      </div>
+        </Col>
+      </Row>
 
       {!dismissed && attentionItems.length > 0 && (
         <Card
@@ -350,12 +345,51 @@ export function DashboardPage() {
         </Card>
       )}
 
-      <div className="nv-bento">
-        <div className="nv-bento-hero">
+      <Row gutter={[12, 12]}>
+        <Col xs={24} lg={8}>
+          <Card
+            size="small"
+            loading={isFetching}
+            title={
+              <Space>
+                <PieChartOutlined style={{ color: COLOR_ACCENT }} />
+                Status distribution
+              </Space>
+            }
+          >
+            <Typography.Text style={{ fontSize: 11.5, color: COLOR_TEXT_MUTED, display: 'block', marginBottom: 8 }}>
+              All categories
+            </Typography.Text>
+            <StatusDonutChart byStatus={m?.byStatus ?? {}} height={240} />
+          </Card>
+        </Col>
+        <Col xs={24} lg={8}>
+          <Card
+            size="small"
+            loading={!locationId && byLocationQuery.isFetching}
+            title={
+              <Space>
+                <EnvironmentOutlined style={{ color: COLOR_ACCENT }} />
+                Assets by location
+              </Space>
+            }
+          >
+            {locationId ? (
+              <Typography.Text
+                type="secondary"
+                style={{ display: 'block', padding: '24px 0', textAlign: 'center', fontSize: 13 }}
+              >
+                Clear the location filter to compare all sites.
+              </Typography.Text>
+            ) : (
+              <LocationBarChart data={byLocation} height={240} />
+            )}
+          </Card>
+        </Col>
+        <Col xs={24} lg={8}>
           <Card
             size="small"
             loading={trendsQuery.isFetching}
-            style={{ height: '100%' }}
             title={
               <Space>
                 <PlusCircleOutlined style={{ color: COLOR_ACCENT }} />
@@ -373,52 +407,11 @@ export function DashboardPage() {
                 No growth data yet.
               </Typography.Text>
             ) : (
-              <AssetTrendChart data={trends} height={296} />
+              <AssetTrendChart data={trends} height={240} />
             )}
           </Card>
-        </div>
-        <div
-          className="nv-bento-side"
-          style={{ display: 'grid', gridTemplateRows: 'auto auto', gap: 12 }}
-        >
-          <Card
-            size="small"
-            loading={isFetching}
-            title={
-              <Space>
-                <PieChartOutlined style={{ color: COLOR_ACCENT }} />
-                Status distribution
-              </Space>
-            }
-          >
-            <Typography.Text style={{ fontSize: 11.5, color: COLOR_TEXT_MUTED, display: 'block', marginBottom: 8 }}>
-              All categories
-            </Typography.Text>
-            <StatusDonutChart byStatus={m?.byStatus ?? {}} height={148} />
-          </Card>
-          <Card
-            size="small"
-            loading={!locationId && byLocationQuery.isFetching}
-            title={
-              <Space>
-                <EnvironmentOutlined style={{ color: COLOR_ACCENT }} />
-                Assets by location
-              </Space>
-            }
-          >
-            {locationId ? (
-              <Typography.Text
-                type="secondary"
-                style={{ display: 'block', padding: '12px 0', textAlign: 'center', fontSize: 13 }}
-              >
-                Clear the location filter to compare all sites.
-              </Typography.Text>
-            ) : (
-              <LocationBarChart data={byLocation} height={148} />
-            )}
-          </Card>
-        </div>
-      </div>
+        </Col>
+      </Row>
 
       <Card
         size="small"

@@ -19,7 +19,7 @@ Supersedes Prompt 3/6/9 written tokens wherever they conflict.
 | `textPrimary` | `#1F1F1F` | |
 | `textSecondary` | `#595959` | |
 | `textMuted` | `#64748B` | |
-| `textPlaceholder` | `#94A3B8` | |
+| `textPlaceholder` | `#64748B` | Mockup literal is `#94A3B8`; that's 2.56:1 on white (fails WCAG AA), so placeholders use the same muted tone as body text instead. |
 
 ## Accent
 

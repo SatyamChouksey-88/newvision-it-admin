@@ -154,3 +154,34 @@ Every judgment call made while building NewVision, and why. Newest at the bottom
 - **Global search is the ⌘K command palette**, not a header AutoComplete. Playwright and the `/` shortcut open that palette.
 - **Placeholder text uses `#64748B`** (same as muted body) so 13px Ant Design placeholders pass WCAG AA. `#94A3B8` on white is 2.56:1.
 
+## Prompt 18 — Real helpdesk emails (2026-09-10)
+
+- **HTML templates live in `backend/src/notifications/ticket-email-templates.ts`**, one function per event returning `{ subject, text, html }`; `MailerService.send` gained an optional `html` field rather than a second send path, so the existing SMTP-or-console fallback (Phase 2) needed no rework.
+- **The requester now gets a creation-confirmation email** — this event previously had no email at all (only staff/assignee were notified on create). Added via the same `notifyUsers` helper so it also creates the in-app notification, honoring the existing digest-skip rule for staff.
+- **Email HTML is a single inline-styled shell function**, not per-template markup, so the logo/accent/footer stay consistent and only the heading/body/CTA vary. No email CSS framework — table-based layout for client compatibility.
+- **Tests spy on `MailerService.send` in e2e, not mocked unit tests** — the existing e2e suite already seeds real tickets/users, so asserting on `sendSpy.mock.calls` there covers trigger logic and template selection without adding a second Nest test harness pattern.
+
+## Prompt 19 — Re-verified against the reference mockup, futuristic pass reverted (2026-09-10)
+
+- **The Prompt 18 "futuristic" visual pass (glow, glass/backdrop-blur, gradient mesh, bento
+  dashboard grid) is reverted**, per explicit instruction that it's superseded by
+  `design-reference/NewVision-standalone-src.html`. Re-reading that file directly confirmed the
+  already-implemented Prompt 12 token system matches it closely — the actual problem was the
+  futuristic CSS layered on top fighting those tokens, not the tokens being wrong. Reverting was
+  mostly subtraction: delete the added CSS block, restore the plain `Row`/`Col` KPI and chart
+  grids, drop the live-pulse dot and the KPI hero/sparkline/footer props.
+- **The `⌘K` command palette is kept**, restyled plain (opaque white, `#E4E9F0` border, the
+  reference's own notification-panel shadow) instead of glass. It's a functional upgrade over the
+  old header `AutoComplete` (jump-to-screen, quick actions), not a visual style choice, so it
+  survives the revert — this was Prompt 17's decision, reaffirmed here rather than undone.
+- **"Updated N minutes ago" on the dashboard is kept** — it's literally in the mockup's own copy,
+  just implemented as live relative text (`LiveTimestamp`) instead of a hardcoded string, and with
+  no pulsing dot (the dot was the futuristic part, not the text).
+- **Fixed a real axe-core failure surfaced while re-testing**: AntD's `color="green"` preset tag
+  (`#389e0d` on `#f6ffed`, 3.37:1) on the asset-notes "Active" tag and the command palette's result
+  tags. Replaced with the project's already-established safe pairs (e.g. `#15803D`/`#F0FDF4` for
+  green, matching `StatusTag`), not a new palette.
+- **Declined to add the mockup's floating "?" help-launcher button** (fixed bottom-right circle).
+  The header's labelled "Help" button already covers this entry point and is more accessible
+  (visible label vs. an icon-only FAB) — a deliberate, logged divergence rather than an oversight.
+

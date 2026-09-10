@@ -125,16 +125,7 @@ export function NotificationBell() {
           type="text"
           icon={<BellOutlined />}
           aria-label={total ? `Notifications, ${total} unread` : 'Notifications'}
-          style={{ position: 'relative' }}
-        >
-          {total > 0 && (
-            <span
-              className="nv-live-dot"
-              aria-hidden
-              style={{ position: 'absolute', top: 6, right: 6 }}
-            />
-          )}
-        </Button>
+        />
       </Badge>
     </Dropdown>
   );

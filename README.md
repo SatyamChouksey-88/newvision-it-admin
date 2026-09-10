@@ -259,4 +259,15 @@ Current status: **58 unit + 84 integration = 142** backend tests; **55 Playwrigh
 - **Growth chart** — cumulative running estate total (climbing line) plus labelled “Added this month”; baseline includes assets created before the window.
 - **Helpdesk/notes polish** — empty/loading states, axe-core on tickets + notes, command-palette global search.
 
+## Prompt 18 — Real helpdesk emails (complete)
+
+- **Branded HTML emails** for the full support-ticket lifecycle — created (requester confirmation), assigned, new unassigned ticket (IT staff), comment, status change, resolve→rate prompt, daily digest. See `backend/src/notifications/ticket-email-templates.ts`.
+- **Graceful without SMTP** — `MailerService.send` takes an optional `html` body and falls back to plain text / a console log when `SMTP_HOST` isn't set, matching the existing warranty-email behavior. See `SMTP_*` / `PUBLIC_APP_URL` in `.env.example`.
+- **Tested** — `backend/test/ticket-emails.e2e-spec.ts` spies the mailer and asserts the right template fires per event.
+
+## Prompt 19 — Re-verified against the reference mockup (complete)
+
+- Read `design-reference/NewVision-standalone-src.html` directly and reverted an interim "futuristic" visual pass (glow, glass, gradient mesh, a bento dashboard) that had drifted from it — the app matches the reference's plain, flat design again.
+- Kept the `⌘K` command palette and the dashboard's "Updated Ns ago" copy as genuine improvements (not visual style), and fixed a real WCAG contrast failure (AntD's `color="green"` preset tag) found while re-testing.
+
 Current status: **58 unit + 84 integration = 142** backend tests; **55 Playwright**.

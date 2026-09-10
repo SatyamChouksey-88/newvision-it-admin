@@ -1,6 +1,6 @@
 # NewVision — Project Status & Gap Audit
 
-This document is the current gap audit, cross-checked against the codebase after **Prompt 17** (bundle splitting, cumulative growth chart, helpdesk/notes polish). It is not a copy of an earlier prompt’s status. For the build log see `PROGRESS.md`; for judgment calls see `DECISIONS.md`.
+This document is the current gap audit, cross-checked against the codebase after **Prompt 19** (real helpdesk emails; re-verified against `design-reference/NewVision-standalone-src.html` after reverting an interim visual pass that had drifted from it). It is not a copy of an earlier prompt’s status. For the build log see `PROGRESS.md`; for judgment calls see `DECISIONS.md`.
 
 ## 1. What’s covered (Phases 1–4 — core product)
 
@@ -90,6 +90,14 @@ This document is the current gap audit, cross-checked against the codebase after
 - Helpdesk/notes empty and loading states; axe-core on ticketing + notes; command palette is the global search entry
 - Verified tests (2026-09-10): **58** backend unit + **84** backend integration + **55** Playwright
 
+## 7d. What’s covered (Prompts 18–19 — real helpdesk emails; re-verified against the reference mockup)
+
+- Every support-ticket lifecycle event sends a real, branded HTML email — created (requester confirmation, which didn't exist before), assigned, unassigned-to-staff, comment, status change, resolve→rate prompt, daily digest. Falls back to plain text / console log with no SMTP configured; `backend/test/ticket-emails.e2e-spec.ts` spies the mailer and asserts subject/template per event.
+- An interim "futuristic" visual pass (glow, glass/backdrop-blur, gradient mesh, bento dashboard) was implemented, then explicitly reverted after re-reading `design-reference/NewVision-standalone-src.html` directly — the app now matches that file's plain, flat treatment again (opaque cards, equal-size grids, the existing `0 2px 6px` hover shadow). The `⌘K` command palette and the "Updated Ns ago" dashboard copy were kept as genuine functional/copy improvements, not visual style.
+- Found and fixed a real axe-core failure while re-testing (AntD's `color="green"` preset tag, 3.37:1 contrast) on asset notes and the command palette.
+- Confirmed in the running UI via screenshots: login, dashboard, header/shell, assets list, and Help all match the reference's layout and treatment.
+- Verified tests (2026-09-10, unchanged by the revert): **58** backend unit + **84** backend integration + **55** Playwright (incl. axe-core)
+
 ## 8. What’s explicitly and deliberately excluded (by design, not by oversight)
 
 These came up in the original research document but were kept out because they belong to full enterprise ITSM/CMDB suites and don’t fit a ~1,250-asset, 3-location internal tool:
@@ -117,7 +125,7 @@ If any of these become a real, demonstrated need later, they should be scoped as
 - **Keyboard shortcuts** are strongest on assets/employees lists (`/` global search works everywhere)
 - **No self-service admin bootstrap** — a migrate-only database has no login until an admin user exists (seed, or create via a one-off). First-run UI assumes someone can already authenticate
 
-None of Prompt 6/8/9/12/13/14/15/16/17 product work is sitting as an undocumented gap.
+None of Prompt 6/8/9/12/13/14/15/16/17/18/19 product work is sitting as an undocumented gap.
 
 ## 10. Recommended next step
 

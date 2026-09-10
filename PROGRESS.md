@@ -221,15 +221,8 @@ Definition of Done: UI matches approved mockup look-and-feel; no functional regr
 - [x] Helpdesk/notes polish (empty/loading, axe on tickets + notes); command-palette search covered by Playwright
 - [x] Lint/tsc/production build clean; full suites green
 
-## Prompt 18 — Futuristic redesign + real helpdesk emails ⏸ PAUSED MID-WORK (checkpoint)
+## Prompt 18 — Real helpdesk emails ✅ COMPLETE (visual direction superseded by Prompt 19)
 
-Paused per Prompt 19's explicit instruction to stop, checkpoint, and switch priority to
-matching `design-reference/NewVision-standalone-src.html` exactly instead. Everything below is
-committed, builds clean, and all existing tests still pass — nothing here is broken, it's just
-an unfinished direction that Prompt 19 supersedes (visually). The **email work is not superseded**
-and stays.
-
-**Done and verified (kept):**
 - [x] Real, branded HTML email templates (`backend/src/notifications/ticket-email-templates.ts`) for:
       ticket created (confirmation to requester), ticket assigned, new unassigned ticket (staff),
       new comment, status change, resolution rating prompt, daily digest. `MailerService.send`
@@ -237,26 +230,45 @@ and stays.
       configured (unchanged graceful-degradation behavior).
 - [x] Wired into every `TicketsService` lifecycle call site that previously only sent plain text.
       Requester now gets a creation confirmation email, which did not exist before.
-- [x] New `backend/test/ticket-emails.e2e-spec.ts` (5 tests) spies on `MailerService.send` and
+- [x] `backend/test/ticket-emails.e2e-spec.ts` (5 tests) spies on `MailerService.send` and
       asserts the right subject/template fires for create/assign/comment/status-change/resolve/digest.
-      Full suite: **58 unit + 84 integration = 142** backend tests, all green; lint/tsc clean.
 - [x] `.env.example` comment updated to describe SMTP as covering the full ticket lifecycle, and
       that `PUBLIC_APP_URL` now also feeds the email logo/CTA links.
+- Prompt 18 also started a "futuristic light theme" pass (glow, glass/backdrop-blur, gradient
+  mesh, a bento dashboard grid). Prompt 19 explicitly superseded that visual direction in favor
+  of matching `design-reference/NewVision-standalone-src.html` literally — see Prompt 19 below
+  for what was kept vs reverted.
 
-**In progress, left mid-flight when paused (visual layer — now being redone against the
-reference file per Prompt 19, not resumed as-is):**
-- A "futuristic light theme" pass had started: glow on primary buttons/active nav
-  (`--nv-accent-glow` box-shadows), glass/backdrop-blur on floating layers (modals, dropdowns,
-  the notification panel), a gradient-mesh background utility (`.nv-mesh-bg`) applied to the
-  login estate panel and the first-run welcome card, a bento-style dashboard grid (hero KPI tile
-  with an inline sparkline + a live-pulse "Updated Ns ago" indicator, supporting tiles, a wider
-  hero growth chart), and a new `⌘K` command palette (`frontend/src/components/CommandPalette.tsx`)
-  replacing the old header `AutoComplete` as the single search/jump entry point.
-- Frontend typechecks and builds clean with all of this in; backend is untouched by it.
-- **Not yet done when paused**: a full visual redo against the Prompt 19 reference file. Command-palette Playwright + axe-core were completed in Prompt 17 (`search.spec.ts`, `audit-fixes.spec.ts`, `a11y.spec.ts`).
-- Per Prompt 19, this visual direction is superseded by the reference file. Anything from it
-  that survives the redo (e.g. the command palette as a feature, kept because it's a genuine
-  UX improvement, not a color/theme choice) will be noted in `DECISIONS.md`.
+## Prompt 19 — Verified re-match against the reference mockup ✅ COMPLETE
+
+- [x] Re-read `design-reference/NewVision-standalone-src.html` directly (not from memory/summary)
+      and confirmed the existing Prompt 12 token system already matches it — the gap was Prompt 18's
+      futuristic overlay fighting those tokens, not the tokens themselves.
+- [x] Reverted the futuristic overlay: gradient-mesh backgrounds (login estate panel, first-run
+      welcome card), glass/backdrop-blur on modals/dropdowns/notification panel, glow box-shadows
+      on buttons and the active nav item, the live-pulse dot (notification bell + dashboard), and
+      the bento-grid dashboard layout — restored to the reference's plain equal-size KPI/chart
+      grids (`repeat(auto-fit, minmax(...))`, opaque white cards, `0 2px 6px rgba(16,24,40,0.06)`
+      hover shadow only).
+- [x] **Kept as a genuine, tasteful improvement** (Prompt 17's original call, reaffirmed here):
+      the `⌘K` command palette as the one global search/jump entry point — restyled to the
+      reference's own plain notification-panel look (opaque white, `#E4E9F0` border, `0 6px 20px
+      rgba(16,24,40,0.10)` shadow, no blur) instead of the glass treatment Prompt 18 gave it.
+- [x] **Kept**: the dashboard subtitle now says "Updated N minutes ago" — the reference mockup's
+      own copy (`{{ crumb }}... Updated 6 minutes ago`), just implemented as live relative text
+      instead of the mockup's static string, with no pulsing dot.
+- [x] Found and fixed a real WCAG AA failure while re-testing: AntD's `color="green"` preset
+      (`#389e0d` on `#f6ffed`, 3.37:1) on the asset-notes "Active" tag and in the command palette's
+      result tags — replaced with the project's established safe pairs (e.g. `#15803D`/`#F0FDF4`
+      for green), matching `StatusTag`'s existing convention.
+- [x] `design-reference/DESIGN_TOKENS.md` annotated where the implementation deliberately deviates
+      from the mockup's literal pixels for accessibility (`textPlaceholder` `#64748B` not `#94A3B8`).
+- [x] Deliberately did **not** add the mockup's floating black "?" help-launcher FAB (bottom-right) —
+      the header's labelled "Help" button is the same entry point with better discoverability and
+      a11y (a visible label beats an icon-only floating button); logged here rather than silently
+      diverging.
+- [x] Re-verified full suites after the revert: **58 unit + 84 integration = 142** backend tests,
+      **55 Playwright** (incl. axe-core) — all green; lint/tsc/production build clean on both sides.
 
 ## Known issues
 

@@ -2,27 +2,21 @@ import { useEffect, useState } from 'react';
 
 function relative(ms: number): string {
   const s = Math.max(0, Math.round(ms / 1000));
-  if (s < 5) return 'just now';
-  if (s < 60) return `${s}s ago`;
+  if (s < 60) return 'just now';
   const m = Math.round(s / 60);
-  if (m < 60) return `${m}m ago`;
+  if (m < 60) return `${m} minute${m === 1 ? '' : 's'} ago`;
   const h = Math.round(m / 60);
-  return `${h}h ago`;
+  return `${h} hour${h === 1 ? '' : 's'} ago`;
 }
 
-/** A small pulsing "updated Ns ago" indicator — ticks every 5s, respects prefers-reduced-motion via CSS. */
+/** Plain "Updated Ns ago" text, matching the approved mockup's dashboard subtitle. */
 export function LiveTimestamp({ at, refreshing }: { at: number; refreshing?: boolean }) {
   const [, forceTick] = useState(0);
 
   useEffect(() => {
-    const t = setInterval(() => forceTick((n) => n + 1), 5000);
+    const t = setInterval(() => forceTick((n) => n + 1), 30_000);
     return () => clearInterval(t);
   }, []);
 
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: '#64748b' }}>
-      <span className="nv-live-dot" aria-hidden />
-      {refreshing ? 'Refreshing…' : `Updated ${relative(Date.now() - at)}`}
-    </span>
-  );
+  return <>{refreshing ? 'Refreshing…' : `Updated ${relative(Date.now() - at)}`}</>;
 }

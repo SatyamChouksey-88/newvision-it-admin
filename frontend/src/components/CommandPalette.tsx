@@ -240,13 +240,17 @@ export function CommandPalette({ open, onClose }: Props) {
       destroyOnHidden
       className="nv-palette"
       styles={{
-        mask: { backdropFilter: 'blur(6px)' },
-        content: { padding: 0, borderRadius: 14, overflow: 'hidden' },
+        content: {
+          padding: 0,
+          borderRadius: 8,
+          overflow: 'hidden',
+          boxShadow: '0 6px 20px rgba(16,24,40,0.10), 0 1px 2px rgba(16,24,40,0.06)',
+        },
         body: { padding: 0 },
       }}
       aria-label="Command palette"
     >
-      <div style={{ borderBottom: '1px solid rgba(9,88,217,0.12)', padding: '0 14px' }}>
+      <div style={{ borderBottom: '1px solid #F1F4F8', padding: '0 14px' }}>
         <Input
           ref={inputRef}
           className="nv-palette-input"
@@ -296,7 +300,8 @@ export function CommandPalette({ open, onClose }: Props) {
       </div>
       <div
         style={{
-          borderTop: '1px solid rgba(9,88,217,0.1)',
+          borderTop: '1px solid #F1F4F8',
+          background: '#FAFBFC',
           padding: '8px 14px',
           fontSize: 11,
           color: '#64748b',

@@ -393,15 +393,12 @@ a:hover {
 
 .nv-login-estate {
   border-left: 1px solid #e9edf2;
+  background: #fafafa;
   padding: 48px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   gap: 18px;
-}
-
-.nv-login-estate.nv-mesh-bg {
-  background-size: 160% 160%;
 }
 
 .nv-login-estate-grid {
@@ -412,13 +409,10 @@ a:hover {
 }
 
 .nv-login-stat {
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(14px) saturate(160%);
-  -webkit-backdrop-filter: blur(14px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  border-radius: 10px;
+  background: #fff;
+  border: 1px solid #e9edf2;
+  border-radius: 8px;
   padding: 14px 15px;
-  box-shadow: 0 6px 20px -10px rgba(9, 88, 217, 0.18);
 }
 
 .nv-login-stat-value {
@@ -640,248 +634,13 @@ a:hover {
   }
 }
 
-/* ══════════════════════════════════════════════════════════════════════
-   Prompt 18 — futuristic light theme: glow accents, glass floating
-   panels, gradient mesh on empty surfaces, purposeful motion.
-   Supersedes the flat Prompt 12 chrome above where the two disagree;
-   data-dense surfaces (tables, forms) are deliberately left alone.
-   ══════════════════════════════════════════════════════════════════════ */
 
-:root {
-  --nv-accent: #0958d9;
-  --nv-accent-soft: rgba(9, 88, 217, 0.14);
-  --nv-accent-glow: rgba(9, 88, 217, 0.32);
-  --nv-violet: #7c6fef;
-  --nv-cyan: #22d3ee;
-}
-
-/* Motion baseline — every interactive surface eases the same way */
-.ant-btn,
-.ant-menu-item,
-.ant-card,
-.nv-kpi-card,
-.nv-glow-surface,
-.ant-input,
-.ant-input-affix-wrapper,
-.ant-select-selector,
-.ant-tabs-tab,
-.nv-stock-card,
-.nv-status-chip {
-  transition:
-    box-shadow 0.2s ease,
-    border-color 0.2s ease,
-    transform 0.2s ease,
-    background 0.2s ease;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ant-btn,
-  .ant-menu-item,
-  .ant-card,
-  .nv-kpi-card,
-  .nv-glow-surface,
-  .ant-input,
-  .ant-select-selector,
-  .ant-tabs-tab,
-  .nv-stock-card,
-  .nv-status-chip {
-    transition: none !important;
-  }
-}
-
-/* Glow on primary actions + active nav + focus rings — the main lever for a
-   more futuristic feel while staying strictly light-mode. */
-.ant-btn-primary:not(:disabled):hover,
-.ant-btn-primary:not(:disabled):focus-visible {
-  box-shadow: 0 0 0 3px var(--nv-accent-soft), 0 6px 18px var(--nv-accent-glow) !important;
-  transform: translateY(-1px);
-}
-
-.ant-layout-sider .ant-menu-item-selected {
-  box-shadow: inset 2px 0 0 var(--nv-accent), 0 0 18px -6px var(--nv-accent-glow);
-}
-
-a:focus-visible,
-.ant-btn:focus-visible,
-.ant-input:focus-visible,
-[tabindex]:focus-visible {
-  outline: 2px solid var(--nv-accent);
-  outline-offset: 2px;
-}
-
-.ant-input-affix-wrapper-focused,
-.ant-input:focus,
-.ant-select-focused .ant-select-selector {
-  box-shadow: 0 0 0 3px var(--nv-accent-soft) !important;
-}
-
-.nv-kpi-card--clickable:hover,
-.nv-kpi-link:focus-visible .nv-kpi-card {
-  transform: translateY(-2px);
-  box-shadow:
-    0 10px 24px -8px rgba(16, 24, 40, 0.16),
-    0 0 0 1px var(--nv-accent-soft) !important;
-}
-
-.ant-card-hoverable:hover {
-  transform: translateY(-1px);
-}
-
-/* ── Glass — floating layers only: modals, dropdowns, popovers, drawers,
-   notification panel, help launcher, command palette. Never the canvas
-   or dense tables — legibility there stays fully opaque. ── */
-.ant-modal-content,
-.ant-dropdown-menu,
-.ant-select-dropdown,
-.ant-picker-dropdown .ant-picker-panel-container,
-.ant-popover-inner,
-.nv-glass {
-  background: rgba(255, 255, 255, 0.86) !important;
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow:
-    0 16px 40px -12px rgba(16, 24, 40, 0.22),
-    0 0 0 1px rgba(16, 24, 40, 0.04);
-}
-
-.ant-drawer-content {
-  background: rgba(255, 255, 255, 0.95) !important;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-}
-
-/* ── Gradient mesh — generously-empty surfaces only: login, empty states,
-   dashboard hero band. Never behind text-dense or table content. ── */
-.ant-card.nv-mesh-bg {
-  background:
-    radial-gradient(560px circle at 12% 8%, rgba(9, 88, 217, 0.08), transparent 60%),
-    radial-gradient(480px circle at 88% 18%, rgba(124, 111, 239, 0.08), transparent 55%),
-    #fff !important;
-}
-
-.nv-mesh-bg {
-  position: relative;
-  background:
-    radial-gradient(560px circle at 12% 8%, rgba(9, 88, 217, 0.16), transparent 60%),
-    radial-gradient(480px circle at 88% 18%, rgba(124, 111, 239, 0.16), transparent 55%),
-    radial-gradient(600px circle at 50% 100%, rgba(34, 211, 238, 0.13), transparent 60%),
-    #f8fafc;
-  background-size: 130% 130%;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .nv-mesh-bg {
-    animation: nv-mesh-drift 26s ease-in-out infinite alternate;
-  }
-}
-
-@keyframes nv-mesh-drift {
-  from {
-    background-position: 0% 0%;
-  }
-  to {
-    background-position: 8% 6%;
-  }
-}
-
-/* ── Live pulse — real-time-feeling indicators (dashboard timestamp,
-   notification bell when new items arrive). ── */
-.nv-live-dot {
-  position: relative;
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: #16a34a;
-  flex-shrink: 0;
-}
-
-.nv-live-dot::after {
-  content: '';
-  position: absolute;
-  inset: -4px;
-  border-radius: 999px;
-  border: 1.5px solid #16a34a;
-  animation: nv-pulse 2s ease-out infinite;
-}
-
-@keyframes nv-pulse {
-  0% {
-    transform: scale(0.6);
-    opacity: 0.9;
-  }
-  100% {
-    transform: scale(1.9);
-    opacity: 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .nv-live-dot::after {
-    animation: none;
-    display: none;
-  }
-}
-
-/* ── Bento dashboard grid ── */
-.nv-bento {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.nv-bento > * {
-  min-width: 0;
-}
-
-.nv-bento-hero {
-  grid-column: span 8;
-}
-
-.nv-bento-side {
-  grid-column: span 4;
-}
-
-.nv-bento-third {
-  grid-column: span 4;
-}
-
-.nv-bento-half {
-  grid-column: span 6;
-}
-
-.nv-bento-full {
-  grid-column: span 12;
-}
-
-@media (max-width: 1200px) {
-  .nv-bento-hero,
-  .nv-bento-side,
-  .nv-bento-third,
-  .nv-bento-half {
-    grid-column: span 6;
-  }
-}
-
-@media (max-width: 700px) {
-  .nv-bento {
-    grid-template-columns: 1fr;
-  }
-  .nv-bento-hero,
-  .nv-bento-side,
-  .nv-bento-third,
-  .nv-bento-half,
-  .nv-bento-full {
-    grid-column: span 1;
-  }
-}
-
-/* ── Command palette ── */
+/* ── Command palette (⌘K) — the single global-jump entry point, styled like the
+   mockup's notification panel: opaque white, plain border, no blur/glass. ── */
 .nv-palette-input.ant-input {
   border: none !important;
   box-shadow: none !important;
-  font-size: 15px !important;
+  font-size: 13px !important;
   background: transparent !important;
   height: auto !important;
   padding: 14px 4px !important;
@@ -896,32 +655,21 @@ a:focus-visible,
   align-items: center;
   gap: 10px;
   padding: 9px 14px;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12.5px;
   color: #1f1f1f;
 }
 
 .nv-palette-result[data-active='true'] {
-  background: var(--nv-accent-soft);
+  background: #f0f7ff;
 }
 
 .nv-palette-section {
-  font-size: 10.5px;
+  font-size: 10px;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #64748b;
-  padding: 12px 14px 4px;
-}
-
-@media (prefers-color-scheme: dark) {
-  .nv-mesh-bg,
-  .ant-modal-content,
-  .ant-dropdown-menu,
-  .ant-select-dropdown,
-  .ant-popover-inner,
-  .nv-glass {
-    color-scheme: light;
-  }
+  color: #94a3b8;
+  padding: 10px 14px 4px;
 }

@@ -108,4 +108,19 @@ Audit date: 2026-09-10. Each item lists the finding and resolution status.
 | B3 | Docs claimed 47 Playwright tests | **Fixed** — re-counted: 58 unit + 84 integration + 55 Playwright |
 | B4 | Helpdesk/notes skipped some empty/loading/a11y states | **Fixed** — empty copy, skeletons, axe on tickets + notes |
 
+## Prompt 18
+
+| # | Finding | Resolution |
+|---|---------|------------|
+| E1 | Ticket lifecycle emails were plain text and creation sent none to the requester | **Fixed** — branded HTML templates for created/assigned/unassigned/comment/status-change/resolved/digest; requester now gets a creation confirmation |
+| E2 | No test coverage confirmed which email fires for which event | **Fixed** — `ticket-emails.e2e-spec.ts` spies `MailerService.send` and asserts subject/template per event |
+
+## Prompt 19
+
+| # | Finding | Resolution |
+|---|---------|------------|
+| V1 | A "futuristic" visual pass (glow/glass/mesh/bento) had drifted from the approved reference mockup | **Reverted** — restored the reference's plain equal-size grids, opaque surfaces, and existing hover shadows; kept the command palette and "Updated Ns ago" copy as genuine, non-visual improvements |
+| V2 | AntD `color="green"` preset tag failed axe-core color-contrast (3.37:1) on asset notes and the command palette | **Fixed** — swapped to the project's existing safe green/blue/purple/orange pairs |
+| V3 | Mockup's floating "?" help-launcher FAB has no equivalent in the app | **Declined** — header's labelled Help button covers the same entry point with better a11y; logged rather than silently diverging |
+
 

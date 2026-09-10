@@ -1,6 +1,6 @@
 # NewVision — Project Documentation
 
-> Internal reference for developers and operators. Last aligned with the codebase after **Prompt 17** (bundle splitting, cumulative growth chart, helpdesk/notes polish). Everything below is verified against the actual repo — not the original build prompts.
+> Internal reference for developers and operators. Last aligned with the codebase after **Prompt 19** (real helpdesk emails; re-verified against `design-reference/NewVision-standalone-src.html`). Everything below is verified against the actual repo — not the original build prompts.
 
 ---
 
@@ -37,10 +37,12 @@ The stack is a **React + Refine + Ant Design** frontend talking to a **NestJS + 
 | **Prompt 15** — Helpdesk enhancements | CSAT, digest email, quick views, search, contact cards, duplicate-of, bulk, export | **Done** |
 | **Prompt 16** — Notes & manual edit | Append-only notes; reason-required manual override; backfill; audit filter | **Done** |
 | **Prompt 17** — Verified enhancement pass | Route-level code splitting + vendor chunks; cumulative growth chart; docs test-count correction; helpdesk/notes polish | **Done** |
+| **Prompt 18** — Real helpdesk emails | Branded HTML templates for the full ticket lifecycle (created/assigned/unassigned/comment/status-change/resolved/digest); requester creation confirmation added | **Done** |
+| **Prompt 19** — Re-verified against reference | Re-read the mockup directly; reverted an interim "futuristic" visual pass that had drifted from it; kept the command palette and a WCAG contrast fix found while re-testing | **Done** |
 
 **Test counts (current, re-run 2026-09-10):** 58 backend unit + 84 backend integration = **142**; **55** Playwright (incl. axe-core).
 
-**Design reference:** `design-reference/NewVision-standalone-src.html` (Prompt 12 source of truth) and `design-reference/DESIGN_TOKENS.md`. Earlier `NewVision_Asset_Manager.html` is historical.
+**Design reference:** `design-reference/NewVision-standalone-src.html` (Prompt 12 source of truth, re-verified in Prompt 19) and `design-reference/DESIGN_TOKENS.md`. Earlier `NewVision_Asset_Manager.html` is historical.
 
 ---
 
@@ -335,7 +337,9 @@ Separate from Maintenance (hardware repairs on one asset) and Asset Requests (as
 
 **Also:** CSAT 1–5 on resolve; IT email Immediate vs Daily digest (`POST /api/support-tickets/digest/run`); quick views; full-text `q`; contact cards; duplicate-of; CSV/PDF export.
 
-**Status:** Fully working. E2e: `backend/test/tickets.e2e-spec.ts`, `frontend/e2e/tickets.spec.ts`.
+**Email:** every lifecycle event sends a real, branded HTML email (not just an in-app notification) — ticket created (confirmation to the requester), assigned (to the assignee), a new unassigned ticket (to IT Admin/Support), a public comment (to requester + watchers, and to the assignee if the requester commented), a status change (requester + watchers), the resolve→rate prompt (requester), and the daily digest (IT staff who chose that preference). Templates live in `backend/src/notifications/ticket-email-templates.ts` — one function per event returning `{ subject, text, html }`, rendered through a shared inline-styled shell (logo, `#0958D9` accent, one CTA button) so every email looks the same shape. `MailerService.send` takes an optional `html` field and falls back to `text` / a console log line when `SMTP_HOST` isn't set — nothing crashes or blocks in an unconfigured environment. Staff on `daily_digest` never get the immediate versions (existing digest-skip rule, unchanged). Covered by `backend/test/ticket-emails.e2e-spec.ts`, which spies `MailerService.send` and asserts the right subject/template fires per event.
+
+**Status:** Fully working. E2e: `backend/test/tickets.e2e-spec.ts`, `backend/test/ticket-emails.e2e-spec.ts`, `frontend/e2e/tickets.spec.ts`.
 
 ---
 
@@ -569,8 +573,8 @@ npm run dev                     # → http://localhost:5173
 | `JWT_SECRET` | Signing key (change in production) |
 | `JWT_EXPIRES_IN` | Token TTL (default `8h`) |
 | `CORS_ORIGIN` | Frontend origin(s) |
-| `SMTP_*` / `MAIL_FROM` | Warranty emails (optional) |
-| `PUBLIC_APP_URL` | Base URL encoded in QR codes (default `http://localhost:5173`) |
+| `SMTP_*` / `MAIL_FROM` | Warranty alerts and the full helpdesk ticket lifecycle (optional — console log when unset) |
+| `PUBLIC_APP_URL` | Base URL encoded in QR codes and in email logo/CTA links (default `http://localhost:5173`) |
 
 ---
 
