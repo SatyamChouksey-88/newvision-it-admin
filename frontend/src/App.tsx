@@ -25,9 +25,11 @@ import { lazy, Suspense, type ComponentType } from 'react';
 import { BrowserRouter, Outlet, Route, Routes } from 'react-router';
 import { AppSider } from './components/AppSider';
 import { Header } from './components/Header';
+import { RoleRouteGuard } from './components/RoleRouteGuard';
 import { RouteFallback } from './components/RouteFallback';
 import { TabletCollapse } from './components/TabletCollapse';
 import { Title } from './components/Title';
+import { accessControlProvider } from './providers/accessControlProvider';
 import { authProvider } from './providers/authProvider';
 import { dataProvider } from './providers/dataProvider';
 import { newVisionTheme } from './theme';
@@ -65,6 +67,7 @@ const AuditList = lazyNamed(() => import('./pages/audit/list'), 'AuditList');
 const SettingsPage = lazyNamed(() => import('./pages/settings'), 'SettingsPage');
 const HelpSection = lazyNamed(() => import('./pages/help/HelpSection'), 'HelpSection');
 const LoginPage = lazyNamed(() => import('./pages/login'), 'LoginPage');
+const ResetPasswordPage = lazyNamed(() => import('./pages/reset-password'), 'ResetPasswordPage');
 const ScanPage = lazyNamed(() => import('./pages/scan'), 'ScanPage');
 
 export default function App() {
@@ -75,6 +78,7 @@ export default function App() {
           <Refine
             dataProvider={dataProvider}
             authProvider={authProvider}
+            accessControlProvider={accessControlProvider}
             routerProvider={routerProvider}
             notificationProvider={useNotificationProvider}
             resources={[
@@ -156,13 +160,16 @@ export default function App() {
             <Suspense fallback={<RouteFallback />}>
               <Routes>
                 <Route path="/scan/:code" element={<ScanPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
                 <Route
                   element={
                     <Authenticated key="auth" fallback={<CatchAllNavigate to="/login" />}>
                       <ThemedLayout Header={Header} Title={Title} Sider={AppSider}>
                         <TabletCollapse />
                         <Suspense fallback={<RouteFallback />}>
-                          <Outlet />
+                          <RoleRouteGuard>
+                            <Outlet />
+                          </RoleRouteGuard>
                         </Suspense>
                       </ThemedLayout>
                     </Authenticated>

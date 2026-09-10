@@ -3,7 +3,7 @@ import { formatDate } from '../utils/format';
 
 export interface TimelineEvent {
   id: string | number;
-  at: string;
+  at: string | null;
   summary: string;
   actor?: string;
   manual?: boolean;
@@ -55,7 +55,7 @@ export function EventTimeline({ events }: { events: TimelineEvent[] }) {
             </Space>
             <div>
               <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                {formatDate(e.at)}
+                {e.at ? formatDate(e.at) : '—'}
                 {e.actor ? ` · ${e.actor}` : ''}
               </Typography.Text>
             </div>

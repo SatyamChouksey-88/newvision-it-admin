@@ -3,30 +3,29 @@ import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   DatabaseOutlined,
-  EnvironmentOutlined,
   InboxOutlined,
   MinusCircleOutlined,
-  PieChartOutlined,
-  PlusCircleOutlined,
   ToolOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
-import { useCustom } from '@refinedev/core';
-import { Alert, Button, Card, Col, Row, Select, Space, Typography } from 'antd';
+import { useCustom, useGetIdentity } from '@refinedev/core';
+import { Alert, Button, Card, Col, Row, Space, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { AssetTrendChart } from '../components/charts/AssetTrendChart';
-import { LocationBarChart } from '../components/charts/LocationBarChart';
-import { StatusDonutChart } from '../components/charts/StatusDonutChart';
+import { isEmployee, isItConsole, isManager } from '../access';
+import { BreakdownList } from '../components/BreakdownList';
 import { WarrantyDays } from '../components/Cells';
 import { DataGrid } from '../components/DataGrid/DataGrid';
 import { FirstRunWelcome } from '../components/FirstRunWelcome';
 import { KpiCard } from '../components/KpiCard';
 import { LiveTimestamp } from '../components/LiveTimestamp';
+import { ChipSelect } from '../components/ChipSelect';
+import { TicketStatusTag } from '../components/TicketStatusTag';
+import { STATUS_CHART_COLORS, STATUS_LABELS } from '../chartColors';
 import { useSetupStatus } from '../hooks/useSetupStatus';
+import type { Identity } from '../providers/authProvider';
 import { httpClient } from '../providers/axios';
 import {
-  COLOR_ACCENT,
   COLOR_TEXT_MUTED,
   COLOR_TEXT_SECONDARY,
   KPI_ASSIGNED,
@@ -37,12 +36,14 @@ import {
   KPI_WARRANTY,
 } from '../theme';
 import type {
+  AssetStatus,
   DashboardAttention,
   DashboardMetrics,
-  DashboardTrendPoint,
   Location,
   LocationBreakdown,
+  SupportTicket,
 } from '../types';
+import { StatusTag } from '../components/StatusTag';
 
 interface WarrantyRow {
   id: number;
@@ -52,13 +53,6 @@ interface WarrantyRow {
   location?: string;
   warrantyEnd?: string;
   daysRemaining: number | null;
-}
-
-/** "Pune", "Pune and Hyderabad", "Pune, Hyderabad and Bhopal" — never hardcode site names. */
-function joinNames(names: string[]): string {
-  if (names.length === 0) return 'the estate';
-  if (names.length === 1) return names[0];
-  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 }
 
 function assetsHref(filters: Record<string, string | number | undefined>) {
@@ -77,12 +71,184 @@ function assetsHref(filters: Record<string, string | number | undefined>) {
 const DISMISS_KEY = 'nv:attention-dismissed';
 
 export function DashboardPage() {
+  const { data: identity } = useGetIdentity<Identity>();
+  const role = identity?.role;
+  if (isEmployee(role)) return <MyItHome />;
+  if (isManager(role)) return <ManagerHome />;
+  if (role === 'IT_SUPPORT') return <SupportHome />;
+  if (isItConsole(role)) return <EstateDashboard superAdmin={role === 'SUPER_ADMIN'} />;
+  return <EstateDashboard superAdmin={false} />;
+}
+
+function MyItHome() {
+  const [data, setData] = useState<{
+    assets: { id: number; assetCode: string; brand?: string | null; model?: string | null; status: AssetStatus; category?: string }[];
+    openTickets: Pick<SupportTicket, 'id' | 'ticketNumber' | 'subject' | 'status' | 'priority'>[];
+  } | null>(null);
+
+  useEffect(() => {
+    httpClient.get('/dashboard/my-summary').then(({ data: d }) => setData(d)).catch(() => setData({ assets: [], openTickets: [] }));
+  }, []);
+
+  return (
+    <Space direction="vertical" size={16} style={{ width: '100%' }} data-testid="my-it-home">
+      <div>
+        <Typography.Title level={3} className="nv-page-title" style={{ margin: 0 }}>
+          My IT
+        </Typography.Title>
+        <Typography.Text style={{ fontSize: 12.5, color: COLOR_TEXT_SECONDARY }}>
+          Your devices, requests, and tickets — nothing else.
+        </Typography.Text>
+      </div>
+      <Space wrap>
+        <Link to="/tickets/create">
+          <Button type="primary">Raise a ticket</Button>
+        </Link>
+        <Link to="/requests">
+          <Button>Request a device</Button>
+        </Link>
+      </Space>
+      <Row gutter={[12, 12]}>
+        {(data?.assets ?? []).map((a) => (
+          <Col xs={24} sm={12} lg={8} key={a.id}>
+            <Link to={`/assets/show/${a.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+              <Card size="small" hoverable>
+                <Typography.Text className="nv-mono" style={{ fontSize: 12, color: '#0958d9' }}>
+                  {a.assetCode}
+                </Typography.Text>
+                <div style={{ fontSize: 13, fontWeight: 500, marginTop: 4 }}>
+                  {`${a.brand ?? ''} ${a.model ?? ''}`.trim() || a.category || 'Device'}
+                </div>
+                <div style={{ marginTop: 8 }}>
+                  <StatusTag status={a.status} />
+                </div>
+              </Card>
+            </Link>
+          </Col>
+        ))}
+        {(data?.assets ?? []).length === 0 && (
+          <Col span={24}>
+            <Typography.Text type="secondary">No devices assigned to you yet.</Typography.Text>
+          </Col>
+        )}
+      </Row>
+      <Card size="small" title="Open tickets">
+        {(data?.openTickets ?? []).length === 0 ? (
+          <Typography.Text type="secondary">You have no open tickets.</Typography.Text>
+        ) : (
+          <Space direction="vertical" style={{ width: '100%' }}>
+            {(data?.openTickets ?? []).map((t) => (
+              <Link key={t.id} to={`/tickets/show/${t.id}`} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span className="nv-mono" style={{ fontSize: 12 }}>{t.ticketNumber}</span>
+                <span style={{ flex: 1 }}>{t.subject}</span>
+                <TicketStatusTag status={t.status} />
+              </Link>
+            ))}
+          </Space>
+        )}
+      </Card>
+    </Space>
+  );
+}
+
+function ManagerHome() {
+  const [data, setData] = useState<{
+    pendingRequestCount: number;
+    teamOpenTicketCount: number;
+    teamDeviceCount: number;
+  } | null>(null);
+  useEffect(() => {
+    httpClient.get('/dashboard/team-summary').then(({ data: d }) => setData(d)).catch(() => undefined);
+  }, []);
+  return (
+    <Space direction="vertical" size={16} style={{ width: '100%' }} data-testid="manager-home">
+      <div>
+        <Typography.Title level={3} className="nv-page-title" style={{ margin: 0 }}>
+          Your team
+        </Typography.Title>
+        <Typography.Text style={{ fontSize: 12.5, color: COLOR_TEXT_SECONDARY }}>
+          {data
+            ? `${data.pendingRequestCount} request${data.pendingRequestCount === 1 ? '' : 's'} waiting on you · ${data.teamOpenTicketCount} team tickets open · ${data.teamDeviceCount} devices in your team`
+            : 'Loading team summary…'}
+        </Typography.Text>
+      </div>
+      <Row gutter={[10, 10]}>
+        <Col xs={24} sm={8}>
+          <KpiCard
+            title="Pending approvals"
+            value={data?.pendingRequestCount ?? 0}
+            icon={<InboxOutlined />}
+            accentColor={KPI_REPAIR}
+            subtitle="Waiting on you"
+            href="/requests"
+          />
+        </Col>
+        <Col xs={24} sm={8}>
+          <KpiCard
+            title="Team tickets"
+            value={data?.teamOpenTicketCount ?? 0}
+            icon={<ToolOutlined />}
+            accentColor={KPI_TOTAL}
+            subtitle="Open"
+            href="/tickets"
+          />
+        </Col>
+        <Col xs={24} sm={8}>
+          <KpiCard title="Team devices" value={data?.teamDeviceCount ?? 0} icon={<DatabaseOutlined />} accentColor={KPI_ASSIGNED} subtitle="Assigned to your reports" />
+        </Col>
+      </Row>
+    </Space>
+  );
+}
+
+function SupportHome() {
+  const { query: attentionQuery } = useCustom<DashboardAttention>({
+    url: 'dashboard/attention',
+    method: 'get',
+    queryOptions: { queryKey: ['dashboard-attention-support'] },
+  });
+  const attention = attentionQuery.data?.data;
+  return (
+    <Space direction="vertical" size={16} style={{ width: '100%' }} data-testid="support-home">
+      <div>
+        <Typography.Title level={3} className="nv-page-title" style={{ margin: 0 }}>
+          Queue
+        </Typography.Title>
+        <Typography.Text style={{ fontSize: 12.5, color: COLOR_TEXT_SECONDARY }}>
+          Unassigned tickets, stale repairs, and work assigned to you.
+        </Typography.Text>
+      </div>
+      <Space wrap>
+        <Link to="/tickets?filters[0][field]=unassigned&filters[0][operator]=eq&filters[0][value]=true">
+          <Button type="primary">Unassigned tickets</Button>
+        </Link>
+        <Link to="/tickets?view=mine">
+          <Button>My tickets</Button>
+        </Link>
+        <Link to="/maintenance">
+          <Button>Maintenance</Button>
+        </Link>
+      </Space>
+      <Card size="small" title="Needs attention">
+        {(attention?.staleRepairs ?? []).slice(0, 6).map((item) => (
+          <div key={`${item.href}-${item.label}`} style={{ marginBottom: 10 }}>
+            <Link to={item.href}>{item.label}</Link>
+            <div style={{ fontSize: 12, color: COLOR_TEXT_SECONDARY }}>{item.detail}</div>
+          </div>
+        ))}
+        {(attention?.staleRepairs ?? []).length === 0 && (
+          <Typography.Text type="secondary">No stale repairs right now.</Typography.Text>
+        )}
+      </Card>
+    </Space>
+  );
+}
+
+function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const locationParam = Number(searchParams.get('locationId'));
   const locationId =
     Number.isFinite(locationParam) && locationParam > 0 ? locationParam : undefined;
-  const monthsParam = Number(searchParams.get('months'));
-  const months = [6, 12, 24].includes(monthsParam) ? monthsParam : 12;
   const setLocationId = (v?: number) =>
     setSearchParams(
       (prev) => {
@@ -93,27 +259,24 @@ export function DashboardPage() {
       },
       { replace: true },
     );
-  const setMonths = (v: number) =>
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        if (v === 12) next.delete('months');
-        else next.set('months', String(v));
-        return next;
-      },
-      { replace: true },
-    );
 
   const [locations, setLocations] = useState<Location[]>([]);
   const [dismissed, setDismissed] = useState(() => sessionStorage.getItem(DISMISS_KEY) === '1');
-  const { freshInstall } = useSetupStatus();
+  const [overrides, setOverrides] = useState<{ id: number; summary: string; createdAt: string }[]>([]);
+  const { freshInstall, seedOnStart } = useSetupStatus();
 
   useEffect(() => {
     httpClient
       .get('/locations', { params: { _start: 0, _end: 100 } })
       .then(({ data }) => setLocations(data.data ?? []))
       .catch(() => setLocations([]));
-  }, []);
+    if (superAdmin) {
+      httpClient
+        .get('/audit-logs', { params: { _start: 0, _end: 5, action: 'manual_override' } })
+        .then(({ data }) => setOverrides(data.data ?? []))
+        .catch(() => undefined);
+    }
+  }, [superAdmin]);
 
   const { query: metricsQuery } = useCustom<DashboardMetrics>({
     url: 'dashboard/metrics',
@@ -150,15 +313,6 @@ export function DashboardPage() {
     ...(attention?.toFulfill ?? []),
   ];
 
-  const { query: trendsQuery } = useCustom<DashboardTrendPoint[]>({
-    url: 'dashboard/trends',
-    method: 'get',
-    config: { query: { months, ...(locationId ? { locationId } : {}) } },
-    queryOptions: { queryKey: ['dashboard-trends', locationId, months] },
-  });
-  const rawTrends = trendsQuery.data?.data as DashboardTrendPoint[] | undefined;
-  const trends = Array.isArray(rawTrends) ? rawTrends : [];
-
   const { query: byLocationQuery } = useCustom<LocationBreakdown[]>({
     url: 'dashboard/by-location',
     method: 'get',
@@ -166,23 +320,37 @@ export function DashboardPage() {
   });
   const byLocation = byLocationQuery.data?.data ?? [];
 
-  const loadFailed =
-    metricsQuery.isError || warrantyQuery.isError || attentionQuery.isError || trendsQuery.isError;
+  const loadFailed = metricsQuery.isError || warrantyQuery.isError || attentionQuery.isError;
   const retryAll = () => {
     void metricsQuery.refetch();
     void warrantyQuery.refetch();
     void attentionQuery.refetch();
-    void trendsQuery.refetch();
     if (!locationId) void byLocationQuery.refetch();
   };
 
-  const dismissAll = () => {
-    sessionStorage.setItem(DISMISS_KEY, '1');
-    setDismissed(true);
-  };
+  const siteLine = locations.length
+    ? locations.map((l) => l.city || l.name).join(', ')
+    : 'your locations';
+  const total = m?.total ?? 0;
+  const statusItems = (Object.entries(m?.byStatus ?? {}) as [AssetStatus, number][])
+    .filter(([, n]) => n > 0)
+    .map(([status, count]) => ({
+      key: status,
+      label: `${STATUS_LABELS[status] ?? status}  ${total ? `${Math.round((count / total) * 100)}%` : ''}`,
+      count,
+      color: STATUS_CHART_COLORS[status],
+      href: assetsHref({ status, locationId }),
+    }));
 
   return (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+    <Space direction="vertical" size={16} style={{ width: '100%' }} data-testid="estate-dashboard">
+      {seedOnStart && (
+        <Alert
+          type="warning"
+          showIcon
+          message="SEED_ON_START is on — restarting the backend will wipe and reseed demo data. Set SEED_ON_START=false after first boot."
+        />
+      )}
       {loadFailed && (
         <Alert
           type="error"
@@ -205,266 +373,180 @@ export function DashboardPage() {
               'Empty estate — follow the setup steps below.'
             ) : (
               <>
-                {`${(m?.total ?? 0).toLocaleString()} assets across ${joinNames(locations.map((l) => l.name))}. `}
+                {`${total.toLocaleString()} assets across ${siteLine}. `}
                 <LiveTimestamp at={lastUpdated} refreshing={isFetching} />
               </>
             )}
           </Typography.Text>
         </Col>
         {!freshInstall && (
-        <Col>
-          <Space>
-            <Select
-              aria-label="Trend window"
-              style={{ width: 160 }}
-              value={months}
-              onChange={setMonths}
-              options={[
-                { label: 'Last 6 months', value: 6 },
-                { label: 'Last 12 months', value: 12 },
-                { label: 'Last 24 months', value: 24 },
-              ]}
-            />
-            <Select
-              allowClear
+          <Col>
+            <ChipSelect
               aria-label="Filter dashboard by location"
+              allowClear
               placeholder="All locations"
-              style={{ width: 200 }}
               value={locationId}
-              onChange={(v) => setLocationId(v)}
+              onChange={(v) => setLocationId(v as number | undefined)}
               options={locations.map((l) => ({ label: `${l.name} (${l.code})`, value: l.id }))}
             />
-          </Space>
-        </Col>
+          </Col>
         )}
       </Row>
 
       {freshInstall ? (
         <FirstRunWelcome />
       ) : (
-      <>
-      <Row gutter={[10, 10]}>
-        <Col xs={12} sm={8} lg={4}>
-          <KpiCard
-            title="Total Assets"
-            value={m?.total ?? 0}
-            icon={<DatabaseOutlined />}
-            accentColor={KPI_TOTAL}
-            href={assetsHref({ locationId })}
-            subtitle="Entire estate"
-          />
-        </Col>
-        <Col xs={12} sm={8} lg={4}>
-          <KpiCard
-            title="Assigned"
-            value={m?.assigned ?? 0}
-            icon={<CheckCircleOutlined />}
-            accentColor={KPI_ASSIGNED}
-            href={assetsHref({ status: 'assigned', locationId })}
-            subtitle="In the field"
-          />
-        </Col>
-        <Col xs={12} sm={8} lg={4}>
-          <KpiCard
-            title="Available"
-            value={m?.available ?? 0}
-            icon={<MinusCircleOutlined />}
-            accentColor={KPI_AVAILABLE}
-            href={assetsHref({ status: 'available', locationId })}
-            subtitle="Ready to issue"
-          />
-        </Col>
-        <Col xs={12} sm={8} lg={4}>
-          <KpiCard
-            title="Under Repair"
-            value={m?.underRepair ?? 0}
-            icon={<ToolOutlined />}
-            accentColor={KPI_REPAIR}
-            href={assetsHref({ status: 'under_repair', locationId })}
-            subtitle="Open tickets"
-          />
-        </Col>
-        <Col xs={12} sm={8} lg={4}>
-          <KpiCard
-            title="Retired"
-            value={m?.retired ?? 0}
-            icon={<InboxOutlined />}
-            accentColor={KPI_RETIRED}
-            href={assetsHref({ status: 'retired', locationId })}
-            subtitle="End of life"
-          />
-        </Col>
-        <Col xs={12} sm={8} lg={4}>
-          <KpiCard
-            title="Warranty ≤90d"
-            value={m?.warrantyExpiring ?? 0}
-            icon={<WarningOutlined />}
-            accentColor={KPI_WARRANTY}
-            href={assetsHref({ warrantyExpiringInDays: 90, locationId })}
-            subtitle="Needs renewal"
-          />
-        </Col>
-      </Row>
-
-      {!dismissed && attentionItems.length > 0 && (
-        <Card
-          size="small"
-          className="nv-attention-panel"
-          title={
-            <Space>
-              <AlertOutlined style={{ color: KPI_REPAIR }} />
-              <Typography.Text strong style={{ fontSize: 13 }}>
-                Needs attention
-              </Typography.Text>
-              <Typography.Text style={{ fontSize: 11.5, color: COLOR_TEXT_MUTED }}>
-                {attentionItems.length} item{attentionItems.length === 1 ? '' : 's'}
-                {attention?.pendingRequestCount
-                  ? ` · ${attention.pendingRequestCount} pending request${
-                      attention.pendingRequestCount === 1 ? '' : 's'
-                    }`
-                  : ''}
-              </Typography.Text>
-            </Space>
-          }
-          extra={
-            <Button type="link" size="small" onClick={dismissAll}>
-              Dismiss all
-            </Button>
-          }
-        >
-          <div className="nv-attention-grid">
-            {attentionItems.slice(0, 8).map((item) => (
-              <div key={`${item.href}-${item.label}`} className="nv-attention-item">
-                <Typography.Text strong style={{ fontSize: 12.5, display: 'block' }}>
-                  {item.label}
-                </Typography.Text>
-                <Typography.Text style={{ fontSize: 11.5, color: COLOR_TEXT_SECONDARY }}>
-                  {item.detail}
-                </Typography.Text>
-                <div>
-                  <Link to={item.href} style={{ fontSize: 11.5 }}>
-                    Open →
-                  </Link>
+        <>
+          {superAdmin && (
+            <Card size="small" title="Super Admin">
+              <Space wrap>
+                <Link to="/settings?tab=users">Manage users →</Link>
+                <Link to="/audit-logs">Audit log →</Link>
+              </Space>
+              {overrides.length > 0 && (
+                <div style={{ marginTop: 10, fontSize: 12, color: COLOR_TEXT_SECONDARY }}>
+                  Recent manual overrides:{' '}
+                  {overrides.map((o) => o.summary).join(' · ')}
                 </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
+              )}
+            </Card>
+          )}
+          <Row gutter={[10, 10]}>
+            <Col xs={12} sm={8} lg={4}>
+              <KpiCard title="Total Assets" value={total} icon={<DatabaseOutlined />} accentColor={KPI_TOTAL} href={assetsHref({ locationId })} subtitle="Entire estate" />
+            </Col>
+            <Col xs={12} sm={8} lg={4}>
+              <KpiCard title="Assigned" value={m?.assigned ?? 0} icon={<CheckCircleOutlined />} accentColor={KPI_ASSIGNED} href={assetsHref({ status: 'assigned', locationId })} subtitle="In the field" />
+            </Col>
+            <Col xs={12} sm={8} lg={4}>
+              <KpiCard title="Available" value={m?.available ?? 0} icon={<MinusCircleOutlined />} accentColor={KPI_AVAILABLE} href={assetsHref({ status: 'available', locationId })} subtitle="Ready to issue" />
+            </Col>
+            <Col xs={12} sm={8} lg={4}>
+              <KpiCard title="Under Repair" value={m?.underRepair ?? 0} icon={<ToolOutlined />} accentColor={KPI_REPAIR} href={assetsHref({ status: 'under_repair', locationId })} subtitle="Open tickets" />
+            </Col>
+            <Col xs={12} sm={8} lg={4}>
+              <KpiCard title="Retired" value={m?.retired ?? 0} icon={<InboxOutlined />} accentColor={KPI_RETIRED} href={assetsHref({ status: 'retired', locationId })} subtitle="End of life" />
+            </Col>
+            <Col xs={12} sm={8} lg={4}>
+              <KpiCard title="Warranty ≤90d" value={m?.warrantyExpiring ?? 0} icon={<WarningOutlined />} accentColor={KPI_WARRANTY} href={assetsHref({ warrantyExpiringInDays: 90, locationId })} subtitle="Needs renewal" />
+            </Col>
+          </Row>
 
-      <Row gutter={[12, 12]}>
-        <Col xs={24} lg={8}>
+          {!dismissed && attentionItems.length > 0 && (
+            <Card
+              size="small"
+              className="nv-attention-panel"
+              title={
+                <Space>
+                  <AlertOutlined style={{ color: KPI_REPAIR }} />
+                  <Typography.Text strong style={{ fontSize: 13 }}>
+                    Needs attention
+                  </Typography.Text>
+                  <Typography.Text style={{ fontSize: 11.5, color: COLOR_TEXT_MUTED }}>
+                    {attentionItems.length} item{attentionItems.length === 1 ? '' : 's'}
+                  </Typography.Text>
+                </Space>
+              }
+              extra={
+                <Button type="link" size="small" onClick={() => { sessionStorage.setItem(DISMISS_KEY, '1'); setDismissed(true); }}>
+                  Dismiss all
+                </Button>
+              }
+            >
+              <div className="nv-attention-grid">
+                {attentionItems.slice(0, 8).map((item) => (
+                  <div key={`${item.href}-${item.label}`} className="nv-attention-item">
+                    <Typography.Text strong style={{ fontSize: 12.5, display: 'block' }}>
+                      {item.label}
+                    </Typography.Text>
+                    <Typography.Text style={{ fontSize: 11.5, color: COLOR_TEXT_SECONDARY }}>
+                      {item.detail}
+                    </Typography.Text>
+                    <div>
+                      <Link to={item.href} style={{ fontSize: 11.5 }}>
+                        Open →
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          <Row gutter={[12, 12]}>
+            <Col xs={24} lg={12}>
+              <Card size="small" title="Status distribution" extra={<Typography.Text style={{ fontSize: 11.5, color: COLOR_TEXT_MUTED }}>All categories</Typography.Text>}>
+                <BreakdownList items={statusItems} empty="No assets yet." />
+              </Card>
+            </Col>
+            <Col xs={24} lg={12}>
+              <Card size="small" title="Assets by location">
+                {locationId ? (
+                  <Typography.Text type="secondary">Clear the location filter to compare all sites.</Typography.Text>
+                ) : (
+                  <BreakdownList
+                    items={byLocation.map((l) => ({
+                      key: String(l.locationId ?? l.code),
+                      label: `${l.name ?? l.code}  ${Object.entries(l.byStatus ?? {})
+                        .filter(([, n]) => n)
+                        .map(([s, n]) => `${STATUS_LABELS[s as AssetStatus] ?? s} ${n}`)
+                        .join(' · ')}`,
+                      count: l.total,
+                      color: KPI_TOTAL,
+                      href: assetsHref({ locationId: l.locationId }),
+                    }))}
+                    empty="No location breakdown yet."
+                  />
+                )}
+              </Card>
+            </Col>
+          </Row>
+
           <Card
             size="small"
-            loading={isFetching}
             title={
               <Space>
-                <PieChartOutlined style={{ color: COLOR_ACCENT }} />
-                Status distribution
-              </Space>
-            }
-          >
-            <Typography.Text style={{ fontSize: 11.5, color: COLOR_TEXT_MUTED, display: 'block', marginBottom: 8 }}>
-              All categories
-            </Typography.Text>
-            <StatusDonutChart byStatus={m?.byStatus ?? {}} height={240} />
-          </Card>
-        </Col>
-        <Col xs={24} lg={8}>
-          <Card
-            size="small"
-            loading={!locationId && byLocationQuery.isFetching}
-            title={
-              <Space>
-                <EnvironmentOutlined style={{ color: COLOR_ACCENT }} />
-                Assets by location
-              </Space>
-            }
-          >
-            {locationId ? (
-              <Typography.Text
-                type="secondary"
-                style={{ display: 'block', padding: '24px 0', textAlign: 'center', fontSize: 13 }}
-              >
-                Clear the location filter to compare all sites.
-              </Typography.Text>
-            ) : (
-              <LocationBarChart data={byLocation} height={240} />
-            )}
-          </Card>
-        </Col>
-        <Col xs={24} lg={8}>
-          <Card
-            size="small"
-            loading={trendsQuery.isFetching}
-            title={
-              <Space>
-                <PlusCircleOutlined style={{ color: COLOR_ACCENT }} />
-                Growth ({months} months)
+                <ClockCircleOutlined />
+                Warranty expiring
               </Space>
             }
             extra={
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                Running estate total
-              </Typography.Text>
+              <Link to={assetsHref({ warrantyExpiringInDays: 90, locationId })} style={{ fontSize: 12 }}>
+                View all on Assets
+              </Link>
             }
+            loading={isFetching}
           >
-            {trends.length === 0 ? (
-              <Typography.Text type="secondary" style={{ display: 'block', padding: '24px 0', textAlign: 'center' }}>
-                No growth data yet.
-              </Typography.Text>
-            ) : (
-              <AssetTrendChart data={trends} height={240} />
-            )}
+            <DataGrid<WarrantyRow>
+              tableKey="dashboard-warranty"
+              dataSource={warrantyRows}
+              rowKey="id"
+              density="Compact"
+              pagination={{ pageSize: 8, size: 'small', hideOnSinglePage: true }}
+              columns={[
+                {
+                  title: 'Asset',
+                  dataIndex: 'assetCode',
+                  render: (_, r) => <Link to={`/assets/show/${r.id}`}>{r.assetCode}</Link>,
+                },
+                {
+                  title: 'Item',
+                  gridKey: 'item',
+                  render: (_, r) => `${r.brand ?? ''} ${r.model ?? ''}`.trim() || '—',
+                  getExportValue: (r) => `${r.brand ?? ''} ${r.model ?? ''}`.trim(),
+                },
+                { title: 'Location', dataIndex: 'location' },
+                {
+                  title: 'Warranty remaining',
+                  dataIndex: 'daysRemaining',
+                  defaultSortOrder: 'ascend',
+                  sorter: (a, b) => (a.daysRemaining ?? 1e9) - (b.daysRemaining ?? 1e9),
+                  render: (_, r) => <WarrantyDays warrantyEnd={r.warrantyEnd} />,
+                },
+              ]}
+            />
           </Card>
-        </Col>
-      </Row>
-
-      <Card
-        size="small"
-        title={
-          <Space>
-            <ClockCircleOutlined style={{ color: COLOR_ACCENT }} />
-            Warranty expiring
-          </Space>
-        }
-        extra={
-          <Link to={assetsHref({ warrantyExpiringInDays: 90, locationId })} style={{ fontSize: 12 }}>
-            View all on Assets
-          </Link>
-        }
-        loading={isFetching}
-      >
-        <DataGrid<WarrantyRow>
-          tableKey="dashboard-warranty"
-          dataSource={warrantyRows}
-          rowKey="id"
-          density="Compact"
-          pagination={{ pageSize: 8, size: 'small', hideOnSinglePage: true }}
-          columns={[
-            {
-              title: 'Asset',
-              dataIndex: 'assetCode',
-              render: (_, r) => <Link to={`/assets/show/${r.id}`}>{r.assetCode}</Link>,
-            },
-            {
-              title: 'Item',
-              gridKey: 'item',
-              render: (_, r) => `${r.brand ?? ''} ${r.model ?? ''}`.trim() || '—',
-              getExportValue: (r) => `${r.brand ?? ''} ${r.model ?? ''}`.trim(),
-            },
-            { title: 'Location', dataIndex: 'location' },
-            {
-              title: 'Warranty remaining',
-              dataIndex: 'daysRemaining',
-              defaultSortOrder: 'ascend',
-              sorter: (a, b) => (a.daysRemaining ?? 1e9) - (b.daysRemaining ?? 1e9),
-              render: (_, r) => <WarrantyDays warrantyEnd={r.warrantyEnd} />,
-            },
-          ]}
-        />
-      </Card>
-      </>
+        </>
       )}
     </Space>
   );

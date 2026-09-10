@@ -10,19 +10,31 @@ export function HelpdeskSettings() {
   const [templates, setTemplates] = useState<TicketTemplate[]>([]);
   const [categories, setCategories] = useState<TicketCategory[]>([]);
   const [ready, setReady] = useState(false);
+  const [targets, setTargets] = useState<{ priority: string; targetMinutes: number | null }[]>([]);
+  const [inbox, setInbox] = useState<{
+    configured: boolean;
+    mailbox: string;
+    lastCheckedAt?: string | null;
+    lastMessageCount?: number;
+    lastError?: string | null;
+  } | null>(null);
   const [cannedForm] = Form.useForm();
   const [tplForm] = Form.useForm();
 
   const load = useCallback(async () => {
     try {
-      const [c, t, cat] = await Promise.all([
+      const [c, t, cat, sla, mail] = await Promise.all([
         httpClient.get('/canned-responses'),
         httpClient.get('/ticket-templates'),
         httpClient.get('/ticket-categories'),
+        httpClient.get('/ticket-priority-targets').catch(() => ({ data: [] })),
+        httpClient.get('/email-in/status').catch(() => ({ data: null })),
       ]);
       setCanned(Array.isArray(c.data) ? c.data : []);
       setTemplates(Array.isArray(t.data) ? t.data : []);
       setCategories(Array.isArray(cat.data) ? cat.data : []);
+      setTargets(Array.isArray(sla.data) ? sla.data : []);
+      setInbox(mail.data ?? null);
     } finally {
       setReady(true);
     }
@@ -42,6 +54,64 @@ export function HelpdeskSettings() {
 
   return (
     <Space direction="vertical" size={24} style={{ width: '100%' }}>
+      <div>
+        <Typography.Title level={5}>First-response targets</Typography.Title>
+        <Typography.Paragraph type="secondary">
+          Visual overdue labels only — not a full SLA engine. The clock pauses while a ticket is waiting on the
+          employee.
+        </Typography.Paragraph>
+        <Table
+          rowKey="priority"
+          size="small"
+          pagination={false}
+          dataSource={targets}
+          columns={[
+            { title: 'Priority', dataIndex: 'priority' },
+            {
+              title: 'Target (minutes)',
+              render: (_, r) => (
+                <Input
+                  defaultValue={r.targetMinutes ?? ''}
+                  onBlur={async (e) => {
+                    const n = e.target.value.trim() === '' ? null : Number(e.target.value);
+                    await httpClient.put('/ticket-priority-targets', {
+                      targets: [{ priority: r.priority, targetMinutes: Number.isFinite(n as number) ? n : null }],
+                    });
+                    void load();
+                  }}
+                />
+              ),
+            },
+          ]}
+        />
+      </div>
+      {inbox ? (
+        <div>
+          <Typography.Title level={5}>Email-in mailbox</Typography.Title>
+          <Typography.Paragraph type="secondary">
+            Shared helpdesk address: <code>{inbox.mailbox}</code>.{' '}
+            {inbox.configured ? 'Ingest is configured.' : 'Not configured — the poller is idle (safe for local dev).'}
+          </Typography.Paragraph>
+          <Typography.Paragraph type="secondary">
+            Last checked: {inbox.lastCheckedAt ? new Date(inbox.lastCheckedAt).toLocaleString() : 'never'}
+            {inbox.lastMessageCount != null ? ` · ${inbox.lastMessageCount} imported` : ''}
+            {inbox.lastError ? ` · ${inbox.lastError}` : ''}
+          </Typography.Paragraph>
+          <Button
+            size="small"
+            onClick={async () => {
+              try {
+                const { data } = await httpClient.post('/email-in/test');
+                toast.success(data.message ?? 'Checked');
+              } catch (e) {
+                toast.error(apiErrorMessage(e, 'Connection check failed'));
+              }
+            }}
+          >
+            Test connection
+          </Button>
+        </div>
+      ) : null}
       <div>
         <Typography.Title level={5}>Canned responses</Typography.Title>
         <Table

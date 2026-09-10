@@ -1,3 +1,5 @@
+export type RoleName = 'SUPER_ADMIN' | 'IT_ADMIN' | 'IT_SUPPORT' | 'MANAGER' | 'EMPLOYEE';
+
 export type AssetStatus =
   | 'available'
   | 'assigned'
@@ -177,6 +179,8 @@ export interface Accessory {
   quantityTotal: number;
   quantityCheckedOut: number;
   quantityAvailable: number;
+  locationId?: number | null;
+  location?: Location | null;
   checkouts?: {
     id: number;
     quantity: number;
@@ -191,6 +195,8 @@ export interface Consumable {
   quantityTotal: number;
   quantityAvailable: number;
   lowStockThreshold: number;
+  locationId?: number | null;
+  location?: Location | null;
   issues?: {
     id: number;
     quantity: number;
@@ -253,15 +259,19 @@ export interface SetupStatus {
   locationCount: number;
   categoryCount: number;
   freshInstall: boolean;
+  seedOnStart?: boolean;
 }
 
 export type TicketStatus =
   | 'open'
   | 'assigned'
   | 'in_progress'
+  | 'waiting_on_employee'
   | 'resolved'
   | 'closed'
   | 'reopened';
+
+export type TicketChannel = 'portal' | 'email';
 
 export type TicketPriority = 'low' | 'medium' | 'high' | 'urgent';
 
@@ -290,6 +300,8 @@ export interface SupportTicket {
   location?: Location | null;
   dueDate?: string | null;
   overdue?: boolean;
+  slaLabel?: string | null;
+  slaState?: 'ok' | 'soon' | 'overdue' | 'paused' | 'met';
   totalTimeSpentMinutes: number;
   satisfactionRating?: number | null;
   satisfactionComment?: string | null;
@@ -300,6 +312,9 @@ export interface SupportTicket {
   watchers?: { id: number; employeeId: number; employee: Employee }[];
   timeLogs?: { id: number; minutes: number; note?: string | null; loggedAt: string; staff: { fullName: string } }[];
   attachments?: { id: number; filename: string; mimeType: string; sizeBytes: number; createdAt: string }[];
+  channel?: TicketChannel;
+  unmatchedSender?: string | null;
+  firstResponseAt?: string | null;
   createdAt: string;
   updatedAt: string;
   resolvedAt?: string | null;

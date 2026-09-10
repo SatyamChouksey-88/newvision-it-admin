@@ -37,7 +37,10 @@ const NAV_ITEMS: Omit<PaletteItem, 'section'>[] = [
   { key: 'nav-requests', icon: <FormOutlined />, label: 'Requests', run: () => {} },
   { key: 'nav-maintenance', icon: <ToolOutlined />, label: 'Maintenance', run: () => {} },
   { key: 'nav-tickets', icon: <CustomerServiceOutlined />, label: 'Support Tickets', run: () => {} },
+  { key: 'nav-reports', icon: <DashboardOutlined />, label: 'Reports', run: () => {} },
+  { key: 'nav-audit', icon: <SearchOutlined />, label: 'Audit Log', run: () => {} },
   { key: 'nav-settings', icon: <SettingOutlined />, label: 'Settings', run: () => {} },
+  { key: 'nav-help', icon: <SearchOutlined />, label: 'Help', run: () => {} },
 ];
 const NAV_ROUTES: Record<string, string> = {
   'nav-dashboard': '/',
@@ -49,7 +52,10 @@ const NAV_ROUTES: Record<string, string> = {
   'nav-requests': '/requests',
   'nav-maintenance': '/maintenance',
   'nav-tickets': '/tickets',
+  'nav-reports': '/reports',
+  'nav-audit': '/audit-logs',
   'nav-settings': '/settings',
+  'nav-help': '/help',
 };
 
 /** AntD preset Tag colors (`color="green"` etc.) fail WCAG AA contrast — explicit safe pairs instead. */
@@ -170,6 +176,24 @@ export function CommandPalette({ open, onClose }: Props) {
             ),
         });
       }
+      for (const acc of (data.accessories ?? []).slice(0, 3)) {
+        items.push({
+          key: `acc-${acc.id}`,
+          section: 'Accessories',
+          icon: <Tag>Accessory</Tag>,
+          label: acc.name,
+          run: () => go('/accessories'),
+        });
+      }
+      for (const c of (data.consumables ?? []).slice(0, 3)) {
+        items.push({
+          key: `con-${c.id}`,
+          section: 'Consumables',
+          icon: <Tag>Consumable</Tag>,
+          label: c.name,
+          run: () => go('/consumables'),
+        });
+      }
       for (const l of (data.locations ?? []).slice(0, 3)) {
         items.push({
           key: `loc-${l.id}`,
@@ -192,13 +216,40 @@ export function CommandPalette({ open, onClose }: Props) {
 
   const onChange = (v: string) => {
     setQuery(v);
-    if (v.trim().length < 2 && !/^\d+$/.test(v.trim())) {
+    const q = v.trim();
+    const ticket = q.match(/^(TCK-\d{6,})$/i);
+    const asset = q.match(/^(AST-[A-Z0-9-]+)$/i);
+    if (ticket || asset) {
+      debouncedFetch.cancel();
+      seq.current++;
+      setResults([
+        {
+          key: 'deep-link',
+          section: 'Jump',
+          icon: <SearchOutlined />,
+          label: ticket ? `Open ${ticket[1].toUpperCase()}` : `Open ${asset![1].toUpperCase()}`,
+          run: () => {
+            httpClient
+              .get('/search', { params: { q } })
+              .then(({ data }) => {
+                if (ticket && data.helpdesk?.[0]) go(`/tickets/show/${data.helpdesk[0].id}`);
+                else if (asset && data.assets?.[0]) go(`/assets/show/${data.assets[0].id}`);
+                else void fetchResults(q);
+              })
+              .catch(() => undefined);
+          },
+        },
+      ]);
+      void fetchResults(q);
+      return;
+    }
+    if (q.length < 2 && !/^\d+$/.test(q)) {
       debouncedFetch.cancel();
       seq.current++;
       setResults([]);
       return;
     }
-    debouncedFetch(v.trim());
+    debouncedFetch(q);
   };
 
   const list: PaletteItem[] = query.trim().length >= 2 ? results : staticItems;

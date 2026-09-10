@@ -1,6 +1,14 @@
 import type { AuthProvider } from '@refinedev/core';
 import { httpClient } from './axios';
-import { clearSession, hasSession, readSession, TOKEN_KEY, USER_KEY, writeSession } from './session';
+import {
+  clearSession,
+  hasSession,
+  readSession,
+  REFRESH_TOKEN_KEY,
+  TOKEN_KEY,
+  USER_KEY,
+  writeSession,
+} from './session';
 
 export interface Identity {
   id: number;
@@ -18,6 +26,7 @@ export const authProvider: AuthProvider = {
       const { data } = await httpClient.post('/auth/login', { email, password });
       const persist = remember !== false;
       writeSession(TOKEN_KEY, data.access_token, persist);
+      writeSession(REFRESH_TOKEN_KEY, data.refresh_token, persist);
       writeSession(USER_KEY, JSON.stringify(data.user), persist);
       // Return the user to the page they were on when their session expired (same-origin paths only).
       const to = new URLSearchParams(window.location.search).get('to');
@@ -37,6 +46,11 @@ export const authProvider: AuthProvider = {
   },
 
   logout: async () => {
+    try {
+      await httpClient.post('/auth/logout');
+    } catch {
+      // Best-effort server-side refresh-token revocation; local session is cleared regardless.
+    }
     clearSession();
     return { success: true, redirectTo: '/login' };
   },

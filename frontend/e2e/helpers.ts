@@ -47,7 +47,9 @@ export async function login(page: Page, email = DEMO_USERS.itAdmin) {
   await page.locator('#email').fill(email);
   await page.locator('#password').fill(DEMO_PASSWORD);
   await page.getByRole('button', { name: /sign in/i }).click();
-  await expect(page.getByRole('heading', { name: 'Dashboard', level: 3 })).toBeVisible({
+  await expect(
+    page.getByRole('heading', { name: /Dashboard|My IT|Your team|Queue/i, level: 3 }).first(),
+  ).toBeVisible({
     timeout: 30_000,
   });
 }

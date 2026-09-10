@@ -1,21 +1,27 @@
-import { CopyOutlined } from '@ant-design/icons';
-import { Button } from 'antd';
-import { useToast } from './Toast';
+import { useState } from 'react';
 
+/**
+ * Quiet 16×16 copy chip (mockup ⧉). One control per value — no Ant icon button, no toast.
+ */
 export function CopyButton({ value, label }: { value: string; label?: string }) {
-  const toast = useToast();
+  const [copied, setCopied] = useState(false);
+
   return (
-    <Button
-      type="text"
-      size="small"
-      icon={<CopyOutlined />}
+    <button
+      type="button"
+      className={`nv-copy-chip${copied ? ' is-copied' : ''}`}
       aria-label={`Copy ${label ?? value}`}
+      title={`Copy ${label ?? value}`}
       onClick={(e) => {
         e.stopPropagation();
+        e.preventDefault();
         void navigator.clipboard.writeText(value).then(() => {
-          toast.success(`Copied: ${value}`);
+          setCopied(true);
+          window.setTimeout(() => setCopied(false), 1000);
         });
       }}
-    />
+    >
+      {copied ? 'Copied' : '⧉'}
+    </button>
   );
 }

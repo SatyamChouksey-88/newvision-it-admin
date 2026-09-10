@@ -11,6 +11,7 @@ export function useSetupStatus() {
   return {
     setup: query.data?.data,
     freshInstall: query.data?.data?.freshInstall === true,
+    seedOnStart: query.data?.data?.seedOnStart === true,
     isLoading: query.isLoading,
   };
 }

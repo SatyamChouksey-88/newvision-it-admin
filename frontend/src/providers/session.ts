@@ -1,5 +1,6 @@
 export const TOKEN_KEY = 'newvision:token';
 export const USER_KEY = 'newvision:user';
+export const REFRESH_TOKEN_KEY = 'newvision:refresh';
 
 /** Persist across browser restarts (Keep me signed in). */
 const durable = () => localStorage;
@@ -20,8 +21,10 @@ export function writeSession(key: string, value: string, persist: boolean) {
 export function clearSession() {
   durable().removeItem(TOKEN_KEY);
   durable().removeItem(USER_KEY);
+  durable().removeItem(REFRESH_TOKEN_KEY);
   ephemeral().removeItem(TOKEN_KEY);
   ephemeral().removeItem(USER_KEY);
+  ephemeral().removeItem(REFRESH_TOKEN_KEY);
 }
 
 export function hasSession(): boolean {

@@ -457,6 +457,9 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
           <Button size="small" icon={<DownloadOutlined />} onClick={handleExport}>
             Export CSV
           </Button>
+          <span style={{ fontSize: 11, color: '#64748b' }} title="Select a row and press Ctrl+C to copy it for Excel">
+            Ctrl+C copies the selected row
+          </span>
         </Space>
       </Space>
 

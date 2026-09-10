@@ -1,5 +1,7 @@
 import { useLogin } from '@refinedev/core';
-import { App as AntdApp, Button, Checkbox, Form, Input, Typography } from 'antd';
+import { App as AntdApp, Button, Checkbox, Form, Input, Modal, Typography } from 'antd';
+import { useState } from 'react';
+import { apiErrorMessage, httpClient } from '../providers/axios';
 import { COLOR_TEXT_MUTED, COLOR_TEXT_SECONDARY, FONT_MONO } from '../theme';
 
 const DEMO_ACCOUNTS = [
@@ -21,6 +23,23 @@ const ESTATE = [
 export function LoginPage() {
   const { message } = AntdApp.useApp();
   const { mutate: login, isPending } = useLogin();
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotSending, setForgotSending] = useState(false);
+  const [forgotForm] = Form.useForm();
+
+  const sendResetLink = async (values: { email: string }) => {
+    setForgotSending(true);
+    try {
+      await httpClient.post('/auth/forgot-password', { email: values.email });
+      message.success('If an account exists for that email, a reset link is on its way.');
+      setForgotOpen(false);
+      forgotForm.resetFields();
+    } catch (e) {
+      message.error(apiErrorMessage(e, 'Could not send the reset link'));
+    } finally {
+      setForgotSending(false);
+    }
+  };
 
   return (
     <div className="nv-login-split">
@@ -63,9 +82,7 @@ export function LoginPage() {
             <Button
               type="link"
               style={{ padding: 0, height: 'auto', fontSize: 12 }}
-              onClick={() =>
-                message.info('Password reset is handled by IT Helpdesk — email it@newvision.local or ext. 4120.')
-              }
+              onClick={() => setForgotOpen(true)}
             >
               Forgot password?
             </Button>
@@ -74,6 +91,26 @@ export function LoginPage() {
             Sign in
           </Button>
         </Form>
+
+        <Modal
+          title="Reset your password"
+          open={forgotOpen}
+          onCancel={() => setForgotOpen(false)}
+          footer={null}
+          destroyOnHidden
+        >
+          <Typography.Paragraph style={{ fontSize: 13, color: COLOR_TEXT_SECONDARY }}>
+            Enter your work email and we'll send a link to set a new password.
+          </Typography.Paragraph>
+          <Form form={forgotForm} layout="vertical" onFinish={sendResetLink}>
+            <Form.Item name="email" label="Work email" rules={[{ required: true, type: 'email' }]}>
+              <Input autoComplete="username" />
+            </Form.Item>
+            <Button type="primary" htmlType="submit" loading={forgotSending} block>
+              Send reset link
+            </Button>
+          </Form>
+        </Modal>
 
         <Typography.Paragraph style={{ marginTop: 16, fontSize: 12, color: COLOR_TEXT_MUTED, maxWidth: 360 }}>
           Trouble signing in? Contact IT Helpdesk — ext. 4120.
@@ -117,7 +154,7 @@ export function LoginPage() {
           ))}
         </div>
         <div style={{ fontSize: 12, color: COLOR_TEXT_MUTED, maxWidth: 420, lineHeight: 1.55 }}>
-          Pune · Hyderabad · Bhopal. All asset movements are logged and auditable.
+          Every office in the Locations list. All asset movements are logged and auditable.
         </div>
       </aside>
     </div>

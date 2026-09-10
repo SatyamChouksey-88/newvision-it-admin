@@ -1,3 +1,4 @@
+import { useGetIdentity } from '@refinedev/core';
 import { Button, Card, Form, Input, Select, Space, Typography, Upload } from 'antd';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
@@ -5,6 +6,7 @@ import { AssetSelect } from '../../components/AssetSelect';
 import { EmployeeMultiSelect } from '../../components/EmployeeSelect';
 import { TICKET_PRIORITY_OPTIONS } from '../../components/TicketStatusTag';
 import { useToast } from '../../components/Toast';
+import type { Identity } from '../../providers/authProvider';
 import { apiErrorMessage, httpClient } from '../../providers/axios';
 import type { TicketCategory, TicketPriority, TicketTemplate } from '../../types';
 
@@ -18,6 +20,8 @@ export function TicketCreate() {
   const [busy, setBusy] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [ready, setReady] = useState(false);
+  const { data: identity } = useGetIdentity<Identity>();
+  const isEmployee = identity?.role === 'EMPLOYEE';
 
   useEffect(() => {
     Promise.all([
@@ -90,6 +94,7 @@ export function TicketCreate() {
         onFinish={(v) => void submit(v)}
         initialValues={{ priority: 'medium', templateId: params.get('template') ? Number(params.get('template')) : undefined }}
       >
+        {isEmployee ? null : (
         <Form.Item name="templateId" label="Start from a template (optional)">
           <Select
             allowClear
@@ -101,6 +106,7 @@ export function TicketCreate() {
             }}
           />
         </Form.Item>
+        )}
         <Form.Item label="Category" required>
           <Form.Item
             name="categoryId"
@@ -132,9 +138,11 @@ export function TicketCreate() {
         <Form.Item name="assetId" label="Linked asset (optional)">
           <AssetSelect aria-label="Linked asset" />
         </Form.Item>
+        {isEmployee ? null : (
         <Form.Item name="watcherEmployeeIds" label="Watchers (optional)">
           <EmployeeMultiSelect aria-label="Watchers" placeholder="People who should be notified" />
         </Form.Item>
+        )}
         <Form.Item label="Attachment (optional)">
           <Upload
             maxCount={1}

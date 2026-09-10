@@ -75,19 +75,47 @@ export function AssetShow() {
       goBack={false}
       headerButtons={
         canManage && asset ? (
-          <ManualEditButton
-            entityType="Asset"
-            id={asset.id}
-            fields={[
-              { name: 'brand', label: 'Brand', value: asset.brand },
-              { name: 'model', label: 'Model', value: asset.model },
-              { name: 'serialNumber', label: 'Serial', value: asset.serialNumber },
-              { name: 'status', label: 'Status', value: asset.status },
-              { name: 'vendor', label: 'Vendor', value: asset.vendor },
-              { name: 'createdAt', label: 'Created at', value: asset.createdAt },
-            ]}
-            onSaved={() => void query.refetch()}
-          />
+          <Space>
+            <Button
+              onClick={async () => {
+                try {
+                  const { data } = await httpClient.post(`/assets/${asset.id}/duplicate`);
+                  message.success(`Created ${data.assetCode} — fill in the serial`);
+                  window.location.assign(`/assets/show/${data.id}`);
+                } catch (e) {
+                  message.error(apiErrorMessage(e, 'Could not duplicate'));
+                }
+              }}
+            >
+              Duplicate
+            </Button>
+            <Button
+              onClick={async () => {
+                const res = await httpClient.post('/assets/labels', { ids: [asset.id] }, { responseType: 'blob' });
+                const url = URL.createObjectURL(res.data);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${asset.assetCode}-label.pdf`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+            >
+              Print QR label
+            </Button>
+            <ManualEditButton
+              entityType="Asset"
+              id={asset.id}
+              fields={[
+                { name: 'brand', label: 'Brand', value: asset.brand },
+                { name: 'model', label: 'Model', value: asset.model },
+                { name: 'serialNumber', label: 'Serial', value: asset.serialNumber },
+                { name: 'status', label: 'Status', value: asset.status },
+                { name: 'vendor', label: 'Vendor', value: asset.vendor },
+                { name: 'createdAt', label: 'Created at', value: asset.createdAt },
+              ]}
+              onSaved={() => void query.refetch()}
+            />
+          </Space>
         ) : undefined
       }
     >

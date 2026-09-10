@@ -6,9 +6,12 @@ import type { Identity } from '../providers/authProvider';
 import { httpClient } from '../providers/axios';
 import { useToast } from '../components/Toast';
 import { CategoriesPanel } from './settings/categories';
+import { ChangePasswordCard } from './settings/change-password';
+import { DepartmentsPanel } from './settings/departments';
 import { HelpdeskSettings } from './settings/helpdesk';
 import { ImportJobsPanel } from './settings/import-jobs';
 import { ReconciliationPanel } from './settings/reconciliation';
+import { UsersPanel } from './settings/users';
 import { WebhooksPanel } from './settings/webhooks';
 
 const GOVERNANCE_ROLES = ['SUPER_ADMIN', 'IT_ADMIN'];
@@ -22,6 +25,7 @@ export function SettingsPage() {
   const [pref, setPref] = useState<'immediate' | 'daily_digest'>('immediate');
   const canGovern = GOVERNANCE_ROLES.includes(identity?.role ?? '');
   const isTicketStaff = TICKET_STAFF.includes(identity?.role ?? '');
+  const isSuperAdmin = identity?.role === 'SUPER_ADMIN';
 
   useEffect(() => {
     httpClient
@@ -84,6 +88,7 @@ export function SettingsPage() {
                 </Radio.Group>
               </Card>
             ) : null}
+            <ChangePasswordCard />
           </Space>
         ),
       },
@@ -91,13 +96,15 @@ export function SettingsPage() {
       ...(canGovern
         ? [
             { key: 'categories', label: 'Categories', children: <CategoriesPanel /> },
+            { key: 'departments', label: 'Departments', children: <DepartmentsPanel /> },
             { key: 'imports', label: 'Import jobs', children: <ImportJobsPanel /> },
             { key: 'reconcile', label: 'Reconciliation', children: <ReconciliationPanel /> },
             { key: 'webhooks', label: 'Webhooks', children: <WebhooksPanel /> },
           ]
         : []),
+      ...(isSuperAdmin ? [{ key: 'users', label: 'Users', children: <UsersPanel /> }] : []),
     ],
-    [canGovern, isTicketStaff, identity, permissions, pref, savePref],
+    [canGovern, isTicketStaff, isSuperAdmin, identity, permissions, pref, savePref],
   );
 
   const allowed = useMemo(() => new Set(items.map((i) => i.key)), [items]);

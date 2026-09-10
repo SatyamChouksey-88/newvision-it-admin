@@ -65,23 +65,30 @@ Press **/** anywhere to focus global search. Press **?** in the header to return
     id: 'dashboard',
     title: 'Dashboard & Analytics',
     category: 'Operations',
-    summary: 'KPI cards, status donut, location bars, growth chart, warranty table, and needs-attention alerts.',
-    keywords: ['dashboard', 'status', 'metrics', 'warranty', 'attention', 'charts'],
+    summary: 'Role-specific homes, KPI tiles, status and location lists, warranty table, and needs-attention alerts.',
+    keywords: ['dashboard', 'status', 'metrics', 'warranty', 'attention', 'lists'],
     screenshot: '/docs/screenshots/dashboard.png',
     callouts: [
       { n: 1, label: 'Metric cards' },
       { n: 2, label: 'Needs attention' },
-      { n: 3, label: 'Status donut' },
+      { n: 3, label: 'Status list' },
       { n: 4, label: 'Warranty table' },
     ],
-    body: `The **Dashboard** shows fleet health at a glance.
+    body: `Home depends on your role — Super Admin and IT Admin see the estate console; IT Support sees an operational queue; Managers see team work; Employees see **My IT**.
+
+### IT console (Super Admin / IT Admin)
 
 - **Metric cards** — Total, Assigned, Available, Under Repair, Retired, Warranty ≤90d. Click a card to open the assets list pre-filtered.
-- **Needs attention** — warranty, stale repairs, low stock, and requests awaiting fulfillment. Use **Dismiss all** to hide the panel for this browser session.
-- **Charts** — status donut with legend, per-location stacked bar, and 12-month growth. Use **Last 12 months** / **All locations** to scope the view.
-- **Warranty expiring** — DataGrid sorted by urgency; open an asset or jump to the filtered Assets list.
+- **Status list** — one row per status with a colour swatch, count, and percentage. Click a row to filter Assets.
+- **Assets by location** — one row per office (from live Location records, never hardcoded city names) with a short status breakdown. Click to filter.
+- There is **no Growth chart**. Estate size is the Total KPI.
+- **Needs attention** — warranty, stale repairs, low stock, and requests awaiting fulfillment.
 
-Click any attention item to jump to the relevant screen.`,
+### Other homes
+
+- **IT Support** — unassigned tickets, stale repairs, items assigned to you.
+- **Manager** — requests waiting on you, team tickets, team devices.
+- **Employee (My IT)** — your assigned devices, a Raise a ticket / Request a device action, and your open tickets.`,
   },
   {
     id: 'assets-overview',
@@ -101,9 +108,9 @@ Click any attention item to jump to the relevant screen.`,
 - **Export CSV** — exports visible columns and current quick-filter results
 - **Compact / Comfortable** density toggle
 - Select rows for bulk status change, transfer, or retire (IT Admin+)
-- **/** focuses the grid filter; **↑↓** moves row focus; **Ctrl+C** copies the focused row as tab-separated text
+- **/** focuses the grid filter; **↑↓** moves row focus; **Ctrl+C** copies the selected row as tab-separated text for Excel (hint is also on the table toolbar)
 
-Use copy icons beside asset codes and serial numbers to copy individual values.`,
+A quiet **⧉** chip copies a single field (asset code, ticket number). That is not the same as **Duplicate** on the asset detail page, which creates a new record with a fresh code.`,
   },
   {
     id: 'assets-assign-transfer',
@@ -251,13 +258,16 @@ Statuses: \`pending → approved|rejected → fulfilled\`.`,
       { n: 2, label: 'Category (sets a default priority)' },
       { n: 3, label: 'Submit ticket' },
     ],
-    body: `Use **Support Tickets** for software, network, access, or general issues. Hardware repairs on a known asset still go through **Maintenance**; asking for a new laptop still goes through **Requests**.
+    body: `Use **Support Tickets** (or **My tickets** / **Raise a ticket** in My IT) for software, network, access, or general issues. Hardware repairs on a known asset still go through **Maintenance**; asking for a new laptop still goes through **Requests**.
 
-1. **Open Raise a ticket** from the Support Tickets list.
-2. **Optionally pick a template** such as “Can't connect to VPN” or “Password reset”.
-3. **Choose a category** — Access & Account defaults to High; General defaults to Low. You can still change priority.
-4. **Add watchers** if a manager or colleague should be notified.
-5. **Submit** — you receive a ticket number like \`TCK-000123\` (copy icon next to it).
+You can also email the shared helpdesk mailbox — a new message opens a ticket, and a reply with \`[TCK-000123]\` in the subject (or proper In-Reply-To headers) adds a public comment.
+
+1. **Open Raise a ticket**.
+2. **Choose a category** — Access & Account defaults to High; General defaults to Low. You can still change priority.
+3. **Describe the issue**. Optionally attach a file and pick one of your own assets.
+4. **Submit** — you receive a ticket number like \`TCK-000123\` (quiet ⧉ chip copies it).
+
+Employees see a short form (category, priority, description, optional asset). IT staff can still start from a template and add watchers.
 
 IT Support is auto-assigned when someone is available; otherwise the ticket stays Open for the queue.`,
   },
@@ -265,18 +275,19 @@ IT Support is auto-assigned when someone is available; otherwise the ticket stay
     id: 'tickets-statuses',
     title: 'Understanding ticket statuses',
     category: 'Support tickets',
-    summary: 'Open, assigned, in progress, resolved, closed, and reopened.',
+    summary: 'Open, assigned, in progress, waiting on employee, resolved, closed, and reopened.',
     keywords: ['status', 'lifecycle', 'reopen', 'overdue'],
     screenshot: '/docs/screenshots/tickets.png',
     callouts: [
       { n: 1, label: 'Status chips' },
       { n: 2, label: 'Overdue flag' },
     ],
-    body: `Lifecycle: \`open → assigned → in_progress → resolved → closed\`. **Reopened** returns the ticket to assigned/in progress.
+    body: `Lifecycle: \`open → assigned → in_progress → waiting_on_employee → resolved → closed\`. **Reopened** returns the ticket to assigned/in progress.
 
-- **Overdue** is a visual flag against an optional due date. There is no automatic escalation.
+- **Waiting on employee** pauses the first-response overdue clock. When the requester replies, the ticket returns to in progress (or assigned) and the clock resumes.
+- **Overdue** is a visual label from Settings first-response targets (Urgent 2h, High 8h, Normal 1 day, Low 3 days) plus any due date. There is no escalation engine or business-hours calendar.
 - **Resolved** is when IT believes the work is done — that is when you are asked to rate the resolution.
-- **Closed** is the final state. Reopen if the issue returns.`,
+- **Closed** is the final state. A requester comment on a resolved/closed ticket reopens it.`,
   },
   {
     id: 'tickets-comments-watchers',
@@ -315,7 +326,24 @@ Anyone who can view the ticket can read public comments. Internal notes never ap
 4. **Log time** in minutes; the running total appears on the ticket and in reports.
 5. **Reports** show volume by status/category/priority, average resolution time, overdue open tickets, closed counts per staff member, and average satisfaction.
 
-Managers see their own tickets plus direct reports. They cannot assign, add internal notes, or log time.`,
+Managers see their own tickets plus direct reports. They cannot assign, add internal notes, or log time.
+
+Quick views include **Email-in** for tickets that arrived by mail. The ticket shows a Portal vs Email channel chip.`,
+  },
+  {
+    id: 'tickets-email-in',
+    title: 'Email-in (reply to create or update a ticket)',
+    category: 'Support tickets',
+    summary: 'Send mail to the shared helpdesk address to open a ticket; reply to add a comment.',
+    keywords: ['email', 'imap', 'reply', 'helpdesk', 'mailbox'],
+    body: `One shared mailbox (configured as \`HELPDESK_MAILBOX\`, typically it@your-domain).
+
+- A **new** email creates a ticket (channel: Email). The sender is matched to an Employee by email. If nobody matches, the ticket is still created and flagged so IT can link it — we never auto-create an employee from a random address.
+- A **reply** is matched first by \`In-Reply-To\` / \`References\` (the app stores outbound Message-IDs), then by \`[TCK-000123]\` in the subject if the client stripped headers.
+- Out-of-office auto-replies, bulk/list mail, and mail from the system's own address are discarded. The same Message-ID is never processed twice.
+- Reply to a notification to add a public comment. Do not remove the ticket number from the subject.
+
+Settings → Helpdesk shows mailbox status and a connection check. Local development without IMAP simply does not poll.`,
   },
   {
     id: 'tickets-rating',

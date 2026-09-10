@@ -48,6 +48,9 @@ export function TicketShow() {
   const [canned, setCanned] = useState<CannedResponse[]>([]);
   const [staff, setStaff] = useState<{ id: number; fullName: string }[]>([]);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
+  const [requesterAssets, setRequesterAssets] = useState<
+    { id: number; assetCode: string; brand?: string; model?: string; category?: { name: string } }[]
+  >([]);
   const [commentForm] = Form.useForm();
   const [timeForm] = Form.useForm();
   const [dupForm] = Form.useForm();
@@ -69,18 +72,22 @@ export function TicketShow() {
       .get(`/support-tickets/${ticket.id}/timeline`)
       .then(({ data }) =>
         setTimeline(
-          (Array.isArray(data) ? data : []).map((e: { id: number; at: string; summary: string; actor: string; action: string; manual?: boolean }) => ({
+          (Array.isArray(data) ? data : []).map((e: { id: string | number; at: string | null; summary: string; actor: string; action: string; manual?: boolean; color?: string }) => ({
             id: e.id,
             at: e.at,
             summary: e.summary,
             actor: e.actor,
             manual: e.manual || e.action === 'manual_override',
             backfilled: Boolean((e as { backfilled?: boolean }).backfilled),
-            color: e.action === 'manual_override' ? '#DC2626' : undefined,
+            color: e.color ?? (e.action === 'manual_override' ? '#DC2626' : undefined),
           })),
         ),
       )
       .catch(() => setTimeline([]));
+    httpClient
+      .get(`/support-tickets/${ticket.id}/requester-assets`)
+      .then(({ data }) => setRequesterAssets(Array.isArray(data) ? data : []))
+      .catch(() => setRequesterAssets([]));
   }, [ticket?.id, ticket?.updatedAt]);
 
   const isRequester = ticket && identity?.employeeId === ticket.raisedById;
@@ -131,7 +138,15 @@ export function TicketShow() {
           <Space>
             <span data-testid="ticket-number">{ticket?.ticketNumber}</span>
             {ticket?.ticketNumber ? <CopyButton value={ticket.ticketNumber} label="ticket number" /> : null}
-            {ticket?.overdue ? <Tag color="red">Overdue</Tag> : null}
+            {ticket?.channel === 'email' ? <Tag data-testid="ticket-channel">Email</Tag> : <Tag>Portal</Tag>}
+            {ticket?.unmatchedSender ? <Tag color="orange">Unmatched sender</Tag> : null}
+            {ticket?.slaLabel ? (
+              <Tag color={ticket.slaState === 'overdue' ? 'red' : ticket.slaState === 'soon' ? 'gold' : undefined}>
+                {ticket.slaLabel}
+              </Tag>
+            ) : ticket?.overdue ? (
+              <Tag color="red">Overdue</Tag>
+            ) : null}
             {ticket?.duplicateOf ? (
               <Tag>
                 Duplicate of{' '}
@@ -263,7 +278,9 @@ export function TicketShow() {
               }}
             >
               <Space>
-                <Typography.Text strong>{c.author?.fullName}</Typography.Text>
+                <Typography.Text strong>
+                  {c.author?.fullName ?? (c as { unmatchedSender?: string }).unmatchedSender ?? 'Unknown'}
+                </Typography.Text>
                 {c.isInternal ? <Tag>Internal</Tag> : <Tag color="blue">Public</Tag>}
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                   {formatDate(c.createdAt)}
@@ -431,7 +448,35 @@ export function TicketShow() {
         </Card>
       ) : null}
 
-      <Card title="History">
+      {isStaff && requesterAssets.length > 0 ? (
+        <Card title="Requester's other assets" size="small">
+          <Space direction="vertical" style={{ width: '100%' }}>
+            {requesterAssets.map((a) => (
+              <Space key={a.id} style={{ width: '100%', justifyContent: 'space-between' }}>
+                <Link to={`/assets/show/${a.id}`}>
+                  {a.assetCode}
+                  {a.brand || a.model ? ` — ${a.brand ?? ''} ${a.model ?? ''}`.trim() : ''}
+                </Link>
+                {ticket.assetId !== a.id ? (
+                  <Button
+                    size="small"
+                    onClick={async () => {
+                      await httpClient.post(`/support-tickets/${ticket.id}/link-asset`, { assetId: a.id });
+                      reload();
+                    }}
+                  >
+                    Link to ticket
+                  </Button>
+                ) : (
+                  <Tag>Linked</Tag>
+                )}
+              </Space>
+            ))}
+          </Space>
+        </Card>
+      ) : null}
+
+      <Card title="Timeline">
         <EventTimeline events={timeline} />
       </Card>
 

@@ -1,7 +1,9 @@
-import { ThemedSider, type RefineThemedLayoutSiderProps } from '@refinedev/antd';
 import { useGetIdentity, useLogout } from '@refinedev/core';
-import { Avatar, Menu } from 'antd';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useThemedLayoutContext } from '@refinedev/antd';
+import { Avatar } from 'antd';
+import { useEffect, useState } from 'react';
+import { NavLink } from 'react-router';
+import { navForRole, ROLE_CHIP } from '../access';
 import { httpClient } from '../providers/axios';
 import type { Identity } from '../providers/authProvider';
 import { Title } from './Title';
@@ -15,109 +17,133 @@ function initials(name?: string) {
     .join('');
 }
 
-function decorateNav(_items: ReactNode[], counts: Record<string, number | undefined>) {
-  if (typeof document === 'undefined') return;
-  requestAnimationFrame(() => {
-    const map: Record<string, number | undefined> = {
-      '/assets': counts.assets,
-      '/employees': counts.employees,
-      '/maintenance': counts.maintenance,
-      '/requests': counts.requests,
-      '/tickets': counts.tickets,
-    };
-    for (const [href, n] of Object.entries(map)) {
-      if (n == null) continue;
-      const links = document.querySelectorAll<HTMLElement>(`.ant-layout-sider a[href="${href}"]`);
-      links.forEach((link) => {
-        let badge = link.querySelector<HTMLElement>('.nv-nav-badge');
-        if (!badge) {
-          badge = document.createElement('span');
-          badge.className = 'nv-nav-badge';
-          link.appendChild(badge);
-        }
-        badge.textContent = String(n);
-      });
-    }
-  });
-}
-
-export function AppSider(props: RefineThemedLayoutSiderProps) {
+export function AppSider() {
   const { data: identity } = useGetIdentity<Identity>();
   const { mutate: logout } = useLogout();
+  const { siderCollapsed } = useThemedLayoutContext();
   const [counts, setCounts] = useState<Record<string, number | undefined>>({});
+  const items = navForRole(identity?.role);
+  const chip = ROLE_CHIP[identity?.role ?? ''] ?? ROLE_CHIP.EMPLOYEE;
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([
-      httpClient.get('/dashboard/metrics').catch(() => null),
-      httpClient.get('/dashboard/attention').catch(() => null),
-      httpClient.get('/employees', { params: { _start: 0, _end: 1, isActive: 'true' } }).catch(() => null),
-      httpClient.get('/support-tickets/counts').catch(() => null),
-    ]).then(([metrics, attention, employees, tickets]) => {
-      if (cancelled) return;
-      setCounts({
-        assets: metrics?.data?.total,
-        maintenance: metrics?.data?.underRepair,
-        requests: attention?.data?.pendingRequestCount,
-        employees: employees?.data?.total,
-        tickets: tickets?.data?.openUnassigned,
-      });
-    });
+    const role = identity?.role;
+    if (!role) return;
+    const loads: Promise<void>[] = [];
+    if (role === 'SUPER_ADMIN' || role === 'IT_ADMIN' || role === 'IT_SUPPORT') {
+      loads.push(
+        httpClient
+          .get('/dashboard/metrics')
+          .then(({ data }) => {
+            if (!cancelled) setCounts((c) => ({ ...c, assets: data?.total, maintenance: data?.underRepair }));
+          })
+          .catch(() => undefined),
+      );
+      loads.push(
+        httpClient
+          .get('/dashboard/attention')
+          .then(({ data }) => {
+            if (!cancelled) setCounts((c) => ({ ...c, requests: data?.pendingRequestCount }));
+          })
+          .catch(() => undefined),
+      );
+      loads.push(
+        httpClient
+          .get('/employees', { params: { _start: 0, _end: 1, isActive: 'true' } })
+          .then(({ data }) => {
+            if (!cancelled) setCounts((c) => ({ ...c, employees: data?.total }));
+          })
+          .catch(() => undefined),
+      );
+    }
+    if (role === 'MANAGER') {
+      loads.push(
+        httpClient
+          .get('/dashboard/team-summary')
+          .then(({ data }) => {
+            if (!cancelled)
+              setCounts((c) => ({
+                ...c,
+                requests: data?.pendingRequestCount,
+                tickets: data?.teamOpenTicketCount,
+              }));
+          })
+          .catch(() => undefined),
+      );
+    }
+    loads.push(
+      httpClient
+        .get('/support-tickets/counts')
+        .then(({ data }) => {
+          if (!cancelled) setCounts((c) => ({ ...c, tickets: c.tickets ?? data?.openUnassigned ?? data?.mine }));
+        })
+        .catch(() => undefined),
+    );
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [identity?.role]);
 
   return (
-    <ThemedSider
-      {...props}
-      Title={Title}
-      render={({ items, collapsed }) => {
-        decorateNav(items, counts);
-        return (
-          <>
-            {!collapsed && (
-              <Menu.ItemGroup
-                key="manage-label"
-                title={
-                  <span className="nv-sider-section" data-testid="sider-manage-label">
-                    MANAGE
-                  </span>
-                }
-              />
-            )}
-            {items}
-            <div className="nv-sider-user">
-              <div className="nv-sider-user-row">
-                <Avatar size={26} className="nv-sider-avatar">
-                  {initials(identity?.fullName)}
-                </Avatar>
-                {!collapsed && (
-                  <div className="nv-sider-user-meta">
-                    <div className="nv-sider-user-name">{identity?.fullName}</div>
-                    <div className="nv-sider-user-role">{identity?.role?.replaceAll('_', ' ')}</div>
-                  </div>
-                )}
-              </div>
+    <aside
+      className={`nv-sider${siderCollapsed ? ' nv-sider--collapsed' : ''}`}
+      data-testid="app-sider"
+      aria-label="Primary"
+    >
+      <Title collapsed={siderCollapsed} />
+      <nav className="nv-sider-nav">
+        {!siderCollapsed && (
+          <span className="nv-sider-section" data-testid="sider-manage-label">
+            {identity?.role === 'EMPLOYEE' ? 'MY IT' : identity?.role === 'MANAGER' ? 'TEAM' : 'MANAGE'}
+          </span>
+        )}
+        {items.map((item) => (
+          <NavLink
+            key={item.key}
+            to={item.href}
+            end={item.href === '/'}
+            className={({ isActive }) => `nv-sider-link${isActive ? ' is-active' : ''}`}
+            title={item.label}
+          >
+            <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {siderCollapsed ? item.label.slice(0, 2) : item.label}
+            </span>
+            {!siderCollapsed && item.badgeKey && counts[item.badgeKey] != null ? (
+              <span className="nv-nav-badge">{counts[item.badgeKey]}</span>
+            ) : null}
+          </NavLink>
+        ))}
+      </nav>
+      <div className="nv-sider-user">
+        <div className="nv-sider-user-row">
+          <Avatar size={26} className="nv-sider-avatar">
+            {initials(identity?.fullName)}
+          </Avatar>
+          {!siderCollapsed && (
+            <div className="nv-sider-user-meta" style={{ minWidth: 0 }}>
+              <div className="nv-sider-user-name">{identity?.fullName}</div>
+              <span className="nv-role-chip" style={{ color: chip.color, background: chip.bg }} data-testid="role-chip">
+                {chip.label}
+              </span>
             </div>
-            <div
-              role="menuitem"
-              tabIndex={0}
-              data-testid="logout-button"
-              className="nv-sider-signout-item"
-              onClick={() => logout()}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  logout();
-                }
-              }}
-            >
-              {collapsed ? 'Out' : 'Sign out'}
-            </div>
-          </>
-        );
-      }}
-    />
+          )}
+        </div>
+      </div>
+      <div
+        role="menuitem"
+        tabIndex={0}
+        data-testid="logout-button"
+        className="nv-sider-signout-item"
+        onClick={() => logout()}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            logout();
+          }
+        }}
+      >
+        {siderCollapsed ? 'Out' : 'Sign out'}
+      </div>
+    </aside>
   );
 }

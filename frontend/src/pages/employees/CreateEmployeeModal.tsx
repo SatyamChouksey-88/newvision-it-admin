@@ -1,4 +1,4 @@
-import { App as AntdApp, Alert, Form, Input, Modal, Select } from 'antd';
+import { App as AntdApp, Alert, Checkbox, Form, Input, Modal, Select } from 'antd';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { apiErrorMessage, httpClient } from '../../providers/axios';
@@ -45,6 +45,8 @@ export function CreateEmployeeModal({
       designation?: string;
       locationId: number;
       departmentId?: number;
+      createLogin?: boolean;
+      loginRole?: string;
     };
     try {
       v = await form.validateFields();
@@ -57,6 +59,8 @@ export function CreateEmployeeModal({
         ...v,
         phone: v.phone?.trim() || undefined,
         designation: v.designation?.trim() || undefined,
+        createLogin: Boolean(v.createLogin),
+        loginRole: v.createLogin ? (v.loginRole ?? 'EMPLOYEE') : undefined,
       });
       message.success('Employee created');
       form.resetFields();
@@ -129,6 +133,25 @@ export function CreateEmployeeModal({
         </Form.Item>
         <Form.Item label="Phone" name="phone">
           <Input placeholder="Optional" />
+        </Form.Item>
+        <Form.Item name="createLogin" valuePropName="checked">
+          <Checkbox>Create a login for this employee</Checkbox>
+        </Form.Item>
+        <Form.Item noStyle shouldUpdate={(a, b) => a.createLogin !== b.createLogin}>
+          {({ getFieldValue }) =>
+            getFieldValue('createLogin') ? (
+              <Form.Item name="loginRole" label="Login role" initialValue="EMPLOYEE">
+                <Select
+                  options={[
+                    { label: 'Employee', value: 'EMPLOYEE' },
+                    { label: 'Manager', value: 'MANAGER' },
+                    { label: 'IT Support', value: 'IT_SUPPORT' },
+                    { label: 'IT Admin', value: 'IT_ADMIN' },
+                  ]}
+                />
+              </Form.Item>
+            ) : null
+          }
         </Form.Item>
       </Form>
     </Modal>

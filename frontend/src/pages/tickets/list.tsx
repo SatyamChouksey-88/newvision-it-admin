@@ -24,6 +24,7 @@ const QUICK_VIEWS = [
   { key: 'unassigned', label: 'Unassigned' },
   { key: 'overdue', label: 'Overdue' },
   { key: 'awaiting_reply', label: 'Awaiting my reply' },
+  { key: 'email', label: 'Email-in' },
 ];
 
 export function TicketList() {
@@ -244,7 +245,14 @@ export function TicketList() {
                   <Space size={4}>
                     <Link to={`/tickets/show/${r.id}`}>{v}</Link>
                     <CopyButton value={v} label="ticket number" />
-                    {r.overdue ? <Tag color="red">Overdue</Tag> : null}
+                    {r.channel === 'email' ? <Tag>Email</Tag> : null}
+                    {r.slaLabel ? (
+                      <Tag color={r.slaState === 'overdue' ? 'red' : r.slaState === 'soon' ? 'gold' : undefined}>
+                        {r.slaLabel}
+                      </Tag>
+                    ) : r.overdue ? (
+                      <Tag color="red">Overdue</Tag>
+                    ) : null}
                   </Space>
                 ),
               },

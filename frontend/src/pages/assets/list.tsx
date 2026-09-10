@@ -28,6 +28,7 @@ import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid'
 import { EmployeeSelect } from '../../components/EmployeeSelect';
 import { EmptyState } from '../../components/EmptyState';
 import { FirstRunWelcome } from '../../components/FirstRunWelcome';
+import { ChipSelect } from '../../components/ChipSelect';
 import { AssetStatusSelect } from '../../components/AssetStatusSelect';
 import { StatusLegend } from '../../components/StatusLegend';
 import { ASSET_STATUS_OPTIONS, StatusTag } from '../../components/StatusTag';
@@ -309,38 +310,38 @@ export function AssetList() {
             defaultValue={(activeFilters.q as string | undefined) ?? ''}
             onSearch={(v) => setFilter('q', v.trim())}
           />
-          <Select
+          <ChipSelect
+            label="Status"
             allowClear
             aria-label="Filter by status"
-            placeholder="Status"
-            style={{ width: 170 }}
+            placeholder="All"
             options={ASSET_STATUS_OPTIONS}
             value={activeFilters.status as AssetStatus | undefined}
             onChange={(v) => setFilter('status', v)}
           />
-          <Select
+          <ChipSelect
+            label="Location"
             allowClear
             aria-label="Filter by location"
-            placeholder="Location"
-            style={{ width: 170 }}
+            placeholder="All"
             options={locations.map((l) => ({ label: l.name, value: l.id }))}
             value={activeFilters.locationId as number | undefined}
             onChange={(v) => setFilter('locationId', v)}
           />
-          <Select
+          <ChipSelect
+            label="Category"
             allowClear
             aria-label="Filter by category"
-            placeholder="Category"
-            style={{ width: 160 }}
+            placeholder="All"
             options={categories.map((c) => ({ label: c.name, value: c.id }))}
             value={activeFilters.categoryId as number | undefined}
             onChange={(v) => setFilter('categoryId', v)}
           />
-          <Select
+          <ChipSelect
+            label="Department"
             allowClear
             aria-label="Filter by department"
-            placeholder="Department"
-            style={{ width: 160 }}
+            placeholder="All"
             options={departments.map((d) => ({ label: d.name, value: d.id }))}
             value={activeFilters.departmentId as number | undefined}
             onChange={(v) => setFilter('departmentId', v)}
@@ -522,8 +523,7 @@ export function AssetList() {
                     primary={r.assetCode}
                     sub={`${r.brand ?? ''} ${r.model ?? ''}`.trim() || r.serialNumber}
                   />
-                  <CopyButton value={r.assetCode} label="asset code" />
-                  {r.serialNumber ? <CopyButton value={r.serialNumber} label="serial" /> : null}
+                  {canManage ? <CopyButton value={r.assetCode} label="asset code" /> : null}
                 </Space>
               ),
             },

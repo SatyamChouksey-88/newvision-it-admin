@@ -28,6 +28,11 @@ const STATUS_META: Record<TicketStatus, { label: string; icon: ReactNode; style:
     icon: <SyncOutlined />,
     style: { color: '#b45309', background: '#fffbeb', borderColor: '#fde68a' },
   },
+  waiting_on_employee: {
+    label: 'Waiting on employee',
+    icon: <ClockCircleOutlined />,
+    style: { color: '#b45309', background: '#fffbeb', borderColor: '#fde68a' },
+  },
   resolved: {
     label: 'Resolved',
     icon: <CheckCircleOutlined />,
@@ -102,8 +107,9 @@ export const TICKET_PRIORITY_OPTIONS = (Object.keys(PRIORITY_META) as TicketPrio
 
 export const TICKET_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
   open: ['assigned', 'in_progress', 'closed'],
-  assigned: ['in_progress', 'open', 'resolved'],
-  in_progress: ['assigned', 'resolved'],
+  assigned: ['in_progress', 'open', 'waiting_on_employee', 'resolved'],
+  in_progress: ['assigned', 'waiting_on_employee', 'resolved'],
+  waiting_on_employee: ['in_progress', 'assigned', 'resolved'],
   resolved: ['closed', 'reopened'],
   reopened: ['assigned', 'in_progress', 'open'],
   closed: ['reopened'],

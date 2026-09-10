@@ -1,7 +1,7 @@
 import { PlusOutlined } from '@ant-design/icons';
 import { useTable } from '@refinedev/antd';
 import { useGetIdentity } from '@refinedev/core';
-import { Button, Card, Input, Select, Space, Tag, Typography } from 'antd';
+import { Button, Card, Input, Space, Tag, Typography } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { PrimaryWithSub } from '../../components/Cells';
@@ -16,6 +16,7 @@ import { useSetupStatus } from '../../hooks/useSetupStatus';
 import type { Identity } from '../../providers/authProvider';
 import { httpClient } from '../../providers/axios';
 import type { Department, Employee, Location } from '../../types';
+import { ChipSelect } from '../../components/ChipSelect';
 import { CreateEmployeeModal } from './CreateEmployeeModal';
 
 type StatusFilter = 'active' | 'inactive' | 'all';
@@ -106,9 +107,9 @@ export function EmployeeList() {
       title={
         <Space size="middle" wrap>
           <Typography.Text strong>Employees</Typography.Text>
-          <Select<StatusFilter>
+          <ChipSelect<StatusFilter>
+            label="Status"
             aria-label="Filter by employment status"
-            style={{ width: 200 }}
             value={statusValue}
             options={STATUS_OPTIONS}
             onChange={(v) =>
@@ -118,20 +119,20 @@ export function EmployeeList() {
               )
             }
           />
-          <Select
+          <ChipSelect
+            label="Location"
             allowClear
             aria-label="Filter by location"
-            placeholder="Location"
-            style={{ width: 170 }}
+            placeholder="All"
             options={locations.map((l) => ({ label: l.name, value: l.id }))}
             value={active.locationId ? Number(active.locationId) : undefined}
             onChange={(v) => setFilter('locationId', v)}
           />
-          <Select
+          <ChipSelect
+            label="Department"
             allowClear
             aria-label="Filter by department"
-            placeholder="Department"
-            style={{ width: 170 }}
+            placeholder="All"
             options={departments.map((d) => ({ label: d.name, value: d.id }))}
             value={active.departmentId ? Number(active.departmentId) : undefined}
             onChange={(v) => setFilter('departmentId', v)}

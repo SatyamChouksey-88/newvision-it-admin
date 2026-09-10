@@ -23,6 +23,28 @@ html {
   background: #f8fafc;
 }
 
+/* Thin, quiet scrollbars — mockup `::-webkit-scrollbar` treatment, everywhere. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #dde3ea transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #dde3ea;
+  border-radius: 6px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 code,
 .nv-mono {
   font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -37,7 +59,8 @@ code,
   padding: 20px 20px 64px !important;
 }
 
-/* ── Sidebar 216px ── */
+/* ── Sidebar 216px (custom AppSider + Refine fallback) ── */
+.nv-sider,
 .ant-layout-sider:not(.ant-layout-sider-collapsed) {
   flex: 0 0 216px !important;
   max-width: 216px !important;
@@ -45,6 +68,7 @@ code,
   width: 216px !important;
 }
 
+.nv-sider,
 .ant-layout-sider {
   border-right: 1px solid #e9edf2 !important;
   box-shadow: none !important;
@@ -182,6 +206,105 @@ code,
 .nv-sider-signout-item:focus {
   color: #1f1f1f;
   outline: none;
+}
+
+.nv-sider {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  z-index: 20;
+}
+
+.nv-sider--collapsed {
+  flex: 0 0 72px !important;
+  max-width: 72px !important;
+  min-width: 72px !important;
+  width: 72px !important;
+}
+
+.nv-sider-nav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nv-sider-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #595959;
+  text-decoration: none;
+}
+
+.nv-sider-link:hover {
+  background: #f1f5f9;
+  color: #1f1f1f;
+}
+
+.nv-sider-link.is-active {
+  background: #f0f7ff;
+  color: #0958d9;
+  font-weight: 500;
+}
+
+.nv-sider-link .anticon {
+  font-size: 14px;
+}
+
+.nv-role-chip {
+  display: inline-block;
+  font-size: 10px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 4px;
+  padding: 1px 5px;
+  line-height: 1.4;
+}
+
+.nv-copy-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid #e9edf2;
+  border-radius: 3px;
+  background: #fff;
+  color: #94a3b8;
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.nv-copy-chip:hover,
+.nv-copy-chip:focus-visible {
+  color: #1677ff;
+  border-color: #bbd9ff;
+  background: #f0f7ff;
+  outline: none;
+}
+
+.nv-copy-chip.is-copied {
+  color: #15803d;
+  border-color: #bbf7d0;
+  width: auto;
+  padding: 0 4px;
+  font-size: 9px;
+  font-family: Inter, Helvetica, Arial, sans-serif;
 }
 
 /* ── Header 52px ── */
@@ -672,4 +795,21 @@ a:hover {
   text-transform: uppercase;
   color: #94a3b8;
   padding: 10px 14px 4px;
+}
+
+.nv-chip-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: #fff;
+  border: 1px solid #e9edf2;
+  border-radius: 999px;
+  padding: 0 4px 0 10px;
+  min-height: 28px;
+}
+
+.nv-chip-select__label {
+  font-size: 12px;
+  color: #64748b;
+  white-space: nowrap;
 }
