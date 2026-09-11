@@ -295,6 +295,7 @@ Definition of Done: UI matches approved mockup look-and-feel; no functional regr
 
 - [x] **#1 Ticket timeline “Not started”** — if status is already `assigned` / `in_progress` / `waiting_on_employee` (or resolved/closed/reopened), the timeline shows a backfilled “Work started” from `updatedAt` instead of “Not started”. Verified with e2e (prisma status update, no start audit) + unit helper. Open/unassigned tickets still show Not started.
 - [x] **#2 Ticket list columns** — Requester (`Name · EMP-code`), Assignee, and Age/SLA badge (same colours as the ticket header). SLA tags moved out of the Ticket column so the grid is scannable. Playwright asserts the three headers.
+- [x] **#3 Assign to me** — row action on the ticket list and a header button on ticket detail. Assigns the current IT Admin/IT Support user and moves `open`/unassigned tickets to `in_progress`. Employees get 403. Verified in tickets e2e for both staff roles.
 
 ## Known issues
 

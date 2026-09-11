@@ -2,7 +2,7 @@ import { DownloadOutlined, PlusOutlined } from '@ant-design/icons';
 import { useTable } from '@refinedev/antd';
 import { useGetIdentity } from '@refinedev/core';
 import { Button, Card, Form, Input, Modal, Select, Space, Tag, Typography } from 'antd';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { CopyButton } from '../../components/CopyButton';
 import { CopyEmailButton } from '../../components/CopyEmailButton';
@@ -13,6 +13,7 @@ import { TablePagination } from '../../components/TablePagination';
 import { TableSkeleton } from '../../components/TableSkeleton';
 import { TicketPriorityTag, TicketStatusTag, TICKET_STATUS_OPTIONS } from '../../components/TicketStatusTag';
 import { useRefinePagination } from '../../hooks/useRefinePagination';
+import { useToast } from '../../components/Toast';
 import type { Identity } from '../../providers/authProvider';
 import { apiErrorMessage, httpClient } from '../../providers/axios';
 import type { SavedView, SupportTicket } from '../../types';
@@ -66,6 +67,7 @@ const QUICK_VIEWS = [
 
 export function TicketList() {
   const navigate = useNavigate();
+  const toast = useToast();
   const { data: identity } = useGetIdentity<Identity>();
   const isStaff = STAFF.includes(identity?.role ?? '');
   const [density, setDensity] = useState<TableDensity>('Compact');
@@ -107,6 +109,17 @@ export function TicketList() {
       'replace',
     );
     setSelectedIds([]);
+  };
+
+  const assignToMe = async (id: number, e?: MouseEvent) => {
+    e?.stopPropagation();
+    try {
+      await httpClient.post(`/support-tickets/${id}/assign-to-me`);
+      toast.success('Assigned to you');
+      void tableQuery.refetch();
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Could not assign ticket'));
+    }
   };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: refresh counts when the table query updates
@@ -342,6 +355,25 @@ export function TicketList() {
                 sorter: true,
                 render: (v) => formatDate(v),
               },
+              ...(isStaff
+                ? [
+                    {
+                      title: 'Actions',
+                      gridKey: 'actions',
+                      defaultWidth: 120,
+                      exportable: false as const,
+                      render: (_: unknown, r: SupportTicket) =>
+                        r.assignedToId === identity?.id ? null : (
+                          <Button
+                            size="small"
+                            onClick={(e) => void assignToMe(r.id, e)}
+                          >
+                            Assign to me
+                          </Button>
+                        ),
+                    },
+                  ]
+                : []),
             ]}
           />
           <TablePagination total={total} page={page} pageSize={pageSize} onChange={onPageChange} />

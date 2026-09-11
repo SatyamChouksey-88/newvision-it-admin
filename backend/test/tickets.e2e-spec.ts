@@ -520,4 +520,48 @@ describe('Support tickets, CSAT, digest, notes, manual edit (e2e)', () => {
       .expect(200);
     expect(untouched.body.map((e: { summary: string }) => e.summary)).toContain('Not started');
   });
+
+  it('assign-to-me claims the ticket for IT Support and IT Admin and starts work from open', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/api/support-tickets')
+      .set(auth(employee))
+      .send({
+        subject: 'Assign to me',
+        description: 'Please take this.',
+        categoryId: softwareId,
+        autoAssign: false,
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post(`/api/support-tickets/${created.body.id}/assign-to-me`)
+      .set(auth(employee))
+      .expect(403);
+
+    const asSupport = await request(app.getHttpServer())
+      .post(`/api/support-tickets/${created.body.id}/assign-to-me`)
+      .set(auth(support))
+      .expect(201);
+    const supportUser = await prisma.user.findUnique({ where: { email: 'support@newvision.local' } });
+    expect(asSupport.body.assignedToId).toBe(supportUser!.id);
+    expect(asSupport.body.status).toBe('in_progress');
+
+    const created2 = await request(app.getHttpServer())
+      .post('/api/support-tickets')
+      .set(auth(employee))
+      .send({
+        subject: 'Assign to me admin',
+        description: 'Admin takes it.',
+        categoryId: softwareId,
+        autoAssign: false,
+      })
+      .expect(201);
+    const asAdmin = await request(app.getHttpServer())
+      .post(`/api/support-tickets/${created2.body.id}/assign-to-me`)
+      .set(auth(admin))
+      .expect(201);
+    const adminUser = await prisma.user.findUnique({ where: { email: 'itadmin@newvision.local' } });
+    expect(asAdmin.body.assignedToId).toBe(adminUser!.id);
+    expect(asAdmin.body.status).toBe('in_progress');
+  });
 });

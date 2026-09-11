@@ -163,6 +163,21 @@ export function TicketShow() {
         }
         extra={
           <Space>
+            {isStaff && ticket && ticket.assignedToId !== identity?.id ? (
+              <Button
+                onClick={async () => {
+                  try {
+                    await httpClient.post(`/support-tickets/${ticket.id}/assign-to-me`);
+                    toast.success('Assigned to you');
+                    reload();
+                  } catch (e) {
+                    toast.error(apiErrorMessage(e, 'Could not assign ticket'));
+                  }
+                }}
+              >
+                Assign to me
+              </Button>
+            ) : null}
             {isStaff && ticket ? <CopyEmailButton ticket={ticket} /> : null}
             {isStaff && ticket ? (
               <TicketStatusSelect value={ticket.status} onChange={(s) => void transition(s)} />

@@ -325,6 +325,19 @@ export class TicketsService {
     return this.decorateOne(updated);
   }
 
+  /** One-click take: assign the current staff user, and start work if the ticket was still open/unassigned. */
+  async assignToMe(id: number, actor: AuthUser) {
+    this.assertStaff(actor);
+    let ticket = await this.assign(id, actor.id, actor);
+    if (
+      (ticket.status === 'open' || ticket.status === 'assigned') &&
+      canTransitionTicket(ticket.status, 'in_progress')
+    ) {
+      ticket = await this.transition(id, 'in_progress', actor);
+    }
+    return ticket;
+  }
+
   async transition(id: number, status: TicketStatus, actor: AuthUser) {
     this.assertStaff(actor);
     const ticket = await this.require(id);

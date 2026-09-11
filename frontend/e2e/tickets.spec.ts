@@ -25,6 +25,7 @@ test.describe('Support tickets', () => {
     await expect(page.getByRole('columnheader', { name: 'Requester' })).toBeVisible();
     await expect(page.getByRole('columnheader', { name: 'Assignee' })).toBeVisible();
     await expect(page.getByRole('columnheader', { name: 'Age / SLA' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Assign to me' }).first()).toBeVisible();
     await expect(page.getByTestId('quick-view-unassigned')).toBeVisible();
     await page.getByLabel('Search tickets').fill('Outlook');
     await page.getByLabel('Search tickets').press('Enter');
