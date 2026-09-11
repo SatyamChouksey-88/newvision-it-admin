@@ -50,7 +50,7 @@ function buildReports(locationCodes: string[]): { type: string; title: string; d
     {
       type: 'warranty',
       title: 'Warranty Report',
-      desc: 'Assets sorted by warranty days remaining (most urgent first).',
+      desc: 'Upcoming warranties only, sorted soonest first. Use Assets → Already expired for lapsed kit.',
       meta: 'CSV · PDF · ≤90 days first',
     },
     {

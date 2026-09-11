@@ -155,7 +155,7 @@ export class ReportsService {
 
   private async warrantyReport(): Promise<ReportData> {
     const assets = await this.prisma.asset.findMany({
-      where: { warrantyEnd: { not: null }, status: { notIn: ['retired', 'disposed'] } },
+      where: { warrantyEnd: { not: null, gte: new Date() }, status: { notIn: ['retired', 'disposed'] } },
       include: { location: true, category: true },
     });
     const rows = assets
@@ -170,7 +170,7 @@ export class ReportsService {
       .sort((a, b) => a.daysRemaining - b.daysRemaining);
 
     return {
-      title: 'Warranty Report (sorted by days remaining)',
+      title: 'Warranty expiring soon (upcoming dates only)',
       columns: [
         { header: 'Asset Code', key: 'assetCode', width: 100 },
         { header: 'Item', key: 'item', width: 140 },

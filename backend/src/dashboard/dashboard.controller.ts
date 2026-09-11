@@ -147,16 +147,23 @@ export class DashboardController {
   @Get('warranty-expiring')
   async warrantyExpiring(
     @Query('locationId') locationIdRaw?: string,
-    @Query('withinDays') withinDaysRaw = '90',
+    @Query('withinDays') withinDaysRaw = '30',
+    @Query('bucket') bucketRaw = 'expiring',
   ) {
     const locationId = locationIdRaw ? Number(locationIdRaw) : undefined;
-    const withinDays = Number(withinDaysRaw) || 90;
+    const withinDays = Number(withinDaysRaw) || 30;
+    const bucket = bucketRaw === 'expired' ? 'expired' : 'expiring';
+    const now = new Date();
     const limit = new Date();
     limit.setDate(limit.getDate() + withinDays);
+    const warrantyEnd =
+      bucket === 'expired'
+        ? { not: null as const, lt: now }
+        : { gte: now, lte: limit };
     const assets = await this.prisma.asset.findMany({
       where: {
         ...(locationId ? { locationId } : {}),
-        warrantyEnd: { not: null, lte: limit },
+        warrantyEnd,
         status: { notIn: ['retired', 'disposed'] },
       },
       include: { category: true, location: true, assignedEmployee: true },
@@ -172,6 +179,7 @@ export class DashboardController {
       category: a.category?.code,
       warrantyEnd: a.warrantyEnd,
       daysRemaining: a.warrantyEnd ? daysRemaining(a.warrantyEnd) : null,
+      bucket,
     }));
   }
 

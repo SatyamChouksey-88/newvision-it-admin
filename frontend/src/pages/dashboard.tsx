@@ -479,9 +479,14 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
                 </Space>
               }
               extra={
-                <Button type="link" size="small" onClick={() => { sessionStorage.setItem(DISMISS_KEY, '1'); setDismissed(true); }}>
-                  Dismiss all
-                </Button>
+                <Space size={8}>
+                  <Link to={assetsHref({ warrantyExpiringInDays: 14, locationId })} style={{ fontSize: 12 }}>
+                    Expiring (14d)
+                  </Link>
+                  <Button type="link" size="small" onClick={() => { sessionStorage.setItem(DISMISS_KEY, '1'); setDismissed(true); }}>
+                    Dismiss all
+                  </Button>
+                </Space>
               }
             >
               <div className="nv-attention-grid">

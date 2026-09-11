@@ -284,13 +284,14 @@ Both lists use the same Excel-grade grid as Assets.
 ### What is working today
 
 - The **Open tickets** KPI replaced the old **Warranty ≤90d** tile on the main dashboard row.
-- Warranties that expire within **7 days** still appear under **Needs attention**.
-- \`GET /dashboard/warranty-expiring\` lists assets by days remaining (including already-expired kit).
-- **Reports → Warranty** downloads CSV/PDF sorted most-urgent first.
-- A daily cron creates de-duplicated notifications at **90, 60, and 30 days** before expiry and emails IT Admins (SMTP when configured, console log otherwise).
+- Warranties that expire within **7 days** still appear under **Needs attention**, with a link to the **Expiring (14d)** Assets filter.
+- \`GET /dashboard/warranty-expiring\` defaults to **upcoming only** (\`bucket=expiring\`, \`withinDays=30\`). Pass \`bucket=expired\` for already-lapsed kit. Negative thousand-day rows no longer mix into the to-do list.
+- Assets list **Warranty** chip: expiring in 14 / 30 / 90 days, or **Already expired**.
+- **Reports → Warranty** is upcoming dates only (sorted soonest first).
+- A daily cron still creates de-duplicated notifications at **90, 60, and 30 days** before expiry and emails IT Admins (SMTP when configured, console log otherwise).
 
-> [!NOTE]
-> The warranty API currently mixes long-expired assets with upcoming ones. Use days-remaining and the 7-day attention strip for a usable to-do list until the expiring/expired split ships.`,
+> [!TIP]
+> Use **Already expired** when you are writing off dead kit. Use **Expiring in 14 days** as the daily work list.`,
   },
   {
     id: 'reports',
@@ -822,8 +823,8 @@ SMTP_HOST=
 **I signed in as Employee and I do not see Dashboard / Settings.**
 That is correct. Employees land on **My IT**. They can raise a ticket, request a device, and see their own assets.
 
-**Warranty attention is full of thousand-day-expired laptops.**
-The warranty API currently returns already-expired rows mixed with upcoming ones. Sort by days remaining and use the 7-day attention strip. A split “expiring soon / already expired” view is planned.
+**Warranty attention used to mix thousand-day-expired laptops with upcoming ones.**
+The warranty API and Assets **Warranty** chip now split **expiring soon** (14/30/90 days) from **already expired**. The dashboard **Expiring (14d)** link opens the near-term work list.
 
 **A ticket used to say Not started while already In progress.**
 The timeline now treats \`assigned\` / \`in_progress\` / \`waiting_on_employee\` (and later states) as evidence work has started, and backfills a “Work started” point from \`updatedAt\` when no assign/status audit exists.

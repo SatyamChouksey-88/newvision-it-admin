@@ -150,4 +150,47 @@ describe('Dashboard, search, scoping & import (e2e)', () => {
     expect(res.headers['content-type']).toContain('text/csv');
     expect(res.text).toContain('assetCode');
   });
+
+  it('splits warranty-expiring into upcoming vs already expired', async () => {
+    const soon = new Date();
+    soon.setDate(soon.getDate() + 10);
+    const ancient = new Date();
+    ancient.setDate(ancient.getDate() - 400);
+    const aSoon = await request(app.getHttpServer())
+      .post('/api/assets')
+      .set(auth(adminToken))
+      .send({
+        categoryId: ids.categoryLap,
+        locationId: ids.locationPune,
+        model: 'SoonLaptop',
+        warrantyEnd: soon.toISOString(),
+      })
+      .expect(201);
+    const aOld = await request(app.getHttpServer())
+      .post('/api/assets')
+      .set(auth(adminToken))
+      .send({
+        categoryId: ids.categoryLap,
+        locationId: ids.locationPune,
+        model: 'OldLaptop',
+        warrantyEnd: ancient.toISOString(),
+      })
+      .expect(201);
+
+    const expiring = await request(app.getHttpServer())
+      .get('/api/dashboard/warranty-expiring?withinDays=30')
+      .set(auth(adminToken))
+      .expect(200);
+    const expiringIds = expiring.body.map((r: { id: number }) => r.id);
+    expect(expiringIds).toContain(aSoon.body.id);
+    expect(expiringIds).not.toContain(aOld.body.id);
+
+    const expired = await request(app.getHttpServer())
+      .get('/api/dashboard/warranty-expiring?bucket=expired')
+      .set(auth(adminToken))
+      .expect(200);
+    const expiredIds = expired.body.map((r: { id: number }) => r.id);
+    expect(expiredIds).toContain(aOld.body.id);
+    expect(expiredIds).not.toContain(aSoon.body.id);
+  });
 });

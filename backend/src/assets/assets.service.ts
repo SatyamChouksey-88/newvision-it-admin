@@ -45,6 +45,7 @@ export interface AssetListQuery extends ListQuery {
   departmentId?: string;
   assignedEmployeeId?: string;
   warrantyExpiringInDays?: string;
+  warrantyExpired?: string;
 }
 
 @Injectable()
@@ -170,6 +171,11 @@ export class AssetsService {
               gte: new Date(),
               lte: addDays(new Date(), Number(query.warrantyExpiringInDays)),
             },
+          }
+        : {}),
+      ...(query.warrantyExpired === 'true'
+        ? {
+            warrantyEnd: { not: null, lt: new Date() },
           }
         : {}),
       ...(query.q ? this.searchClause(query.q) : {}),

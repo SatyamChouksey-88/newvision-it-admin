@@ -284,6 +284,9 @@ export function AssetList() {
         case 'warrantyExpiringInDays':
           chips.push({ key: k, label: `Warranty ends within ${String(v)} days` });
           break;
+        case 'warrantyExpired':
+          chips.push({ key: k, label: 'Already expired' });
+          break;
         case 'assignedEmployeeId':
           chips.push({ key: k, label: `Assigned to employee #${String(v)}` });
           break;
@@ -385,6 +388,35 @@ export function AssetList() {
           options={departments.map((d) => ({ label: d.name, value: d.id }))}
           value={activeFilters.departmentId as number | undefined}
           onChange={(v) => setFilter('departmentId', v)}
+        />
+        <ChipSelect
+          label="Warranty"
+          tone="status"
+          allowClear
+          aria-label="Filter by warranty"
+          placeholder="All"
+          options={[
+            { label: 'Expiring in 14 days', value: '14' },
+            { label: 'Expiring in 30 days', value: '30' },
+            { label: 'Expiring in 90 days', value: '90' },
+            { label: 'Already expired', value: 'expired' },
+          ]}
+          value={
+            activeFilters.warrantyExpired === true || activeFilters.warrantyExpired === 'true'
+              ? 'expired'
+              : activeFilters.warrantyExpiringInDays
+                ? String(activeFilters.warrantyExpiringInDays)
+                : undefined
+          }
+          onChange={(v) => {
+            if (v === 'expired') {
+              applyFilterState({ ...activeFilters, warrantyExpired: true, warrantyExpiringInDays: undefined });
+            } else if (v) {
+              applyFilterState({ ...activeFilters, warrantyExpiringInDays: Number(v), warrantyExpired: undefined });
+            } else {
+              applyFilterState({ ...activeFilters, warrantyExpiringInDays: undefined, warrantyExpired: undefined });
+            }
+          }}
         />
         <Select
           allowClear
