@@ -34,6 +34,48 @@ test('creates a new asset through the form', async ({ page }) => {
   await expect(page.getByText('Dell Latitude 7440').first()).toBeVisible();
 });
 
+test('creates an asset with an explicit unique code', async ({ page }) => {
+  const code = `NV-E2E-${Date.now().toString().slice(-6)}`;
+  const serial = `E2E-CODE-${Date.now()}`;
+  await page.goto('/assets/create');
+  await expect(page.getByLabel('Asset number')).toBeVisible();
+  await page.getByLabel('Asset number').fill(code);
+  await selectByPlaceholder(page, 'Select category');
+  await selectByPlaceholder(page, 'Select location');
+  await page.getByLabel('Brand').fill('HP');
+  await page.getByLabel('Model').fill('EliteBook');
+  await page.getByLabel('Serial Number').fill(serial);
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page).toHaveURL(/\/assets(\?|$)/);
+  await page.getByPlaceholder(/Search code, serial, model/i).fill(code);
+  await page.getByPlaceholder(/Search code, serial, model/i).press('Enter');
+  await expect(page.getByText(code.toUpperCase()).first()).toBeVisible();
+});
+
+test('renames an asset number after confirm', async ({ page }) => {
+  const serial = `E2E-RENAME-${Date.now()}`;
+  await page.goto('/assets/create');
+  await selectByPlaceholder(page, 'Select category');
+  await selectByPlaceholder(page, 'Select location');
+  await page.getByLabel('Brand').fill('Lenovo');
+  await page.getByLabel('Model').fill('ThinkPad');
+  await page.getByLabel('Serial Number').fill(serial);
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page).toHaveURL(/\/assets(\?|$)/);
+  await page.getByPlaceholder(/Search code, serial, model/i).fill(serial);
+  await page.getByPlaceholder(/Search code, serial, model/i).press('Enter');
+  await page.getByText('Lenovo ThinkPad').first().click();
+  await expect(page).toHaveURL(/\/assets\/show\//);
+  await page.getByRole('link', { name: 'Edit number' }).click();
+  await expect(page).toHaveURL(/\/assets\/edit\//);
+  const next = `NV-REN-${Date.now().toString().slice(-5)}`;
+  await page.getByLabel('Asset number').fill(next);
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByRole('dialog').getByText(/Change asset number/i)).toBeVisible();
+  await page.getByRole('button', { name: 'Change number' }).click();
+  await expect(page).toHaveURL(/\/assets(\/show)?/);
+});
+
 test('assigns an available asset to an employee', async ({ page }) => {
   await page.goto('/assets');
   await selectByPlaceholder(page, 'Status', 'Available');

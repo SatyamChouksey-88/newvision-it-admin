@@ -1,20 +1,32 @@
 import { useSelect } from '@refinedev/antd';
-import { Col, DatePicker, Form, Input, InputNumber, Row, Select } from 'antd';
+import { Col, DatePicker, Form, Input, InputNumber, Row, Select, Typography } from 'antd';
 import dayjs from 'dayjs';
+import { assetCodeError, assetCodePrefixPreview, normalizeAssetCode } from '../../utils/assetCode';
 
 const dateProps = {
   getValueProps: (v?: string) => ({ value: v ? dayjs(v) : undefined }),
   normalize: (v: dayjs.Dayjs | null) => (v ? v.toISOString() : undefined),
 };
 
+type CodedRow = { id: number; code?: string };
+
+function rowsFromSelect(select: { query?: { data?: { data?: CodedRow[] } }; queryResult?: { data?: { data?: CodedRow[] } } }) {
+  return select.query?.data?.data ?? select.queryResult?.data?.data ?? [];
+}
+
 export function AssetFormFields() {
-  const { selectProps: categorySelect } = useSelect({
+  const form = Form.useFormInstance();
+  const typedCode = Form.useWatch('assetCode', form) as string | undefined;
+  const locationId = Form.useWatch('locationId', form) as number | undefined;
+  const categoryId = Form.useWatch('categoryId', form) as number | undefined;
+
+  const categorySelect = useSelect({
     resource: 'asset-categories',
     optionLabel: 'name',
     optionValue: 'id',
     pagination: { pageSize: 100 },
   });
-  const { selectProps: locationSelect } = useSelect({
+  const locationSelect = useSelect({
     resource: 'locations',
     optionLabel: 'name',
     optionValue: 'id',
@@ -27,16 +39,63 @@ export function AssetFormFields() {
     pagination: { pageSize: 100 },
   });
 
+  const locations = rowsFromSelect(locationSelect as never);
+  const categories = rowsFromSelect(categorySelect as never);
+  const locCode = locations.find((r) => r.id === locationId)?.code;
+  const catCode = categories.find((r) => r.id === categoryId)?.code;
+  const normalized = typedCode ? normalizeAssetCode(typedCode) : '';
+  const preview = !normalized ? assetCodePrefixPreview(locCode, catCode) : null;
+
   return (
     <Row gutter={16}>
+      <Col span={24}>
+        <Form.Item
+          label="Asset number"
+          name="assetCode"
+          extra={
+            normalized ? (
+              <Typography.Text type="secondary">
+                This exact code will be saved ({normalized})
+              </Typography.Text>
+            ) : preview ? (
+              <Typography.Text type="secondary">Will be assigned {preview}</Typography.Text>
+            ) : (
+              <Typography.Text type="secondary">
+                Leave blank to auto-assign from location and category.
+              </Typography.Text>
+            )
+          }
+          rules={[
+            {
+              validator: async (_, value?: string) => {
+                if (!value?.trim()) return;
+                const code = normalizeAssetCode(value);
+                const err = assetCodeError(code);
+                if (err) throw new Error(err);
+              },
+            },
+          ]}
+          normalize={(v: string | undefined) => v}
+        >
+          <Input
+            className="nv-mono"
+            placeholder="Leave blank to auto-assign (AST-PUN-LAP-0001)"
+            autoComplete="off"
+            onBlur={(e) => {
+              const next = normalizeAssetCode(e.target.value);
+              form.setFieldValue('assetCode', next || undefined);
+            }}
+          />
+        </Form.Item>
+      </Col>
       <Col span={12}>
         <Form.Item label="Category" name="categoryId" rules={[{ required: true }]}>
-          <Select {...categorySelect} placeholder="Select category" />
+          <Select {...categorySelect.selectProps} placeholder="Select category" />
         </Form.Item>
       </Col>
       <Col span={12}>
         <Form.Item label="Location" name="locationId" rules={[{ required: true }]}>
-          <Select {...locationSelect} placeholder="Select location" />
+          <Select {...locationSelect.selectProps} placeholder="Select location" />
         </Form.Item>
       </Col>
       <Col span={12}>

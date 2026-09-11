@@ -12,7 +12,13 @@ import { ListQuery, parseListQuery } from '../common/query';
 import { PrismaService } from '../prisma/prisma.service';
 import { QrService } from '../qr/qr.service';
 import { WebhooksService } from '../webhooks/webhooks.service';
-import { assetCodePrefix, formatAssetCode, parseAssetCode } from './asset-code';
+import {
+  assetCodeError,
+  assetCodePrefix,
+  formatAssetCode,
+  normalizeAssetCode,
+  parseAssetCode,
+} from './asset-code';
 import {
   AssignAssetDto,
   BulkAssetsDto,
@@ -241,15 +247,18 @@ export class AssetsService {
         return await this.createOnce(dto, actor);
       } catch (e) {
         const isCodeCollision =
-          !dto.assetCode &&
+          !dto.assetCode?.trim() &&
           e instanceof Prisma.PrismaClientKnownRequestError &&
           e.code === 'P2002' &&
           attempt < MAX_ATTEMPTS;
         if (!isCodeCollision) {
           if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+            const attempted = dto.assetCode?.trim()
+              ? normalizeAssetCode(dto.assetCode)
+              : '';
             throw new ConflictException(
-              dto.assetCode
-                ? `Asset code ${dto.assetCode} already exists`
+              attempted
+                ? `Asset code ${attempted} already exists`
                 : 'Could not allocate a unique asset code — please retry',
             );
           }
@@ -259,10 +268,18 @@ export class AssetsService {
     }
   }
 
+  private resolveExplicitCode(raw?: string): string | undefined {
+    if (!raw?.trim()) return undefined;
+    const code = normalizeAssetCode(raw);
+    const err = assetCodeError(code);
+    if (err) throw new BadRequestException(err);
+    return code;
+  }
+
   private async createOnce(dto: CreateAssetDto, actor: AuthUser): Promise<Asset> {
+    const explicit = this.resolveExplicitCode(dto.assetCode);
     const asset = await this.prisma.$transaction(async (tx) => {
-      const code =
-        dto.assetCode ?? (await this.generateAssetCode(tx, dto.locationId, dto.categoryId));
+      const code = explicit ?? (await this.generateAssetCode(tx, dto.locationId, dto.categoryId));
       const created = await tx.asset.create({
         data: {
           assetCode: code,
@@ -309,10 +326,24 @@ export class AssetsService {
       // status changes must go through the lifecycle validator
       this.assertValidTransition(before.status, dto.status);
     }
+    let nextCode: string | undefined;
+    if (dto.assetCode != null && String(dto.assetCode).trim() !== '') {
+      nextCode = this.resolveExplicitCode(dto.assetCode);
+      if (nextCode && nextCode !== before.assetCode) {
+        const taken = await this.prisma.asset.findFirst({
+          where: { assetCode: nextCode, id: { not: id } },
+          select: { id: true },
+        });
+        if (taken) throw new ConflictException(`Asset code ${nextCode} already exists`);
+      } else {
+        nextCode = undefined;
+      }
+    }
     const updated = await this.prisma.$transaction(async (tx) => {
       const asset = await tx.asset.update({
         where: { id },
         data: {
+          ...(nextCode ? { assetCode: nextCode } : {}),
           categoryId: dto.categoryId,
           locationId: dto.locationId,
           departmentId: dto.departmentId,
@@ -335,7 +366,9 @@ export class AssetsService {
           entityType: 'Asset',
           entityId: id,
           action: dto.status && dto.status !== before.status ? 'status_change' : 'update',
-          summary: `Updated asset ${asset.assetCode}`,
+          summary: nextCode
+            ? `Renamed ${before.assetCode} → ${nextCode}`
+            : `Updated asset ${asset.assetCode}`,
           changedById: actor.id,
           oldValue: before,
           newValue: asset,

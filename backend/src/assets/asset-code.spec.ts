@@ -1,5 +1,11 @@
 import { describe, expect, it } from '@jest/globals';
-import { assetCodePrefix, formatAssetCode, parseAssetCode } from './asset-code';
+import {
+  assetCodeError,
+  assetCodePrefix,
+  formatAssetCode,
+  normalizeAssetCode,
+  parseAssetCode,
+} from './asset-code';
 
 describe('asset code generation', () => {
   it('exposes the prefix used to find the next sequence', () => {
@@ -26,5 +32,12 @@ describe('asset code generation', () => {
   it('returns null for malformed codes', () => {
     expect(parseAssetCode('not-a-code')).toBeNull();
     expect(parseAssetCode('AST-PUN-LAP')).toBeNull();
+  });
+
+  it('normalizes custom sticker codes and rejects URL-breaking characters', () => {
+    expect(normalizeAssetCode(' nv-lap-1042 ')).toBe('NV-LAP-1042');
+    expect(assetCodeError('NV-LAP-1042')).toBeNull();
+    expect(assetCodeError('AB')).toMatch(/3 characters/);
+    expect(assetCodeError('NV/LAP')).toMatch(/hyphens/);
   });
 });

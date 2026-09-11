@@ -130,4 +130,91 @@ describe('Assets lifecycle (e2e)', () => {
     expect(Array.isArray(res.body.data)).toBe(true);
     expect(typeof res.body.total).toBe('number');
   });
+
+  it('creates an asset with an explicit custom code and can rename it', async () => {
+    const code = `NV-LAP-${Date.now().toString().slice(-6)}`;
+    const created = await request(app.getHttpServer())
+      .post('/api/assets')
+      .set(auth(adminToken))
+      .send({
+        categoryId: laptop.id,
+        locationId: pune.id,
+        brand: 'HP',
+        model: 'Custom Code',
+        assetCode: code.toLowerCase(),
+      })
+      .expect(201);
+    expect(created.body.assetCode).toBe(code.toUpperCase());
+
+    const renamed = `NV-DESK-${Date.now().toString().slice(-5)}`;
+    const updated = await request(app.getHttpServer())
+      .put(`/api/assets/${created.body.id}`)
+      .set(auth(adminToken))
+      .send({
+        categoryId: laptop.id,
+        locationId: pune.id,
+        brand: 'HP',
+        model: 'Custom Code',
+        assetCode: renamed,
+      })
+      .expect(200);
+    expect(updated.body.assetCode).toBe(renamed.toUpperCase());
+
+    const other = await createAsset();
+    await request(app.getHttpServer())
+      .put(`/api/assets/${other.id}`)
+      .set(auth(adminToken))
+      .send({
+        categoryId: laptop.id,
+        locationId: pune.id,
+        brand: 'HP',
+        model: 'Taken',
+        assetCode: renamed,
+      })
+      .expect(409);
+
+    await request(app.getHttpServer())
+      .put(`/api/assets/${created.body.id}`)
+      .set(auth(adminToken))
+      .send({
+        categoryId: laptop.id,
+        locationId: pune.id,
+        brand: 'Lenovo',
+        model: 'Custom Code',
+      })
+      .expect(200);
+    const got = await request(app.getHttpServer())
+      .get(`/api/assets/${created.body.id}`)
+      .set(auth(adminToken))
+      .expect(200);
+    expect(got.body.assetCode).toBe(renamed.toUpperCase());
+    expect(got.body.brand).toBe('Lenovo');
+  });
+
+  it('rejects a duplicate custom code on create with 409', async () => {
+    const code = `NV-DUP-${Date.now().toString().slice(-6)}`;
+    await request(app.getHttpServer())
+      .post('/api/assets')
+      .set(auth(adminToken))
+      .send({
+        categoryId: laptop.id,
+        locationId: pune.id,
+        brand: 'HP',
+        model: 'First',
+        assetCode: code,
+      })
+      .expect(201);
+    const res = await request(app.getHttpServer())
+      .post('/api/assets')
+      .set(auth(adminToken))
+      .send({
+        categoryId: laptop.id,
+        locationId: pune.id,
+        brand: 'HP',
+        model: 'Second',
+        assetCode: code,
+      })
+      .expect(409);
+    expect(String(res.body.message)).toMatch(/already exists/i);
+  });
 });
