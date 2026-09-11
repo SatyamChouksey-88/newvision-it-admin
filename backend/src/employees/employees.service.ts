@@ -89,7 +89,7 @@ export class EmployeesService {
           }
         : {}),
       ...(query.q
-        ? /^EMP[-A-Z0-9]+$/i.test(query.q.trim())
+        ? /^EMP-\d+$/i.test(query.q.trim())
           ? { employeeCode: { equals: query.q.trim(), mode: 'insensitive' as const } }
           : {
               OR: [

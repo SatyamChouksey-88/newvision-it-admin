@@ -52,6 +52,28 @@ describe('Employees — history & offboarding (e2e)', () => {
     }
   });
 
+  it('searching a bare code prefix like "EMP-" falls back to a contains match instead of an exact-match miss', async () => {
+    // Regression: the "does this look like a full employee code?" heuristic used to accept
+    // any EMP-prefixed string (including a bare "EMP-"), forcing an exact-equality lookup
+    // that matched nothing — so a perfectly good prefix search returned zero results.
+    const res = await request(server())
+      .get('/api/employees?_start=0&_end=50&q=EMP-')
+      .set(auth(adminToken))
+      .expect(200);
+    expect(res.body.total).toBeGreaterThanOrEqual(2);
+    const codes = res.body.data.map((e: { employeeCode: string }) => e.employeeCode);
+    expect(codes).toEqual(expect.arrayContaining(['EMP-00001', 'EMP-00002']));
+  });
+
+  it('searching a full code like "EMP-00001" still does an exact match, not a broad prefix scan', async () => {
+    const res = await request(server())
+      .get('/api/employees?_start=0&_end=50&q=EMP-00001')
+      .set(auth(adminToken))
+      .expect(200);
+    expect(res.body.total).toBe(1);
+    expect(res.body.data[0].employeeCode).toBe('EMP-00001');
+  });
+
   it('includes maintenance tickets on the employee history timeline', async () => {
     const created = await request(server())
       .post('/api/assets')

@@ -137,8 +137,8 @@ describe('Assets lifecycle (e2e)', () => {
       .post('/api/assets')
       .set(auth(adminToken))
       .send({
-        categoryId: laptop.id,
-        locationId: pune.id,
+        categoryId: ids.categoryLap,
+        locationId: ids.locationPune,
         brand: 'HP',
         model: 'Custom Code',
         assetCode: code.toLowerCase(),
@@ -151,8 +151,8 @@ describe('Assets lifecycle (e2e)', () => {
       .put(`/api/assets/${created.body.id}`)
       .set(auth(adminToken))
       .send({
-        categoryId: laptop.id,
-        locationId: pune.id,
+        categoryId: ids.categoryLap,
+        locationId: ids.locationPune,
         brand: 'HP',
         model: 'Custom Code',
         assetCode: renamed,
@@ -165,8 +165,8 @@ describe('Assets lifecycle (e2e)', () => {
       .put(`/api/assets/${other.id}`)
       .set(auth(adminToken))
       .send({
-        categoryId: laptop.id,
-        locationId: pune.id,
+        categoryId: ids.categoryLap,
+        locationId: ids.locationPune,
         brand: 'HP',
         model: 'Taken',
         assetCode: renamed,
@@ -177,8 +177,8 @@ describe('Assets lifecycle (e2e)', () => {
       .put(`/api/assets/${created.body.id}`)
       .set(auth(adminToken))
       .send({
-        categoryId: laptop.id,
-        locationId: pune.id,
+        categoryId: ids.categoryLap,
+        locationId: ids.locationPune,
         brand: 'Lenovo',
         model: 'Custom Code',
       })
@@ -197,8 +197,8 @@ describe('Assets lifecycle (e2e)', () => {
       .post('/api/assets')
       .set(auth(adminToken))
       .send({
-        categoryId: laptop.id,
-        locationId: pune.id,
+        categoryId: ids.categoryLap,
+        locationId: ids.locationPune,
         brand: 'HP',
         model: 'First',
         assetCode: code,
@@ -208,8 +208,8 @@ describe('Assets lifecycle (e2e)', () => {
       .post('/api/assets')
       .set(auth(adminToken))
       .send({
-        categoryId: laptop.id,
-        locationId: pune.id,
+        categoryId: ids.categoryLap,
+        locationId: ids.locationPune,
         brand: 'HP',
         model: 'Second',
         assetCode: code,

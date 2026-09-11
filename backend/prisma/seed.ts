@@ -247,12 +247,17 @@ async function main() {
   await prisma.cannedResponse.deleteMany();
   await prisma.ticketTemplate.deleteMany();
   await prisma.ticketCategory.deleteMany();
+  await prisma.ticketPriorityTarget.deleteMany();
   await prisma.assetMaintenance.deleteMany();
   await prisma.assetTransfer.deleteMany();
   await prisma.assetAssignment.deleteMany();
   await prisma.asset.deleteMany();
   await prisma.auditLog.deleteMany();
   await prisma.employeeChecklist.deleteMany();
+  // Chat (Prompt 24) references User without cascade on authorId/createdById — messages and
+  // channels must go before users or a reseed on any DB with chat activity throws P2003.
+  await prisma.chatMessage.deleteMany();
+  await prisma.chatChannel.deleteMany();
   await prisma.user.deleteMany();
   await prisma.employee.deleteMany();
   await prisma.assetCategory.deleteMany();
