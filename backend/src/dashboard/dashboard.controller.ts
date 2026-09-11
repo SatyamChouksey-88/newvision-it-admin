@@ -334,6 +334,7 @@ export class DashboardController {
         this.prisma.employee.findMany({
           where: {
             isActive: true,
+            employmentType: 'contract',
             contractEndDate: { gte: now, lte: in14 },
           },
           select: { id: true, firstName: true, lastName: true, employeeCode: true, contractEndDate: true },

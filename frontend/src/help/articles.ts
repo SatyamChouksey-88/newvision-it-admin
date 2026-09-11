@@ -235,7 +235,8 @@ Both lists use the same Excel-grade grid as Assets.
 ### What is working today
 
 - List uses the same Excel-grade grid as Assets (sort, columns, density, export).
-- Click a row for the **profile**: identity, location/department, assigned assets, accessories checked out, consumables issued, notes, and the **History** tab.
+- **Follow-up** filter: contracts ending within 14 days, or incomplete onboard/offboard checklists. Those rows also show a tag, appear on the dashboard **My work** list, and the profile warns when a contract is due soon.
+- Click a row for the **profile**: identity, location/department, contract end date, assigned assets, accessories checked out, consumables issued, notes, and the **History** tab.
 - **Add employee** (IT Admin+) can optionally **create a login** in the same save — pick a role (usually Employee). Super Admin can also create users from Settings → Users.
 - **Onboard / offboard checklists** start from the profile. Templates are edited in Settings → Onboard / Offboard.
 - Managers viewing the list or profiles see **direct reports only** (API-enforced).

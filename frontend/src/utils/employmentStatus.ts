@@ -1,4 +1,5 @@
 import type { Employee } from '../types';
+import { warrantyDaysLabel } from './format';
 
 export function employmentStatus(e?: Pick<Employee, 'isActive' | 'employmentType'> | null) {
   if (!e) return { label: '—', color: 'default' as const };
@@ -7,4 +8,9 @@ export function employmentStatus(e?: Pick<Employee, 'isActive' | 'employmentType
   if (contract) return { label: 'Contract Active', color: 'blue' as const };
   if (e.isActive === false) return { label: 'Inactive', color: 'default' as const };
   return { label: 'Active', color: 'success' as const };
+}
+
+/** Calendar days until contract end; negative if already past. */
+export function contractDaysLeft(end?: string | null): number | null {
+  return warrantyDaysLabel(end).days;
 }

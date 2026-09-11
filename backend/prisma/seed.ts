@@ -217,6 +217,7 @@ async function main() {
   await prisma.assetAssignment.deleteMany();
   await prisma.asset.deleteMany();
   await prisma.auditLog.deleteMany();
+  await prisma.employeeChecklist.deleteMany();
   await prisma.user.deleteMany();
   await prisma.employee.deleteMany();
   await prisma.assetCategory.deleteMany();
@@ -326,6 +327,31 @@ async function main() {
   const employees = await prisma.employee.findMany({
     select: { id: true, locationId: true, employeeCode: true },
   });
+  const contractor = employees.find((e) => e.employeeCode === 'EMP-00002') ?? employees[1];
+  if (contractor) {
+    await prisma.employee.update({
+      where: { id: contractor.id },
+      data: { employmentType: 'contract', contractEndDate: daysFromNow(8) },
+    });
+  }
+  const checklistHost = employees.find((e) => e.employeeCode === 'EMP-00001') ?? employees[0];
+  if (checklistHost) {
+    await prisma.employeeChecklist.create({
+      data: {
+        employeeId: checklistHost.id,
+        kind: 'onboard',
+        status: 'in_progress',
+        items: {
+          create: [
+            { label: 'Issue laptop', sortOrder: 0, done: true, doneAt: new Date() },
+            { label: 'Create login', sortOrder: 1, done: false },
+            { label: 'VPN / MFA', sortOrder: 2, done: false },
+            { label: 'ID badge', sortOrder: 3, done: false },
+          ],
+        },
+      },
+    });
+  }
   const employeesByLocation = new Map<number, typeof employees>();
   for (const e of employees) {
     const list = employeesByLocation.get(e.locationId) ?? [];

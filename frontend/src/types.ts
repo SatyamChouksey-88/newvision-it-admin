@@ -44,6 +44,7 @@ export interface Employee {
   isActive?: boolean;
   employmentType?: 'permanent' | 'contract';
   contractEndDate?: string;
+  incompleteChecklistKind?: 'onboard' | 'offboard' | null;
   locationId: number;
   departmentId?: number;
   location?: Location;

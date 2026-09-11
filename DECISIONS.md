@@ -210,3 +210,7 @@ Every judgment call made while building NewVision, and why. Newest at the bottom
 
 - **Needs attention is now an ordered My work list.** Priority is my overdue tickets, unassigned, waiting on the employee 3+ days, stale repairs, incomplete checklists, contracts ending within 14 days, then warranties expiring within 14 days. Low-stock and to-fulfill stay on the API for the sider badge but are not mixed into this morning list. IT Admin keeps KPI tiles; IT Support’s home *is* the list. Unassigned rows expose Assign to me. Waiting threshold is 3 days (not configurable) so the list stays predictable.
 
+## Prompt 22 — item 7 (contracts + checklists)
+
+- **Make the existing queries visible.** Templates already lived in a migration; they were invisible once you left the profile. Seed one contractor (`EMP-00002`, ends in 8 days) and one incomplete onboard checklist (`EMP-00001`). Employees list gets a Follow-up chip (contracts ending 14d / incomplete checklist) plus row tags; the profile warns when a contract is due. Dashboard My work already had the queries from #6; contracts now require `employmentType=contract` so a stray end date on a permanent employee is ignored.
+

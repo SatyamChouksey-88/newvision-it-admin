@@ -1,7 +1,7 @@
 import { PlusOutlined } from '@ant-design/icons';
 import { useTable } from '@refinedev/antd';
 import { useGetIdentity } from '@refinedev/core';
-import { Button, Card, Input, Space, Tag, Typography } from 'antd';
+import { Alert, Button, Card, Input, Space, Tag, Typography } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { PrimaryWithSub } from '../../components/Cells';
@@ -17,7 +17,8 @@ import type { Identity } from '../../providers/authProvider';
 import { httpClient } from '../../providers/axios';
 import type { Department, Employee, Location } from '../../types';
 import { ChipSelect } from '../../components/ChipSelect';
-import { employmentStatus } from '../../utils/employmentStatus';
+import { employmentStatus, contractDaysLeft } from '../../utils/employmentStatus';
+import { formatDate } from '../../utils/format';
 import { CreateEmployeeModal } from './CreateEmployeeModal';
 
 type StatusFilter = 'active' | 'inactive' | 'all';
@@ -101,7 +102,18 @@ export function EmployeeList() {
       'merge',
     );
 
-  const hasNarrowing = Boolean(active.q || active.locationId || active.departmentId);
+  const hasNarrowing = Boolean(
+    active.q ||
+      active.locationId ||
+      active.departmentId ||
+      active.contractEndingInDays ||
+      active.incompleteChecklist,
+  );
+  const followUp = active.contractEndingInDays
+    ? 'contracts'
+    : active.incompleteChecklist === 'true'
+      ? 'checklist'
+      : undefined;
 
   return (
     <Card
@@ -159,6 +171,35 @@ export function EmployeeList() {
           onChange={(v) => setFilter('employmentType', v)}
         />
         <ChipSelect
+          label="Follow-up"
+          tone="status"
+          allowClear
+          aria-label="Filter by follow-up"
+          placeholder="None"
+          options={[
+            { label: 'Contracts ending (14d)', value: 'contracts' },
+            { label: 'Incomplete checklist', value: 'checklist' },
+          ]}
+          value={followUp}
+          onChange={(v) => {
+            setFilters(
+              [
+                {
+                  field: 'contractEndingInDays',
+                  operator: 'eq',
+                  value: v === 'contracts' ? 14 : undefined,
+                },
+                {
+                  field: 'incompleteChecklist',
+                  operator: 'eq',
+                  value: v === 'checklist' ? 'true' : undefined,
+                },
+              ],
+              'merge',
+            );
+          }}
+        />
+        <ChipSelect
           label="Location"
           tone="location"
           allowClear
@@ -179,6 +220,22 @@ export function EmployeeList() {
           onChange={(v) => setFilter('departmentId', v)}
         />
       </div>
+      {followUp === 'contracts' && (
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message="Showing active contractors whose contract ends within 14 days."
+        />
+      )}
+      {followUp === 'checklist' && (
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message="Showing employees with an onboard or offboard checklist that still has open items."
+        />
+      )}
       {tableQuery.isLoading ? (
         <TableSkeleton columns={5} />
       ) : tableQuery.isError ? (
@@ -212,6 +269,8 @@ export function EmployeeList() {
                       { field: 'locationId', operator: 'eq', value: undefined },
                       { field: 'departmentId', operator: 'eq', value: undefined },
                       { field: 'isActive', operator: 'eq', value: undefined },
+                      { field: 'contractEndingInDays', operator: 'eq', value: undefined },
+                      { field: 'incompleteChecklist', operator: 'eq', value: undefined },
                     ],
                     'merge',
                   )
@@ -250,6 +309,19 @@ export function EmployeeList() {
                         <Space size={4}>
                           {`${r.firstName} ${r.lastName}`}
                           <Tag color={employmentStatus(r).color}>{employmentStatus(r).label}</Tag>
+                          {r.incompleteChecklistKind ? (
+                            <Tag color="warning">
+                              {r.incompleteChecklistKind === 'offboard' ? 'Offboard' : 'Onboard'} incomplete
+                            </Tag>
+                          ) : null}
+                          {r.employmentType === 'contract' &&
+                          contractDaysLeft(r.contractEndDate) !== null &&
+                          (contractDaysLeft(r.contractEndDate) as number) >= 0 &&
+                          (contractDaysLeft(r.contractEndDate) as number) <= 14 ? (
+                            <Tag color="orange">
+                              Contract ends {formatDate(r.contractEndDate)}
+                            </Tag>
+                          ) : null}
                         </Space>
                       }
                       sub={r.employeeCode}

@@ -32,7 +32,8 @@ import type { Identity } from '../../providers/authProvider';
 import { apiErrorMessage, httpClient } from '../../providers/axios';
 import type { Asset, Location } from '../../types';
 import { employeeLabel } from '../../utils/employeeLabel';
-import { employmentStatus } from '../../utils/employmentStatus';
+import { employmentStatus, contractDaysLeft } from '../../utils/employmentStatus';
+import { formatDate } from '../../utils/format';
 import { TransferModal } from '../assets/actions';
 import { AssignToEmployeeModal } from './AssignToEmployeeModal';
 
@@ -139,7 +140,22 @@ export function EmployeeProfile() {
         <Descriptions.Item label="Status">
           <Tag color={employmentStatus(emp).color}>{employmentStatus(emp).label}</Tag>
         </Descriptions.Item>
+        <Descriptions.Item label="Contract end">
+          {emp?.employmentType === 'contract' ? formatDate(emp.contractEndDate) : '—'}
+        </Descriptions.Item>
       </Descriptions>
+
+      {emp?.employmentType === 'contract' &&
+        contractDaysLeft(emp.contractEndDate) !== null &&
+        (contractDaysLeft(emp.contractEndDate) as number) >= 0 &&
+        (contractDaysLeft(emp.contractEndDate) as number) <= 14 && (
+          <Alert
+            type="warning"
+            showIcon
+            message={`Contract ends ${formatDate(emp.contractEndDate)}`}
+            description="Start offboarding in time to recover assets and revoke access."
+          />
+        )}
 
       {canOffboard && emp ? (
         <ManualEditButton
@@ -190,6 +206,11 @@ export function EmployeeProfile() {
               <div key={cl.id} style={{ marginBottom: 12 }}>
                 <Typography.Text strong>
                   {cl.kind} · {cl.status}
+                  {cl.items.some((item) => !item.done) ? (
+                    <Tag color="warning" style={{ marginLeft: 8 }}>
+                      Incomplete
+                    </Tag>
+                  ) : null}
                 </Typography.Text>
                 {cl.items.map((item) => (
                   <div key={item.id}>
@@ -354,7 +375,18 @@ export function EmployeeProfile() {
               <Typography.Title level={4} style={{ margin: 0 }}>
                 {emp ? `${emp.firstName} ${emp.lastName}` : ''}
               </Typography.Title>
-              {emp?.isActive === false ? <Tag>Inactive</Tag> : null}
+              {emp ? <Tag color={employmentStatus(emp).color}>{employmentStatus(emp).label}</Tag> : null}
+              {emp?.checklists?.some((cl: { items: { done: boolean }[] }) =>
+                cl.items.some((i) => !i.done),
+              ) ? (
+                <Tag color="warning">Checklist incomplete</Tag>
+              ) : null}
+              {emp?.employmentType === 'contract' &&
+              contractDaysLeft(emp.contractEndDate) !== null &&
+              (contractDaysLeft(emp.contractEndDate) as number) >= 0 &&
+              (contractDaysLeft(emp.contractEndDate) as number) <= 14 ? (
+                <Tag color="orange">Contract ends {formatDate(emp.contractEndDate)}</Tag>
+              ) : null}
             </Space>
             <Typography.Text type="secondary">
               <Space size={4}>
@@ -402,6 +434,18 @@ export function EmployeeProfile() {
           </Col>
         </Row>
       </Card>
+
+      {emp?.employmentType === 'contract' &&
+        contractDaysLeft(emp.contractEndDate) !== null &&
+        (contractDaysLeft(emp.contractEndDate) as number) >= 0 &&
+        (contractDaysLeft(emp.contractEndDate) as number) <= 14 && (
+          <Alert
+            type="warning"
+            showIcon
+            message={`Contract ends ${formatDate(emp.contractEndDate)}`}
+            description="Start offboarding in time to recover assets and revoke access."
+          />
+        )}
 
       <Card size="small">
         <Tabs

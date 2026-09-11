@@ -299,6 +299,7 @@ Definition of Done: UI matches approved mockup look-and-feel; no functional regr
 - [x] **#4 Warranty split** — `/dashboard/warranty-expiring` defaults to upcoming only (`bucket=expiring`, 30 days); `bucket=expired` is the lapsed list. Assets Warranty chip: 14/30/90 days vs Already expired. Dashboard attention has an **Expiring (14d)** deep-link. Warranty report is upcoming dates only.
 - [x] **#5 Stale-repair attention link** — Needs attention now opens `/maintenance` with `staleDays=14` (open repairs reported 14+ days ago), not the unfiltered queue.
 - [x] **#6 My work list** — `/dashboard/attention` returns ordered `myWork`: my overdue tickets → unassigned → waiting on employee 3+ days → stale repairs → incomplete checklists → contracts ending in 14 days → warranties expiring in 14 days. IT Admin keeps KPI tiles; IT Support’s home is this list. Unassigned rows have Assign to me.
+- [x] **#7 Contracts + checklists on screen** — seed one contractor ending in 8 days (`EMP-00002`) and one incomplete onboard checklist (`EMP-00001`). Employees **Follow-up** filter (14-day contracts / incomplete checklist), list tags, and a profile warning. Dashboard My work already lists both.
 
 ## Known issues
 

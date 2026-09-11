@@ -28,6 +28,10 @@ export interface EmployeeListQuery extends ListQuery {
   /** 'true' | 'false' — omit for everyone. */
   isActive?: string;
   employmentType?: string;
+  /** Active contractors whose `contractEndDate` falls within this many days. */
+  contractEndingInDays?: string;
+  /** Employees with an onboard/offboard checklist that still has unticked items. */
+  incompleteChecklist?: string;
 }
 
 const employeeInclude = {
@@ -55,6 +59,11 @@ export class EmployeesService {
       'isActive',
       'dateJoined',
     ]);
+    const contractDays = Number(query.contractEndingInDays);
+    const contractUntil =
+      Number.isFinite(contractDays) && contractDays > 0
+        ? new Date(Date.now() + contractDays * 86_400_000)
+        : null;
     const where: Prisma.EmployeeWhereInput = {
       ...this.listScopeWhere(actor),
       ...(query.locationId ? { locationId: Number(query.locationId) } : {}),
@@ -63,6 +72,20 @@ export class EmployeesService {
       ...(query.isActive === 'false' ? { isActive: false } : {}),
       ...(query.employmentType === 'permanent' || query.employmentType === 'contract'
         ? { employmentType: query.employmentType }
+        : {}),
+      ...(contractUntil
+        ? {
+            isActive: true,
+            employmentType: 'contract',
+            contractEndDate: { gte: new Date(), lte: contractUntil },
+          }
+        : {}),
+      ...(query.incompleteChecklist === 'true'
+        ? {
+            checklists: {
+              some: { status: { not: 'complete' }, items: { some: { done: false } } },
+            },
+          }
         : {}),
       ...(query.q
         ? {
@@ -75,10 +98,30 @@ export class EmployeesService {
           }
         : {}),
     };
-    const [data, total] = await Promise.all([
-      this.prisma.employee.findMany({ where, skip, take, orderBy, include: employeeInclude }),
+    const [rows, total] = await Promise.all([
+      this.prisma.employee.findMany({
+        where,
+        skip,
+        take,
+        orderBy,
+        include: {
+          ...employeeInclude,
+          checklists: {
+            where: { status: { not: 'complete' } },
+            select: {
+              kind: true,
+              items: { where: { done: false }, select: { id: true } },
+            },
+            take: 5,
+          },
+        },
+      }),
       this.prisma.employee.count({ where }),
     ]);
+    const data = rows.map(({ checklists, ...employee }) => ({
+      ...employee,
+      incompleteChecklistKind: checklists.find((c) => c.items.length > 0)?.kind ?? null,
+    }));
     return { data, total };
   }
 
