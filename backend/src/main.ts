@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import type { Express } from 'express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -9,7 +10,10 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
   app.enableCors({
-    origin: (process.env.CORS_ORIGIN ?? 'http://localhost:5173').split(','),
+    origin: (process.env.CORS_ORIGIN ?? 'http://localhost:5173')
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean),
     credentials: true,
     // The frontend reads these on export/download responses; browsers hide them unless exposed.
     exposedHeaders: ['Content-Disposition', 'X-Row-Count', 'X-Total-Count'],
@@ -31,8 +35,13 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
+  const expressApp = app.getHttpAdapter().getInstance() as Express;
+  expressApp.get('/api/health', (_req, res) => {
+    res.status(200).json({ ok: true });
+  });
+
   const port = Number(process.env.PORT ?? 3000);
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
   // eslint-disable-next-line no-console
   console.log(`NewVision backend running on http://localhost:${port}/api`);
 }

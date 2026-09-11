@@ -1,7 +1,14 @@
 import axios from 'axios';
 import { clearSession, readSession, REFRESH_TOKEN_KEY, TOKEN_KEY, writeSession } from './session';
 
-export const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
+function resolveApiUrl(): string {
+  const raw = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
+  if (!raw) return 'http://localhost:3000/api';
+  const noSlash = raw.replace(/\/$/, '');
+  return noSlash.endsWith('/api') ? noSlash : `${noSlash}/api`;
+}
+
+export const API_URL = resolveApiUrl();
 export { TOKEN_KEY, USER_KEY } from './session';
 
 export const httpClient = axios.create({ baseURL: API_URL });

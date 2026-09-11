@@ -84,7 +84,27 @@ npm install
 npm run dev                  # http://localhost:5173
 ```
 
-The frontend reads the API base URL from `VITE_API_URL` (defaults to `http://localhost:3000/api`).
+The frontend reads the API base URL from `VITE_API_URL` (defaults to `http://localhost:3000/api`). If the value is the API origin without `/api`, the client appends `/api` automatically.
+
+---
+
+## Deploy on Render
+
+`render.yaml` at the repo root is a [Render Blueprint](https://render.com/docs/blueprint-spec): Postgres 16, the NestJS API (Docker), and the Vite static UI.
+
+1. Push this repo to GitHub / GitLab / Bitbucket.
+2. Open [dashboard.render.com](https://dashboard.render.com/) → **New → Blueprint** → select the repo.
+3. Confirm names (`newvision-db`, `newvision-api`, `newvision-web`) and region **Singapore**.
+4. SMTP / mailbox fields can stay empty (app logs mail to the console).
+5. Apply. First API deploy runs `npm run seed` once (`initialDeployHook`) so demo logins exist.
+6. Open `https://newvision-web.onrender.com` and sign in with `superadmin@newvision.local` / `Password123!`.
+7. Change that password. Do **not** set `SEED_ON_START=true` on Render — seed wipes operational data.
+
+Swagger: `https://newvision-api.onrender.com/api/docs`. Health: `/api/health`.
+
+If the UI calls the wrong host after the first apply, trigger a **Manual Deploy** of `newvision-web` so Vite rebuilds with the live `VITE_API_URL`.
+
+Postgres uses the cheapest Basic plan (`0.1c-256mb`, 1 GB). The API can stay on **Free** (sleeps after idle). Static site is free.
 
 ---
 
