@@ -62,6 +62,16 @@ const TicketList = lazyNamed(() => import('./pages/tickets/list'), 'TicketList')
 const TicketCreate = lazyNamed(() => import('./pages/tickets/create'), 'TicketCreate');
 const TicketReports = lazyNamed(() => import('./pages/tickets/reports'), 'TicketReports');
 const TicketShow = lazyNamed(() => import('./pages/tickets/show'), 'TicketShow');
+const VendorList = lazyNamed(() => import('./pages/procurement/vendors/list'), 'VendorList');
+const VendorForm = lazyNamed(() => import('./pages/procurement/vendors/form'), 'VendorForm');
+const VendorShow = lazyNamed(() => import('./pages/procurement/vendors/show'), 'VendorShow');
+const RequisitionList = lazyNamed(() => import('./pages/procurement/requisitions/list'), 'RequisitionList');
+const RequisitionForm = lazyNamed(() => import('./pages/procurement/requisitions/form'), 'RequisitionForm');
+const RequisitionShow = lazyNamed(() => import('./pages/procurement/requisitions/show'), 'RequisitionShow');
+const PurchaseOrderList = lazyNamed(() => import('./pages/procurement/orders/list'), 'PurchaseOrderList');
+const PurchaseOrderShow = lazyNamed(() => import('./pages/procurement/orders/show'), 'PurchaseOrderShow');
+const ContractList = lazyNamed(() => import('./pages/procurement/contracts/list'), 'ContractList');
+const ContractShow = lazyNamed(() => import('./pages/procurement/contracts/show'), 'ContractShow');
 const ReportsPage = lazyNamed(() => import('./pages/reports'), 'ReportsPage');
 const AuditList = lazyNamed(() => import('./pages/audit/list'), 'AuditList');
 const SettingsPage = lazyNamed(() => import('./pages/settings'), 'SettingsPage');
@@ -136,6 +146,34 @@ export default function App() {
                 meta: { label: 'Support Tickets', icon: <CustomerServiceOutlined /> },
               },
               {
+                name: 'vendors',
+                list: '/procurement/vendors',
+                create: '/procurement/vendors/create',
+                edit: '/procurement/vendors/edit/:id',
+                show: '/procurement/vendors/show/:id',
+                meta: { label: 'Vendors' },
+              },
+              {
+                name: 'purchase-requisitions',
+                list: '/procurement/requisitions',
+                create: '/procurement/requisitions/create',
+                edit: '/procurement/requisitions/edit/:id',
+                show: '/procurement/requisitions/show/:id',
+                meta: { label: 'Requisitions' },
+              },
+              {
+                name: 'purchase-orders',
+                list: '/procurement/orders',
+                show: '/procurement/orders/show/:id',
+                meta: { label: 'Purchase Orders' },
+              },
+              {
+                name: 'vendor-contracts',
+                list: '/procurement/contracts',
+                show: '/procurement/contracts/show/:id',
+                meta: { label: 'Contracts' },
+              },
+              {
                 name: 'reports',
                 list: '/reports',
                 meta: { label: 'Reports', icon: <BarChartOutlined /> },
@@ -205,6 +243,26 @@ export default function App() {
                     <Route path="create" element={<TicketCreate />} />
                     <Route path="reports" element={<TicketReports />} />
                     <Route path="show/:id" element={<TicketShow />} />
+                  </Route>
+                  <Route path="/procurement/vendors">
+                    <Route index element={<VendorList />} />
+                    <Route path="create" element={<VendorForm />} />
+                    <Route path="edit/:id" element={<VendorForm />} />
+                    <Route path="show/:id" element={<VendorShow />} />
+                  </Route>
+                  <Route path="/procurement/requisitions">
+                    <Route index element={<RequisitionList />} />
+                    <Route path="create" element={<RequisitionForm />} />
+                    <Route path="edit/:id" element={<RequisitionForm />} />
+                    <Route path="show/:id" element={<RequisitionShow />} />
+                  </Route>
+                  <Route path="/procurement/orders">
+                    <Route index element={<PurchaseOrderList />} />
+                    <Route path="show/:id" element={<PurchaseOrderShow />} />
+                  </Route>
+                  <Route path="/procurement/contracts">
+                    <Route index element={<ContractList />} />
+                    <Route path="show/:id" element={<ContractShow />} />
                   </Route>
                   <Route path="/reports" element={<ReportsPage />} />
                   <Route path="/audit-logs" element={<AuditList />} />

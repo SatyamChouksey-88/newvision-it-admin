@@ -16,6 +16,13 @@ Nothing here should be implemented without an explicit decision to expand scope.
 - Full ticket merge/split (one-way “duplicate of” linking covers the real need)
 - Satisfaction-survey scheduling / re-send (rate once, no reminders)
 - Customizable notification-template content/branding
-- Multi-language support
+- e-sourcing / reverse-auction tools
+- Supplier self-service portal or PunchOut/cXML catalogs
+- Full contract-lifecycle management with clause libraries
+- Multi-entity / multi-currency / multi-country procurement consolidation
+- OCR-based automatic invoice capture
+- Full GL / encumbrance accounting
+- Payment execution (NewVision tracks vendor invoice payment **status** only)
+
 - Bulk manual-edit tool (use import/reconciliation)
 - Editing or deleting audit log entries, notes, or comments once posted

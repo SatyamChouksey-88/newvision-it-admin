@@ -33,6 +33,31 @@ export async function createTestApp(): Promise<INestApplication> {
 }
 
 export async function resetDatabase(prisma: PrismaService): Promise<void> {
+  await prisma.procurementHandoff.deleteMany();
+  await prisma.asset.updateMany({
+    data: { vendorId: null, purchaseOrderId: null, goodsReceiptId: null, needsReconciliation: false, reconciliationNote: null },
+  });
+  await prisma.procurementAttachment.deleteMany();
+  await prisma.procurementActivityLog.deleteMany();
+  await prisma.vendorScorecard.deleteMany();
+  await prisma.vendorContractAsset.deleteMany();
+  await prisma.vendorInvoice.deleteMany();
+  await prisma.goodsReceiptLine.deleteMany();
+  await prisma.goodsReceipt.deleteMany();
+  await prisma.purchaseOrderAmendment.deleteMany();
+  await prisma.purchaseOrderLine.deleteMany();
+  await prisma.purchaseOrder.deleteMany();
+  await prisma.requisitionApprover.deleteMany();
+  await prisma.requisitionQuote.deleteMany();
+  await prisma.requisitionLineItem.deleteMany();
+  await prisma.purchaseRequisitionLocation.deleteMany();
+  await prisma.purchaseRequisition.deleteMany();
+  await prisma.vendorComplianceDoc.deleteMany();
+  await prisma.vendorContact.deleteMany();
+  await prisma.vendorStatusChange.deleteMany();
+  await prisma.vendorContract.deleteMany();
+  await prisma.approvalMatrixRule.deleteMany();
+  await prisma.vendor.deleteMany();
   await prisma.ticketAttachment.deleteMany();
   await prisma.ticketTimeLog.deleteMany();
   await prisma.ticketComment.deleteMany();
@@ -170,6 +195,13 @@ export async function seedCore(prisma: PrismaService): Promise<TestContext['ids'
       { code: 'access_account', name: 'Access & Account', defaultPriority: 'high' },
       { code: 'hardware_other', name: 'Hardware-other', defaultPriority: 'medium' },
       { code: 'general', name: 'General', defaultPriority: 'low' },
+    ],
+  });
+
+  await prisma.approvalMatrixRule.createMany({
+    data: [
+      { minAmount: 0, role: RoleName.IT_ADMIN, level: 1, kind: 'required', routing: 'parallel' },
+      { minAmount: 50000, role: RoleName.SUPER_ADMIN, level: 2, kind: 'required', routing: 'parallel' },
     ],
   });
 

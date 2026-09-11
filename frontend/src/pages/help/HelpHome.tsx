@@ -2,6 +2,7 @@ import {
   AlertOutlined,
   AppstoreOutlined,
   AuditOutlined,
+  BulbOutlined,
   CustomerServiceOutlined,
   EnvironmentOutlined,
   FileTextOutlined,
@@ -13,7 +14,6 @@ import {
   TeamOutlined,
   ThunderboltOutlined,
   ToolOutlined,
-  BulbOutlined,
 } from '@ant-design/icons';
 import { Card, Col, Row, Typography } from 'antd';
 import { Link } from 'react-router';
@@ -61,6 +61,12 @@ const GLANCE = [
     title: 'Requests',
     desc: 'How an employee asks for a device or accessory, and how a manager then IT fulfills it.',
     to: 'requests',
+  },
+  {
+    icon: <FileTextOutlined />,
+    title: 'Procurement',
+    desc: 'Vendors, requisitions, purchase orders, GRNs, invoices, and contract renewals.',
+    to: 'procurement-overview',
   },
   {
     icon: <FileTextOutlined />,
@@ -119,11 +125,19 @@ export function HelpHome() {
       <Typography.Title level={2} className="nv-page-title" style={{ margin: 0, fontSize: 26 }}>
         NewVision documentation
       </Typography.Title>
-      <Typography.Paragraph style={{ marginTop: 8, marginBottom: 24, fontSize: 13.5, color: COLOR_TEXT_SECONDARY, maxWidth: 680 }}>
-        NewVision is the internal IT inventory and helpdesk for ~1,250 assets across Pune, Hyderabad,
-        and Bhopal. This site is the in-app manual — what each screen actually does today, who can
-        use it, and the caveats that matter in daily work. Search above, or browse the sections on
-        the left.
+      <Typography.Paragraph
+        style={{
+          marginTop: 8,
+          marginBottom: 24,
+          fontSize: 13.5,
+          color: COLOR_TEXT_SECONDARY,
+          maxWidth: 680,
+        }}
+      >
+        NewVision is the internal IT inventory and helpdesk for ~1,250 assets across Pune,
+        Hyderabad, and Bhopal. This site is the in-app manual — what each screen actually does
+        today, who can use it, and the caveats that matter in daily work. Search above, or browse
+        the sections on the left.
       </Typography.Paragraph>
 
       <Typography.Title level={5} style={{ marginBottom: 12 }}>
@@ -133,12 +147,23 @@ export function HelpHome() {
         {GLANCE.map((g) => (
           <Col xs={24} sm={12} lg={8} key={g.title}>
             <Link to={`/help/${g.to}`} style={{ textDecoration: 'none' }}>
-              <Card size="small" hoverable className="nv-card-interactive" style={{ height: '100%' }}>
+              <Card
+                size="small"
+                hoverable
+                className="nv-card-interactive"
+                style={{ height: '100%' }}
+              >
                 <span style={{ color: COLOR_ACCENT, fontSize: 18 }}>{g.icon}</span>
-                <Typography.Text strong style={{ display: 'block', marginTop: 8, color: '#1F1F1F' }}>
+                <Typography.Text
+                  strong
+                  style={{ display: 'block', marginTop: 8, color: '#1F1F1F' }}
+                >
                   {g.title}
                 </Typography.Text>
-                <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 0, marginTop: 4 }}>
+                <Typography.Paragraph
+                  type="secondary"
+                  style={{ fontSize: 12, marginBottom: 0, marginTop: 4 }}
+                >
                   {g.desc}
                 </Typography.Paragraph>
               </Card>
@@ -156,8 +181,9 @@ export function HelpHome() {
             <Typography.Text strong>Five roles</Typography.Text>
             <Typography.Paragraph type="secondary" style={{ fontSize: 12.5, margin: '8px 0 0' }}>
               Super Admin (users + everything), IT Admin (estate day-to-day), IT Support (repairs +
-              tickets), Manager (team requests and tickets), Employee (own devices, requests, tickets).
-              The API enforces every permission; the UI only hides what you cannot do.
+              tickets), Manager (team requests, tickets, and requisitions), Employee (own devices,
+              requests, tickets). The API enforces every permission; the UI only hides what you
+              cannot do.
             </Typography.Paragraph>
           </Card>
         </Col>
@@ -175,9 +201,9 @@ export function HelpHome() {
           <Card size="small" style={{ height: '100%', borderColor: COLOR_BORDER }}>
             <Typography.Text strong>Two “ticket” systems, on purpose</Typography.Text>
             <Typography.Paragraph type="secondary" style={{ fontSize: 12.5, margin: '8px 0 0' }}>
-              <strong>Maintenance</strong> is a hardware repair on a known asset. <strong>Support
-              Tickets</strong> is the general helpdesk (VPN, password, software). Asking for a new
-              laptop is a <strong>Request</strong>, not a ticket.
+              <strong>Maintenance</strong> is a hardware repair on a known asset.{' '}
+              <strong>Support Tickets</strong> is the general helpdesk (VPN, password, software).
+              Asking for a new laptop is a <strong>Request</strong>, not a ticket.
             </Typography.Paragraph>
           </Card>
         </Col>
@@ -186,8 +212,8 @@ export function HelpHome() {
             <Typography.Text strong>What is not built</Typography.Text>
             <Typography.Paragraph type="secondary" style={{ fontSize: 12.5, margin: '8px 0 0' }}>
               No AI triage, no full SLA engine with business hours, no live AD/HR sync, no Slack
-              ingestion, no dark mode. Email-in exists in code; it only polls when IMAP is configured.
-              Local SMTP falls back to the backend console log.
+              ingestion, no dark mode. Email-in exists in code; it only polls when IMAP is
+              configured. Local SMTP falls back to the backend console log.
             </Typography.Paragraph>
           </Card>
         </Col>

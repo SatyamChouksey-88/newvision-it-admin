@@ -29,6 +29,9 @@ export class SearchController {
         accessories: [],
         consumables: [],
         requests: [],
+        vendors: [],
+        requisitions: [],
+        purchaseOrders: [],
         query: term,
       };
     }
@@ -36,7 +39,24 @@ export class SearchController {
     const isIt = IT_ROLES.includes(user.role);
     const ticketId = /^#?\d+$/.test(term) ? Number(term.replace('#', '')) : undefined;
 
-    const [assets, employees, locations, tickets, helpdesk, accessories, consumables, requests] = await Promise.all([
+    const isProc =
+      user.role === RoleName.SUPER_ADMIN ||
+      user.role === RoleName.IT_ADMIN ||
+      user.role === RoleName.MANAGER;
+
+    const [
+      assets,
+      employees,
+      locations,
+      tickets,
+      helpdesk,
+      accessories,
+      consumables,
+      requests,
+      vendors,
+      requisitions,
+      purchaseOrders,
+    ] = await Promise.all([
       this.prisma.asset.findMany({
         where: {
           ...this.assetScope(user),
@@ -99,11 +119,7 @@ export class SearchController {
                     ],
                   },
             {
-              OR: [
-                { ticketNumber: like },
-                { subject: like },
-                { description: like },
-              ],
+              OR: [{ ticketNumber: like }, { subject: like }, { description: like }],
             },
           ],
         },
@@ -113,7 +129,13 @@ export class SearchController {
       isIt
         ? this.prisma.accessory.findMany({
             where: { OR: [{ name: like }, { category: like }] },
-            select: { id: true, name: true, category: true, quantityTotal: true, quantityCheckedOut: true },
+            select: {
+              id: true,
+              name: true,
+              category: true,
+              quantityTotal: true,
+              quantityCheckedOut: true,
+            },
             take: 10,
           })
         : Promise.resolve([]),
@@ -131,9 +153,43 @@ export class SearchController {
             take: 8,
           })
         : Promise.resolve([]),
+      isProc
+        ? this.prisma.vendor.findMany({
+            where: { OR: [{ legalName: like }, { vendorCode: like }, { tradingName: like }] },
+            select: { id: true, vendorCode: true, legalName: true, status: true },
+            take: 8,
+          })
+        : Promise.resolve([]),
+      isProc
+        ? this.prisma.purchaseRequisition.findMany({
+            where: { OR: [{ title: like }, { requisitionNumber: like }] },
+            select: { id: true, requisitionNumber: true, title: true, status: true },
+            take: 8,
+          })
+        : Promise.resolve([]),
+      user.role === RoleName.SUPER_ADMIN || user.role === RoleName.IT_ADMIN
+        ? this.prisma.purchaseOrder.findMany({
+            where: { OR: [{ poNumber: like }, { vendor: { legalName: like } }] },
+            select: { id: true, poNumber: true, status: true, total: true },
+            take: 8,
+          })
+        : Promise.resolve([]),
     ]);
 
-    return { query: term, assets, employees, locations, tickets, helpdesk, accessories, consumables, requests };
+    return {
+      query: term,
+      assets,
+      employees,
+      locations,
+      tickets,
+      helpdesk,
+      accessories,
+      consumables,
+      requests,
+      vendors,
+      requisitions,
+      purchaseOrders,
+    };
   }
 
   private assetScope(actor: AuthUser): Prisma.AssetWhereInput {

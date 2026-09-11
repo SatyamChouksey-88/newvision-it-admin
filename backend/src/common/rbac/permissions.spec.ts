@@ -14,6 +14,7 @@ describe('RBAC permission matrix', () => {
     expect(can(RoleName.IT_ADMIN, 'asset:assign')).toBe(true);
     expect(can(RoleName.IT_ADMIN, 'asset:transfer')).toBe(true);
     expect(can(RoleName.IT_ADMIN, 'report:run')).toBe(true);
+    expect(can(RoleName.IT_ADMIN, 'procurement:manage')).toBe(true);
     expect(can(RoleName.IT_ADMIN, 'user:manage')).toBe(false);
   });
 
@@ -22,11 +23,14 @@ describe('RBAC permission matrix', () => {
     expect(can(RoleName.IT_SUPPORT, 'maintenance:manage')).toBe(true);
     expect(can(RoleName.IT_SUPPORT, 'asset:create')).toBe(false);
     expect(can(RoleName.IT_SUPPORT, 'asset:assign')).toBe(false);
+    expect(can(RoleName.IT_SUPPORT, 'procurement:manage')).toBe(false);
   });
 
   it('lets Manager view and approve but not modify assets', () => {
     expect(can(RoleName.MANAGER, 'asset:read')).toBe(true);
     expect(can(RoleName.MANAGER, 'request:approve')).toBe(true);
+    expect(can(RoleName.MANAGER, 'procurement:request')).toBe(true);
+    expect(can(RoleName.MANAGER, 'procurement:manage')).toBe(false);
     expect(can(RoleName.MANAGER, 'asset:create')).toBe(false);
   });
 

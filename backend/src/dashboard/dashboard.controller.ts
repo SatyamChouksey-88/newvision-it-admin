@@ -157,10 +157,7 @@ export class DashboardController {
     const now = new Date();
     const limit = new Date();
     limit.setDate(limit.getDate() + withinDays);
-    const warrantyEnd =
-      bucket === 'expired'
-        ? { not: null, lt: now }
-        : { gte: now, lte: limit };
+    const warrantyEnd = bucket === 'expired' ? { not: null, lt: now } : { gte: now, lte: limit };
     const assets = await this.prisma.asset.findMany({
       where: {
         ...(locationId ? { locationId } : {}),
@@ -194,7 +191,8 @@ export class DashboardController {
   ) {
     const now = new Date();
     const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    const endOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+    const endOf = (d: Date) =>
+      new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
     let from = startOf(now);
     let to = endOf(now);
     if (preset === 'yesterday') {
@@ -215,15 +213,31 @@ export class DashboardController {
     const dueWhere = { dueDate: { gte: from, lte: to } };
     const [open, unassigned, inProgress, resolved, created, due] = await Promise.all([
       this.prisma.supportTicket.count({
-        where: { status: { in: ['open', 'assigned', 'in_progress', 'waiting_on_employee', 'reopened'] } },
+        where: {
+          status: { in: ['open', 'assigned', 'in_progress', 'waiting_on_employee', 'reopened'] },
+        },
       }),
-      this.prisma.supportTicket.count({ where: { assignedToId: null, status: { notIn: ['resolved', 'closed'] } } }),
+      this.prisma.supportTicket.count({
+        where: { assignedToId: null, status: { notIn: ['resolved', 'closed'] } },
+      }),
       this.prisma.supportTicket.count({ where: { status: 'in_progress' } }),
-      this.prisma.supportTicket.count({ where: { status: 'resolved', resolvedAt: { gte: from, lte: to } } }),
+      this.prisma.supportTicket.count({
+        where: { status: 'resolved', resolvedAt: { gte: from, lte: to } },
+      }),
       this.prisma.supportTicket.count({ where: createdWhere }),
       this.prisma.supportTicket.count({ where: dueWhere }),
     ]);
-    return { from, to, preset: preset ?? 'today', open, unassigned, inProgress, resolved, created, due };
+    return {
+      from,
+      to,
+      preset: preset ?? 'today',
+      open,
+      unassigned,
+      inProgress,
+      resolved,
+      created,
+      due,
+    };
   }
 
   /** Ordered "My work" list plus the older attention buckets (low stock, requests). */
@@ -257,101 +271,107 @@ export class DashboardController {
       contractsEnding,
       warranties14,
     ] = await Promise.all([
-        this.prisma.asset.findMany({
-          where: {
-            ...assetWhere,
-            warrantyEnd: { gte: now, lte: in7 },
-            status: { notIn: ['retired', 'disposed'] },
+      this.prisma.asset.findMany({
+        where: {
+          ...assetWhere,
+          warrantyEnd: { gte: now, lte: in7 },
+          status: { notIn: ['retired', 'disposed'] },
+        },
+        select: { id: true, assetCode: true, warrantyEnd: true },
+        orderBy: { warrantyEnd: 'asc' },
+        take: 10,
+      }),
+      this.prisma.assetMaintenance.findMany({
+        where: {
+          status: { in: ['reported', 'under_repair'] },
+          reportedAt: { lte: staleBefore },
+          asset: locationId ? { locationId } : undefined,
+        },
+        include: { asset: { select: { id: true, assetCode: true } } },
+        orderBy: { reportedAt: 'asc' },
+        take: 10,
+      }),
+      this.prisma.consumable.findMany({
+        where: { quantityAvailable: { lte: this.prisma.consumable.fields.lowStockThreshold } },
+        orderBy: { quantityAvailable: 'asc' },
+        take: 10,
+      }),
+      this.prisma.assetRequest.count({ where: { status: 'pending' } }),
+      this.prisma.assetRequest.findMany({
+        where: { status: 'approved' },
+        include: {
+          requester: {
+            select: { id: true, firstName: true, lastName: true, employeeCode: true },
           },
-          select: { id: true, assetCode: true, warrantyEnd: true },
-          orderBy: { warrantyEnd: 'asc' },
-          take: 10,
-        }),
-        this.prisma.assetMaintenance.findMany({
-          where: {
-            status: { in: ['reported', 'under_repair'] },
-            reportedAt: { lte: staleBefore },
-            asset: locationId ? { locationId } : undefined,
-          },
-          include: { asset: { select: { id: true, assetCode: true } } },
-          orderBy: { reportedAt: 'asc' },
-          take: 10,
-        }),
-        this.prisma.consumable.findMany({
-          where: { quantityAvailable: { lte: this.prisma.consumable.fields.lowStockThreshold } },
-          orderBy: { quantityAvailable: 'asc' },
-          take: 10,
-        }),
-        this.prisma.assetRequest.count({ where: { status: 'pending' } }),
-        this.prisma.assetRequest.findMany({
-          where: { status: 'approved' },
-          include: {
-            requester: {
-              select: { id: true, firstName: true, lastName: true, employeeCode: true },
-            },
-          },
-          orderBy: { reviewedAt: 'asc' },
-          take: 10,
-        }),
-        this.prisma.supportTicket.findMany({
-          where: { assignedToId: actor.id, status: { in: [...ACTIVE] } },
-          select: {
-            id: true,
-            ticketNumber: true,
-            subject: true,
-            createdAt: true,
-            firstResponseAt: true,
-            waitingSince: true,
-            waitingTotalMinutes: true,
-            status: true,
-            priority: true,
-            dueDate: true,
-          },
-          orderBy: { createdAt: 'asc' },
-          take: 40,
-        }),
-        this.prisma.supportTicket.findMany({
-          where: { assignedToId: null, status: { in: [...OPEN] } },
-          select: { id: true, ticketNumber: true, subject: true, createdAt: true },
-          orderBy: { createdAt: 'asc' },
-          take: 8,
-        }),
-        this.prisma.supportTicket.findMany({
-          where: { status: 'waiting_on_employee', waitingSince: { lte: waitingStaleBefore } },
-          select: { id: true, ticketNumber: true, subject: true, waitingSince: true },
-          orderBy: { waitingSince: 'asc' },
-          take: 8,
-        }),
-        this.prisma.employeeChecklist.findMany({
-          where: { status: { not: 'complete' } },
-          include: {
-            employee: { select: { id: true, firstName: true, lastName: true, employeeCode: true } },
-            items: { select: { done: true } },
-          },
-          orderBy: { createdAt: 'asc' },
-          take: 15,
-        }),
-        this.prisma.employee.findMany({
-          where: {
-            isActive: true,
-            employmentType: 'contract',
-            contractEndDate: { gte: now, lte: in14 },
-          },
-          select: { id: true, firstName: true, lastName: true, employeeCode: true, contractEndDate: true },
-          orderBy: { contractEndDate: 'asc' },
-          take: 8,
-        }),
-        this.prisma.asset.findMany({
-          where: {
-            ...assetWhere,
-            warrantyEnd: { gte: now, lte: in14 },
-            status: { notIn: ['retired', 'disposed'] },
-          },
-          select: { id: true, assetCode: true, warrantyEnd: true },
-          orderBy: { warrantyEnd: 'asc' },
-          take: 8,
-        }),
-      ]);
+        },
+        orderBy: { reviewedAt: 'asc' },
+        take: 10,
+      }),
+      this.prisma.supportTicket.findMany({
+        where: { assignedToId: actor.id, status: { in: [...ACTIVE] } },
+        select: {
+          id: true,
+          ticketNumber: true,
+          subject: true,
+          createdAt: true,
+          firstResponseAt: true,
+          waitingSince: true,
+          waitingTotalMinutes: true,
+          status: true,
+          priority: true,
+          dueDate: true,
+        },
+        orderBy: { createdAt: 'asc' },
+        take: 40,
+      }),
+      this.prisma.supportTicket.findMany({
+        where: { assignedToId: null, status: { in: [...OPEN] } },
+        select: { id: true, ticketNumber: true, subject: true, createdAt: true },
+        orderBy: { createdAt: 'asc' },
+        take: 8,
+      }),
+      this.prisma.supportTicket.findMany({
+        where: { status: 'waiting_on_employee', waitingSince: { lte: waitingStaleBefore } },
+        select: { id: true, ticketNumber: true, subject: true, waitingSince: true },
+        orderBy: { waitingSince: 'asc' },
+        take: 8,
+      }),
+      this.prisma.employeeChecklist.findMany({
+        where: { status: { not: 'complete' } },
+        include: {
+          employee: { select: { id: true, firstName: true, lastName: true, employeeCode: true } },
+          items: { select: { done: true } },
+        },
+        orderBy: { createdAt: 'asc' },
+        take: 15,
+      }),
+      this.prisma.employee.findMany({
+        where: {
+          isActive: true,
+          employmentType: 'contract',
+          contractEndDate: { gte: now, lte: in14 },
+        },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          employeeCode: true,
+          contractEndDate: true,
+        },
+        orderBy: { contractEndDate: 'asc' },
+        take: 8,
+      }),
+      this.prisma.asset.findMany({
+        where: {
+          ...assetWhere,
+          warrantyEnd: { gte: now, lte: in14 },
+          status: { notIn: ['retired', 'disposed'] },
+        },
+        select: { id: true, assetCode: true, warrantyEnd: true },
+        orderBy: { warrantyEnd: 'asc' },
+        take: 8,
+      }),
+    ]);
 
     const seenTicketIds = new Set<number>();
     const uniqueTickets = <T extends { id: number }>(rows: T[]) =>
@@ -368,7 +388,27 @@ export class DashboardController {
       }),
     ).slice(0, 8);
 
-    const checklistRows = incompleteChecklists.filter((c) => c.items.some((i) => !i.done)).slice(0, 8);
+    const checklistRows = incompleteChecklists
+      .filter((c) => c.items.some((i) => !i.done))
+      .slice(0, 8);
+
+    const [overdueInvoices, pendingMyApprovals] = await Promise.all([
+      this.prisma.vendorInvoice.findMany({
+        where: {
+          OR: [{ paymentStatus: 'overdue' }, { paymentStatus: 'pending', dueDate: { lt: now } }],
+        },
+        include: { vendor: { select: { legalName: true } } },
+        take: 8,
+      }),
+      this.prisma.purchaseRequisition.findMany({
+        where: {
+          status: 'pending_approval',
+          approvers: { some: { userId: actor.id, kind: 'required', status: 'pending' } },
+        },
+        select: { id: true, requisitionNumber: true, title: true },
+        take: 8,
+      }),
+    ]);
 
     const myWork = [
       ...myOverdue.map((t) => ({
@@ -415,7 +455,9 @@ export class DashboardController {
         type: 'contract' as const,
         id: e.id,
         label: `${e.firstName} ${e.lastName} · ${e.employeeCode}`,
-        detail: e.contractEndDate ? `Contract ends ${e.contractEndDate.toISOString().slice(0, 10)}` : 'Contract ending',
+        detail: e.contractEndDate
+          ? `Contract ends ${e.contractEndDate.toISOString().slice(0, 10)}`
+          : 'Contract ending',
         href: `/employees/show/${e.id}`,
         assignTicketId: null as number | null,
       })),
@@ -423,8 +465,26 @@ export class DashboardController {
         type: 'warranty' as const,
         id: a.id,
         label: a.assetCode,
-        detail: a.warrantyEnd ? `Warranty ${daysRemaining(a.warrantyEnd)} days left` : 'Warranty expiring',
+        detail: a.warrantyEnd
+          ? `Warranty ${daysRemaining(a.warrantyEnd)} days left`
+          : 'Warranty expiring',
         href: `/assets/show/${a.id}`,
+        assignTicketId: null as number | null,
+      })),
+      ...pendingMyApprovals.map((p) => ({
+        type: 'procurement' as const,
+        id: p.id,
+        label: p.requisitionNumber,
+        detail: `Awaiting your approval · ${p.title}`,
+        href: `/procurement/requisitions/show/${p.id}`,
+        assignTicketId: null as number | null,
+      })),
+      ...overdueInvoices.map((inv) => ({
+        type: 'vendor_payment' as const,
+        id: inv.id,
+        label: inv.invoiceNumber,
+        detail: `Overdue payment · ${inv.vendor.legalName}`,
+        href: '/reports',
         assignTicketId: null as number | null,
       })),
     ];
@@ -489,7 +549,14 @@ export class DashboardController {
       }),
       this.prisma.supportTicket.findMany({
         where: { raisedById: actor.employeeId, status: { in: [...OPEN] } },
-        select: { id: true, ticketNumber: true, subject: true, status: true, priority: true, updatedAt: true },
+        select: {
+          id: true,
+          ticketNumber: true,
+          subject: true,
+          status: true,
+          priority: true,
+          updatedAt: true,
+        },
         orderBy: { updatedAt: 'desc' },
         take: 20,
       }),
@@ -529,7 +596,10 @@ export class DashboardController {
         where: { requesterId: { in: reportIds.length ? reportIds : [-1] }, status: 'pending' },
       }),
       this.prisma.supportTicket.count({
-        where: { raisedById: { in: reportIds.length ? reportIds : [-1] }, status: { in: [...OPEN] } },
+        where: {
+          raisedById: { in: reportIds.length ? reportIds : [-1] },
+          status: { in: [...OPEN] },
+        },
       }),
       this.prisma.asset.count({
         where: { assignedEmployeeId: { in: reportIds.length ? reportIds : [-1] } },

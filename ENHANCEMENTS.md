@@ -136,4 +136,13 @@ Audit date: 2026-09-10. Each item lists the finding and resolution status.
 | B11 | Accessories/consumables had no location | **Fixed** — `locationId` on stock (backend + types) |
 | Email-in | Replies did nothing; footer said don’t reply | **Fixed** — thread headers, IMAP/webhook ingest, replyable footer |
 
+## Prompt 23
+
+| # | Finding / addition | Resolution |
+|---|--------------------|------------|
+| P23 | No vendor/PO module; records were not correctable after create | **Fixed** — full procurement module with edit/amend/void/resubmit + activity log |
+| P23-UI | Duplicate Active on Employees; ticket CSV/PDF split from grid actions | **Fixed** — status only in Status column; CSV/PDF on the right toolbar |
+| P23-UX | Tickets needed file attach plus Snipping Tool paste | **Fixed** — Paste screenshot / Ctrl+V |
+
+
 

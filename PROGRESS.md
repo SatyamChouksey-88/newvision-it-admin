@@ -302,6 +302,23 @@ Definition of Done: UI matches approved mockup look-and-feel; no functional regr
 - [x] **#7 Contracts + checklists on screen** — seed one contractor ending in 8 days (`EMP-00002`) and one incomplete onboard checklist (`EMP-00001`). Employees **Follow-up** filter (14-day contracts / incomplete checklist), list tags, and a profile warning. Dashboard My work already lists both.
 - [x] **#8 Canned macros** — canned replies can optionally **wait on the employee** or **resolve** when sent as a public reply. Internal notes do not change status. Settings → Helpdesk has the After send field. Open tickets may move straight to waiting/resolved so a first reply can close the loop.
 
+## UI polish (2026-09-11)
+
+- [x] Employees list: **Active** only in the Status column (name cell is name + EMP code)
+- [x] Support Tickets DataGrid toolbar: CSV/PDF aligned with Compact / Columns / Export CSV
+- [x] Paste screenshot (Snipping Tool / Ctrl+V) on raise-ticket and ticket attachments
+- [x] Command palette / header search colour UI (behaviour unchanged)
+
+## Prompt 23 v2 — Vendor & Procurement ✅
+
+- [x] Prisma models + migration `20260911140000_prompt23_procurement`
+- [x] Vendor lifecycle, bank re-approval, blacklist enforcement, scorecards
+- [x] Requisition template form, parallel To/Cc icons, material vs trivial edit, withdraw, reject→resubmit
+- [x] PO convert / amend / cancel / short-close, GRN partial + void, 3-way match
+- [x] Contracts + renewal cron + renew/clone; asset coverage; handoff + reconcile flags
+- [x] Help articles, Reports cards, My work entries for pending approvals and overdue payments
+- [x] Enhancements beyond the brief: invoice overdue auto-flag on list, command-palette jumps, pending-vendor from free-text name, PO PDF marked amended, 2% match tolerance via env
+
 ## Known issues
 
 - **Seed resets demo data on container start** when `SEED_ON_START=true` (the compose default). Convenient for demos, but restarting the backend wipes manual changes. Set `SEED_ON_START: "false"` in `docker-compose.yml` after the first boot to persist changes. Documented in README.

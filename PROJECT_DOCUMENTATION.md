@@ -40,8 +40,9 @@ The stack is a **React + Refine + Ant Design** frontend talking to a **NestJS + 
 | **Prompt 18** — Real helpdesk emails | Branded HTML templates for the full ticket lifecycle (created/assigned/unassigned/comment/status-change/resolved/digest); requester creation confirmation added | **Done** |
 | **Prompt 19** — Re-verified against reference | Re-read the mockup directly; reverted an interim "futuristic" visual pass that had drifted from it; kept the command palette and a WCAG contrast fix found while re-testing | **Done** |
 | **Help docs rebuild** | In-app MkDocs-Material-style documentation site (structure, not ING colors); accurate articles + real screenshots | **Done** |
+| **Prompt 23 v2** — Vendor & Procurement | Vendors, requisitions, POs, GRN, 3-way match, contracts, scorecards; edit/amend/void with activity log | **Done** |
 
-**Test counts (current, re-run 2026-09-10):** 58 backend unit + 84 backend integration = **142**; **55** Playwright (incl. axe-core).
+**Test counts (current, re-run 2026-09-11):** 81 backend unit + 111 backend integration = **192**; **68** Playwright (incl. axe-core).
 
 **Design reference:** `design-reference/NewVision-standalone-src.html` (Prompt 12 source of truth, re-verified in Prompt 19) and `design-reference/DESIGN_TOKENS.md`. Earlier `NewVision_Asset_Manager.html` is historical.
 
@@ -354,6 +355,18 @@ Separate from Maintenance (hardware repairs on one asset) and Asset Requests (as
 
 ---
 
+### 5.5d Vendor & procurement (Prompt 23 v2)
+
+Buying cycle after a need is known: vendors → requisition (company email template) → parallel To/Cc approval → PO → GRN (partials + void) → vendor invoice 3-way match → contracts/SLAs with renewal alerts. Received POs auto-create assets / accessory-consumable stock / license entitlements; later PO/GRN changes **flag** those records for reconciliation instead of deleting them.
+
+**API:** `/api/vendors`, `/api/purchase-requisitions`, `/api/purchase-orders` (convert, amend, send, receipts, void, invoices, PDF), `/api/vendor-contracts`, `/api/procurement` (matrix, summary, renewal-check). Reports: `procurement-spend`, `procurement-open`, `procurement-renewals`, `procurement-overdue`, `procurement-scorecards`.
+
+**RBAC:** Super Admin / IT Admin manage the module. Managers raise and see team requisitions (`procurement:request`). IT Support and Employees have no procurement nav.
+
+**Status:** Fully working. E2e: `backend/test/prompt23-procurement.e2e-spec.ts`, `frontend/e2e/prompt23-procurement.spec.ts`. Help: Procurement category.
+
+---
+
 ### 5.6 Warranty tracking & alerts
 
 **Data:** `assets.warranty_start`, `assets.warranty_end`; UI shows days remaining via `WarrantyDays` component.
@@ -481,8 +494,8 @@ From `PROJECT_STATUS.md` / product scope — these are **deliberate exclusions**
 | Full ticketing / change / release management | Maintenance module covers repair only |
 | IT governance, vuln/patch management | Security ops platform scope |
 | Live AD/Entra sync, JML automation | Chose manual CSV import + reconciliation instead |
-| Vendor/contract/procurement/finance modules | Outside internal inventory focus |
-| General-purpose workflow engine | Single-step request approval only where needed |
+| Full IT financials / e-sourcing / OCR invoices / payment execution | Prompt 23 tracks vendors, POs, GRNs, invoice *status*, and contracts only |
+| General-purpose workflow engine | Matrix-based requisition approval (parallel by default), not a workflow designer |
 | Live reconciliation engine | Manual CSV upload diff instead |
 | Network auto-discovery | Not applicable to manual inventory |
 | AI / natural-language search | Out of scope |
@@ -610,7 +623,7 @@ npm run typecheck
 npm run build
 ```
 
-### Playwright e2e (55 tests)
+### Playwright e2e (68 tests)
 
 Drives real UI against seeded backend on `:3000`; auto-starts Vite dev server.
 
@@ -643,6 +656,7 @@ npm run test:e2e:report           # HTML report
 | `help.spec.ts` | Docs home + At a Glance, nav tree expand/collapse, auto ToC, search (page + heading), every article H1, skip-link / Home |
 | `employee-history.spec.ts` | History tab + dashboard drill-down |
 | `audit-fixes.spec.ts` | Offboard/reinstate, audit filter, search → maintenance |
+| `prompt23-procurement.spec.ts` | Procurement nav + requisition template fields; employees Active only in Status |
 
 **Accessibility:** Implemented as Playwright tests using `@axe-core/playwright` — not a separate npm script. Serious/critical violations fail the build.
 

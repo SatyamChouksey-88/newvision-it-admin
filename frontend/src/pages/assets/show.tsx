@@ -7,8 +7,8 @@ import { AssetStatusSelect } from '../../components/AssetStatusSelect';
 import { WarrantyDays } from '../../components/Cells';
 import { CopyButton } from '../../components/CopyButton';
 import { DataGrid } from '../../components/DataGrid/DataGrid';
-import { ManualEditButton } from '../../components/ManualEdit';
 import { MaintenanceStatusTag } from '../../components/MaintenanceStatusTag';
+import { ManualEditButton } from '../../components/ManualEdit';
 import { RecordNotes } from '../../components/RecordNotes';
 import { StatusTag } from '../../components/StatusTag';
 import type { Identity } from '../../providers/authProvider';
@@ -41,6 +41,9 @@ export function AssetShow() {
   const { query } = useShow({ resource: 'assets' });
   const asset: any = query.data?.data;
   const [qrUrl, setQrUrl] = useState<string | null>(null);
+  const [coverage, setCoverage] = useState<
+    { id: number; type: string; endDate: string; vendor?: { legalName: string } }[]
+  >([]);
 
   const changeStatus = async (status: AssetStatus) => {
     if (!asset?.id) return;
@@ -68,6 +71,14 @@ export function AssetShow() {
     };
   }, [asset?.id]);
 
+  useEffect(() => {
+    if (!asset?.id) return;
+    httpClient
+      .get(`/vendor-contracts/for-asset/${asset.id}`)
+      .then(({ data }) => setCoverage(Array.isArray(data) ? data : []))
+      .catch(() => setCoverage([]));
+  }, [asset?.id]);
+
   return (
     <Show
       isLoading={query.isLoading}
@@ -91,7 +102,11 @@ export function AssetShow() {
             </Button>
             <Button
               onClick={async () => {
-                const res = await httpClient.post('/assets/labels', { ids: [asset.id] }, { responseType: 'blob' });
+                const res = await httpClient.post(
+                  '/assets/labels',
+                  { ids: [asset.id] },
+                  { responseType: 'blob' },
+                );
                 const url = URL.createObjectURL(res.data);
                 const a = document.createElement('a');
                 a.href = url;
@@ -185,6 +200,32 @@ export function AssetShow() {
           <Descriptions.Item label="Vendor">{asset?.vendor ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="Invoice No">{asset?.invoiceNo ?? '—'}</Descriptions.Item>
         </Descriptions>
+        {asset?.needsReconciliation ? (
+          <Alert
+            type="warning"
+            showIcon
+            message="Procurement mismatch"
+            description={
+              asset.reconciliationNote ||
+              'This asset was created from a PO/GRN that was later amended or voided. Reconcile rather than deleting it.'
+            }
+          />
+        ) : null}
+        {coverage.length > 0 ? (
+          <Card size="small" title="Contract / SLA coverage">
+            {coverage.map((c) => (
+              <div key={c.id}>
+                <Link to={`/procurement/contracts/show/${c.id}`}>
+                  {c.vendor?.legalName ?? 'Contract'} · {c.type}
+                </Link>
+                <Typography.Text type="secondary">
+                  {' '}
+                  — ends {String(c.endDate).slice(0, 10)}
+                </Typography.Text>
+              </div>
+            ))}
+          </Card>
+        ) : null}
 
         <Card size="small" title="QR sticker (scan to view)">
           <Space align="start" size={16}>
@@ -212,74 +253,86 @@ export function AssetShow() {
         </Card>
 
         <Card size="small" title="Assignment history">
-          <DataGrid<any>
-            tableKey={`asset-${asset?.id ?? 'x'}-assignments`}
-            dataSource={asset?.assignments ?? []}
-            rowKey="id"
-            density="Compact"
-            pagination={{ pageSize: 10, hideOnSinglePage: true, size: 'small' }}
-            columns={[
-              {
-                title: 'Employee',
-                gridKey: 'employee',
-                render: (_, r: any) => <EmployeeLink emp={r.employee} fallbackId={r.employeeId} />,
-                getExportValue: (r: any) =>
-                  r.employee
-                    ? `${r.employee.firstName} ${r.employee.lastName}`
-                    : String(r.employeeId ?? ''),
-              },
-              {
-                title: 'Assigned by',
-                gridKey: 'assignedBy',
-                render: (_: unknown, r: any) => r.assignedBy?.fullName ?? '—',
-                getExportValue: (r: any) => r.assignedBy?.fullName ?? '',
-              },
-              {
-                title: 'Assigned',
-                dataIndex: 'assignedAt',
-                render: (v) => formatDate(v),
-              },
-              {
-                title: 'Returned',
-                dataIndex: 'returnedAt',
-                render: (v) =>
-                  v ? (
-                    formatDate(v)
-                  ) : (
-                    <Tag style={{ color: '#15803D', background: '#F0FDF4', borderColor: '#BBF7D0' }}>
-                      Active
-                    </Tag>
+          {(asset?.assignments?.length ?? 0) === 0 ? (
+            <Typography.Text type="secondary">No assignment history.</Typography.Text>
+          ) : (
+            <DataGrid<any>
+              tableKey={`asset-${asset?.id ?? 'x'}-assignments`}
+              dataSource={asset?.assignments ?? []}
+              rowKey="id"
+              density="Compact"
+              pagination={{ pageSize: 10, hideOnSinglePage: true, size: 'small' }}
+              columns={[
+                {
+                  title: 'Employee',
+                  gridKey: 'employee',
+                  render: (_, r: any) => (
+                    <EmployeeLink emp={r.employee} fallbackId={r.employeeId} />
                   ),
-                getExportValue: (r: any) => r.returnedAt ?? 'Active',
-              },
-              { title: 'Notes', dataIndex: 'notes', render: (v) => v ?? '—' },
-            ]}
-          />
+                  getExportValue: (r: any) =>
+                    r.employee
+                      ? `${r.employee.firstName} ${r.employee.lastName}`
+                      : String(r.employeeId ?? ''),
+                },
+                {
+                  title: 'Assigned by',
+                  gridKey: 'assignedBy',
+                  render: (_: unknown, r: any) => r.assignedBy?.fullName ?? '—',
+                  getExportValue: (r: any) => r.assignedBy?.fullName ?? '',
+                },
+                {
+                  title: 'Assigned',
+                  dataIndex: 'assignedAt',
+                  render: (v) => formatDate(v),
+                },
+                {
+                  title: 'Returned',
+                  dataIndex: 'returnedAt',
+                  render: (v) =>
+                    v ? (
+                      formatDate(v)
+                    ) : (
+                      <Tag
+                        style={{ color: '#15803D', background: '#F0FDF4', borderColor: '#BBF7D0' }}
+                      >
+                        Active
+                      </Tag>
+                    ),
+                  getExportValue: (r: any) => r.returnedAt ?? 'Active',
+                },
+                { title: 'Notes', dataIndex: 'notes', render: (v) => v ?? '—' },
+              ]}
+            />
+          )}
         </Card>
 
         <Card size="small" title="Maintenance history">
-          <DataGrid<any>
-            tableKey={`asset-${asset?.id ?? 'x'}-maintenance`}
-            dataSource={asset?.maintenance ?? []}
-            rowKey="id"
-            density="Compact"
-            pagination={{ pageSize: 10, hideOnSinglePage: true, size: 'small' }}
-            columns={[
-              { title: 'Issue', dataIndex: 'issue' },
-              {
-                title: 'Status',
-                dataIndex: 'status',
-                render: (v) => <MaintenanceStatusTag status={v} />,
-              },
-              { title: 'Vendor', dataIndex: 'vendor', render: (v) => v ?? '—' },
-              {
-                title: 'Est. Cost',
-                dataIndex: 'estimatedCost',
-                render: (v) => formatCurrency(v),
-              },
-              { title: 'Reported', dataIndex: 'reportedAt', render: (v) => formatDate(v) },
-            ]}
-          />
+          {(asset?.maintenance?.length ?? 0) === 0 ? (
+            <Typography.Text type="secondary">No maintenance records.</Typography.Text>
+          ) : (
+            <DataGrid<any>
+              tableKey={`asset-${asset?.id ?? 'x'}-maintenance`}
+              dataSource={asset?.maintenance ?? []}
+              rowKey="id"
+              density="Compact"
+              pagination={{ pageSize: 10, hideOnSinglePage: true, size: 'small' }}
+              columns={[
+                { title: 'Issue', dataIndex: 'issue' },
+                {
+                  title: 'Status',
+                  dataIndex: 'status',
+                  render: (v) => <MaintenanceStatusTag status={v} />,
+                },
+                { title: 'Vendor', dataIndex: 'vendor', render: (v) => v ?? '—' },
+                {
+                  title: 'Est. Cost',
+                  dataIndex: 'estimatedCost',
+                  render: (v) => formatCurrency(v),
+                },
+                { title: 'Reported', dataIndex: 'reportedAt', render: (v) => formatDate(v) },
+              ]}
+            />
+          )}
         </Card>
 
         {(asset?.transfers?.length ?? 0) > 0 && (

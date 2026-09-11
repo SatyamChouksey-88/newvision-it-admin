@@ -94,6 +94,9 @@ enum NotificationType {
   general
   support_ticket
   chat_message
+  procurement
+  contract_renewal
+  vendor_payment
 }
 
 enum TicketStatus {
@@ -157,6 +160,93 @@ enum ImportJobStatus {
 enum ReconciliationKind {
   employees
   assets
+}
+
+enum VendorStatus {
+  draft
+  pending_approval
+  active
+  suspended
+  blacklisted
+}
+
+enum PurchaseRequisitionStatus {
+  draft
+  pending_approval
+  approved
+  rejected
+  converted_to_po
+  cancelled
+}
+
+enum PurchaseOrderStatus {
+  draft
+  sent
+  partially_received
+  received
+  closed
+  cancelled
+}
+
+enum InvoiceMatchStatus {
+  matched
+  exception
+}
+
+enum InvoicePaymentStatus {
+  pending
+  approved
+  paid
+  overdue
+  disputed
+  cancelled
+}
+
+enum VendorContractType {
+  warranty
+  amc
+  sla
+  license_subscription
+}
+
+enum RequisitionApprovalKind {
+  required
+  watcher
+}
+
+enum RequisitionApprovalStatus {
+  pending
+  approved
+  rejected
+}
+
+enum ApprovalRouting {
+  parallel
+  sequential
+}
+
+enum ProcurementRecordType {
+  vendor
+  requisition
+  purchase_order
+  goods_receipt
+  invoice
+  contract
+  scorecard
+}
+
+enum HandoffKind {
+  serialized
+  accessory
+  consumable
+  license
+}
+
+enum LineItemKind {
+  serialized
+  accessory
+  consumable
+  license
 }
 
 // ---------------------------------------------------------------------------
@@ -225,6 +315,20 @@ model User {
   ticketAttachments  TicketAttachment[]  @relation("TicketAttachmentUploader")
   chatMemberships    ChatChannelMember[]
   chatMessages       ChatMessage[]       @relation("ChatAuthor")
+  vendorInternalOwned     Vendor[]                    @relation("VendorInternalOwner")
+  vendorsApproved         Vendor[]                    @relation("VendorApprover")
+  vendorStatusChanges     VendorStatusChange[]
+  requisitionsRequested   PurchaseRequisition[]       @relation("RequisitionRequester")
+  requisitionApprovals    RequisitionApprover[]
+  purchaseOrdersCreated   PurchaseOrder[]             @relation("PoCreator")
+  poAmendments            PurchaseOrderAmendment[]
+  goodsReceipts           GoodsReceipt[]
+  invoicesRecorded        VendorInvoice[]             @relation("InvoiceRecorder")
+  contractsOwned          VendorContract[]            @relation("ContractOwner")
+  scorecardsRecorded      VendorScorecard[]
+  procurementLogs         ProcurementActivityLog[]
+  procurementAttachments  ProcurementAttachment[]     @relation("ProcurementAttachmentUploader")
+  handoffsCreated         ProcurementHandoff[]
 
   @@map("users")
 }
@@ -249,6 +353,10 @@ model Location {
   supportTickets SupportTicket[]
   accessories    Accessory[]
   consumables    Consumable[]
+  requisitions   PurchaseRequisitionLocation[]
+  purchaseOrders PurchaseOrder[]
+  goodsReceipts  GoodsReceipt[]
+  contracts      VendorContract[]
 
   @@map("locations")
 }
@@ -260,8 +368,9 @@ model Department {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  employees Employee[]
-  assets    Asset[]
+  employees    Employee[]
+  assets       Asset[]
+  requisitions PurchaseRequisition[]
 
   @@map("departments")
 }
@@ -298,6 +407,7 @@ model Employee {
   consumableIssues   ConsumableIssue[]
   supportTickets     SupportTicket[]     @relation("TicketRequester")
   ticketWatches      TicketWatcher[]
+  requisitionsOwned  PurchaseRequisition[] @relation("RequisitionOwner")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -346,6 +456,14 @@ model Asset {
   condition          AssetCondition @default(good)
   vendor             String?
   invoiceNo          String?        @map("invoice_no")
+  vendorId           Int?           @map("vendor_record_id")
+  vendorRecord       Vendor?        @relation(fields: [vendorId], references: [id])
+  purchaseOrderId    Int?           @map("purchase_order_id")
+  purchaseOrder      PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  goodsReceiptId     Int?           @map("goods_receipt_id")
+  goodsReceipt       GoodsReceipt?  @relation(fields: [goodsReceiptId], references: [id])
+  needsReconciliation Boolean       @default(false) @map("needs_reconciliation")
+  reconciliationNote  String?       @map("reconciliation_note")
   createdAt          DateTime       @default(now()) @map("created_at")
   updatedAt          DateTime       @updatedAt @map("updated_at")
 
@@ -354,6 +472,8 @@ model Asset {
   maintenance    AssetMaintenance[]
   notifications  Notification[]
   supportTickets SupportTicket[]
+  vendorContracts VendorContractAsset[]
+  procurementHandoffs ProcurementHandoff[]
 
   @@index([status])
   @@index([locationId])
@@ -583,6 +703,7 @@ model Accessory {
   createdAt          DateTime            @default(now()) @map("created_at")
   updatedAt          DateTime            @updatedAt @map("updated_at")
   checkouts          AccessoryCheckout[]
+  procurementHandoffs ProcurementHandoff[]
 
   @@index([category])
   @@index([locationId])
@@ -619,6 +740,7 @@ model Consumable {
   createdAt         DateTime          @default(now()) @map("created_at")
   updatedAt         DateTime          @updatedAt @map("updated_at")
   issues            ConsumableIssue[]
+  procurementHandoffs ProcurementHandoff[]
 
   @@index([category])
   @@index([locationId])
@@ -943,4 +1065,469 @@ model RecordNote {
 
   @@index([entityType, entityId])
   @@map("record_notes")
+}
+
+// ---------------------------------------------------------------------------
+// Prompt 23 — Vendor & Procurement
+// ---------------------------------------------------------------------------
+
+model Vendor {
+  id                         Int          @id @default(autoincrement())
+  vendorCode                 String       @unique @map("vendor_code")
+  legalName                  String       @map("legal_name")
+  tradingName                String?      @map("trading_name")
+  taxId                      String?      @map("tax_id")
+  country                    String       @default("IN")
+  registeredAddress          String?      @map("registered_address")
+  remitToAddress             String?      @map("remit_to_address")
+  paymentTerms               String       @default("Net 30") @map("payment_terms")
+  currency                   String       @default("INR")
+  bankAccountNumber          String?      @map("bank_account_number")
+  bankIfscSwift              String?      @map("bank_ifsc_swift")
+  pendingBankAccountNumber   String?      @map("pending_bank_account_number")
+  pendingBankIfscSwift       String?      @map("pending_bank_ifsc_swift")
+  bankChangePending          Boolean      @default(false) @map("bank_change_pending")
+  defaultBudgetHead          String?      @map("default_budget_head")
+  categories                 String[]
+  status                     VendorStatus @default(draft)
+  isPreferred                Boolean      @default(false) @map("is_preferred")
+  ratingSummary              Decimal?     @map("rating_summary") @db.Decimal(5, 2)
+  nextReviewDate             DateTime?    @map("next_review_date")
+  internalOwnerId            Int?         @map("internal_owner_id")
+  internalOwner              User?        @relation("VendorInternalOwner", fields: [internalOwnerId], references: [id])
+  approvedById               Int?         @map("approved_by_id")
+  approvedBy                 User?        @relation("VendorApprover", fields: [approvedById], references: [id])
+  approvedAt                 DateTime?    @map("approved_at")
+  createdAt                  DateTime     @default(now()) @map("created_at")
+  updatedAt                  DateTime     @updatedAt @map("updated_at")
+
+  contacts           VendorContact[]
+  statusChanges      VendorStatusChange[]
+  complianceDocs     VendorComplianceDoc[]
+  requisitions       PurchaseRequisition[]
+  quotes             RequisitionQuote[]
+  purchaseOrders     PurchaseOrder[]
+  invoices           VendorInvoice[]
+  contracts          VendorContract[]
+  scorecards         VendorScorecard[]
+  assets             Asset[]
+
+  @@index([status])
+  @@index([legalName])
+  @@map("vendors")
+}
+
+model VendorContact {
+  id        Int     @id @default(autoincrement())
+  vendorId  Int     @map("vendor_id")
+  vendor    Vendor  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  name      String
+  roleTitle String? @map("role_title")
+  email     String?
+  phone     String?
+  isPrimary Boolean @default(false) @map("is_primary")
+
+  @@index([vendorId])
+  @@map("vendor_contacts")
+}
+
+model VendorStatusChange {
+  id          Int          @id @default(autoincrement())
+  vendorId    Int          @map("vendor_id")
+  vendor      Vendor       @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  fromStatus  VendorStatus @map("from_status")
+  toStatus    VendorStatus @map("to_status")
+  reason      String
+  changedById Int          @map("changed_by_id")
+  changedBy   User         @relation(fields: [changedById], references: [id])
+  changedAt   DateTime     @default(now()) @map("changed_at")
+
+  @@index([vendorId])
+  @@map("vendor_status_changes")
+}
+
+model VendorComplianceDoc {
+  id        Int       @id @default(autoincrement())
+  vendorId  Int       @map("vendor_id")
+  vendor    Vendor    @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  title     String
+  expiresAt DateTime? @map("expires_at")
+  filename  String?
+  mimeType  String?   @map("mime_type")
+  data      Bytes?
+
+  @@index([vendorId])
+  @@map("vendor_compliance_docs")
+}
+
+model ApprovalMatrixRule {
+  id        Int             @id @default(autoincrement())
+  minAmount Decimal         @map("min_amount") @db.Decimal(12, 2)
+  category  String?
+  role      RoleName
+  level     Int             @default(1)
+  kind      RequisitionApprovalKind @default(required)
+  routing   ApprovalRouting @default(parallel)
+  createdAt DateTime        @default(now()) @map("created_at")
+
+  @@map("approval_matrix_rules")
+}
+
+model PurchaseRequisition {
+  id                      Int                        @id @default(autoincrement())
+  requisitionNumber       String                     @unique @map("requisition_number")
+  title                   String
+  departmentId            Int?                       @map("department_id")
+  department              Department?                @relation(fields: [departmentId], references: [id])
+  departmentFreeText      String?                    @map("department_free_text")
+  requesterId             Int                        @map("requester_id")
+  requester               User                       @relation("RequisitionRequester", fields: [requesterId], references: [id])
+  ownerEmployeeId         Int?                       @map("owner_employee_id")
+  owner                   Employee?                  @relation("RequisitionOwner", fields: [ownerEmployeeId], references: [id])
+  requestDate             DateTime                   @default(now()) @map("request_date")
+  businessRequirement     String                     @map("business_requirement")
+  proposedMakeModel       String?                    @map("proposed_make_model")
+  category                String
+  vendorId                Int?                       @map("vendor_id")
+  vendor                  Vendor?                    @relation(fields: [vendorId], references: [id])
+  vendorFreeText          String?                    @map("vendor_free_text")
+  budgetHead              String?                    @map("budget_head")
+  procurementType         String                     @map("procurement_type")
+  remoteEmployees         Boolean                    @default(false) @map("remote_employees")
+  locationFreeText        String?                    @map("location_free_text")
+  expectedProcurementDate DateTime?                  @map("expected_procurement_date")
+  expectedDeploymentDate  DateTime?                  @map("expected_deployment_date")
+  taxAmount               Decimal                    @default(0) @map("tax_amount") @db.Decimal(12, 2)
+  totalCost               Decimal                    @map("total_cost") @db.Decimal(12, 2)
+  totalOverride           Boolean                    @default(false) @map("total_override")
+  status                  PurchaseRequisitionStatus  @default(draft)
+  revision                Int                        @default(1)
+  routing                 ApprovalRouting            @default(parallel)
+  cancelReason            String?                    @map("cancel_reason")
+  createdAt               DateTime                   @default(now()) @map("created_at")
+  updatedAt               DateTime                   @updatedAt @map("updated_at")
+
+  lineItems      RequisitionLineItem[]
+  quotes         RequisitionQuote[]
+  approvers      RequisitionApprover[]
+  locations      PurchaseRequisitionLocation[]
+  purchaseOrders PurchaseOrder[]
+
+  @@index([status])
+  @@index([requesterId])
+  @@map("purchase_requisitions")
+}
+
+model PurchaseRequisitionLocation {
+  id             Int                  @id @default(autoincrement())
+  requisitionId  Int                  @map("requisition_id")
+  requisition    PurchaseRequisition  @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  locationId     Int                  @map("location_id")
+  location       Location             @relation(fields: [locationId], references: [id])
+
+  @@unique([requisitionId, locationId])
+  @@map("purchase_requisition_locations")
+}
+
+model RequisitionLineItem {
+  id             Int                 @id @default(autoincrement())
+  requisitionId  Int                 @map("requisition_id")
+  requisition    PurchaseRequisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  product        String
+  unitCost       Decimal             @map("unit_cost") @db.Decimal(12, 2)
+  quantity       Decimal             @db.Decimal(12, 2)
+  commercialNotes String?            @map("commercial_notes")
+  kind           LineItemKind        @default(serialized)
+  sortOrder      Int                 @default(0) @map("sort_order")
+
+  @@index([requisitionId])
+  @@map("requisition_line_items")
+}
+
+model RequisitionQuote {
+  id             Int                 @id @default(autoincrement())
+  requisitionId  Int                 @map("requisition_id")
+  requisition    PurchaseRequisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  vendorId       Int?                @map("vendor_id")
+  vendor         Vendor?             @relation(fields: [vendorId], references: [id])
+  vendorName     String?             @map("vendor_name")
+  quotedPrice    Decimal             @map("quoted_price") @db.Decimal(12, 2)
+  leadTimeDays   Int?                @map("lead_time_days")
+  notes          String?
+  selected       Boolean             @default(false)
+
+  @@index([requisitionId])
+  @@map("requisition_quotes")
+}
+
+model RequisitionApprover {
+  id             Int                       @id @default(autoincrement())
+  requisitionId  Int                       @map("requisition_id")
+  requisition    PurchaseRequisition       @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  userId         Int                       @map("user_id")
+  user           User                      @relation(fields: [userId], references: [id])
+  kind           RequisitionApprovalKind   @default(required)
+  status         RequisitionApprovalStatus @default(pending)
+  level          Int                       @default(1)
+  decidedAt      DateTime?                 @map("decided_at")
+  comment        String?
+
+  @@index([requisitionId])
+  @@index([userId])
+  @@map("requisition_approvers")
+}
+
+model PurchaseOrder {
+  id                Int                 @id @default(autoincrement())
+  poNumber          String              @unique @map("po_number")
+  requisitionId     Int?                @map("requisition_id")
+  requisition       PurchaseRequisition? @relation(fields: [requisitionId], references: [id])
+  vendorId          Int                 @map("vendor_id")
+  vendor            Vendor              @relation(fields: [vendorId], references: [id])
+  status            PurchaseOrderStatus @default(draft)
+  revision          Int                 @default(1)
+  taxAmount         Decimal             @default(0) @map("tax_amount") @db.Decimal(12, 2)
+  total             Decimal             @db.Decimal(12, 2)
+  deliveryDate      DateTime?           @map("delivery_date")
+  terms             String?
+  locationId        Int?                @map("location_id")
+  location          Location?           @relation(fields: [locationId], references: [id])
+  createdById       Int                 @map("created_by_id")
+  createdBy         User                @relation("PoCreator", fields: [createdById], references: [id])
+  sentAt            DateTime?           @map("sent_at")
+  cancelReason      String?             @map("cancel_reason")
+  shortCloseReason  String?             @map("short_close_reason")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+
+  lineItems   PurchaseOrderLine[]
+  amendments  PurchaseOrderAmendment[]
+  receipts    GoodsReceipt[]
+  invoices    VendorInvoice[]
+  assets      Asset[]
+  handoffs    ProcurementHandoff[]
+
+  @@index([status])
+  @@index([vendorId])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderLine {
+  id              Int           @id @default(autoincrement())
+  purchaseOrderId Int           @map("purchase_order_id")
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product         String
+  unitCost        Decimal       @map("unit_cost") @db.Decimal(12, 2)
+  quantity        Decimal       @db.Decimal(12, 2)
+  commercialNotes String?       @map("commercial_notes")
+  kind            LineItemKind  @default(serialized)
+  sortOrder       Int           @default(0) @map("sort_order")
+  receiptLines    GoodsReceiptLine[]
+
+  @@index([purchaseOrderId])
+  @@map("purchase_order_lines")
+}
+
+model PurchaseOrderAmendment {
+  id              Int           @id @default(autoincrement())
+  purchaseOrderId Int           @map("purchase_order_id")
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  revision        Int
+  snapshot        Json
+  reason          String
+  amendedById     Int           @map("amended_by_id")
+  amendedBy       User          @relation(fields: [amendedById], references: [id])
+  amendedAt       DateTime      @default(now()) @map("amended_at")
+
+  @@index([purchaseOrderId])
+  @@map("purchase_order_amendments")
+}
+
+model GoodsReceipt {
+  id              Int           @id @default(autoincrement())
+  grnNumber       String        @unique @map("grn_number")
+  purchaseOrderId Int           @map("purchase_order_id")
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  locationId      Int?          @map("location_id")
+  location        Location?     @relation(fields: [locationId], references: [id])
+  conditionNotes  String?       @map("condition_notes")
+  discrepancy     String?
+  receivedById    Int           @map("received_by_id")
+  receivedBy      User          @relation(fields: [receivedById], references: [id])
+  receivedAt      DateTime      @default(now()) @map("received_at")
+  isReversed      Boolean       @default(false) @map("is_reversed")
+  reverseReason   String?       @map("reverse_reason")
+  reversedAt      DateTime?     @map("reversed_at")
+  lineItems       GoodsReceiptLine[]
+  assets          Asset[]
+  handoffs        ProcurementHandoff[]
+
+  @@index([purchaseOrderId])
+  @@map("goods_receipts")
+}
+
+model GoodsReceiptLine {
+  id               Int               @id @default(autoincrement())
+  goodsReceiptId   Int               @map("goods_receipt_id")
+  goodsReceipt     GoodsReceipt      @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+  purchaseOrderLineId Int            @map("purchase_order_line_id")
+  purchaseOrderLine   PurchaseOrderLine @relation(fields: [purchaseOrderLineId], references: [id])
+  quantityReceived Decimal           @map("quantity_received") @db.Decimal(12, 2)
+
+  @@index([goodsReceiptId])
+  @@map("goods_receipt_lines")
+}
+
+model VendorInvoice {
+  id               Int                   @id @default(autoincrement())
+  vendorId         Int                   @map("vendor_id")
+  vendor           Vendor                @relation(fields: [vendorId], references: [id])
+  purchaseOrderId  Int?                  @map("purchase_order_id")
+  purchaseOrder    PurchaseOrder?        @relation(fields: [purchaseOrderId], references: [id])
+  contractId       Int?                  @map("contract_id")
+  contract         VendorContract?       @relation(fields: [contractId], references: [id])
+  invoiceNumber    String                @map("invoice_number")
+  invoiceDate      DateTime              @map("invoice_date")
+  amount           Decimal               @db.Decimal(12, 2)
+  taxAmount        Decimal               @default(0) @map("tax_amount") @db.Decimal(12, 2)
+  dueDate          DateTime              @map("due_date")
+  matchStatus      InvoiceMatchStatus    @default(matched) @map("match_status")
+  matchNotes       String?               @map("match_notes")
+  exceptionNote    String?               @map("exception_note")
+  paymentStatus    InvoicePaymentStatus  @default(pending) @map("payment_status")
+  recordedById     Int                   @map("recorded_by_id")
+  recordedBy       User                  @relation("InvoiceRecorder", fields: [recordedById], references: [id])
+  filename         String?
+  mimeType         String?               @map("mime_type")
+  data             Bytes?
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+
+  @@index([vendorId])
+  @@index([purchaseOrderId])
+  @@index([paymentStatus])
+  @@map("vendor_invoices")
+}
+
+model VendorContract {
+  id               Int                @id @default(autoincrement())
+  vendorId         Int                @map("vendor_id")
+  vendor           Vendor             @relation(fields: [vendorId], references: [id])
+  type             VendorContractType
+  startDate        DateTime           @map("start_date")
+  endDate          DateTime           @map("end_date")
+  value            Decimal            @db.Decimal(12, 2)
+  autoRenew        Boolean            @default(false) @map("auto_renew")
+  noticePeriodDays Int                @default(30) @map("notice_period_days")
+  slaTerms         String?            @map("sla_terms")
+  entitlementCount Int?               @map("entitlement_count")
+  usageCount       Int?               @map("usage_count")
+  locationId       Int?               @map("location_id")
+  location         Location?          @relation(fields: [locationId], references: [id])
+  ownerId          Int?               @map("owner_id")
+  owner            User?              @relation("ContractOwner", fields: [ownerId], references: [id])
+  renewedFromId    Int?               @map("renewed_from_id")
+  renewedFrom      VendorContract?    @relation("ContractRenewal", fields: [renewedFromId], references: [id])
+  renewals         VendorContract[]   @relation("ContractRenewal")
+  filename         String?
+  mimeType         String?            @map("mime_type")
+  data             Bytes?
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+
+  assets   VendorContractAsset[]
+  invoices VendorInvoice[]
+  handoffs ProcurementHandoff[]
+
+  @@index([vendorId])
+  @@index([endDate])
+  @@map("vendor_contracts")
+}
+
+model VendorContractAsset {
+  id         Int            @id @default(autoincrement())
+  contractId Int            @map("contract_id")
+  contract   VendorContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  assetId    Int            @map("asset_id")
+  asset      Asset          @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([contractId, assetId])
+  @@map("vendor_contract_assets")
+}
+
+model VendorScorecard {
+  id                     Int      @id @default(autoincrement())
+  vendorId               Int      @map("vendor_id")
+  vendor                 Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  period                 String
+  onTimeDeliveryPct      Decimal  @map("on_time_delivery_pct") @db.Decimal(5, 2)
+  qualityRate            Decimal  @map("quality_rate") @db.Decimal(5, 2)
+  priceCompetitiveness   Decimal  @map("price_competitiveness") @db.Decimal(5, 2)
+  responsiveness         Decimal  @map("responsiveness") @db.Decimal(5, 2)
+  overallScore           Decimal  @map("overall_score") @db.Decimal(5, 2)
+  notes                  String?
+  recordedById           Int      @map("recorded_by_id")
+  recordedBy             User     @relation(fields: [recordedById], references: [id])
+  createdAt              DateTime @default(now()) @map("created_at")
+
+  @@index([vendorId])
+  @@map("vendor_scorecards")
+}
+
+model ProcurementActivityLog {
+  id          Int                   @id @default(autoincrement())
+  recordType  ProcurementRecordType @map("record_type")
+  recordId    Int                   @map("record_id")
+  action      String
+  summary     String
+  before      Json?
+  after       Json?
+  reason      String?
+  actorId     Int                   @map("actor_id")
+  actor       User                  @relation(fields: [actorId], references: [id])
+  createdAt   DateTime              @default(now()) @map("created_at")
+
+  @@index([recordType, recordId])
+  @@map("procurement_activity_logs")
+}
+
+model ProcurementAttachment {
+  id           Int                   @id @default(autoincrement())
+  recordType   ProcurementRecordType @map("record_type")
+  recordId     Int                   @map("record_id")
+  filename     String
+  mimeType     String                @map("mime_type")
+  sizeBytes    Int                   @map("size_bytes")
+  data         Bytes
+  uploadedById Int                   @map("uploaded_by_id")
+  uploadedBy   User                  @relation("ProcurementAttachmentUploader", fields: [uploadedById], references: [id])
+  createdAt    DateTime              @default(now()) @map("created_at")
+
+  @@index([recordType, recordId])
+  @@map("procurement_attachments")
+}
+
+model ProcurementHandoff {
+  id              Int           @id @default(autoincrement())
+  kind            HandoffKind
+  purchaseOrderId Int           @map("purchase_order_id")
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  goodsReceiptId  Int?          @map("goods_receipt_id")
+  goodsReceipt    GoodsReceipt? @relation(fields: [goodsReceiptId], references: [id])
+  contractId      Int?          @map("contract_id")
+  contract        VendorContract? @relation(fields: [contractId], references: [id])
+  assetId         Int?          @map("asset_id")
+  asset           Asset?        @relation(fields: [assetId], references: [id])
+  accessoryId     Int?          @map("accessory_id")
+  accessory       Accessory?    @relation(fields: [accessoryId], references: [id])
+  consumableId    Int?          @map("consumable_id")
+  consumable      Consumable?   @relation(fields: [consumableId], references: [id])
+  needsReconciliation Boolean   @default(false) @map("needs_reconciliation")
+  reconciliationNote  String?   @map("reconciliation_note")
+  createdById     Int           @map("created_by_id")
+  createdBy       User          @relation(fields: [createdById], references: [id])
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  @@index([purchaseOrderId])
+  @@map("procurement_handoffs")
 }

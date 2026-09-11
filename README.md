@@ -104,7 +104,7 @@ npm test              # unit tests
 npm run test:e2e      # integration/API tests (needs Postgres reachable)
 ```
 
-Current status: **58 unit + 84 integration = 142 passing.**
+Current status: **81 unit + 111 integration = 192 passing.**
 
 ### Frontend — lint, type-check, build
 
@@ -126,11 +126,11 @@ cd backend && npm run start:dev
 # 2) In another terminal, run the e2e suite
 cd frontend
 npx playwright install chromium   # first time only
-npm run test:e2e                  # 55 tests
+npm run test:e2e                  # 68 tests
 npm run test:e2e:report           # open the last HTML report
 ```
 
-Current status: **55 Playwright tests passing** (includes axe-core a11y on dashboard/assets/tickets/notes, help docs, first-run onboarding, tablet/light-only checks, helpdesk tickets, lazy-route smoke, cumulative growth chart, and the asset-request approval flow).
+Current status: **68 Playwright tests passing** (includes axe-core a11y on dashboard/assets/tickets/notes, help docs, first-run onboarding, tablet/light-only checks, helpdesk tickets, lazy-route smoke, cumulative growth chart, the asset-request approval flow, and procurement nav).
 
 ---
 
@@ -285,4 +285,11 @@ Current status: **58 unit + 84 integration = 142** backend tests; **55 Playwrigh
 - Read `design-reference/NewVision-standalone-src.html` directly and reverted an interim "futuristic" visual pass (glow, glass, gradient mesh, a bento dashboard) that had drifted from it — the app matches the reference's plain, flat design again.
 - Kept the `⌘K` command palette and the dashboard's "Updated Ns ago" copy as genuine improvements (not visual style), and fixed a real WCAG contrast failure (AntD's `color="green"` preset tag) found while re-testing.
 
-Current status: **58 unit + 84 integration = 142** backend tests; **55 Playwright**.
+Current status: **81 unit + 111 integration = 192** backend tests; **68 Playwright**.
+
+## Prompt 23 v2 — Vendor & Procurement (complete)
+
+- Sidebar **Procurement** (Super Admin / IT Admin): Vendors, Requisitions, Purchase Orders, Contracts. Managers see team requisitions only.
+- Requisition form matches the company approval-request template; parallel To/Cc approval with status icons; material edits reset the chain.
+- PO amend/cancel/short-close, GRN partials + void, 3-way match invoices, contract renewals, scorecards, and reconcilable asset handoff.
+- Help articles under **Procurement**. Out of scope (e-sourcing, OCR invoices, payment execution) stays in `FUTURE_IDEAS.md`.

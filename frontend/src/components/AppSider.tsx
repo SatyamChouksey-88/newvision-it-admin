@@ -1,26 +1,29 @@
 import {
   AuditOutlined,
+  BankOutlined,
+  CustomerServiceOutlined,
   DashboardOutlined,
   DesktopOutlined,
   EnvironmentOutlined,
+  FileProtectOutlined,
   FileTextOutlined,
   GoldOutlined,
   HomeOutlined,
   QuestionCircleOutlined,
   SettingOutlined,
+  ShoppingCartOutlined,
   ShoppingOutlined,
   TeamOutlined,
   ToolOutlined,
-  CustomerServiceOutlined,
 } from '@ant-design/icons';
 import { useThemedLayoutContext } from '@refinedev/antd';
 import { useGetIdentity, useLogout } from '@refinedev/core';
 import { Avatar, Tooltip } from 'antd';
-import { useEffect, useState, type ReactNode } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { NavLink } from 'react-router';
 import { navForRole, ROLE_CHIP } from '../access';
-import { httpClient } from '../providers/axios';
 import type { Identity } from '../providers/authProvider';
+import { httpClient } from '../providers/axios';
 import { Title } from './Title';
 
 const NAV_ICONS: Record<string, ReactNode> = {
@@ -36,6 +39,10 @@ const NAV_ICONS: Record<string, ReactNode> = {
   requests: <FileTextOutlined />,
   maintenance: <ToolOutlined />,
   tickets: <CustomerServiceOutlined />,
+  vendors: <BankOutlined />,
+  requisitions: <FileTextOutlined />,
+  orders: <ShoppingCartOutlined />,
+  contracts: <FileProtectOutlined />,
   reports: <FileTextOutlined />,
   audit: <AuditOutlined />,
   settings: <SettingOutlined />,
@@ -57,6 +64,9 @@ export function AppSider() {
   const { siderCollapsed } = useThemedLayoutContext();
   const [counts, setCounts] = useState<Record<string, number | undefined>>({});
   const items = navForRole(identity?.role);
+  const procKeys = new Set(['vendors', 'requisitions', 'orders', 'contracts']);
+  const manageItems = items.filter((i) => !procKeys.has(i.key));
+  const procItems = items.filter((i) => procKeys.has(i.key));
   const chip = ROLE_CHIP[identity?.role ?? ''] ?? ROLE_CHIP.EMPLOYEE;
 
   useEffect(() => {
@@ -69,7 +79,8 @@ export function AppSider() {
         httpClient
           .get('/dashboard/metrics')
           .then(({ data }) => {
-            if (!cancelled) setCounts((c) => ({ ...c, assets: data?.total, maintenance: data?.underRepair }));
+            if (!cancelled)
+              setCounts((c) => ({ ...c, assets: data?.total, maintenance: data?.underRepair }));
           })
           .catch(() => undefined),
       );
@@ -109,7 +120,8 @@ export function AppSider() {
       httpClient
         .get('/support-tickets/counts')
         .then(({ data }) => {
-          if (!cancelled) setCounts((c) => ({ ...c, tickets: c.tickets ?? data?.openUnassigned ?? data?.mine }));
+          if (!cancelled)
+            setCounts((c) => ({ ...c, tickets: c.tickets ?? data?.openUnassigned ?? data?.mine }));
         })
         .catch(() => undefined),
     );
@@ -128,10 +140,14 @@ export function AppSider() {
       <nav className="nv-sider-nav">
         {!siderCollapsed && (
           <span className="nv-sider-section" data-testid="sider-manage-label">
-            {identity?.role === 'EMPLOYEE' ? 'MY IT' : identity?.role === 'MANAGER' ? 'TEAM' : 'MANAGE'}
+            {identity?.role === 'EMPLOYEE'
+              ? 'MY IT'
+              : identity?.role === 'MANAGER'
+                ? 'TEAM'
+                : 'MANAGE'}
           </span>
         )}
-        {items.map((item) => (
+        {manageItems.map((item) => (
           <Tooltip key={item.key} title={siderCollapsed ? item.label : item.hint} placement="right">
             <NavLink
               to={item.href}
@@ -142,7 +158,9 @@ export function AppSider() {
                 {NAV_ICONS[item.key] ?? <DashboardOutlined />}
               </span>
               {!siderCollapsed ? (
-                <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <span
+                  style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                >
                   {item.label}
                 </span>
               ) : null}
@@ -152,6 +170,38 @@ export function AppSider() {
             </NavLink>
           </Tooltip>
         ))}
+        {procItems.length > 0 ? (
+          <>
+            {!siderCollapsed && (
+              <span className="nv-sider-section" data-testid="sider-procurement-label">
+                PROCUREMENT
+              </span>
+            )}
+            {procItems.map((item) => (
+              <Tooltip
+                key={item.key}
+                title={siderCollapsed ? item.label : item.hint}
+                placement="right"
+              >
+                <NavLink
+                  to={item.href}
+                  className={({ isActive }) => `nv-sider-link${isActive ? ' is-active' : ''}`}
+                >
+                  <span className="nv-sider-icon" aria-hidden>
+                    {NAV_ICONS[item.key] ?? <DashboardOutlined />}
+                  </span>
+                  {!siderCollapsed ? (
+                    <span
+                      style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                    >
+                      {item.label}
+                    </span>
+                  ) : null}
+                </NavLink>
+              </Tooltip>
+            ))}
+          </>
+        ) : null}
       </nav>
       <div className="nv-sider-user">
         <div className="nv-sider-user-row">
@@ -161,28 +211,25 @@ export function AppSider() {
           {!siderCollapsed && (
             <div className="nv-sider-user-meta" style={{ minWidth: 0 }}>
               <div className="nv-sider-user-name">{identity?.fullName}</div>
-              <span className="nv-role-chip" style={{ color: chip.color, background: chip.bg }} data-testid="role-chip">
+              <span
+                className="nv-role-chip"
+                style={{ color: chip.color, background: chip.bg }}
+                data-testid="role-chip"
+              >
                 {chip.label}
               </span>
             </div>
           )}
         </div>
       </div>
-      <div
-        role="menuitem"
-        tabIndex={0}
+      <button
+        type="button"
         data-testid="logout-button"
         className="nv-sider-signout-item"
         onClick={() => logout()}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            logout();
-          }
-        }}
       >
         {siderCollapsed ? 'Out' : 'Sign out'}
-      </div>
+      </button>
     </aside>
   );
 }

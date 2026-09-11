@@ -20,6 +20,7 @@ export const HELP_CATEGORIES = [
   'Maintenance',
   'Support tickets',
   'Requests',
+  'Procurement',
   'Reports & Analytics',
   'Import & Reconciliation',
   'Notifications',
@@ -76,7 +77,8 @@ Press **/** anywhere to focus global search.
     id: 'dashboard',
     title: 'Dashboard & Analytics',
     category: 'Reports & Analytics',
-    summary: 'Role-specific homes, KPI tiles, status and location tables, ticket summary, and the My work list.',
+    summary:
+      'Role-specific homes, KPI tiles, status and location tables, ticket summary, and the My work list.',
     keywords: ['dashboard', 'status', 'metrics', 'warranty', 'attention', 'my work', 'tables'],
     screenshot: '/docs/screenshots/dashboard.png',
     callouts: [
@@ -185,7 +187,7 @@ There is **no bulk assign** yet — assign is still one asset (plus optional acc
 - **Open scan page** — public mobile-friendly view (no login): **status, item, category, location, warranty days**. Anyone who can photograph the sticker can open this URL, so the page **never shows the assignee name or the serial number**. Cost, invoice, and history are also omitted.
 
 > [!WARNING]
-> Do not put names or serials on the printed sticker. The QR only needs the asset code.`
+> Do not put names or serials on the printed sticker. The QR only needs the asset code.`,
   },
   {
     id: 'accessories-consumables',
@@ -216,7 +218,7 @@ Toner, cables, batteries. Each SKU has \`quantity_available\`.
 Both lists use the same Excel-grade grid as Assets.
 
 > [!TIP]
-> If IT is handing a laptop *and* a charger together, use Assign on the laptop and tick the charger in the same modal. That is one history event, not two screens.`
+> If IT is handing a laptop *and* a charger together, use Assign on the laptop and tick the charger in the same modal. That is one history event, not two screens.`,
   },
   {
     id: 'employees',
@@ -248,7 +250,7 @@ Both lists use the same Excel-grade grid as Assets.
 3. They sign in with their work email. Super Admin can reset or disable the account later under Settings → Users.
 
 > [!NOTE]
-> There is no self-service “first Super Admin” wizard. The first admin comes from seed or a Super Admin creating the user.`
+> There is no self-service “first Super Admin” wizard. The first admin comes from seed or a Super Admin creating the user.`,
   },
   {
     id: 'maintenance',
@@ -272,7 +274,7 @@ Both lists use the same Excel-grade grid as Assets.
 - Stale repairs appear on the dashboard **My work** list and open Maintenance pre-filtered to tickets reported 14+ days ago (\`staleDays=14\`).
 
 > [!NOTE]
-> Maintenance and Support Tickets are not linked yet. If the same incident exists in both places, keep the ticket numbers in a note on each record.`
+> Maintenance and Support Tickets are not linked yet. If the same incident exists in both places, keep the ticket numbers in a note on each record.`,
   },
   {
     id: 'warranty',
@@ -346,6 +348,92 @@ Requires \`report:run\` permission (IT Admin, IT Support, Manager, Super Admin).
 Statuses: \`pending → approved|rejected → fulfilled\`.`,
   },
   {
+    id: 'procurement-overview',
+    title: 'Vendor & procurement overview',
+    category: 'Procurement',
+    summary: 'Vendors, requisitions, purchase orders, receiving, invoices, and contracts.',
+    keywords: ['procurement', 'vendor', 'po', 'requisition', 'grn'],
+    body: `The **Procurement** sidebar (Super Admin and IT Admin) covers the buying cycle after a need is known. Managers see **their team's requisitions** only. IT Support and Employees do not have this module.
+
+### What is in scope
+
+- Vendor onboarding, suspension, blacklisting, and bank-detail re-approval
+- A requisition form that matches the company approval-request email
+- Parallel approval (To = required, Cc = watchers) with green / amber / red icons
+- Convert an approved requisition to a purchase order, receive goods (including partials), record invoices with a 3-way match
+- Contracts (warranty / AMC / SLA / licenses) with 90/60/30/7-day renewal alerts
+- Auto-create assets, accessories, consumables, or license entitlements from a GRN — later PO/GRN changes **flag** those records instead of deleting them
+
+> [!WARNING]
+> NewVision tracks payment **status**. It does not move money, run reverse auctions, or OCR invoices.`,
+  },
+  {
+    id: 'procurement-requisition',
+    title: 'Raising and editing a requisition',
+    category: 'Procurement',
+    summary: 'The real template fields, material vs trivial edits, and resubmit after reject.',
+    keywords: ['requisition', 'approval', 'revision', 'line item'],
+    body: `Open **Requisitions → New requisition**. Required fields match the internal approval email:
+
+1. **Request Title**, **Requesting Department** (picker or free text), **Date**
+2. **Business Requirement**, **Proposed Make & Model**, **Category**
+3. **Line items** — Product, Unit Cost, Quantity, commercial/notes (add/remove rows)
+4. **Total** auto-calculates (Σ unit × qty + tax) but you can override a negotiated figure
+5. **Vendor** (preferred/active only) or type a new name to create a pending-approval vendor
+6. **Budget Head**, **Procurement Type**, **Deployment Location** (multi + Remote Employees)
+7. **Expected procurement date** and **Expected deployment date**
+8. Attach the quote/PDF, **Save draft** or **Submit for approval**
+
+### Editing after submit
+
+- **Draft** — fully editable, no re-approval.
+- **Pending approval** — a *trivial* edit (title, business-requirement typo) keeps the same revision. A *material* edit (total, vendor, quantity, line items, category, procurement type) increments **revision**, resets every required approver to pending, and notifies them.
+- **Approved but not converted** — the same material-edit rule; the UI warns you before Edit.
+- **Rejected** — edit and **Submit** again (new revision) instead of starting from scratch.
+- **Withdraw / cancel** needs a reason. Cancelled rows stay visible with history.
+
+> [!TIP]
+> Every save writes a procurement activity log **and** the global audit log. The detail page timeline is the readable history.`,
+  },
+  {
+    id: 'procurement-po-grn',
+    title: 'Purchase orders, receiving, and invoices',
+    category: 'Procurement',
+    summary: 'Amend a sent PO, void a wrong GRN, and 3-way match invoices.',
+    keywords: ['purchase order', 'grn', 'invoice', 'three way', 'amend'],
+    body: `After all required approvers approve, **Convert to PO**. Then:
+
+1. **Mark sent** when the PO is issued to the vendor.
+2. **Amend** (quantity, price, delivery, lines) creates a new revision and keeps the previous snapshot. PDF export is marked amended.
+3. **Record GRN** for what actually arrived (partials allowed). Condition notes and discrepancy (short/over/damaged) are optional.
+4. **Void GRN** if the receipt was wrong — this restores received-vs-ordered totals. Do not edit history in place.
+5. **Short-close** a partially received PO that will never be completed.
+6. **Cancel** before it is fully received, with a reason.
+
+### 3-way match
+
+Recording a vendor invoice against a PO compares amount and received quantities to the PO within a **2%** tolerance (\`PROCUREMENT_MATCH_TOLERANCE_PCT\`). **Exception** invoices need a resolution note before they can be approved for payment.
+
+If the PO/GRN is amended or voided after assets were auto-created, those assets get a **Procurement mismatch** flag. Reconcile them; they are never silently deleted.`,
+  },
+  {
+    id: 'procurement-contracts',
+    title: 'Contracts, renewals, and vendor scorecards',
+    category: 'Procurement',
+    summary: 'SLA coverage on assets, renew/clone a term, and weighted vendor scores.',
+    keywords: ['contract', 'amc', 'sla', 'renewal', 'scorecard'],
+    body: `**Contracts** stores warranty / AMC / SLA / license subscriptions, linked assets, entitlement vs usage, and an internal owner.
+
+- Renewal alerts fire at **90 / 60 / 30 / 7** days (same de-dupe idea as warranty alerts).
+- **Renew / clone term** copies the contract into a new date range rather than forcing re-entry.
+- License contracts flag when usage approaches the contracted seat count.
+- Coverage is shown on the **asset detail** page.
+
+**Scorecards** combine on-time delivery (PO delivery date vs first GRN), quality (GRN discrepancies + repair tickets), plus manual price and responsiveness scores. The overall weighted score appears when picking a vendor.
+
+Bank details on an **active** vendor do not apply instantly — they sit pending until Super Admin / IT Admin approves (highest fraud-risk field). Suspended or blacklisted vendors cannot be selected on a new requisition or PO.`,
+  },
+  {
     id: 'tickets-raise',
     title: 'Raising a support ticket',
     category: 'Support tickets',
@@ -370,7 +458,7 @@ Employees see a short form (category, priority, description, optional asset). IT
 
 IT Support is auto-assigned when someone is available; otherwise the ticket stays Open for the queue.
 
-Staff can **@mention** colleagues on the ticket, copy a ready **email draft** (mail icon) to paste into Outlook, and — for Super Admin / IT Admin / IT Support only — use the header **Chat** launcher (#it-ops plus 1:1 DMs). Pasting a ticket number like \`TCK-000123\` in chat becomes a clickable preview.`
+Staff can **@mention** colleagues on the ticket, copy a ready **email draft** (mail icon) to paste into Outlook, and — for Super Admin / IT Admin / IT Support only — use the header **Chat** launcher (#it-ops plus 1:1 DMs). Pasting a ticket number like \`TCK-000123\` in chat becomes a clickable preview.`,
   },
   {
     id: 'tickets-statuses',
@@ -406,6 +494,7 @@ Staff can **@mention** colleagues on the ticket, copy a ready **email draft** (m
     body: `1. **Public replies** are visible to the requester and watchers.
 2. **Internal notes** (IT staff only) stay on the staff thread.
 3. **Watchers** get the same notifications as the requester. Add a manager or the colleague who reported the issue.
+4. **Attachments** — **Attach file**, or paste a screenshot from Snipping Tool (**Ctrl+V** / **Paste screenshot**) on the ticket or while raising one.
 
 Anyone who can view the ticket can read public comments. Internal notes never appear for employees.`,
   },
@@ -513,7 +602,8 @@ Requesters and watchers always get immediate email for events on their tickets.`
     id: 'notes-manual-edit',
     title: 'Notes, manual correction, and backfilling',
     category: 'Settings',
-    summary: 'Append-only notes on records, and a reason-required override for Super Admin / IT Admin.',
+    summary:
+      'Append-only notes on records, and a reason-required override for Super Admin / IT Admin.',
     keywords: ['notes', 'manual', 'override', 'backfill', 'audit'],
     screenshot: '/docs/screenshots/audit-log.png',
     callouts: [
@@ -599,7 +689,7 @@ Expand a row for full before/after payloads. Copy entry IDs via the copy icon.`,
 View **your** permission tags under **Settings → Account**.
 
 > [!NOTE]
-> IT Support has no Settings item in the sidebar today, so they cannot reach the Account digest radio unless a Super Admin opens Settings for them or a later change adds an Account entry on Queue.`
+> IT Support has no Settings item in the sidebar today, so they cannot reach the Account digest radio unless a Super Admin opens Settings for them or a later change adds an Account entry on Queue.`,
   },
   {
     id: 'qr-webhooks',
@@ -630,7 +720,7 @@ X-NewVision-Signature: sha256=…
 \`\`\`
 
 > [!WARNING]
-> Do not print names or serials on the sticker. The QR only needs the asset code.`
+> Do not print names or serials on the sticker. The QR only needs the asset code.`,
   },
   {
     id: 'keyboard-shortcuts',
@@ -661,7 +751,7 @@ The palette currently lists the same destinations for every role. An Employee wi
 There is no keyboard shortcut for Chat. Super Admin, IT Admin, and IT Support use the **Chat** button in the header (#it-ops plus 1:1 DMs). Ticket numbers pasted in a message become clickable previews.
 
 > [!TIP]
-> \`?\` opens Help. Do not reuse \`?\` for a shortcuts overlay — that key is already taken.`
+> \`?\` opens Help. Do not reuse \`?\` for a shortcuts overlay — that key is already taken.`,
   },
   {
     id: 'employees-history',

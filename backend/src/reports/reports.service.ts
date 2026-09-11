@@ -1,10 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
-import { PrismaService } from '../prisma/prisma.service';
 import { daysRemaining } from '../common/warranty';
+import { PrismaService } from '../prisma/prisma.service';
 
-export type ReportType = 'assets' | 'employees' | 'locations' | 'warranty' | 'supplies';
+export type ReportType =
+  | 'assets'
+  | 'employees'
+  | 'locations'
+  | 'warranty'
+  | 'supplies'
+  | 'procurement-spend'
+  | 'procurement-open'
+  | 'procurement-renewals'
+  | 'procurement-overdue'
+  | 'procurement-scorecards';
 export type ReportFormat = 'csv' | 'pdf';
 
 export interface ReportColumn {
@@ -34,12 +44,25 @@ export class ReportsService {
         return this.warrantyReport();
       case 'supplies':
         return this.suppliesReport();
+      case 'procurement-spend':
+        return this.procurementSpendReport();
+      case 'procurement-open':
+        return this.procurementOpenReport();
+      case 'procurement-renewals':
+        return this.procurementRenewalsReport();
+      case 'procurement-overdue':
+        return this.procurementOverdueReport();
+      case 'procurement-scorecards':
+        return this.procurementScorecardsReport();
       default:
         throw new Error(`Unknown report type: ${type as string}`);
     }
   }
 
-  async render(type: ReportType, format: ReportFormat): Promise<{ buffer: Buffer; filename: string }> {
+  async render(
+    type: ReportType,
+    format: ReportFormat,
+  ): Promise<{ buffer: Buffer; filename: string }> {
     const data = await this.build(type);
     const buffer = format === 'pdf' ? await toPdf(data) : await toCsv(data);
     return { buffer, filename: `${type}-report.${format}` };
@@ -155,7 +178,10 @@ export class ReportsService {
 
   private async warrantyReport(): Promise<ReportData> {
     const assets = await this.prisma.asset.findMany({
-      where: { warrantyEnd: { not: null, gte: new Date() }, status: { notIn: ['retired', 'disposed'] } },
+      where: {
+        warrantyEnd: { not: null, gte: new Date() },
+        status: { notIn: ['retired', 'disposed'] },
+      },
       include: { location: true, category: true },
     });
     const rows = assets
@@ -261,6 +287,132 @@ export class ReportsService {
       rows,
     };
   }
+
+  private async procurementSpendReport(): Promise<ReportData> {
+    const pos = await this.prisma.purchaseOrder.findMany({
+      where: { status: { not: 'cancelled' } },
+      include: { vendor: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    return {
+      title: 'Procurement spend by vendor',
+      columns: [
+        { header: 'Vendor', key: 'vendor', width: 120 },
+        { header: 'PO', key: 'po', width: 70 },
+        { header: 'Status', key: 'status', width: 80 },
+        { header: 'Total (INR)', key: 'total', width: 70 },
+      ],
+      rows: pos.map((p) => ({
+        vendor: p.vendor.legalName,
+        po: p.poNumber,
+        status: p.status,
+        total: Number(p.total),
+      })),
+    };
+  }
+
+  private async procurementOpenReport(): Promise<ReportData> {
+    const rows = await this.prisma.purchaseRequisition.findMany({
+      where: { status: 'pending_approval' },
+      include: {
+        approvers: {
+          where: { kind: 'required', status: 'pending' },
+          include: { user: { select: { fullName: true } } },
+        },
+      },
+    });
+    return {
+      title: 'Open requisitions awaiting approval',
+      columns: [
+        { header: 'Number', key: 'number', width: 80 },
+        { header: 'Title', key: 'title', width: 140 },
+        { header: 'Waiting on', key: 'waiting', width: 140 },
+        { header: 'Total (INR)', key: 'total', width: 70 },
+      ],
+      rows: rows.map((r) => ({
+        number: r.requisitionNumber,
+        title: r.title,
+        waiting: r.approvers.map((a) => a.user.fullName).join(', '),
+        total: Number(r.totalCost),
+      })),
+    };
+  }
+
+  private async procurementRenewalsReport(): Promise<ReportData> {
+    const horizon = new Date();
+    horizon.setDate(horizon.getDate() + 90);
+    const rows = await this.prisma.vendorContract.findMany({
+      where: { endDate: { gte: new Date(), lte: horizon } },
+      include: { vendor: true },
+      orderBy: { endDate: 'asc' },
+    });
+    return {
+      title: 'Upcoming contract renewals (90 days)',
+      columns: [
+        { header: 'Vendor', key: 'vendor', width: 120 },
+        { header: 'Type', key: 'type', width: 80 },
+        { header: 'End date', key: 'end', width: 80 },
+        { header: 'Value (INR)', key: 'value', width: 70 },
+      ],
+      rows: rows.map((c) => ({
+        vendor: c.vendor.legalName,
+        type: c.type,
+        end: fmtDate(c.endDate),
+        value: Number(c.value),
+      })),
+    };
+  }
+
+  private async procurementOverdueReport(): Promise<ReportData> {
+    const rows = await this.prisma.vendorInvoice.findMany({
+      where: {
+        OR: [
+          { paymentStatus: 'overdue' },
+          { paymentStatus: 'pending', dueDate: { lt: new Date() } },
+        ],
+      },
+      include: { vendor: true },
+    });
+    return {
+      title: 'Overdue vendor payments',
+      columns: [
+        { header: 'Vendor', key: 'vendor', width: 120 },
+        { header: 'Invoice', key: 'invoice', width: 80 },
+        { header: 'Due', key: 'due', width: 70 },
+        { header: 'Amount (INR)', key: 'amount', width: 70 },
+        { header: 'Match', key: 'match', width: 70 },
+      ],
+      rows: rows.map((i) => ({
+        vendor: i.vendor.legalName,
+        invoice: i.invoiceNumber,
+        due: fmtDate(i.dueDate),
+        amount: Number(i.amount),
+        match: i.matchStatus,
+      })),
+    };
+  }
+
+  private async procurementScorecardsReport(): Promise<ReportData> {
+    const rows = await this.prisma.vendor.findMany({
+      where: { ratingSummary: { not: null } },
+      orderBy: { ratingSummary: 'desc' },
+    });
+    return {
+      title: 'Vendor scorecard rankings',
+      columns: [
+        { header: 'Vendor', key: 'vendor', width: 120 },
+        { header: 'Code', key: 'code', width: 70 },
+        { header: 'Status', key: 'status', width: 80 },
+        { header: 'Score', key: 'score', width: 60 },
+      ],
+      rows: rows.map((v) => ({
+        vendor: v.legalName,
+        code: v.vendorCode,
+        status: v.status,
+        score: Number(v.ratingSummary),
+      })),
+    };
+  }
 }
 
 // ------------------------------------------------------------------ formatters
@@ -291,7 +443,9 @@ function toPdf(data: ReportData): Promise<Buffer> {
       .fontSize(8)
       .font('Helvetica')
       .fillColor('#666')
-      .text(`Generated ${new Date().toISOString().slice(0, 19).replace('T', ' ')} · ${data.rows.length} rows`);
+      .text(
+        `Generated ${new Date().toISOString().slice(0, 19).replace('T', ' ')} · ${data.rows.length} rows`,
+      );
     doc.fillColor('#000').moveDown(0.5);
 
     const colX: number[] = [];
@@ -308,7 +462,8 @@ function toPdf(data: ReportData): Promise<Buffer> {
       data.columns.forEach((col, i) => {
         doc.text(col.header, colX[i], y, { width: (col.width ?? 80) - 4, ellipsis: true });
       });
-      doc.moveTo(startX, y + rowHeight - 3)
+      doc
+        .moveTo(startX, y + rowHeight - 3)
         .lineTo(usableRight, y + rowHeight - 3)
         .strokeColor('#cccccc')
         .stroke();

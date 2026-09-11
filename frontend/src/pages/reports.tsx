@@ -27,7 +27,9 @@ async function download(type: string, format: 'csv' | 'pdf') {
   return Number(res.headers['x-row-count'] ?? Number.NaN);
 }
 
-function buildReports(locationCodes: string[]): { type: string; title: string; desc: string; meta: string }[] {
+function buildReports(
+  locationCodes: string[],
+): { type: string; title: string; desc: string; meta: string }[] {
   return [
     {
       type: 'assets',
@@ -45,7 +47,9 @@ function buildReports(locationCodes: string[]): { type: string; title: string; d
       type: 'locations',
       title: 'Location Report',
       desc: 'Per-site asset totals broken down by status.',
-      meta: locationCodes.length ? `CSV · PDF · ${locationCodes.join(' · ')}` : 'CSV · PDF · per site',
+      meta: locationCodes.length
+        ? `CSV · PDF · ${locationCodes.join(' · ')}`
+        : 'CSV · PDF · per site',
     },
     {
       type: 'warranty',
@@ -58,6 +62,36 @@ function buildReports(locationCodes: string[]): { type: string; title: string; d
       title: 'Accessories & Consumables',
       desc: 'Stock levels, open checkouts, recent issues, and low-stock flags.',
       meta: 'CSV · PDF · live stock',
+    },
+    {
+      type: 'procurement-spend',
+      title: 'Procurement spend by vendor',
+      desc: 'Purchase orders and totals grouped for finance reviews.',
+      meta: 'CSV · PDF · procurement',
+    },
+    {
+      type: 'procurement-open',
+      title: 'Open requisitions awaiting approval',
+      desc: 'Who each pending requisition is waiting on.',
+      meta: 'CSV · PDF · procurement',
+    },
+    {
+      type: 'procurement-renewals',
+      title: 'Upcoming contract renewals',
+      desc: 'Vendor contracts ending in the next 90 days.',
+      meta: 'CSV · PDF · 90 days',
+    },
+    {
+      type: 'procurement-overdue',
+      title: 'Overdue vendor payments',
+      desc: 'Invoices past due date, with match status.',
+      meta: 'CSV · PDF · finance',
+    },
+    {
+      type: 'procurement-scorecards',
+      title: 'Vendor scorecard rankings',
+      desc: 'Overall weighted scores feeding preferred status.',
+      meta: 'CSV · PDF · vendors',
     },
   ];
 }

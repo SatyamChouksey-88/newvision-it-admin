@@ -193,6 +193,31 @@ function weightedStatus(): AssetStatus {
 async function main() {
   console.log('Resetting demo data...');
   // Delete in dependency order (append-only audit is cleared only for seeding convenience).
+  await prisma.procurementHandoff.deleteMany();
+  await prisma.asset.updateMany({
+    data: { vendorId: null, purchaseOrderId: null, goodsReceiptId: null },
+  });
+  await prisma.procurementAttachment.deleteMany();
+  await prisma.procurementActivityLog.deleteMany();
+  await prisma.vendorScorecard.deleteMany();
+  await prisma.vendorContractAsset.deleteMany();
+  await prisma.vendorInvoice.deleteMany();
+  await prisma.goodsReceiptLine.deleteMany();
+  await prisma.goodsReceipt.deleteMany();
+  await prisma.purchaseOrderAmendment.deleteMany();
+  await prisma.purchaseOrderLine.deleteMany();
+  await prisma.purchaseOrder.deleteMany();
+  await prisma.requisitionApprover.deleteMany();
+  await prisma.requisitionQuote.deleteMany();
+  await prisma.requisitionLineItem.deleteMany();
+  await prisma.purchaseRequisitionLocation.deleteMany();
+  await prisma.purchaseRequisition.deleteMany();
+  await prisma.vendorComplianceDoc.deleteMany();
+  await prisma.vendorContact.deleteMany();
+  await prisma.vendorStatusChange.deleteMany();
+  await prisma.vendorContract.deleteMany();
+  await prisma.approvalMatrixRule.deleteMany();
+  await prisma.vendor.deleteMany();
   await prisma.consumableIssue.deleteMany();
   await prisma.accessoryCheckout.deleteMany();
   await prisma.consumable.deleteMany();
@@ -802,6 +827,54 @@ async function main() {
       data: { ticketNumber: `TCK-${String(t3.id).padStart(6, '0')}` },
     });
   }
+
+  await prisma.approvalMatrixRule.createMany({
+    data: [
+      { minAmount: 0, role: RoleName.IT_ADMIN, level: 1, kind: 'required', routing: 'parallel' },
+      { minAmount: 50000, role: RoleName.SUPER_ADMIN, level: 2, kind: 'required', routing: 'parallel' },
+    ],
+  });
+  const msft = await prisma.vendor.create({
+    data: {
+      vendorCode: 'VND-000001',
+      legalName: 'Microsoft Corporation',
+      tradingName: 'Microsoft',
+      taxId: 'GSTIN-MSFT-DEMO',
+      country: 'IN',
+      paymentTerms: 'Net 30',
+      categories: ['Licenses/Software'],
+      status: 'active',
+      isPreferred: true,
+      contacts: { create: [{ name: 'Licensing desk', email: 'licensing@microsoft.example', isPrimary: true }] },
+    },
+  });
+  await prisma.vendor.create({
+    data: {
+      vendorCode: 'VND-000002',
+      legalName: 'Dell Technologies',
+      tradingName: 'Dell',
+      taxId: 'GSTIN-DELL-DEMO',
+      country: 'IN',
+      paymentTerms: 'Net 45',
+      categories: ['Hardware', 'Peripherals'],
+      status: 'active',
+      isPreferred: true,
+    },
+  });
+  const end = daysFromNow(45);
+  await prisma.vendorContract.create({
+    data: {
+      vendorId: msft.id,
+      type: 'license_subscription',
+      startDate: daysFromNow(-320),
+      endDate: end,
+      value: 273320,
+      entitlementCount: 40,
+      usageCount: 36,
+      slaTerms: 'M365 E1 with Teams — 40 units as mutually discussed',
+      autoRenew: true,
+    },
+  });
 
   const counts = {
     employees: await prisma.employee.count(),

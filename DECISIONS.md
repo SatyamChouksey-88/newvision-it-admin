@@ -218,3 +218,23 @@ Every judgment call made while building NewVision, and why. Newest at the bottom
 
 - **Status rides along with the public reply.** Canned responses store optional `statusOnSend` (`waiting_on_employee` | `resolved`). The comment endpoint applies it only for staff public replies, not internal notes. Open tickets are allowed to jump to waiting/resolved so a first-reply macro does not get stuck.
 
+## UI polish (tickets / employees / search) — 2026-09-11
+
+- **Employees list:** employment status (`Active` / `Contract Active` / …) lives only in the Status column. The name cell keeps the person + `EMP-` code (plus onboard/offboard and contract-ending tags on the sub-line). Duplicate green Active next to the name was a visual bug, not two fields.
+- **Tickets toolbar:** CSV/PDF sit with Compact / Columns / Export CSV on the right of the DataGrid toolbar (one row, no wrap).
+- **Screenshot paste:** tickets accept Snipping Tool images via Ctrl+V on the attach zone or **Paste screenshot**, in addition to file upload.
+- **⌘K colour only:** header search and palette rows got a blue focus ring, left-border on the active row, and kbd chips. Search behaviour is unchanged.
+- **Muted text token:** `#64748B` on `#F4F8FC` card heads was 4.45:1 (just under WCAG AA). `COLOR_TEXT_MUTED` is `#475569`.
+- **Sign out** is `role="button"` (it is not inside a `menu`).
+
+## Prompt 23 v2 — Vendor & Procurement
+
+- **Parallel approval is the default** (matches the real To-list email). A matrix rule may set `sequential`; the requisition copies that routing. Required approvers are every active user with the matching role at that threshold — fine for NewVision’s five demo accounts.
+- **Material vs trivial edits:** vendor, category, procurement type, tax, total, or any line-item change resets the approval chain and increments `revision`. Title, business requirement, dates, locations, budget head, and make/model do not.
+- **Managers** see their team’s requisitions (owner is their report, or they are an approver) and can raise one. They do not see Vendors / POs / Contracts. IT Support is out of procurement.
+- **Bank-detail edits** on an already-active vendor go to `bankChangePending` rather than applying instantly. Highest fraud-risk field.
+- **3-way match tolerance is 2%** (`PROCUREMENT_MATCH_TOLERANCE_PCT`). Exception invoices need a note before payment can be approved.
+- **Handoff never deletes.** Amending/cancelling a PO or voiding a GRN flags `needsReconciliation` on auto-created assets/handoffs.
+- **Not built (logged in FUTURE_IDEAS.md):** e-sourcing, supplier portal, PunchOut, full CLM, multi-entity consolidation, OCR invoices, GL, payment execution.
+
+

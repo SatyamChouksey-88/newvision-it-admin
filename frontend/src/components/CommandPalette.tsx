@@ -36,7 +36,16 @@ const NAV_ITEMS: Omit<PaletteItem, 'section'>[] = [
   { key: 'nav-consumables', icon: <InboxOutlined />, label: 'Consumables', run: () => {} },
   { key: 'nav-requests', icon: <FormOutlined />, label: 'Requests', run: () => {} },
   { key: 'nav-maintenance', icon: <ToolOutlined />, label: 'Maintenance', run: () => {} },
-  { key: 'nav-tickets', icon: <CustomerServiceOutlined />, label: 'Support Tickets', run: () => {} },
+  {
+    key: 'nav-tickets',
+    icon: <CustomerServiceOutlined />,
+    label: 'Support Tickets',
+    run: () => {},
+  },
+  { key: 'nav-vendors', icon: <SearchOutlined />, label: 'Vendors', run: () => {} },
+  { key: 'nav-requisitions', icon: <FormOutlined />, label: 'Requisitions', run: () => {} },
+  { key: 'nav-orders', icon: <FormOutlined />, label: 'Purchase Orders', run: () => {} },
+  { key: 'nav-contracts', icon: <FormOutlined />, label: 'Contracts', run: () => {} },
   { key: 'nav-reports', icon: <DashboardOutlined />, label: 'Reports', run: () => {} },
   { key: 'nav-audit', icon: <SearchOutlined />, label: 'Audit Log', run: () => {} },
   { key: 'nav-settings', icon: <SettingOutlined />, label: 'Settings', run: () => {} },
@@ -52,6 +61,10 @@ const NAV_ROUTES: Record<string, string> = {
   'nav-requests': '/requests',
   'nav-maintenance': '/maintenance',
   'nav-tickets': '/tickets',
+  'nav-vendors': '/procurement/vendors',
+  'nav-requisitions': '/procurement/requisitions',
+  'nav-orders': '/procurement/orders',
+  'nav-contracts': '/procurement/contracts',
   'nav-reports': '/reports',
   'nav-audit': '/audit-logs',
   'nav-settings': '/settings',
@@ -59,10 +72,36 @@ const NAV_ROUTES: Record<string, string> = {
 };
 
 /** AntD preset Tag colors (`color="green"` etc.) fail WCAG AA contrast — explicit safe pairs instead. */
-const TAG_BLUE: React.CSSProperties = { color: '#1D4ED8', background: '#EFF6FF', borderColor: '#BFDBFE' };
-const TAG_GREEN: React.CSSProperties = { color: '#15803D', background: '#F0FDF4', borderColor: '#BBF7D0' };
-const TAG_PURPLE: React.CSSProperties = { color: '#6D28D9', background: '#F5F3FF', borderColor: '#DDD6FE' };
-const TAG_ORANGE: React.CSSProperties = { color: '#B45309', background: '#FFFBEB', borderColor: '#FDE68A' };
+const TAG_BLUE: React.CSSProperties = {
+  color: '#1D4ED8',
+  background: '#EFF6FF',
+  borderColor: '#BFDBFE',
+};
+const TAG_GREEN: React.CSSProperties = {
+  color: '#15803D',
+  background: '#F0FDF4',
+  borderColor: '#BBF7D0',
+};
+const TAG_PURPLE: React.CSSProperties = {
+  color: '#6D28D9',
+  background: '#F5F3FF',
+  borderColor: '#DDD6FE',
+};
+const TAG_TEAL: React.CSSProperties = {
+  color: '#0F766E',
+  background: '#F0FDFA',
+  borderColor: '#99F6E4',
+};
+const TAG_SLATE: React.CSSProperties = {
+  color: '#334155',
+  background: '#F8FAFC',
+  borderColor: '#CBD5E1',
+};
+const TAG_ORANGE: React.CSSProperties = {
+  color: '#C2410C',
+  background: '#FFF7ED',
+  borderColor: '#FED7AA',
+};
 
 interface Props {
   open: boolean;
@@ -180,7 +219,7 @@ export function CommandPalette({ open, onClose }: Props) {
         items.push({
           key: `acc-${acc.id}`,
           section: 'Accessories',
-          icon: <Tag>Accessory</Tag>,
+          icon: <Tag style={TAG_TEAL}>Accessory</Tag>,
           label: acc.name,
           run: () => go('/accessories'),
         });
@@ -189,7 +228,7 @@ export function CommandPalette({ open, onClose }: Props) {
         items.push({
           key: `con-${c.id}`,
           section: 'Consumables',
-          icon: <Tag>Consumable</Tag>,
+          icon: <Tag style={TAG_SLATE}>Consumable</Tag>,
           label: c.name,
           run: () => go('/consumables'),
         });
@@ -198,12 +237,39 @@ export function CommandPalette({ open, onClose }: Props) {
         items.push({
           key: `loc-${l.id}`,
           section: 'Locations',
-          icon: <Tag>Location</Tag>,
+          icon: <Tag style={TAG_BLUE}>Location</Tag>,
           label: `${l.name} (${l.code})`,
           run: () =>
             go(
               `/assets?filters[0][field]=locationId&filters[0][operator]=eq&filters[0][value]=${l.id}`,
             ),
+        });
+      }
+      for (const v of (data.vendors ?? []).slice(0, 4)) {
+        items.push({
+          key: `vendor-${v.id}`,
+          section: 'Vendors',
+          icon: <Tag style={TAG_TEAL}>Vendor</Tag>,
+          label: `${v.vendorCode} — ${v.legalName}`,
+          run: () => go(`/procurement/vendors/show/${v.id}`),
+        });
+      }
+      for (const r of (data.requisitions ?? []).slice(0, 4)) {
+        items.push({
+          key: `pr-${r.id}`,
+          section: 'Requisitions',
+          icon: <Tag style={TAG_PURPLE}>PR</Tag>,
+          label: `${r.requisitionNumber} — ${r.title}`,
+          run: () => go(`/procurement/requisitions/show/${r.id}`),
+        });
+      }
+      for (const p of (data.purchaseOrders ?? []).slice(0, 4)) {
+        items.push({
+          key: `po-${p.id}`,
+          section: 'Purchase orders',
+          icon: <Tag style={TAG_SLATE}>PO</Tag>,
+          label: `${p.poNumber}`,
+          run: () => go(`/procurement/orders/show/${p.id}`),
         });
       }
       setResults(items);
@@ -360,9 +426,15 @@ export function CommandPalette({ open, onClose }: Props) {
           gap: 14,
         }}
       >
-        <span>↑↓ navigate</span>
-        <span>↵ open</span>
-        <span>esc close</span>
+        <span className="nv-palette-footer-key">
+          <span className="nv-kbd">↑↓</span> navigate
+        </span>
+        <span className="nv-palette-footer-key">
+          <span className="nv-kbd">↵</span> open
+        </span>
+        <span className="nv-palette-footer-key">
+          <span className="nv-kbd">esc</span> close
+        </span>
       </div>
     </Modal>
   );

@@ -107,7 +107,7 @@ These came up in the original research document but were kept out because they b
 - Ticketing/ITSM platform, change & release management (a Spiceworks-style helpdesk plus one-mailbox email-in *was* added; full ITSM/multi-mailbox is still out)
 - IT governance, security/vulnerability/patch management modules
 - IAM/Joiner-Mover-Leaver automation, live AD/Entra sync
-- Vendor/contract management, procurement/purchase orders, IT financial management
+- E-sourcing, supplier portals, PunchOut, OCR invoices, GL, and payment execution (Prompt 23 tracks vendors/POs/GRNs/invoice status/contracts instead)
 - Business continuity/disaster recovery tracking
 - A general-purpose, configurable workflow/approval engine (a minimal single-step approval was built instead)
 - Live reconciliation engine (a manual-upload version was built instead)
@@ -133,6 +133,15 @@ If any of these become a real, demonstrated need later, they should be scoped as
 - Articles cover every major feature area with accurate “what is working today” copy (including known gaps) and screenshots from `frontend/public/docs/screenshots/`
 - New sections: Locations & Departments, Settings, Staff chat, Tips & Troubleshooting, employee History/offboarding, bulk asset actions
 - Help e2e + axe-core cover the new chrome (nav, ToC, search, every article route, skip-to-content)
+
+## 7g. What’s covered (Prompt 23 v2 — Vendor & Procurement)
+
+- Vendor lifecycle (draft → pending approval → active / suspended / blacklisted), bank-detail re-approval, scorecards
+- Requisition form matching the company template; parallel To/Cc approval with status icons; material edits reset the chain
+- PO conversion, amendments with history, cancel/short-close, GRN partials + void, 3-way match invoices
+- Contracts (warranty/AMC/SLA/license) with 90/60/30/7 renewal alerts and renew/clone
+- Procurement→asset handoff (serialized / accessory / consumable / license) with reconciliation flags if upstream changes
+- Sidebar **Procurement** area (Super Admin / IT Admin); Managers see team requisitions only
 
 ## 9. Remaining gaps (true leftovers, not silent undecided items)
 
