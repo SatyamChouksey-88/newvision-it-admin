@@ -290,7 +290,7 @@ export class DashboardController {
         id: t.id,
         label: t.asset.assetCode,
         detail: t.issue.slice(0, 80),
-        href: '/maintenance',
+        href: '/maintenance?filters[0][field]=staleDays&filters[0][operator]=eq&filters[0][value]=14',
       })),
       lowStock: lowStock.map((c) => ({
         type: 'low_stock' as const,

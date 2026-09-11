@@ -3,6 +3,7 @@ import { useTable } from '@refinedev/antd';
 import { useGetIdentity } from '@refinedev/core';
 import {
   App as AntdApp,
+  Alert,
   Button,
   Card,
   DatePicker,
@@ -61,6 +62,11 @@ export function MaintenancePage() {
   const qFilter = useMemo(() => {
     const f = filters.find((x) => 'field' in x && x.field === 'q');
     return f && 'value' in f ? String(f.value ?? '') : '';
+  }, [filters]);
+  const staleDaysFilter = useMemo(() => {
+    const f = filters.find((x) => 'field' in x && x.field === 'staleDays');
+    const v = f && 'value' in f ? Number(f.value) : 0;
+    return Number.isFinite(v) && v > 0 ? v : 0;
   }, [filters]);
 
   const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
@@ -182,6 +188,24 @@ export function MaintenancePage() {
         </Button>
       }
     >
+      {staleDaysFilter > 0 ? (
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message={`Showing open repairs reported ${staleDaysFilter}+ days ago.`}
+          action={
+            <Button
+              size="small"
+              onClick={() =>
+                setFilters([{ field: 'staleDays', operator: 'eq', value: undefined }], 'merge')
+              }
+            >
+              Clear
+            </Button>
+          }
+        />
+      ) : null}
       {canView ? (
         tableQuery.isLoading ? (
           <TableSkeleton columns={8} />

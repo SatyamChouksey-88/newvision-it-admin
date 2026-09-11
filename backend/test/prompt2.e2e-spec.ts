@@ -124,6 +124,17 @@ describe('Prompt 2 — requests, accessories & consumables (e2e)', () => {
     expect(attention.body.lowStock.length).toBeGreaterThanOrEqual(0);
   });
 
+  it('deep-links stale repairs to a filtered maintenance list', async () => {
+    const attention = await request(app.getHttpServer())
+      .get('/api/dashboard/attention')
+      .set(auth(adminToken))
+      .expect(200);
+    for (const row of attention.body.staleRepairs ?? []) {
+      expect(row.href).toContain('staleDays');
+      expect(row.href).toContain('14');
+    }
+  });
+
   it('exports scoped assets and refuses empty filter results', async () => {
     const res = await request(app.getHttpServer())
       .get('/api/export/assets?format=csv&status=disposed')

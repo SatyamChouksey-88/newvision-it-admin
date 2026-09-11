@@ -297,6 +297,7 @@ Definition of Done: UI matches approved mockup look-and-feel; no functional regr
 - [x] **#2 Ticket list columns** — Requester (`Name · EMP-code`), Assignee, and Age/SLA badge (same colours as the ticket header). SLA tags moved out of the Ticket column so the grid is scannable. Playwright asserts the three headers.
 - [x] **#3 Assign to me** — row action on the ticket list and a header button on ticket detail. Assigns the current IT Admin/IT Support user and moves `open`/unassigned tickets to `in_progress`. Employees get 403. Verified in tickets e2e for both staff roles.
 - [x] **#4 Warranty split** — `/dashboard/warranty-expiring` defaults to upcoming only (`bucket=expiring`, 30 days); `bucket=expired` is the lapsed list. Assets Warranty chip: 14/30/90 days vs Already expired. Dashboard attention has an **Expiring (14d)** deep-link. Warranty report is upcoming dates only.
+- [x] **#5 Stale-repair attention link** — Needs attention now opens `/maintenance` with `staleDays=14` (open repairs reported 14+ days ago), not the unfiltered queue.
 
 ## Known issues
 

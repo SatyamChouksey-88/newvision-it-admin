@@ -268,7 +268,7 @@ Both lists use the same Excel-grade grid as Assets.
 - **IT Support / IT Admin / Super Admin** run the queue: Start Repair, Mark Repaired (enter actual cost), Reassign, Cancel.
 - Vendor name, estimated cost, expected completion, and actual cost are optional fields on the ticket.
 - Starting repair sets the **asset** to \`under_repair\` in the same transaction. Reassignment returns it to \`assigned\` (if an employee remains) or \`available\`.
-- The dashboard **Needs attention** card for stale repairs currently opens the unfiltered Maintenance list. Filter the list yourself to \`under_repair\` until the deep-link ships.
+- The dashboard **Needs attention** card for stale repairs opens Maintenance pre-filtered to tickets reported 14+ days ago (\`staleDays=14\`).
 
 > [!NOTE]
 > Maintenance and Support Tickets are not linked yet. If the same incident exists in both places, keep the ticket numbers in a note on each record.`

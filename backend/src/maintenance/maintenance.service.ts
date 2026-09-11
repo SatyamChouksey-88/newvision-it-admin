@@ -30,6 +30,7 @@ const maintenanceInclude = {
 export interface MaintenanceListQuery extends ListQuery {
   status?: string;
   assetId?: string;
+  staleDays?: string;
 }
 
 @Injectable()
@@ -52,9 +53,19 @@ export class MaintenanceService {
       'expectedCompletionDate',
       'completedAt',
     ]);
+    const staleDays = query.staleDays ? Number(query.staleDays) : 0;
+    const staleBefore = staleDays > 0 ? new Date(Date.now() - staleDays * 86_400_000) : null;
     const where: Prisma.AssetMaintenanceWhereInput = {
       ...(query.status ? { status: query.status as MaintenanceStatus } : {}),
       ...(query.assetId ? { assetId: Number(query.assetId) } : {}),
+      ...(staleBefore
+        ? {
+            status: query.status
+              ? (query.status as MaintenanceStatus)
+              : { in: ['reported', 'under_repair'] },
+            reportedAt: { lte: staleBefore },
+          }
+        : {}),
       ...(query.q
         ? {
             OR: [
