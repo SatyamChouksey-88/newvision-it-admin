@@ -1451,40 +1451,80 @@ a:hover {
   border: 1px solid #d5dee8;
 }
 
-/* Discoverable table scrollbars — the previous thin grey bar vanished on white. */
+/* Discoverable table scrollbars — only under the rows, never on the thead. */
 .nv-grid .ant-table-cell-fix-right,
 .nv-grid .ant-table-cell-fix-right-first {
   background: #fff !important;
   box-shadow: -8px 0 12px -8px rgba(15, 23, 42, 0.18);
 }
 
-.nv-grid .ant-table-header {
+.nv-grid .ant-table-header,
+.nv-grid .ant-table-sticky-holder {
   overflow: hidden !important;
+  overflow-x: hidden !important;
+  scrollbar-width: none !important;
 }
 
-.nv-grid .ant-table-content,
-.nv-grid .ant-table-body {
+.nv-grid .ant-table-header::-webkit-scrollbar,
+.nv-grid .ant-table-sticky-holder::-webkit-scrollbar {
+  display: none !important;
+  height: 0 !important;
+  width: 0 !important;
+}
+
+.nv-grid .ant-table-body,
+.nv-grid .ant-table-content {
   overflow-x: auto !important;
-  scrollbar-width: auto;
+  scrollbar-width: thin;
   scrollbar-color: #64748b #e2e8f0;
+}
+
+.nv-grid .ant-table-container:has(> .ant-table-header) {
+  overflow: hidden !important;
 }
 
 .nv-grid .ant-table-content::-webkit-scrollbar,
 .nv-grid .ant-table-body::-webkit-scrollbar {
-  height: 14px;
-  width: 14px;
+  height: 10px;
+  width: 10px;
 }
 
 .nv-grid .ant-table-content::-webkit-scrollbar-thumb,
 .nv-grid .ant-table-body::-webkit-scrollbar-thumb {
   background: #64748b;
   border-radius: 8px;
-  border: 3px solid #e2e8f0;
+  border: 2px solid #e2e8f0;
 }
 
 .nv-grid .ant-table-content::-webkit-scrollbar-track,
 .nv-grid .ant-table-body::-webkit-scrollbar-track {
   background: #e2e8f0;
+}
+
+.nv-grid .ant-table table {
+  table-layout: fixed !important;
+}
+
+.nv-grid:not(.nv-grid--wrap) .ant-table-cell {
+  overflow: hidden;
+}
+
+.nv-grid:not(.nv-grid--wrap) .nv-cell-ellipsis,
+.nv-grid:not(.nv-grid--wrap) .nv-cell-ellipsis a,
+.nv-grid:not(.nv-grid--wrap) .nv-cell-ellipsis .nv-cell-line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.nv-filter-row {
+  scrollbar-width: none;
+}
+
+.nv-filter-row::-webkit-scrollbar {
+  display: none;
+  height: 0;
 }
 
 .nv-chat-layout {

@@ -35,7 +35,7 @@ export function AssetStatusSelect({
       size="small"
       value={value}
       aria-label="Change asset status"
-      style={{ minWidth: 160 }}
+      style={{ minWidth: 0, width: '100%', maxWidth: '100%' }}
       onClick={(e) => e.stopPropagation()}
       onChange={(next) => {
         if (next !== value) onChange(next);

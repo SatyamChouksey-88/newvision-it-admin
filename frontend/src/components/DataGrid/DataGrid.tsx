@@ -247,7 +247,8 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
     return orderedVisibleCols.map((col, idx) => {
       const key = colKey(col);
       const width = widths[key] ?? col.defaultWidth ?? col.width ?? 140;
-      const { ellipsis: _ellipsis, render, ...rest } = col;
+      const { ellipsis, render, ...rest } = col;
+      const truncate = ellipsis !== false && !wrapText;
       // Server-side grids must not double-filter the page client-side; the parent sends the
       // filter to the API through `onChange`.
       const onFilter = serverSide ? undefined : col.onFilter;
@@ -263,6 +264,7 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
           // antd `render` may return a RenderedCell ({ children, props }) for row/col spans; leave those alone.
           if (isRenderedCell(content)) return content as React.ReactNode;
           const node = content as React.ReactNode;
+          if (!truncate) return node;
           const text = cellText(col, record) || (typeof node === 'string' ? node : '');
           return (
             <OverflowCell text={text} wrap={wrapText}>

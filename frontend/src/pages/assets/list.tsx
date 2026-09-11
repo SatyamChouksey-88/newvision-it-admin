@@ -1,6 +1,7 @@
 import {
   DownloadOutlined,
   PlusOutlined,
+  StopOutlined,
   SwapOutlined,
   UploadOutlined,
   UserAddOutlined,
@@ -545,7 +546,7 @@ export function AssetList() {
           onChange={tableProps.onChange}
           onExport={exportCsv}
           exportFilename="assets_export.csv"
-          scroll={{ x: 1600 }}
+          scroll={{ x: 1100 }}
           quickFilter={false}
           rowSelection={
             canManage
@@ -592,8 +593,10 @@ export function AssetList() {
               title: 'Asset',
               dataIndex: 'assetCode',
               sorter: true,
+              defaultWidth: 176,
+              ellipsis: true,
               render: (_, r) => (
-                <Space size={4}>
+                <Space size={4} style={{ maxWidth: '100%' }}>
                   <PrimaryWithSub
                     primary={r.assetCode}
                     sub={`${r.brand ?? ''} ${r.model ?? ''}`.trim() || r.serialNumber}
@@ -605,18 +608,22 @@ export function AssetList() {
             {
               title: 'Category',
               dataIndex: ['category', 'name'],
+              defaultWidth: 108,
+              ellipsis: true,
               render: (_, r) => r.category?.name ?? '—',
             },
             {
               title: 'Location',
               dataIndex: ['location', 'code'],
+              defaultWidth: 80,
+              ellipsis: true,
               render: (_, r) => r.location?.code ?? '—',
             },
             {
               title: 'Status',
               dataIndex: 'status',
               sorter: true,
-              defaultWidth: 180,
+              defaultWidth: 156,
               render: (_, r) =>
                 canManage ? (
                   <AssetStatusSelect
@@ -631,6 +638,8 @@ export function AssetList() {
             {
               title: 'Assigned To',
               gridKey: 'assignedTo',
+              defaultWidth: 156,
+              ellipsis: true,
               render: (_, r) =>
                 r.assignedEmployee ? (
                   <Link
@@ -651,6 +660,8 @@ export function AssetList() {
               title: 'Warranty',
               dataIndex: 'warrantyEnd',
               sorter: true,
+              defaultWidth: 128,
+              ellipsis: true,
               render: (_, r) => <WarrantyDays warrantyEnd={r.warrantyEnd} />,
             },
             {
@@ -658,6 +669,8 @@ export function AssetList() {
               dataIndex: 'purchaseCost',
               align: 'right',
               sorter: true,
+              defaultWidth: 92,
+              ellipsis: true,
               render: (v) => <span style={tabularNums}>{formatCurrency(v)}</span>,
             },
             {
@@ -683,33 +696,38 @@ export function AssetList() {
               ? [
                   {
                     title: 'Actions',
-                    width: 190,
+                    gridKey: 'actions',
+                    width: 118,
+                    defaultWidth: 118,
+                    ellipsis: false,
+                    exportable: false,
                     render: (_: unknown, r: Asset) => (
-                      <Space size={4} onClick={(e) => e.stopPropagation()} role="presentation">
+                      <Space size={4} wrap={false} onClick={(e) => e.stopPropagation()} role="presentation">
                         <Button
                           size="small"
                           icon={<UserAddOutlined />}
+                          aria-label="Assign"
+                          title="Assign"
                           disabled={!['available', 'pending_assignment'].includes(r.status)}
                           onClick={() => setAssignTarget(r)}
-                        >
-                          Assign
-                        </Button>
+                        />
                         <Button
                           size="small"
                           icon={<SwapOutlined />}
+                          aria-label="Transfer"
+                          title="Transfer"
                           disabled={r.status !== 'assigned'}
                           onClick={() => setTransferTarget(r)}
-                        >
-                          Transfer
-                        </Button>
+                        />
                         <Button
                           size="small"
                           danger
+                          icon={<StopOutlined />}
+                          aria-label="Retire"
+                          title="Retire"
                           disabled={['retired', 'disposed'].includes(r.status)}
                           onClick={() => setRetireTarget(r)}
-                        >
-                          Retire
-                        </Button>
+                        />
                       </Space>
                     ),
                   },

@@ -5,9 +5,15 @@ import { warrantyDaysLabel } from '../utils/format';
 /** Primary label with a secondary identifier as muted subtext beneath (no extra column). */
 export function PrimaryWithSub({ primary, sub }: { primary: ReactNode; sub?: ReactNode }) {
   return (
-    <div style={{ lineHeight: 1.25 }}>
-      <div style={{ fontWeight: 500 }}>{primary}</div>
-      {sub ? <div style={mutedSubtext}>{sub}</div> : null}
+    <div style={{ lineHeight: 1.25, minWidth: 0, maxWidth: '100%' }}>
+      <div className="nv-cell-line" style={{ fontWeight: 500 }}>
+        {primary}
+      </div>
+      {sub ? (
+        <div className="nv-cell-line" style={mutedSubtext}>
+          {sub}
+        </div>
+      ) : null}
     </div>
   );
 }
