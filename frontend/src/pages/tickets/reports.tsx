@@ -1,6 +1,6 @@
 import { DownloadOutlined } from '@ant-design/icons';
-import { Button, Card, Col, Row, Skeleton, Space, Table, Typography } from 'antd';
 import { Pie } from '@ant-design/plots';
+import { Button, Card, Col, Row, Skeleton, Space, Table, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { CHART_PALETTE } from '../../chartColors';
 import { EmptyState } from '../../components/EmptyState';
@@ -22,15 +22,15 @@ function Donut({ data, name }: { data: { label: string; count: number }[]; name:
   if (rows.length === 0) return <Typography.Text type="secondary">No data</Typography.Text>;
   return (
     <div role="img" aria-label={name}>
-    <Pie
-      data={rows}
-      angleField="count"
-      colorField="label"
-      innerRadius={0.62}
-      height={220}
-      legend={{ position: 'bottom' }}
-      scale={{ color: { range: [...CHART_PALETTE] } }}
-    />
+      <Pie
+        data={rows}
+        angleField="count"
+        colorField="label"
+        innerRadius={0.62}
+        height={220}
+        legend={{ position: 'bottom' }}
+        scale={{ color: { range: [...CHART_PALETTE] } }}
+      />
     </div>
   );
 }
@@ -81,76 +81,85 @@ export function TicketReports() {
           <Skeleton active paragraph={{ rows: 8 }} />
         </Card>
       ) : (
-      <>
-      <Row gutter={[16, 16]}>
-        <Col xs={24} md={8}>
-          <Card size="small" title="Avg. resolution (hours)">
-            <Typography.Title level={3}>{data?.avgResolutionHours ?? '—'}</Typography.Title>
-          </Card>
-        </Col>
-        <Col xs={24} md={8}>
-          <Card size="small" title="Overdue open">
-            <Typography.Title level={3}>{data?.overdueOpen ?? '—'}</Typography.Title>
-          </Card>
-        </Col>
-        <Col xs={24} md={8}>
-          <Card size="small" title="Avg. satisfaction">
-            <Typography.Title level={3}>{data?.avgSatisfaction ?? '—'}</Typography.Title>
-          </Card>
-        </Col>
-      </Row>
-      <Row gutter={[16, 16]}>
-        <Col xs={24} md={8}>
-          <Card size="small" title="By status">
-            <Donut
-              name="By status"
-              data={Object.entries(data?.byStatus ?? {}).map(([label, count]) => ({ label, count }))}
+        <>
+          <Row gutter={[16, 16]}>
+            <Col xs={24} md={8}>
+              <Card size="small" title="Avg. resolution (hours)">
+                <Typography.Title level={3}>{data?.avgResolutionHours ?? '—'}</Typography.Title>
+              </Card>
+            </Col>
+            <Col xs={24} md={8}>
+              <Card size="small" title="Overdue open">
+                <Typography.Title level={3}>{data?.overdueOpen ?? '—'}</Typography.Title>
+              </Card>
+            </Col>
+            <Col xs={24} md={8}>
+              <Card size="small" title="Avg. satisfaction">
+                <Typography.Title level={3}>{data?.avgSatisfaction ?? '—'}</Typography.Title>
+              </Card>
+            </Col>
+          </Row>
+          <Row gutter={[16, 16]}>
+            <Col xs={24} md={8}>
+              <Card size="small" title="By status">
+                <Donut
+                  name="By status"
+                  data={Object.entries(data?.byStatus ?? {}).map(([label, count]) => ({
+                    label,
+                    count,
+                  }))}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} md={8}>
+              <Card size="small" title="By category">
+                <Donut
+                  name="By category"
+                  data={(data?.byCategory ?? []).map((r) => ({
+                    label: r.category,
+                    count: r.count,
+                  }))}
+                />
+              </Card>
+            </Col>
+            <Col xs={24} md={8}>
+              <Card size="small" title="By priority">
+                <Donut
+                  name="By priority"
+                  data={Object.entries(data?.byPriority ?? {}).map(([label, count]) => ({
+                    label,
+                    count,
+                  }))}
+                />
+              </Card>
+            </Col>
+          </Row>
+          <Card size="small" title="Closed per staff member">
+            <Table
+              rowKey="name"
+              pagination={false}
+              size="small"
+              dataSource={data?.closedPerStaff ?? []}
+              columns={[
+                { title: 'Staff', dataIndex: 'name' },
+                { title: 'Closed', dataIndex: 'closed' },
+                { title: 'Avg. rating', dataIndex: 'avgRating', render: (v) => v ?? '—' },
+              ]}
             />
           </Card>
-        </Col>
-        <Col xs={24} md={8}>
-          <Card size="small" title="By category">
-            <Donut
-              name="By category"
-              data={(data?.byCategory ?? []).map((r) => ({ label: r.category, count: r.count }))}
+          <Card size="small" title="Rating distribution">
+            <Table
+              rowKey="rating"
+              pagination={false}
+              size="small"
+              dataSource={data?.ratingDistribution ?? []}
+              columns={[
+                { title: 'Rating', dataIndex: 'rating' },
+                { title: 'Count', dataIndex: 'count' },
+              ]}
             />
           </Card>
-        </Col>
-        <Col xs={24} md={8}>
-          <Card size="small" title="By priority">
-            <Donut
-              name="By priority"
-              data={Object.entries(data?.byPriority ?? {}).map(([label, count]) => ({ label, count }))}
-            />
-          </Card>
-        </Col>
-      </Row>
-      <Card size="small" title="Closed per staff member">
-        <Table
-          rowKey="name"
-          pagination={false}
-          size="small"
-          dataSource={data?.closedPerStaff ?? []}
-          columns={[
-            { title: 'Staff', dataIndex: 'name' },
-            { title: 'Closed', dataIndex: 'closed' },
-            { title: 'Avg. rating', dataIndex: 'avgRating', render: (v) => v ?? '—' },
-          ]}
-        />
-      </Card>
-      <Card size="small" title="Rating distribution">
-        <Table
-          rowKey="rating"
-          pagination={false}
-          size="small"
-          dataSource={data?.ratingDistribution ?? []}
-          columns={[
-            { title: 'Rating', dataIndex: 'rating' },
-            { title: 'Count', dataIndex: 'count' },
-          ]}
-        />
-      </Card>
-      </>
+        </>
       )}
     </Space>
   );

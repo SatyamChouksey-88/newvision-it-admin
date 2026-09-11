@@ -2,9 +2,9 @@ import { BookOutlined, SearchOutlined } from '@ant-design/icons';
 import { Button, Layout, Space } from 'antd';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
+import { COLOR_BORDER, FONT_MONO } from '../theme';
 import { CommandPalette } from './CommandPalette';
 import { HistoryNav } from './HistoryNav';
-import { COLOR_BORDER, COLOR_TEXT_MUTED, FONT_MONO } from '../theme';
 import { NotificationBell } from './NotificationBell';
 import { StaffChatLauncher } from './StaffChat';
 
@@ -44,7 +44,8 @@ export function Header() {
       }
       if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
         const tag = (e.target as HTMLElement)?.tagName;
-        if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable)
+          return;
         e.preventDefault();
         navigate('/help');
       }
@@ -86,21 +87,6 @@ export function Header() {
         onClick={() => setPaletteOpen(true)}
         title="Search or jump (⌘K / Ctrl+K)"
         aria-label="Open command palette (search or jump to a screen)"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          width: 260,
-          maxWidth: '32vw',
-          height: 30,
-          padding: '0 10px',
-          background: '#f3f7fb',
-          border: `1px solid #c9d3df`,
-          borderRadius: 6,
-          color: COLOR_TEXT_MUTED,
-          fontSize: 13,
-          cursor: 'pointer',
-        }}
       >
         <SearchOutlined />
         <span style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis' }}>

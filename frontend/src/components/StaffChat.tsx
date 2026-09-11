@@ -1,8 +1,8 @@
 import { CommentOutlined, SendOutlined } from '@ant-design/icons';
+import { useGetIdentity } from '@refinedev/core';
 import { Avatar, Badge, Button, Drawer, Input, List, Space, Typography } from 'antd';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
-import { useGetIdentity } from '@refinedev/core';
 import type { Identity } from '../providers/authProvider';
 import { httpClient } from '../providers/axios';
 
@@ -50,7 +50,7 @@ export function StaffChatLauncher() {
       <Badge count={unread} size="small">
         <Button
           size="small"
-          icon={<CommentOutlined />}
+          icon={<CommentOutlined aria-hidden />}
           aria-label="IT staff chat"
           title="IT staff chat"
           onClick={() => setOpen(true)}
@@ -125,7 +125,9 @@ function StaffChatDrawer({
 
   const send = async () => {
     if (!active || !draft.trim()) return;
-    const { data } = await httpClient.post(`/chat/channels/${active}/messages`, { body: draft.trim() });
+    const { data } = await httpClient.post(`/chat/channels/${active}/messages`, {
+      body: draft.trim(),
+    });
     setMessages((prev) => [...prev, data]);
     lastId.current = data.id;
     setDraft('');
@@ -207,7 +209,12 @@ function StaffChatDrawer({
               }
             }}
           />
-          <Button type="primary" icon={<SendOutlined />} onClick={() => void send()} style={{ marginTop: 8 }}>
+          <Button
+            type="primary"
+            icon={<SendOutlined />}
+            onClick={() => void send()}
+            style={{ marginTop: 8 }}
+          >
             Send
           </Button>
         </section>

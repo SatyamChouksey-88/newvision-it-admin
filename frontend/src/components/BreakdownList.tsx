@@ -220,11 +220,7 @@ export function LocationBreakdownTable({
             return <span className="nv-breakdown-zero">—</span>;
           }
           const href = row.statusHref?.(status);
-          const value = (
-            <span className="nv-breakdown-num" style={{ color }}>
-              {count.toLocaleString()}
-            </span>
-          );
+          const value = <span className="nv-breakdown-num">{count.toLocaleString()}</span>;
           return href ? (
             <Link to={href} className="nv-breakdown-link">
               {value}

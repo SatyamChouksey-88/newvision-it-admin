@@ -2,7 +2,7 @@ import { DownloadOutlined, PlusOutlined } from '@ant-design/icons';
 import { useTable } from '@refinedev/antd';
 import { useGetIdentity } from '@refinedev/core';
 import { Button, Card, Form, Input, Modal, Select, Space, Tag, Typography } from 'antd';
-import { useEffect, useMemo, useState, type MouseEvent } from 'react';
+import { type MouseEvent, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { CopyButton } from '../../components/CopyButton';
 import { CopyEmailButton } from '../../components/CopyEmailButton';
@@ -11,9 +11,13 @@ import { EmptyState } from '../../components/EmptyState';
 import { StatusLegend } from '../../components/StatusLegend';
 import { TablePagination } from '../../components/TablePagination';
 import { TableSkeleton } from '../../components/TableSkeleton';
-import { TicketPriorityTag, TicketStatusTag, TICKET_STATUS_OPTIONS } from '../../components/TicketStatusTag';
-import { useRefinePagination } from '../../hooks/useRefinePagination';
+import {
+  TICKET_STATUS_OPTIONS,
+  TicketPriorityTag,
+  TicketStatusTag,
+} from '../../components/TicketStatusTag';
 import { useToast } from '../../components/Toast';
+import { useRefinePagination } from '../../hooks/useRefinePagination';
 import type { Identity } from '../../providers/authProvider';
 import { apiErrorMessage, httpClient } from '../../providers/axios';
 import type { SavedView, SupportTicket } from '../../types';
@@ -21,7 +25,9 @@ import { formatDate } from '../../utils/format';
 
 const STAFF = ['SUPER_ADMIN', 'IT_ADMIN', 'IT_SUPPORT'];
 
-function requesterLabel(emp?: { firstName?: string; lastName?: string; employeeCode?: string } | null) {
+function requesterLabel(
+  emp?: { firstName?: string; lastName?: string; employeeCode?: string } | null,
+) {
   if (!emp) return '—';
   const name = `${emp.firstName ?? ''} ${emp.lastName ?? ''}`.trim() || '—';
   return emp.employeeCode ? `${name} · ${emp.employeeCode}` : name;
@@ -47,7 +53,11 @@ function ageLabel(iso?: string) {
 function SlaTag({ ticket }: { ticket: SupportTicket }) {
   if (ticket.slaLabel) {
     return (
-      <Tag color={ticket.slaState === 'overdue' ? 'red' : ticket.slaState === 'soon' ? 'gold' : undefined}>
+      <Tag
+        color={
+          ticket.slaState === 'overdue' ? 'red' : ticket.slaState === 'soon' ? 'gold' : undefined
+        }
+      >
         {ticket.slaLabel}
       </Tag>
     );
@@ -92,7 +102,8 @@ export function TicketList() {
   const activeFilters = useMemo(() => {
     const out: Record<string, unknown> = {};
     for (const f of filters ?? []) {
-      if ('field' in f && f.value !== undefined && f.value !== null && f.value !== '') out[f.field] = f.value;
+      if ('field' in f && f.value !== undefined && f.value !== null && f.value !== '')
+        out[f.field] = f.value;
     }
     return out;
   }, [filters]);
@@ -124,15 +135,21 @@ export function TicketList() {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: refresh counts when the table query updates
   useEffect(() => {
-    httpClient.get('/support-tickets/counts').then(({ data }) => {
-      setCounts(data.byStatus ?? {});
-    }).catch(() => undefined);
+    httpClient
+      .get('/support-tickets/counts')
+      .then(({ data }) => {
+        setCounts(data.byStatus ?? {});
+      })
+      .catch(() => undefined);
     httpClient
       .get('/saved-views', { params: { resource: 'support-tickets', _start: 0, _end: 50 } })
       .then(({ data }) => setViews(data.data ?? []))
       .catch(() => undefined);
     if (isStaff) {
-      httpClient.get('/support-tickets/staff').then(({ data }) => setStaff(Array.isArray(data) ? data : [])).catch(() => undefined);
+      httpClient
+        .get('/support-tickets/staff')
+        .then(({ data }) => setStaff(Array.isArray(data) ? data : []))
+        .catch(() => undefined);
     }
   }, [isStaff, tableQuery.dataUpdatedAt]);
 
@@ -172,7 +189,12 @@ export function TicketList() {
       }
       extra={
         <Space>
-          <Button icon={<PlusOutlined />} type="primary" onClick={() => navigate('/tickets/create')} data-testid="raise-ticket">
+          <Button
+            icon={<PlusOutlined />}
+            type="primary"
+            onClick={() => navigate('/tickets/create')}
+            data-testid="raise-ticket"
+          >
             Raise a ticket
           </Button>
         </Space>
@@ -204,7 +226,9 @@ export function TicketList() {
               size="small"
               type={String(activeFilters.view ?? '') === v.key ? 'primary' : 'default'}
               data-testid={`quick-view-${v.key || 'all'}`}
-              onClick={() => applyFilterState({ ...activeFilters, view: v.key || undefined, status: undefined })}
+              onClick={() =>
+                applyFilterState({ ...activeFilters, view: v.key || undefined, status: undefined })
+              }
             >
               {v.label}
             </Button>
@@ -219,19 +243,24 @@ export function TicketList() {
           </Button>
         </div>
       ) : null}
-      <Input.Search
-        allowClear
-        placeholder="Search subject, description, comments…"
-        aria-label="Search tickets"
-        defaultValue={String(activeFilters.q ?? '')}
-        onSearch={(q) => applyFilterState({ ...activeFilters, q: q || undefined })}
-        style={{ maxWidth: 360, marginBottom: 12 }}
-      />
+      <div className="nv-list-search-row">
+        <Input.Search
+          allowClear
+          placeholder="Search subject, description, comments…"
+          aria-label="Search tickets"
+          defaultValue={String(activeFilters.q ?? '')}
+          onSearch={(q) => applyFilterState({ ...activeFilters, q: q || undefined })}
+        />
+      </div>
       <StatusLegend kind="ticket" />
       {tableQuery.isLoading ? (
         <TableSkeleton columns={6} />
       ) : tableQuery.isError ? (
-        <EmptyState description="Could not load tickets." actionLabel="Retry" onAction={() => void tableQuery.refetch()} />
+        <EmptyState
+          description="Could not load tickets."
+          actionLabel="Retry"
+          onAction={() => void tableQuery.refetch()}
+        />
       ) : rows.length === 0 ? (
         <EmptyState
           description={
@@ -276,11 +305,19 @@ export function TicketList() {
             }
             toolbarExtra={
               isStaff ? (
-                <Space>
-                  <Button size="small" icon={<DownloadOutlined />} onClick={() => void exportFile('csv')}>
+                <Space size={8} wrap={false} align="center">
+                  <Button
+                    size="small"
+                    icon={<DownloadOutlined />}
+                    onClick={() => void exportFile('csv')}
+                  >
                     CSV
                   </Button>
-                  <Button size="small" icon={<DownloadOutlined />} onClick={() => void exportFile('pdf')}>
+                  <Button
+                    size="small"
+                    icon={<DownloadOutlined />}
+                    onClick={() => void exportFile('pdf')}
+                  >
                     PDF
                   </Button>
                 </Space>
@@ -327,7 +364,10 @@ export function TicketList() {
                     <SlaTag ticket={r} />
                   </Space>
                 ),
-                getExportValue: (r) => [ageLabel(r.createdAt), r.slaLabel ?? (r.overdue ? 'Overdue' : '')].filter(Boolean).join(' '),
+                getExportValue: (r) =>
+                  [ageLabel(r.createdAt), r.slaLabel ?? (r.overdue ? 'Overdue' : '')]
+                    .filter(Boolean)
+                    .join(' '),
               },
               {
                 title: 'Status',
@@ -364,10 +404,7 @@ export function TicketList() {
                       exportable: false as const,
                       render: (_: unknown, r: SupportTicket) =>
                         r.assignedToId === identity?.id ? null : (
-                          <Button
-                            size="small"
-                            onClick={(e) => void assignToMe(r.id, e)}
-                          >
+                          <Button size="small" onClick={(e) => void assignToMe(r.id, e)}>
                             Assign to me
                           </Button>
                         ),
@@ -379,7 +416,12 @@ export function TicketList() {
           <TablePagination total={total} page={page} pageSize={pageSize} onChange={onPageChange} />
         </>
       )}
-      <Modal title="Save current view" open={saveOpen} onCancel={() => setSaveOpen(false)} footer={null}>
+      <Modal
+        title="Save current view"
+        open={saveOpen}
+        onCancel={() => setSaveOpen(false)}
+        footer={null}
+      >
         <Form onFinish={(v) => void saveView(v.name)}>
           <Form.Item name="name" rules={[{ required: true }]}>
             <Input placeholder="View name" />
@@ -396,7 +438,10 @@ export function TicketList() {
         onOk={async () => {
           const v = await assignForm.validateFields();
           try {
-            await httpClient.post('/support-tickets/bulk-assign', { ids: selectedIds, userId: v.userId });
+            await httpClient.post('/support-tickets/bulk-assign', {
+              ids: selectedIds,
+              userId: v.userId,
+            });
             setBulkAssignOpen(false);
             setSelectedIds([]);
             tableQuery.refetch();
@@ -417,7 +462,10 @@ export function TicketList() {
         onCancel={() => setBulkCloseOpen(false)}
         onOk={async () => {
           const v = await closeForm.validateFields();
-          await httpClient.post('/support-tickets/bulk-close', { ids: selectedIds, comment: v.comment });
+          await httpClient.post('/support-tickets/bulk-close', {
+            ids: selectedIds,
+            comment: v.comment,
+          });
           setBulkCloseOpen(false);
           setSelectedIds([]);
           tableQuery.refetch();

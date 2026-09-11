@@ -11,8 +11,8 @@ export const COLOR_BORDER_SECONDARY = '#E2E8F0';
 
 export const COLOR_TEXT_PRIMARY = '#1F1F1F';
 export const COLOR_TEXT_SECONDARY = '#595959';
-export const COLOR_TEXT_MUTED = '#64748B';
-export const COLOR_TEXT_PLACEHOLDER = '#64748B';
+export const COLOR_TEXT_MUTED = '#475569';
+export const COLOR_TEXT_PLACEHOLDER = '#475569';
 export const COLOR_TEXT_DISABLED = '#CBD5E1';
 
 /** Buttons/KPI use #1677FF; links use #0958D9 so body text stays WCAG AA. */
@@ -55,8 +55,7 @@ export const newVisionTheme: ThemeConfig = {
     fontSize: 13,
     fontSizeSM: 12,
     fontSizeLG: 16,
-    fontFamily:
-      "'Inter', Helvetica, Arial, sans-serif",
+    fontFamily: "'Inter', Helvetica, Arial, sans-serif",
     fontFamilyCode: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
     colorText: COLOR_TEXT_PRIMARY,
     colorTextSecondary: COLOR_TEXT_SECONDARY,

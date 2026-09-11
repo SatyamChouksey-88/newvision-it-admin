@@ -60,16 +60,17 @@ test.describe('Support tickets', () => {
     await page.goto(ticketUrl);
     await expect(page.getByTestId('ticket-number')).toBeVisible();
     await expect(page.getByRole('combobox', { name: 'Assignee' })).toBeVisible();
-    await page.getByLabel('Comment').fill('We are looking into the search index.');
+    await page.getByRole('textbox', { name: 'Comment' }).fill('We are looking into the search index.');
     await page.getByRole('button', { name: 'Send' }).click();
     await expect(page.getByTestId('public-comment').first()).toBeVisible({ timeout: 10_000 });
-    await page.getByLabel('Comment').fill('Internal: rebuild the index tonight.');
+    await page.getByRole('textbox', { name: 'Comment' }).fill('Internal: rebuild the index tonight.');
     await page.getByRole('checkbox', { name: /Internal note/ }).check();
     await page.getByRole('button', { name: 'Send' }).click();
     await expect(page.getByTestId('internal-note').first()).toBeVisible({ timeout: 10_000 });
     await page.getByLabel('Minutes spent').fill('15');
     await page.getByRole('button', { name: 'Log time' }).click();
     await expect(page.getByText(/15 min —/)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: 'Paste screenshot' })).toBeVisible();
     await expect(page.getByText('No watchers yet.')).toBeVisible();
 
     await page.goto('/tickets');

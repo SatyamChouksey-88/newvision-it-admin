@@ -5,6 +5,7 @@ import { Alert, Button, Card, Input, Space, Tag, Typography } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { PrimaryWithSub } from '../../components/Cells';
+import { ChipSelect } from '../../components/ChipSelect';
 import { CopyButton } from '../../components/CopyButton';
 import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid';
 import { EmptyState } from '../../components/EmptyState';
@@ -16,8 +17,7 @@ import { useSetupStatus } from '../../hooks/useSetupStatus';
 import type { Identity } from '../../providers/authProvider';
 import { httpClient } from '../../providers/axios';
 import type { Department, Employee, Location } from '../../types';
-import { ChipSelect } from '../../components/ChipSelect';
-import { employmentStatus, contractDaysLeft } from '../../utils/employmentStatus';
+import { contractDaysLeft, employmentStatus } from '../../utils/employmentStatus';
 import { formatDate } from '../../utils/format';
 import { CreateEmployeeModal } from './CreateEmployeeModal';
 
@@ -151,10 +151,7 @@ export function EmployeeList() {
           value={statusValue}
           options={STATUS_OPTIONS}
           onChange={(v) =>
-            setFilter(
-              'isActive',
-              v === 'active' ? 'true' : v === 'inactive' ? 'false' : undefined,
-            )
+            setFilter('isActive', v === 'active' ? 'true' : v === 'inactive' ? 'false' : undefined)
           }
         />
         <ChipSelect
@@ -300,34 +297,34 @@ export function EmployeeList() {
                 title: 'Employee',
                 gridKey: 'employee',
                 dataIndex: 'lastName',
-                defaultWidth: 220,
+                defaultWidth: 280,
                 sorter: true,
                 render: (_, r) => (
-                  <Space size={4}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, minWidth: 0 }}>
                     <PrimaryWithSub
-                      primary={
-                        <Space size={4}>
-                          {`${r.firstName} ${r.lastName}`}
-                          <Tag color={employmentStatus(r).color}>{employmentStatus(r).label}</Tag>
+                      primary={`${r.firstName} ${r.lastName}`}
+                      sub={
+                        <span>
+                          {r.employeeCode}
                           {r.incompleteChecklistKind ? (
-                            <Tag color="warning">
-                              {r.incompleteChecklistKind === 'offboard' ? 'Offboard' : 'Onboard'} incomplete
+                            <Tag color="warning" style={{ marginLeft: 6 }}>
+                              {r.incompleteChecklistKind === 'offboard' ? 'Offboard' : 'Onboard'}{' '}
+                              incomplete
                             </Tag>
                           ) : null}
                           {r.employmentType === 'contract' &&
                           contractDaysLeft(r.contractEndDate) !== null &&
                           (contractDaysLeft(r.contractEndDate) as number) >= 0 &&
                           (contractDaysLeft(r.contractEndDate) as number) <= 14 ? (
-                            <Tag color="orange">
+                            <Tag color="orange" style={{ marginLeft: 6 }}>
                               Contract ends {formatDate(r.contractEndDate)}
                             </Tag>
                           ) : null}
-                        </Space>
+                        </span>
                       }
-                      sub={r.employeeCode}
                     />
                     <CopyButton value={r.employeeCode} label="employee code" />
-                  </Space>
+                  </div>
                 ),
                 getExportValue: (r) => `${r.firstName} ${r.lastName} (${r.employeeCode})`,
               },
@@ -364,11 +361,12 @@ export function EmployeeList() {
               {
                 title: 'Status',
                 dataIndex: 'isActive',
-                defaultWidth: 100,
+                defaultWidth: 140,
                 sorter: true,
-                render: (v: boolean | undefined) =>
-                  v === false ? <Tag>Inactive</Tag> : <Tag color="success">Active</Tag>,
-                getExportValue: (r) => (r.isActive === false ? 'Inactive' : 'Active'),
+                render: (_: boolean | undefined, r) => (
+                  <Tag color={employmentStatus(r).color}>{employmentStatus(r).label}</Tag>
+                ),
+                getExportValue: (r) => employmentStatus(r).label,
               },
             ]}
           />

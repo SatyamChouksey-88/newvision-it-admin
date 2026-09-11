@@ -13,13 +13,15 @@ import { Alert, Button, Card, Col, DatePicker, Row, Space, Typography } from 'an
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { isEmployee, isItConsole, isManager } from '../access';
+import { STATUS_CHART_COLORS, STATUS_LABELS } from '../chartColors';
 import { LocationBreakdownTable, StatusBreakdownTable } from '../components/BreakdownList';
+import { ChipSelect } from '../components/ChipSelect';
 import { FirstRunWelcome } from '../components/FirstRunWelcome';
 import { KpiCard } from '../components/KpiCard';
 import { LiveTimestamp } from '../components/LiveTimestamp';
-import { ChipSelect } from '../components/ChipSelect';
+import { StatusTag } from '../components/StatusTag';
 import { TicketStatusTag } from '../components/TicketStatusTag';
-import { STATUS_CHART_COLORS, STATUS_LABELS } from '../chartColors';
+import { useToast } from '../components/Toast';
 import { useSetupStatus } from '../hooks/useSetupStatus';
 import type { Identity } from '../providers/authProvider';
 import { apiErrorMessage, httpClient } from '../providers/axios';
@@ -32,7 +34,6 @@ import {
   KPI_RETIRED,
   KPI_TOTAL,
 } from '../theme';
-import { useToast } from '../components/Toast';
 import type {
   AssetStatus,
   AttentionItem,
@@ -42,7 +43,6 @@ import type {
   LocationBreakdown,
   SupportTicket,
 } from '../types';
-import { StatusTag } from '../components/StatusTag';
 
 interface TicketSummary {
   open: number;
@@ -101,7 +101,13 @@ function MyWorkList({
       {items.map((item) => (
         <div
           key={`${item.type}-${item.id}-${item.href}`}
-          style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 12 }}
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            gap: 12,
+            alignItems: 'flex-start',
+            marginBottom: 12,
+          }}
         >
           <div>
             <Link to={item.href}>{item.label}</Link>
@@ -134,12 +140,22 @@ export function DashboardPage() {
 
 function MyItHome() {
   const [data, setData] = useState<{
-    assets: { id: number; assetCode: string; brand?: string | null; model?: string | null; status: AssetStatus; category?: string }[];
+    assets: {
+      id: number;
+      assetCode: string;
+      brand?: string | null;
+      model?: string | null;
+      status: AssetStatus;
+      category?: string;
+    }[];
     openTickets: Pick<SupportTicket, 'id' | 'ticketNumber' | 'subject' | 'status' | 'priority'>[];
   } | null>(null);
 
   useEffect(() => {
-    httpClient.get('/dashboard/my-summary').then(({ data: d }) => setData(d)).catch(() => setData({ assets: [], openTickets: [] }));
+    httpClient
+      .get('/dashboard/my-summary')
+      .then(({ data: d }) => setData(d))
+      .catch(() => setData({ assets: [], openTickets: [] }));
   }, []);
 
   return (
@@ -190,8 +206,14 @@ function MyItHome() {
         ) : (
           <Space direction="vertical" style={{ width: '100%' }}>
             {(data?.openTickets ?? []).map((t) => (
-              <Link key={t.id} to={`/tickets/show/${t.id}`} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <span className="nv-mono" style={{ fontSize: 12 }}>{t.ticketNumber}</span>
+              <Link
+                key={t.id}
+                to={`/tickets/show/${t.id}`}
+                style={{ display: 'flex', gap: 8, alignItems: 'center' }}
+              >
+                <span className="nv-mono" style={{ fontSize: 12 }}>
+                  {t.ticketNumber}
+                </span>
                 <span style={{ flex: 1 }}>{t.subject}</span>
                 <TicketStatusTag status={t.status} />
               </Link>
@@ -210,7 +232,10 @@ function ManagerHome() {
     teamDeviceCount: number;
   } | null>(null);
   useEffect(() => {
-    httpClient.get('/dashboard/team-summary').then(({ data: d }) => setData(d)).catch(() => undefined);
+    httpClient
+      .get('/dashboard/team-summary')
+      .then(({ data: d }) => setData(d))
+      .catch(() => undefined);
   }, []);
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }} data-testid="manager-home">
@@ -246,7 +271,13 @@ function ManagerHome() {
           />
         </Col>
         <Col xs={24} sm={8}>
-          <KpiCard title="Team devices" value={data?.teamDeviceCount ?? 0} icon={<DatabaseOutlined />} accentColor={KPI_ASSIGNED} subtitle="Assigned to your reports" />
+          <KpiCard
+            title="Team devices"
+            value={data?.teamDeviceCount ?? 0}
+            icon={<DatabaseOutlined />}
+            accentColor={KPI_ASSIGNED}
+            subtitle="Assigned to your reports"
+          />
         </Col>
       </Row>
     </Space>
@@ -278,7 +309,8 @@ function SupportHome() {
           Queue
         </Typography.Title>
         <Typography.Text style={{ fontSize: 12.5, color: COLOR_TEXT_SECONDARY }}>
-          Ordered work list — overdue mine, unassigned, waiting, stale repairs, then estate follow-ups.
+          Ordered work list — overdue mine, unassigned, waiting, stale repairs, then estate
+          follow-ups.
         </Typography.Text>
       </div>
       <Space wrap>
@@ -316,7 +348,9 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
     );
 
   const [locations, setLocations] = useState<Location[]>([]);
-  const [overrides, setOverrides] = useState<{ id: number; summary: string; createdAt: string }[]>([]);
+  const [overrides, setOverrides] = useState<{ id: number; summary: string; createdAt: string }[]>(
+    [],
+  );
   const { freshInstall, seedOnStart } = useSetupStatus();
 
   useEffect(() => {
@@ -345,7 +379,9 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
     if (m) setLastUpdated(Date.now());
   }, [m]);
 
-  const [ticketPreset, setTicketPreset] = useState<'today' | 'yesterday' | 'tomorrow' | 'range'>('today');
+  const [ticketPreset, setTicketPreset] = useState<'today' | 'yesterday' | 'tomorrow' | 'range'>(
+    'today',
+  );
   const [ticketRange, setTicketRange] = useState<[string, string] | null>(null);
   const { query: ticketsQuery } = useCustom<TicketSummary>({
     url: 'dashboard/tickets',
@@ -484,30 +520,71 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
               </Space>
               {overrides.length > 0 && (
                 <div style={{ marginTop: 10, fontSize: 12, color: COLOR_TEXT_SECONDARY }}>
-                  Recent manual overrides:{' '}
-                  {overrides.map((o) => o.summary).join(' · ')}
+                  Recent manual overrides: {overrides.map((o) => o.summary).join(' · ')}
                 </div>
               )}
             </Card>
           )}
           <Row gutter={[10, 10]}>
             <Col xs={12} sm={8} lg={4}>
-              <KpiCard title="Total Assets" value={total} icon={<DatabaseOutlined />} accentColor={KPI_TOTAL} href={assetsHref({ locationId })} subtitle="Entire estate" />
+              <KpiCard
+                title="Total Assets"
+                value={total}
+                icon={<DatabaseOutlined />}
+                accentColor={KPI_TOTAL}
+                href={assetsHref({ locationId })}
+                subtitle="Entire estate"
+              />
             </Col>
             <Col xs={12} sm={8} lg={4}>
-              <KpiCard title="Assigned" value={m?.assigned ?? 0} icon={<CheckCircleOutlined />} accentColor={KPI_ASSIGNED} href={assetsHref({ status: 'assigned', locationId })} subtitle="In the field" />
+              <KpiCard
+                title="Assigned"
+                value={m?.assigned ?? 0}
+                icon={<CheckCircleOutlined />}
+                accentColor={KPI_ASSIGNED}
+                href={assetsHref({ status: 'assigned', locationId })}
+                subtitle="In the field"
+              />
             </Col>
             <Col xs={12} sm={8} lg={4}>
-              <KpiCard title="Available" value={m?.available ?? 0} icon={<MinusCircleOutlined />} accentColor={KPI_AVAILABLE} href={assetsHref({ status: 'available', locationId })} subtitle="Ready to issue" />
+              <KpiCard
+                title="Available"
+                value={m?.available ?? 0}
+                icon={<MinusCircleOutlined />}
+                accentColor={KPI_AVAILABLE}
+                href={assetsHref({ status: 'available', locationId })}
+                subtitle="Ready to issue"
+              />
             </Col>
             <Col xs={12} sm={8} lg={4}>
-              <KpiCard title="Under Repair" value={m?.underRepair ?? 0} icon={<ToolOutlined />} accentColor={KPI_REPAIR} href={assetsHref({ status: 'under_repair', locationId })} subtitle="Open tickets" />
+              <KpiCard
+                title="Under Repair"
+                value={m?.underRepair ?? 0}
+                icon={<ToolOutlined />}
+                accentColor={KPI_REPAIR}
+                href={assetsHref({ status: 'under_repair', locationId })}
+                subtitle="Open tickets"
+              />
             </Col>
             <Col xs={12} sm={8} lg={4}>
-              <KpiCard title="Retired" value={m?.retired ?? 0} icon={<InboxOutlined />} accentColor={KPI_RETIRED} href={assetsHref({ status: 'retired', locationId })} subtitle="End of life" />
+              <KpiCard
+                title="Retired"
+                value={m?.retired ?? 0}
+                icon={<InboxOutlined />}
+                accentColor={KPI_RETIRED}
+                href={assetsHref({ status: 'retired', locationId })}
+                subtitle="End of life"
+              />
             </Col>
             <Col xs={12} sm={8} lg={4}>
-              <KpiCard title="Open tickets" value={ticketSummary?.open ?? 0} icon={<CustomerServiceOutlined />} accentColor={KPI_REPAIR} href={ticketsHref()} subtitle="Estate support queue" />
+              <KpiCard
+                title="Open tickets"
+                value={ticketSummary?.open ?? 0}
+                icon={<CustomerServiceOutlined />}
+                accentColor={KPI_REPAIR}
+                href={ticketsHref()}
+                subtitle="Estate support queue"
+              />
             </Col>
           </Row>
 
@@ -527,7 +604,10 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
               </Space>
             }
             extra={
-              <Link to={assetsHref({ warrantyExpiringInDays: 14, locationId })} style={{ fontSize: 12 }}>
+              <Link
+                to={assetsHref({ warrantyExpiringInDays: 14, locationId })}
+                style={{ fontSize: 12 }}
+              >
                 Expiring (14d)
               </Link>
             }
@@ -537,14 +617,24 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
 
           <Row gutter={[12, 12]}>
             <Col xs={24} lg={12}>
-              <Card size="small" title="Status distribution" extra={<Typography.Text style={{ fontSize: 11.5, color: COLOR_TEXT_MUTED }}>All categories</Typography.Text>}>
+              <Card
+                size="small"
+                title="Status distribution"
+                extra={
+                  <Typography.Text style={{ fontSize: 11.5, color: COLOR_TEXT_MUTED }}>
+                    All categories
+                  </Typography.Text>
+                }
+              >
                 <StatusBreakdownTable items={statusItems} empty="No assets yet." />
               </Card>
             </Col>
             <Col xs={24} lg={12}>
               <Card size="small" title="Assets by location">
                 {locationId ? (
-                  <Typography.Text type="secondary">Clear the location filter to compare all sites.</Typography.Text>
+                  <Typography.Text type="secondary">
+                    Clear the location filter to compare all sites.
+                  </Typography.Text>
                 ) : (
                   <LocationBreakdownTable
                     rows={byLocation.map((l) => ({
@@ -604,20 +694,50 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
             <Row gutter={[10, 10]}>
               {[
                 { label: 'Open', value: ticketSummary?.open ?? 0, href: ticketsHref() },
-                { label: 'Unassigned', value: ticketSummary?.unassigned ?? 0, href: ticketsHref({ view: 'unassigned' }) },
-                { label: 'In progress', value: ticketSummary?.inProgress ?? 0, href: ticketsHref({ status: 'in_progress' }) },
+                {
+                  label: 'Unassigned',
+                  value: ticketSummary?.unassigned ?? 0,
+                  href: ticketsHref({ view: 'unassigned' }),
+                },
+                {
+                  label: 'In progress',
+                  value: ticketSummary?.inProgress ?? 0,
+                  href: ticketsHref({ status: 'in_progress' }),
+                },
                 {
                   label: ticketPreset === 'tomorrow' ? 'Due' : 'Resolved in window',
-                  value: ticketPreset === 'tomorrow' ? (ticketSummary?.due ?? 0) : (ticketSummary?.resolved ?? 0),
+                  value:
+                    ticketPreset === 'tomorrow'
+                      ? (ticketSummary?.due ?? 0)
+                      : (ticketSummary?.resolved ?? 0),
                   href: ticketsHref({ status: 'resolved' }),
                 },
-                { label: 'Created in window', value: ticketSummary?.created ?? 0, href: ticketsHref() },
+                {
+                  label: 'Created in window',
+                  value: ticketSummary?.created ?? 0,
+                  href: ticketsHref(),
+                },
               ].map((cell) => (
                 <Col xs={12} sm={8} md={4} key={cell.label}>
                   <Link to={cell.href} style={{ textDecoration: 'none', color: 'inherit' }}>
-                    <div style={{ padding: '10px 12px', background: '#eef4fb', borderRadius: 8, border: '1px solid #d5dee8' }}>
-                      <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>{cell.label}</div>
-                      <div style={{ fontSize: 22, fontWeight: 700, fontFamily: 'JetBrains Mono, monospace' }}>
+                    <div
+                      style={{
+                        padding: '10px 12px',
+                        background: '#eef4fb',
+                        borderRadius: 8,
+                        border: '1px solid #d5dee8',
+                      }}
+                    >
+                      <div style={{ fontSize: 11, color: '#334155', fontWeight: 600 }}>
+                        {cell.label}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 22,
+                          fontWeight: 700,
+                          fontFamily: 'JetBrains Mono, monospace',
+                        }}
+                      >
                         {cell.value.toLocaleString()}
                       </div>
                     </div>

@@ -21,11 +21,12 @@ import { Link, useNavigate } from 'react-router';
 import { ContactCard } from '../../components/ContactCard';
 import { CopyButton } from '../../components/CopyButton';
 import { CopyEmailButton } from '../../components/CopyEmailButton';
-import { EmptyState } from '../../components/EmptyState';
 import { EmployeeSelect } from '../../components/EmployeeSelect';
+import { EmptyState } from '../../components/EmptyState';
 import { EventTimeline, type TimelineEvent } from '../../components/EventTimeline';
 import { ManualEditButton } from '../../components/ManualEdit';
 import { RecordNotes } from '../../components/RecordNotes';
+import { ScreenshotPasteZone } from '../../components/ScreenshotPasteZone';
 import {
   TicketPriorityTag,
   TicketStatusSelect,
@@ -35,6 +36,7 @@ import { useToast } from '../../components/Toast';
 import type { Identity } from '../../providers/authProvider';
 import { apiErrorMessage, httpClient } from '../../providers/axios';
 import type { CannedResponse, SupportTicket, TicketComment, TicketStatus } from '../../types';
+import { clipboardImageToFile } from '../../utils/clipboardImage';
 import { formatDate } from '../../utils/format';
 
 const STAFF = ['SUPER_ADMIN', 'IT_ADMIN', 'IT_SUPPORT'];
@@ -63,8 +65,14 @@ export function TicketShow() {
 
   useEffect(() => {
     if (isStaff) {
-      httpClient.get('/canned-responses').then(({ data }) => setCanned(Array.isArray(data) ? data : [])).catch(() => undefined);
-      httpClient.get('/support-tickets/staff').then(({ data }) => setStaff(Array.isArray(data) ? data : [])).catch(() => undefined);
+      httpClient
+        .get('/canned-responses')
+        .then(({ data }) => setCanned(Array.isArray(data) ? data : []))
+        .catch(() => undefined);
+      httpClient
+        .get('/support-tickets/staff')
+        .then(({ data }) => setStaff(Array.isArray(data) ? data : []))
+        .catch(() => undefined);
     }
   }, [isStaff]);
 
@@ -75,15 +83,25 @@ export function TicketShow() {
       .get(`/support-tickets/${ticket.id}/timeline`)
       .then(({ data }) =>
         setTimeline(
-          (Array.isArray(data) ? data : []).map((e: { id: string | number; at: string | null; summary: string; actor: string; action: string; manual?: boolean; color?: string }) => ({
-            id: e.id,
-            at: e.at,
-            summary: e.summary,
-            actor: e.actor,
-            manual: e.manual || e.action === 'manual_override',
-            backfilled: Boolean((e as { backfilled?: boolean }).backfilled),
-            color: e.color ?? (e.action === 'manual_override' ? '#DC2626' : undefined),
-          })),
+          (Array.isArray(data) ? data : []).map(
+            (e: {
+              id: string | number;
+              at: string | null;
+              summary: string;
+              actor: string;
+              action: string;
+              manual?: boolean;
+              color?: string;
+            }) => ({
+              id: e.id,
+              at: e.at,
+              summary: e.summary,
+              actor: e.actor,
+              manual: e.manual || e.action === 'manual_override',
+              backfilled: Boolean((e as { backfilled?: boolean }).backfilled),
+              color: e.color ?? (e.action === 'manual_override' ? '#DC2626' : undefined),
+            }),
+          ),
         ),
       )
       .catch(() => setTimeline([]));
@@ -111,7 +129,11 @@ export function TicketShow() {
     }
   };
 
-  const sendComment = async (values: { body: string; isInternal?: boolean; cannedResponseId?: number }) => {
+  const sendComment = async (values: {
+    body: string;
+    isInternal?: boolean;
+    cannedResponseId?: number;
+  }) => {
     if (!ticket) return;
     try {
       await httpClient.post(`/support-tickets/${ticket.id}/comments`, {
@@ -144,14 +166,31 @@ export function TicketShow() {
         title={
           <Space>
             <span data-testid="ticket-number">{ticket?.ticketNumber}</span>
-            {ticket?.ticketNumber ? <CopyButton value={ticket.ticketNumber} label="ticket number" /> : null}
-            {ticket ? (
-              <CopyButton value={`${window.location.origin}/tickets/show/${ticket.id}`} label="ticket link" />
+            {ticket?.ticketNumber ? (
+              <CopyButton value={ticket.ticketNumber} label="ticket number" />
             ) : null}
-            {ticket?.channel === 'email' ? <Tag data-testid="ticket-channel">Email</Tag> : <Tag>Portal</Tag>}
+            {ticket ? (
+              <CopyButton
+                value={`${window.location.origin}/tickets/show/${ticket.id}`}
+                label="ticket link"
+              />
+            ) : null}
+            {ticket?.channel === 'email' ? (
+              <Tag data-testid="ticket-channel">Email</Tag>
+            ) : (
+              <Tag>Portal</Tag>
+            )}
             {ticket?.unmatchedSender ? <Tag color="orange">Unmatched sender</Tag> : null}
             {ticket?.slaLabel ? (
-              <Tag color={ticket.slaState === 'overdue' ? 'red' : ticket.slaState === 'soon' ? 'gold' : undefined}>
+              <Tag
+                color={
+                  ticket.slaState === 'overdue'
+                    ? 'red'
+                    : ticket.slaState === 'soon'
+                      ? 'gold'
+                      : undefined
+                }
+              >
                 {ticket.slaLabel}
               </Tag>
             ) : ticket?.overdue ? (
@@ -160,7 +199,9 @@ export function TicketShow() {
             {ticket?.duplicateOf ? (
               <Tag>
                 Duplicate of{' '}
-                <Link to={`/tickets/show/${ticket.duplicateOf.id}`}>{ticket.duplicateOf.ticketNumber}</Link>
+                <Link to={`/tickets/show/${ticket.duplicateOf.id}`}>
+                  {ticket.duplicateOf.ticketNumber}
+                </Link>
               </Tag>
             ) : null}
           </Space>
@@ -236,21 +277,35 @@ export function TicketShow() {
                 options={staff.map((s) => ({ label: s.fullName, value: s.id }))}
                 onChange={async (userId) => {
                   if (!ticket) return;
-                  await httpClient.post(`/support-tickets/${ticket.id}/assign`, { userId: userId ?? null });
+                  await httpClient.post(`/support-tickets/${ticket.id}/assign`, {
+                    userId: userId ?? null,
+                  });
                   reload();
                 }}
               />
             ) : ticket?.assignedTo ? (
-              <ContactCard name={ticket.assignedTo.fullName} email={ticket.assignedTo.email} employee={ticket.assignedTo.employee} />
+              <ContactCard
+                name={ticket.assignedTo.fullName}
+                email={ticket.assignedTo.email}
+                employee={ticket.assignedTo.employee}
+              />
             ) : (
               'Unassigned'
             )}
           </Descriptions.Item>
           <Descriptions.Item label="Linked asset">
-            {ticket?.asset ? <Link to={`/assets/show/${ticket.asset.id}`}>{ticket.asset.assetCode}</Link> : '—'}
+            {ticket?.asset ? (
+              <Link to={`/assets/show/${ticket.asset.id}`}>{ticket.asset.assetCode}</Link>
+            ) : (
+              '—'
+            )}
           </Descriptions.Item>
-          <Descriptions.Item label="Due">{ticket?.dueDate ? formatDate(ticket.dueDate) : '—'}</Descriptions.Item>
-          <Descriptions.Item label="Time spent">{ticket?.totalTimeSpentMinutes ?? 0} min</Descriptions.Item>
+          <Descriptions.Item label="Due">
+            {ticket?.dueDate ? formatDate(ticket.dueDate) : '—'}
+          </Descriptions.Item>
+          <Descriptions.Item label="Time spent">
+            {ticket?.totalTimeSpentMinutes ?? 0} min
+          </Descriptions.Item>
           <Descriptions.Item label="Satisfaction">
             {ticket?.satisfactionRating ? `${ticket.satisfactionRating} / 5` : '—'}
           </Descriptions.Item>
@@ -291,7 +346,9 @@ export function TicketShow() {
       <Card title="Conversation">
         <Space direction="vertical" size={12} style={{ width: '100%' }}>
           {(ticket?.comments ?? []).length === 0 ? (
-            <Typography.Text type="secondary">No comments yet. Add a public reply or an internal note.</Typography.Text>
+            <Typography.Text type="secondary">
+              No comments yet. Add a public reply or an internal note.
+            </Typography.Text>
           ) : null}
           {(ticket?.comments ?? []).map((c: TicketComment) => (
             <div
@@ -304,11 +361,11 @@ export function TicketShow() {
               }}
             >
               <Space>
-                <Avatar size={22}>
-                  {(c.author?.fullName ?? 'U').slice(0, 1)}
-                </Avatar>
+                <Avatar size={22}>{(c.author?.fullName ?? 'U').slice(0, 1)}</Avatar>
                 <Typography.Text strong>
-                  {c.author?.fullName ?? (c as { unmatchedSender?: string }).unmatchedSender ?? 'Unknown'}
+                  {c.author?.fullName ??
+                    (c as { unmatchedSender?: string }).unmatchedSender ??
+                    'Unknown'}
                 </Typography.Text>
                 {c.isInternal ? <Tag>Internal</Tag> : <Tag color="blue">Public</Tag>}
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>
@@ -348,11 +405,31 @@ export function TicketShow() {
                 />
               </Form.Item>
             ) : null}
-            <Form.Item name="body" rules={[{ required: true }]} extra="Type @ to tag a teammate (Jira-style). They get a notification.">
+            <Form.Item
+              name="body"
+              rules={[{ required: true }]}
+              extra="Type @ to tag a teammate (Jira-style). They get a notification."
+            >
               <Mentions
                 rows={3}
                 aria-label="Comment"
-                placeholder="Comment — use @name to tag someone"
+                placeholder="Comment — use @name to tag someone. Paste a screenshot to attach it."
+                onPaste={(e) => {
+                  const file = clipboardImageToFile(e.clipboardData);
+                  if (!file || !ticket) return;
+                  e.preventDefault();
+                  const fd = new FormData();
+                  fd.append('file', file);
+                  void httpClient
+                    .post(`/support-tickets/${ticket.id}/attachments`, fd)
+                    .then(() => {
+                      toast.success('Screenshot attached');
+                      reload();
+                    })
+                    .catch((err) =>
+                      toast.error(apiErrorMessage(err, 'Could not attach screenshot')),
+                    );
+                }}
                 options={[
                   ...staff.map((s) => ({ value: s.fullName, label: s.fullName })),
                   ...(ticket?.raisedBy
@@ -421,9 +498,12 @@ export function TicketShow() {
               href={`${httpClient.defaults.baseURL}/support-tickets/${ticket!.id}/attachments/${a.id}`}
               onClick={async (e) => {
                 e.preventDefault();
-                const res = await httpClient.get(`/support-tickets/${ticket!.id}/attachments/${a.id}`, {
-                  responseType: 'blob',
-                });
+                const res = await httpClient.get(
+                  `/support-tickets/${ticket!.id}/attachments/${a.id}`,
+                  {
+                    responseType: 'blob',
+                  },
+                );
                 const url = URL.createObjectURL(res.data);
                 const link = document.createElement('a');
                 link.href = url;
@@ -434,17 +514,27 @@ export function TicketShow() {
               {a.filename}
             </Button>
           ))}
-          <Upload
-            beforeUpload={async (f) => {
+          <ScreenshotPasteZone
+            onFile={async (f) => {
               const fd = new FormData();
               fd.append('file', f);
               await httpClient.post(`/support-tickets/${ticket!.id}/attachments`, fd);
+              toast.success('Screenshot attached');
               reload();
-              return false;
             }}
           >
-            <Button size="small">Attach file</Button>
-          </Upload>
+            <Upload
+              beforeUpload={async (f) => {
+                const fd = new FormData();
+                fd.append('file', f);
+                await httpClient.post(`/support-tickets/${ticket!.id}/attachments`, fd);
+                reload();
+                return false;
+              }}
+            >
+              <Button size="small">Attach file</Button>
+            </Upload>
+          </ScreenshotPasteZone>
         </Space>
       </Card>
 
@@ -520,7 +610,9 @@ export function TicketShow() {
                   <Button
                     size="small"
                     onClick={async () => {
-                      await httpClient.post(`/support-tickets/${ticket.id}/link-asset`, { assetId: a.id });
+                      await httpClient.post(`/support-tickets/${ticket.id}/link-asset`, {
+                        assetId: a.id,
+                      });
                       reload();
                     }}
                   >

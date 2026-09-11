@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { AssetSelect } from '../../components/AssetSelect';
 import { EmployeeMultiSelect } from '../../components/EmployeeSelect';
+import { ScreenshotPasteZone } from '../../components/ScreenshotPasteZone';
 import { TICKET_PRIORITY_OPTIONS } from '../../components/TicketStatusTag';
 import { useToast } from '../../components/Toast';
 import type { Identity } from '../../providers/authProvider';
@@ -85,16 +86,18 @@ export function TicketCreate() {
   return (
     <Card title="Raise a ticket" loading={!ready}>
       <Typography.Paragraph type="secondary">
-        For hardware repairs on a specific asset, use Maintenance. To request a new laptop or accessory, use Requests.
-        Use this form for everything else.
+        For hardware repairs on a specific asset, use Maintenance. To request a new laptop or
+        accessory, use Requests. Use this form for everything else.
       </Typography.Paragraph>
       <Form
         form={form}
         layout="vertical"
         onFinish={(v) => void submit(v)}
-        initialValues={{ priority: 'medium', templateId: params.get('template') ? Number(params.get('template')) : undefined }}
+        initialValues={{
+          priority: 'medium',
+          templateId: params.get('template') ? Number(params.get('template')) : undefined,
+        }}
       >
-        {isEmployee ? null : (
         <Form.Item name="templateId" label="Start from a template (optional)">
           <Select
             allowClear
@@ -106,7 +109,6 @@ export function TicketCreate() {
             }}
           />
         </Form.Item>
-        )}
         <Form.Item label="Category" required>
           <Form.Item
             name="categoryId"
@@ -139,21 +141,40 @@ export function TicketCreate() {
           <AssetSelect aria-label="Linked asset" />
         </Form.Item>
         {isEmployee ? null : (
-        <Form.Item name="watcherEmployeeIds" label="Watchers (optional)">
-          <EmployeeMultiSelect aria-label="Watchers" placeholder="People who should be notified" />
-        </Form.Item>
+          <Form.Item name="watcherEmployeeIds" label="Watchers (optional)">
+            <EmployeeMultiSelect
+              aria-label="Watchers"
+              placeholder="People who should be notified"
+            />
+          </Form.Item>
         )}
         <Form.Item label="Attachment (optional)">
-          <Upload
-            maxCount={1}
-            beforeUpload={(f) => {
+          <ScreenshotPasteZone
+            onFile={(f) => {
               setFile(f);
-              return false;
+              toast.success(`Ready to attach ${f.name}`);
             }}
-            onRemove={() => setFile(null)}
           >
-            <Button>Choose file</Button>
-          </Upload>
+            <Upload
+              maxCount={1}
+              fileList={file ? [{ uid: '1', name: file.name, status: 'done' }] : []}
+              beforeUpload={(f) => {
+                setFile(f);
+                return false;
+              }}
+              onRemove={() => setFile(null)}
+            >
+              <Button>Choose file</Button>
+            </Upload>
+          </ScreenshotPasteZone>
+          {file ? (
+            <Typography.Text
+              type="secondary"
+              style={{ display: 'block', marginTop: 6, fontSize: 12 }}
+            >
+              Ready: {file.name}
+            </Typography.Text>
+          ) : null}
         </Form.Item>
         <Space>
           <Button type="primary" htmlType="submit" loading={busy} data-testid="submit-ticket">

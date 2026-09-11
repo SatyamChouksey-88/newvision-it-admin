@@ -7,7 +7,7 @@ import {
 import type { TableProps } from 'antd';
 import { Button, Checkbox, Dropdown, Input, Segmented, Space, Table } from 'antd';
 import type { ColumnType } from 'antd/es/table';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTableKeyboard } from '../../hooks/useTableKeyboard';
 import { exportToCsv } from './exportCsv';
 import { ResizableTitle } from './ResizableTitle';
@@ -413,10 +413,10 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
               {serverSide ? ' on this page' : ''}
             </span>
           ) : null}
-          {toolbarExtra}
           {bulkActions}
         </div>
         <div className="nv-grid-toolbar__right">
+          {toolbarExtra}
           {onDensityChange && (
             <Segmented
               size="small"
@@ -436,7 +436,10 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
           <Button size="small" icon={<DownloadOutlined />} onClick={handleExport}>
             Export CSV
           </Button>
-          <span style={{ fontSize: 11, color: '#64748b' }} title="Select a row and press Ctrl+C to copy it for Excel">
+          <span
+            style={{ fontSize: 11, color: '#64748b' }}
+            title="Select a row and press Ctrl+C to copy it for Excel"
+          >
             Ctrl+C copies the selected row
           </span>
         </div>
@@ -451,7 +454,7 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
         loading={loading}
         size={density === 'Compact' ? 'small' : 'middle'}
         sticky={sticky}
-        scroll={scroll ?? { x: 1400 }}
+        scroll={filteredData.length === 0 ? undefined : (scroll ?? { x: 1400 })}
         pagination={pagination}
         rowSelection={
           rowSelection
@@ -494,7 +497,7 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
           const parent = onRow?.(record, index) ?? {};
           return {
             ...parent,
-            tabIndex: index === focusedRow ? 0 : -1,
+            tabIndex: index === focusedRow || (focusedRow < 0 && index === 0) ? 0 : -1,
             onClick: (e) => {
               setFocusedRow(index ?? -1);
               parent.onClick?.(e as never);
