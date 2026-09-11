@@ -155,6 +155,15 @@ Audit date: 2026-09-10. Each item lists the finding and resolution status.
 | P22-queue | Ticket list had no J/K/I; `?` was Help only | **Fixed** — queue keys + Ctrl+/ overlay |
 | P22-ui | Ticket search and CSV/PDF sat on two cramped rows | **Fixed** — one toolbar: search+Legend left, actions right |
 
+## Prompt 24 — Team Chat
+
+| # | Finding / addition | Resolution |
+|---|--------------------|------------|
+| P24 | Staff chat was a polling drawer with weak @name mentions | **Fixed** — Teams-style `/chat` with channels, DMs, threads, WS |
+| P24-n | `chat_message` notifications had no deep link | **Fixed** — `Notification.link` + `chat_mention` / `chat_thread_reply` |
+| P24-x | Beyond the brief | **Shipped** — message search, seen-by on small chats, `#helpdesk`/`#procurement`, PO/PR unfurl |
+| P24-b | All messages stacked left; Word paste stole the thumbnail | **Fixed** — Teams Comfy left/right; clipboard prefers real files |
+
 
 
 

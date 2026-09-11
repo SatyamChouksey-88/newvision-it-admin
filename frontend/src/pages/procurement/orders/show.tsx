@@ -15,12 +15,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
 import { EventTimeline, type TimelineEvent } from '../../../components/EventTimeline';
 import { useToast } from '../../../components/Toast';
+import { useConfirmAction } from '../../../hooks/useConfirmAction';
 import { apiErrorMessage, httpClient } from '../../../providers/axios';
 import { PoStatusTag } from '../status';
 
 export function PurchaseOrderShow() {
   const { id } = useParams();
   const toast = useToast();
+  const { confirmAction } = useConfirmAction();
   const [row, setRow] = useState<Record<string, unknown> | null>(null);
   const [history, setHistory] = useState<TimelineEvent[]>([]);
   const [reasonOpen, setReasonOpen] = useState<'cancel' | 'short' | 'amend' | 'void' | null>(null);
@@ -83,10 +85,17 @@ export function PurchaseOrderShow() {
             <Tooltip title={status === 'draft' ? '' : 'Only a draft PO is sent to the vendor'}>
               <Button
                 disabled={status !== 'draft'}
-                onClick={async () => {
-                  await httpClient.post(`/purchase-orders/${id}/send`);
-                  load();
-                }}
+                onClick={() =>
+                  void confirmAction({
+                    title: 'Mark this PO as sent to the vendor?',
+                    content: 'The PO status will change to sent.',
+                    okText: 'Mark sent',
+                    onOk: async () => {
+                      await httpClient.post(`/purchase-orders/${id}/send`);
+                      load();
+                    },
+                  })
+                }
               >
                 Mark sent
               </Button>

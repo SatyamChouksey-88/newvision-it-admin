@@ -11,6 +11,7 @@ import {
   FormOutlined,
   ToolOutlined,
   CustomerServiceOutlined,
+  CommentOutlined,
 } from '@ant-design/icons';
 import { ErrorComponent, ThemedLayout, useNotificationProvider } from '@refinedev/antd';
 import { Authenticated, Refine } from '@refinedev/core';
@@ -76,6 +77,7 @@ const ReportsPage = lazyNamed(() => import('./pages/reports'), 'ReportsPage');
 const AuditList = lazyNamed(() => import('./pages/audit/list'), 'AuditList');
 const SettingsPage = lazyNamed(() => import('./pages/settings'), 'SettingsPage');
 const HelpSection = lazyNamed(() => import('./pages/help/HelpSection'), 'HelpSection');
+const ChatPage = lazyNamed(() => import('./pages/chat/ChatPage'), 'ChatPage');
 const LoginPage = lazyNamed(() => import('./pages/login'), 'LoginPage');
 const ResetPasswordPage = lazyNamed(() => import('./pages/reset-password'), 'ResetPasswordPage');
 const ScanPage = lazyNamed(() => import('./pages/scan'), 'ScanPage');
@@ -137,6 +139,11 @@ export default function App() {
                 name: 'maintenance',
                 list: '/maintenance',
                 meta: { label: 'Maintenance', icon: <ToolOutlined /> },
+              },
+              {
+                name: 'chat',
+                list: '/chat',
+                meta: { label: 'Chat', icon: <CommentOutlined /> },
               },
               {
                 name: 'support-tickets',
@@ -244,6 +251,7 @@ export default function App() {
                     <Route path="reports" element={<TicketReports />} />
                     <Route path="show/:id" element={<TicketShow />} />
                   </Route>
+                  <Route path="/chat" element={<ChatPage />} />
                   <Route path="/procurement/vendors">
                     <Route index element={<VendorList />} />
                     <Route path="create" element={<VendorForm />} />
@@ -298,7 +306,12 @@ export default function App() {
             </Suspense>
 
             <UnsavedChangesNotifier />
-            <DocumentTitleHandler />
+            <DocumentTitleHandler
+              handler={({ resource }) => {
+                const page = resource?.meta?.label ?? 'IT Asset Management';
+                return `${page} | NewVisionITIS`;
+              }}
+            />
           </Refine>
         </AntdApp>
       </ConfigProvider>

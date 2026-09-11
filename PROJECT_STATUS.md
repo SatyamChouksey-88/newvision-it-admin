@@ -143,6 +143,15 @@ If any of these become a real, demonstrated need later, they should be scoped as
 - Procurement→asset handoff (serialized / accessory / consumable / license) with reconciliation flags if upstream changes
 - Sidebar **Procurement** area (Super Admin / IT Admin); Managers see team requisitions only
 
+## 7h. What’s covered (Prompt 24 — Teams-style Team Chat)
+
+- Full-page `/chat` (header Chat launcher still the entry point) with conversation rail, message pane, and thread/details panel
+- Channels (public/private, `#it-ops` / `#helpdesk` / `#procurement` seeded), DMs, group chats; existing staff-chat rows migrated, not dropped
+- Threaded replies, unread badges, rich composer, structured @mentions, emoji/reactions, attachments + clipboard paste (real files beat Office thumbnails), record-code unfurl (TCK/AST/EMP/PO/PR)
+- Teams Comfy bubbles: own messages right, others left (including `#it-ops` and threads)
+- Presence, typing, and live message/reaction/unread updates over Socket.IO (`/chat` namespace); staff-only at the API and gateway
+- Distinct `chat_mention` / `chat_thread_reply` notifications with deep links
+
 ## 9. Remaining gaps (true leftovers, not silent undecided items)
 
 - **Seed resets demo data** when `SEED_ON_START=true` (compose default). Documented and warned in-app; set `false` after first boot to persist edits

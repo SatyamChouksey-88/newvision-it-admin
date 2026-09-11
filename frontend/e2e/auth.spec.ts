@@ -13,7 +13,14 @@ test('logs in as IT Admin and shows the dashboard metric cards', async ({ page }
 
 test('logs out back to the login screen', async ({ page }) => {
   await login(page, DEMO_USERS.itAdmin);
+  await page.getByTestId('account-menu-button').click();
+  await expect(page.getByTestId('account-menu')).toBeVisible();
+  await page.getByTestId('account-menu').getByRole('button', { name: 'Sign out' }).click();
+  await expect(page.getByRole('dialog', { name: 'Sign out?' })).toBeVisible();
+  await page.getByRole('button', { name: 'Stay signed in' }).click();
+  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
   await page.getByTestId('logout-button').first().click();
+  await page.getByTestId('logout-confirm').click();
   await expect(page.locator('#email')).toBeVisible();
 });
 

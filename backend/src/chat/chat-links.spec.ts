@@ -12,4 +12,10 @@ describe('parseChatLinks', () => {
     const refs = parseChatLinks('Assign AST-BHO-0001 to EMP-PUN-0042');
     expect(refs.map((r) => r.kind).sort()).toEqual(['asset', 'employee']);
   });
+
+  it('extracts purchase-order and requisition codes', () => {
+    const refs = parseChatLinks('PR-000042 became PO-000007 — see /procurement/orders/show/7');
+    expect(refs.some((r) => r.kind === 'requisition' && r.code === 'PR-000042')).toBe(true);
+    expect(refs.some((r) => r.kind === 'po' && r.code === 'PO-000007')).toBe(true);
+  });
 });

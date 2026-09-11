@@ -11,12 +11,14 @@ import { RecordNotes } from '../../components/RecordNotes';
 import { TablePagination } from '../../components/TablePagination';
 import { TableSkeleton } from '../../components/TableSkeleton';
 import { useToast } from '../../components/Toast';
+import { useConfirmAction } from '../../hooks/useConfirmAction';
 import type { Identity } from '../../providers/authProvider';
 import { apiErrorMessage, httpClient } from '../../providers/axios';
 import type { AssetCategory, AssetRequest } from '../../types';
 
 export function RequestsPage() {
   const toast = useToast();
+  const { confirmAction } = useConfirmAction();
   const { data: identity } = useGetIdentity<Identity>();
   const role = identity?.role ?? '';
   const [rows, setRows] = useState<AssetRequest[]>([]);
@@ -154,6 +156,24 @@ export function RequestsPage() {
   };
 
   const changeRequestStatus = async (r: AssetRequest, status: AssetRequest['status']) => {
+    if (status === r.status) return;
+    const needsConfirm =
+      status === 'rejected' || status === 'fulfilled' || r.status === 'approved';
+    if (needsConfirm) {
+      const ok = await confirmAction({
+        title: `${status[0].toUpperCase()}${status.slice(1)} this request?`,
+        content: `Request #${r.id} will change from ${r.status} to ${status}.`,
+        okText: status === 'rejected' ? 'Reject' : status === 'fulfilled' ? 'Mark fulfilled' : 'Change status',
+        okDanger: status === 'rejected',
+        onOk: async () => {
+          await httpClient.patch(`/asset-requests/${r.id}`, { status });
+          toast.success(`Request #${r.id}: ${r.status} → ${status}`);
+          void load();
+        },
+      });
+      if (!ok) return;
+      return;
+    }
     try {
       await httpClient.patch(`/asset-requests/${r.id}`, { status });
       toast.success(`Request #${r.id}: ${r.status} → ${status}`);
@@ -441,7 +461,12 @@ export function RequestsPage() {
                         type="primary"
                         onClick={(e) => {
                           e.stopPropagation();
-                          void fulfill(r.id);
+                          void confirmAction({
+                            title: 'Mark fulfilled?',
+                            content: `Request #${r.id} will be marked fulfilled.`,
+                            okText: 'Mark fulfilled',
+                            onOk: () => fulfill(r.id),
+                          });
                         }}
                       >
                         Mark fulfilled

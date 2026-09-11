@@ -2,6 +2,7 @@ import {
   AuditOutlined,
   BankOutlined,
   BarsOutlined,
+  CommentOutlined,
   CustomerServiceOutlined,
   DashboardOutlined,
   DesktopOutlined,
@@ -17,12 +18,13 @@ import {
   ShoppingOutlined,
   TeamOutlined,
   ToolOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
 import { useThemedLayoutContext } from '@refinedev/antd';
 import { useGetIdentity, useLogout } from '@refinedev/core';
-import { Avatar, Button, Drawer, Grid, Tooltip } from 'antd';
+import { Avatar, Button, Drawer, Grid, Modal, Popover, Tooltip } from 'antd';
 import { type ReactNode, useEffect, useState } from 'react';
-import { NavLink } from 'react-router';
+import { Link, NavLink } from 'react-router';
 import { navForRole, ROLE_CHIP } from '../access';
 import type { Identity } from '../providers/authProvider';
 import { httpClient } from '../providers/axios';
@@ -42,6 +44,7 @@ const NAV_ICONS: Record<string, ReactNode> = {
   requests: <FileTextOutlined />,
   maintenance: <ToolOutlined />,
   tickets: <CustomerServiceOutlined />,
+  chat: <CommentOutlined />,
   vendors: <BankOutlined />,
   requisitions: <FileTextOutlined />,
   orders: <ShoppingCartOutlined />,
@@ -63,8 +66,10 @@ function initials(name?: string) {
 
 function SiderBody({ collapsed }: { collapsed: boolean }) {
   const { data: identity } = useGetIdentity<Identity>();
-  const { mutate: logout } = useLogout();
+  const { mutateAsync: logoutAsync } = useLogout();
   const [counts, setCounts] = useState<Record<string, number | undefined>>({});
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [signOutOpen, setSignOutOpen] = useState(false);
   const items = navForRole(identity?.role);
   const procKeys = new Set(['vendors', 'requisitions', 'orders', 'contracts']);
   const manageItems = items.filter((i) => !procKeys.has(i.key));
@@ -179,21 +184,88 @@ function SiderBody({ collapsed }: { collapsed: boolean }) {
         ) : null}
       </nav>
       <div className="nv-sider-user">
-        <div className="nv-sider-user-row">
-          <Avatar size={26} className="nv-sider-avatar">
-            {initials(identity?.fullName)}
-          </Avatar>
-          <div className="nv-sider-user-meta">
-            <div className="nv-sider-user-name">{identity?.fullName}</div>
-            <span
-              className="nv-role-chip"
-              style={{ color: chip.color, background: chip.bg }}
-              data-testid="role-chip"
-            >
-              {chip.label}
-            </span>
-          </div>
-        </div>
+        <Popover
+          trigger="click"
+          placement="topLeft"
+          open={accountOpen}
+          onOpenChange={setAccountOpen}
+          overlayClassName="nv-account-pop"
+          content={
+            <div className="nv-account-menu" data-testid="account-menu">
+              <div className="nv-account-menu-head">
+                <Avatar size={32} className="nv-sider-avatar">
+                  {initials(identity?.fullName)}
+                </Avatar>
+                <div>
+                  <div className="nv-account-menu-name">{identity?.fullName}</div>
+                  <div className="nv-account-menu-role">{chip.label}</div>
+                </div>
+              </div>
+              <nav className="nv-account-menu-links">
+                {identity?.employeeId ? (
+                  <Link
+                    to={`/employees/show/${identity.employeeId}`}
+                    className="nv-account-menu-link"
+                    onClick={() => setAccountOpen(false)}
+                  >
+                    <UserOutlined /> Profile
+                  </Link>
+                ) : null}
+                {identity?.role === 'SUPER_ADMIN' ||
+                identity?.role === 'IT_ADMIN' ||
+                identity?.role === 'IT_SUPPORT' ? (
+                  <Link
+                    to="/settings"
+                    className="nv-account-menu-link"
+                    onClick={() => setAccountOpen(false)}
+                  >
+                    <SettingOutlined /> Settings
+                  </Link>
+                ) : null}
+                <Link
+                  to="/help"
+                  className="nv-account-menu-link"
+                  onClick={() => setAccountOpen(false)}
+                >
+                  <QuestionCircleOutlined /> Help
+                </Link>
+              </nav>
+              <button
+                type="button"
+                className="nv-account-menu-signout"
+                onClick={() => {
+                  setAccountOpen(false);
+                  setSignOutOpen(true);
+                }}
+              >
+                <LogoutOutlined /> Sign out
+              </button>
+            </div>
+          }
+        >
+          <button
+            type="button"
+            className="nv-sider-user-row"
+            data-testid="account-menu-button"
+            aria-label="Account menu"
+            aria-expanded={accountOpen}
+            aria-haspopup="dialog"
+          >
+            <Avatar size={26} className="nv-sider-avatar">
+              {initials(identity?.fullName)}
+            </Avatar>
+            <div className="nv-sider-user-meta">
+              <div className="nv-sider-user-name">{identity?.fullName}</div>
+              <span
+                className="nv-role-chip"
+                style={{ color: chip.color, background: chip.bg }}
+                data-testid="role-chip"
+              >
+                {chip.label}
+              </span>
+            </div>
+          </button>
+        </Popover>
       </div>
       <Tooltip title={collapsed ? 'Sign out' : undefined} placement="right">
         <button
@@ -201,11 +273,40 @@ function SiderBody({ collapsed }: { collapsed: boolean }) {
           data-testid="logout-button"
           className="nv-sider-signout-item"
           aria-label="Sign out"
-          onClick={() => logout()}
+          onClick={() => setSignOutOpen(true)}
         >
           {collapsed ? <LogoutOutlined /> : 'Sign out'}
         </button>
       </Tooltip>
+      <Modal
+        open={signOutOpen}
+        title="Sign out?"
+        onCancel={() => setSignOutOpen(false)}
+        footer={[
+          <Button key="stay" onClick={() => setSignOutOpen(false)}>
+            Stay signed in
+          </Button>,
+          <Button
+            key="out"
+            type="primary"
+            danger
+            data-testid="logout-confirm"
+            onClick={async () => {
+              setSignOutOpen(false);
+              try {
+                await logoutAsync();
+              } catch {
+                // Session is cleared locally even if the revoke call fails.
+              }
+              window.location.assign('/login');
+            }}
+          >
+            Sign out
+          </Button>,
+        ]}
+      >
+        You will need your email and password to sign back in to NewVisionITIS.
+      </Modal>
     </>
   );
 }
@@ -234,13 +335,7 @@ export function AppSider() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [
-    isMobile,
-    mobileSiderOpen,
-    setMobileSiderOpen,
-    setSiderCollapsed,
-    siderCollapsed,
-  ]);
+  }, [isMobile, mobileSiderOpen, setMobileSiderOpen, setSiderCollapsed, siderCollapsed]);
 
   if (isMobile) {
     return (

@@ -10,6 +10,8 @@ export class RolesGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
+    const ctxType = (context as { getType?: () => string }).getType?.() ?? 'http';
+    if (ctxType === 'ws') return true;
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),

@@ -571,9 +571,10 @@ export function EmployeeProfile() {
                                 >
                                   Transfer
                                 </Button>
-                                <Button
-                                  size="small"
-                                  onClick={async () => {
+                                <Popconfirm
+                                  title={`Return ${r.assetCode} to the available pool?`}
+                                  okText="Return"
+                                  onConfirm={async () => {
                                     try {
                                       await httpClient.post(`/assets/${r.id}/status`, {
                                         status: 'available',
@@ -585,8 +586,8 @@ export function EmployeeProfile() {
                                     }
                                   }}
                                 >
-                                  Return
-                                </Button>
+                                  <Button size="small">Return</Button>
+                                </Popconfirm>
                               </Space>
                             ),
                           },

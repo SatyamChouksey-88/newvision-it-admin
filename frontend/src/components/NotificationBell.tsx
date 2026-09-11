@@ -88,10 +88,26 @@ export function NotificationBell() {
             ]}
           >
             <List.Item.Meta
-              title={<Typography.Text style={{ fontSize: 12 }}>{n.title}</Typography.Text>}
+              title={
+                n.link ? (
+                  <Link to={n.link} onClick={() => setOpen(false)}>
+                    <Typography.Text style={{ fontSize: 12 }}>{n.title}</Typography.Text>
+                  </Link>
+                ) : (
+                  <Typography.Text style={{ fontSize: 12 }}>{n.title}</Typography.Text>
+                )
+              }
               description={
                 <Typography.Text type="secondary" style={{ fontSize: 11 }}>
                   {n.message}
+                  {n.link && !n.asset && !n.supportTicket ? (
+                    <>
+                      {' '}
+                      <Link to={n.link} onClick={() => setOpen(false)}>
+                        Open
+                      </Link>
+                    </>
+                  ) : null}
                   {n.asset ? (
                     <>
                       {' '}

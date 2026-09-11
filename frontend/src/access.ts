@@ -179,6 +179,7 @@ export function navForRole(role?: string): NavItem[] {
       resource: 'support-tickets',
       badgeKey: 'tickets',
     },
+    { key: 'chat', href: '/chat', label: 'Chat', resource: 'chat' },
   );
   if (role === 'SUPER_ADMIN' || role === 'IT_ADMIN') {
     it.push(

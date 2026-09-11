@@ -96,7 +96,7 @@ Press **/** anywhere to focus global search.
 - **Status table** — one coloured row per status (tag, count, share). Click a row to filter Assets.
 - **Assets by location** — one row per office (from live Location records, never hardcoded city names). Each status is its own coloured column. Click a count to filter.
 - There is **no Growth chart**. Estate size is the Total KPI.
-- **My work** — an ordered list: your overdue tickets, unassigned tickets, tickets waiting on the employee for 3+ days, stale repairs, incomplete checklists, contracts ending within 14 days, then warranties expiring within 14 days. Unassigned rows have **Assign to me**.
+- **My work** — an ordered list: your overdue tickets, unassigned tickets, tickets waiting on the employee for 3+ days, stale repairs, incomplete checklists, contracts ending within 14 days, then warranties expiring within 14 days. Unassigned rows have **Assign to me**. The card caret collapses just this list (remembered in this browser). Status distribution, assets by location, and support tickets stay open.
 
 ### Other homes
 
@@ -111,7 +111,9 @@ Press **/** anywhere to focus global search.
     summary: 'List, filter, export, and lifecycle actions for serialized assets.',
     keywords: ['assets', 'list', 'filter', 'export', 'assign'],
     screenshot: '/docs/screenshots/assets-list.png',
-    body: `**Assets** is the core inventory. Each asset has a unique \`assetCode\` (e.g. AST-PUN-LAP-0001) and optional serial number.
+    body: `**Assets** is the core inventory. Each asset has a unique **asset number** (\`assetCode\`) — either typed in on create (sticker codes like \`NV-LAP-1042\`) or left blank so the system assigns \`AST-{location}-{category}-{seq}\` (e.g. AST-PUN-LAP-0001). You can rename a code later from **Edit**; confirm first, because old QR stickers and scan links for the previous number stop working. Duplicate codes are rejected.
+
+Each asset also has an optional serial number.
 
 ### List features (Excel-grade grid)
 
@@ -624,7 +626,7 @@ Requesters and watchers always get immediate email for events on their tickets.`
     id: 'notifications',
     title: 'Notifications',
     category: 'Notifications',
-    summary: 'Bell icon, ticket email vs digest, and staff-chat alerts.',
+    summary: 'Bell icon, ticket email vs digest, and team-chat alerts.',
     keywords: ['notifications', 'bell', 'alert', 'chat', 'digest'],
     screenshot: '/docs/screenshots/notifications.png',
     body: `## In-app bell
@@ -637,7 +639,8 @@ The header **bell** shows unread notifications for the signed-in user:
 - Low stock
 - Asset requests
 - Support-ticket events (create, assign, comment, status, @mention)
-- Staff chat messages (\`chat_message\`) when someone posts in a channel you belong to and you are not looking at it
+- Staff chat messages (\`chat_message\`) when someone posts in a conversation you belong to
+- Chat @mentions (\`chat_mention\`) and thread replies (\`chat_thread_reply\`), each with a deep link to \`/chat?c=…&m=…\`
 
 ## Email
 
@@ -684,7 +687,7 @@ Expand a row for full before/after payloads. Copy entry IDs via the copy icon.`,
 | Import / reconcile / webhooks | Yes | Yes | No | No | No |
 | Settings → Users | Yes | No | No | No | No |
 | Audit log | Yes | Yes | No | No | No |
-| Staff chat | Yes | Yes | Yes | No | No |
+| Team chat | Yes | Yes | Yes | No | No |
 
 View **your** permission tags under **Settings → Account**.
 
@@ -874,24 +877,59 @@ SMTP_HOST=
   },
   {
     id: 'staff-chat',
-    title: 'Staff chat',
+    title: 'Team Chat',
     category: 'Support tickets',
     group: 'For IT staff',
-    summary: '#it-ops and 1:1 DMs for Super Admin, IT Admin, and IT Support.',
-    keywords: ['chat', 'dm', 'it-ops', 'unfurl'],
+    summary:
+      'Teams-style channels, DMs, threads, mentions, reactions, and live presence for Super Admin, IT Admin, and IT Support.',
+    keywords: ['chat', 'dm', 'it-ops', 'unfurl', 'teams', 'thread', 'mention', 'reaction'],
     screenshot: '/docs/screenshots/chat.png',
-    body: `The header **Chat** button is staff-only (\`SUPER_ADMIN\`, \`IT_ADMIN\`, \`IT_SUPPORT\`). Managers and Employees never see it.
+    callouts: [
+      { n: 1, label: 'Conversation list' },
+      { n: 2, label: 'Message pane' },
+      { n: 3, label: 'Thread / details' },
+    ],
+    body: `The header **Chat** button (and the sidebar **Chat** item) open a full-page, Microsoft Teams-style workspace at \`/chat\`. It is staff-only: **Super Admin, IT Admin, and IT Support**. Managers and Employees never see it, and the API rejects them with 403.
 
-### What is working today
+### Layout
 
-- **#it-ops** group channel, plus 1:1 DMs with other staff.
-- Messages poll every few seconds (same idea as notifications — no WebSocket).
-- Unread badge on the Chat button; \`chat_message\` also lands in the bell if you are not looking at the channel.
-- Paste \`TCK-000123\` (or an asset/employee code) and the message shows a clickable preview card.
-- Chat is **not** a ticket comment. Requesters never see it.
+1. **Left rail** — channels (\`#it-ops\`, \`#helpdesk\`, \`#procurement\`, plus any you create) and direct/group chats. Each row shows a preview, time, unread badge, and presence on people.
+2. **Main pane** — Teams Comfy bubbles: **your messages on the right**, everyone else’s on the left (channels, DMs, groups, and threads). Long URLs and codes wrap inside the bubble. Day dividers stay centered. A composer is pinned at the bottom.
+3. **Right panel** — a thread when you reply to a specific message, or members/details when you open **Details**.
+
+### What you can do
+
+- **Channels** — public (any staff can join) or private (invite-only). Create, rename, set a topic, archive, add/remove people, leave. Seeded defaults: \`#it-ops\`, \`#helpdesk\`, \`#procurement\`.
+- **Direct messages** — 1:1 with any other staff member. Opening the same pair reuses the existing chat.
+- **Group chats** — ad-hoc rooms that are not formal channels.
+- **Threads** — Reply on a message to keep the channel readable. The parent shows **N replies** and the last-reply time.
+- **Rich text** — bold, italic, strikethrough, inline code, code blocks, lists, and auto-linked URLs from the composer toolbar.
+- **@mentions** — type \`@\` to pick a person (stored as a real user id, not a display-name guess). \`@channel\` / \`@here\` notify everyone in that conversation (unless they muted it).
+- **Emoji & reactions** — insert emoji in the composer; hover a message to react. Click a reaction to toggle yours.
+- **Files & screenshots** — paperclip, drag-and-drop, or Ctrl+V. Explorer / Word copies that include a real Word/Excel/PowerPoint file attach the document, not the thumbnail. A Snipping Tool image still becomes a screenshot. Word text paste is cleaned. Executables are blocked. Images preview inline; other files show a card with type, name, and size.
+- **Edit / delete** — edit in the bubble (Save / Cancel). Delete and Leave ask for confirmation. **Super Admin and IT Admin** may delete anyone’s message; both actions are audited.
+- **Record cards** — drop \`TCK-…\`, \`AST-…\`, \`EMP-…\`, \`PO-…\`, or \`PR-…\` and Chat resolves it to a labelled card that opens the record. Unresolved codes fall back to search.
+- **Unread** — per-conversation badges and the header Chat badge. Opening a conversation marks it read. Each membership has All / Mentions only / Muted.
+- **Presence & typing** — available (green circle), away (amber + clock), busy/DND (red + minus), offline (hollow). Colour is never the only signal. “X is typing…” while someone is composing. Updates go over a WebSocket, with HTTP as fallback if the socket drops (it reconnects and resyncs).
+- **Search & deep links** — magnifier searches messages. Notification links to a conversation and message scroll there and flash the row.
+
+### Notifications
+
+Chat writes into the same bell as the rest of the app, with a **deep link** to the exact conversation and message (\`/chat?c=…&m=…\`, plus \`thread=\` when it is a reply):
+
+| Event | Type |
+|-------|------|
+| New DM/group message, or a channel message (if you chose All) | \`chat_message\` |
+| Someone @mentioned you, or used @channel/@here | \`chat_mention\` |
+| A reply in a thread you already posted in | \`chat_thread_reply\` |
+
+Muted conversations stay quiet. Mentions-only still delivers @mentions and thread replies you are in.
 
 > [!TIP]
-> Use Chat to ask a colleague “are you on TCK-000035?” before two people reply on the same ticket. There is no live “someone else is viewing this ticket” indicator yet.`,
+> Chat is **not** a ticket comment. Requesters never see it. Use it to ask “are you on TCK-000035?” before two people reply on the same ticket.
+
+> [!NOTE]
+> There are no calls, meetings, screen sharing, or guest (non-staff) accounts. Pin, bookmark, and forward are not built yet.`,
   },
   {
     id: 'tips-troubleshooting',

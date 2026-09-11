@@ -13,6 +13,7 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { DataGrid } from '../../components/DataGrid/DataGrid';
 import { EmployeeSelect } from '../../components/EmployeeSelect';
+import { useConfirmAction } from '../../hooks/useConfirmAction';
 import { apiErrorMessage, httpClient } from '../../providers/axios';
 
 interface UserRow {
@@ -44,6 +45,7 @@ const ROLE_COLOR: Record<string, string> = {
 /** Settings → Users (Super Admin only). Only Super Admin can create IT Admins and other roles. */
 export function UsersPanel() {
   const { message } = AntdApp.useApp();
+  const { confirmAction } = useConfirmAction();
   const [rows, setRows] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -92,32 +94,47 @@ export function UsersPanel() {
   };
 
   const toggleActive = async (row: UserRow) => {
-    try {
-      await httpClient.put(`/users/${row.id}`, { isActive: !row.isActive });
-      message.success(row.isActive ? 'Login deactivated' : 'Login activated');
-      void reload();
-    } catch (e) {
-      message.error(apiErrorMessage(e, 'Could not update the login'));
-    }
+    const nextActive = !row.isActive;
+    const ok = await confirmAction({
+      title: nextActive ? `Activate ${row.email}?` : `Deactivate ${row.email}?`,
+      content: nextActive
+        ? 'They will be able to sign in again.'
+        : 'They will not be able to sign in.',
+      okText: nextActive ? 'Activate' : 'Deactivate',
+      okDanger: !nextActive,
+      onOk: async () => {
+        await httpClient.put(`/users/${row.id}`, { isActive: nextActive });
+        message.success(row.isActive ? 'Login deactivated' : 'Login activated');
+        void reload();
+      },
+    });
+    if (!ok) return;
   };
 
   const changeRole = async (row: UserRow, next: string) => {
-    try {
-      await httpClient.put(`/users/${row.id}`, { role: next });
-      message.success('Role changed');
-      void reload();
-    } catch (e) {
-      message.error(apiErrorMessage(e, 'Could not change role'));
-    }
+    if (next === row.role) return;
+    await confirmAction({
+      title: `Change ${row.email} from ${row.role} to ${next}?`,
+      content: 'Their permissions change immediately.',
+      okText: 'Change role',
+      onOk: async () => {
+        await httpClient.put(`/users/${row.id}`, { role: next });
+        message.success('Role changed');
+        void reload();
+      },
+    });
   };
 
   const resetPassword = async (row: UserRow) => {
-    try {
-      await httpClient.post(`/users/${row.id}/reset-password`, {});
-      message.success(`Reset link emailed to ${row.email}`);
-    } catch (e) {
-      message.error(apiErrorMessage(e, 'Could not send reset link'));
-    }
+    await confirmAction({
+      title: `Send a password reset to ${row.email}?`,
+      content: 'They will receive a link to set a new password.',
+      okText: 'Send reset',
+      onOk: async () => {
+        await httpClient.post(`/users/${row.id}/reset-password`, {});
+        message.success(`Reset link emailed to ${row.email}`);
+      },
+    });
   };
 
   return (

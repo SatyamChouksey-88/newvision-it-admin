@@ -14,6 +14,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { EventTimeline, type TimelineEvent } from '../../../components/EventTimeline';
 import { useToast } from '../../../components/Toast';
+import { useConfirmAction } from '../../../hooks/useConfirmAction';
 import { httpClient } from '../../../providers/axios';
 import { ApprovalChain, type ApproverRow, PrStatusTag } from '../status';
 
@@ -21,7 +22,10 @@ export function RequisitionShow() {
   const { id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const { confirmAction } = useConfirmAction();
   const [row, setRow] = useState<Record<string, unknown> | null>(null);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectComment, setRejectComment] = useState('');
   const [history, setHistory] = useState<TimelineEvent[]>([]);
   const [reasonOpen, setReasonOpen] = useState(false);
   const [reason, setReason] = useState('');
@@ -93,11 +97,18 @@ export function RequisitionShow() {
             >
               <Button
                 disabled={!canSubmit}
-                onClick={async () => {
-                  await httpClient.post(`/purchase-requisitions/${id}/submit`);
-                  toast.success('Submitted');
-                  load();
-                }}
+                onClick={() =>
+                  void confirmAction({
+                    title: 'Submit this requisition for approval?',
+                    content: 'Approvers will be notified.',
+                    okText: 'Submit',
+                    onOk: async () => {
+                      await httpClient.post(`/purchase-requisitions/${id}/submit`);
+                      toast.success('Submitted');
+                      load();
+                    },
+                  })
+                }
               >
                 Submit
               </Button>
@@ -106,13 +117,20 @@ export function RequisitionShow() {
               <Button
                 type="primary"
                 disabled={!canDecide}
-                onClick={async () => {
-                  await httpClient.post(`/purchase-requisitions/${id}/decide`, {
-                    decision: 'approved',
-                  });
-                  toast.success('Approved');
-                  load();
-                }}
+                onClick={() =>
+                  void confirmAction({
+                    title: 'Approve this requisition?',
+                    content: 'This records your approval on the chain.',
+                    okText: 'Approve',
+                    onOk: async () => {
+                      await httpClient.post(`/purchase-requisitions/${id}/decide`, {
+                        decision: 'approved',
+                      });
+                      toast.success('Approved');
+                      load();
+                    },
+                  })
+                }
               >
                 Approve
               </Button>
@@ -120,14 +138,9 @@ export function RequisitionShow() {
             <Button
               danger
               disabled={!canDecide}
-              onClick={async () => {
-                const comment = window.prompt('Rejection comment (required)');
-                if (!comment || comment.trim().length < 3) return;
-                await httpClient.post(`/purchase-requisitions/${id}/decide`, {
-                  decision: 'rejected',
-                  comment,
-                });
-                load();
+              onClick={() => {
+                setRejectComment('');
+                setRejectOpen(true);
               }}
             >
               Reject
@@ -139,11 +152,20 @@ export function RequisitionShow() {
             >
               <Button
                 disabled={!canConvert}
-                onClick={async () => {
-                  const { data } = await httpClient.post(`/purchase-orders/from-requisition/${id}`);
-                  toast.success('Purchase order created');
-                  navigate(`/procurement/orders/show/${data.id}`);
-                }}
+                onClick={() =>
+                  void confirmAction({
+                    title: 'Create a purchase order from this requisition?',
+                    content: 'A new PO will be created from the approved lines.',
+                    okText: 'Create PO',
+                    onOk: async () => {
+                      const { data } = await httpClient.post(
+                        `/purchase-orders/from-requisition/${id}`,
+                      );
+                      toast.success('Purchase order created');
+                      navigate(`/procurement/orders/show/${data.id}`);
+                    },
+                  })
+                }
               >
                 Convert to PO
               </Button>
@@ -208,6 +230,31 @@ export function RequisitionShow() {
       <Card title="Edit history">
         <EventTimeline events={history} />
       </Card>
+      <Modal
+        title="Reject requisition"
+        open={rejectOpen}
+        onCancel={() => setRejectOpen(false)}
+        okText="Reject"
+        okButtonProps={{ danger: true, disabled: rejectComment.trim().length < 3 }}
+        onOk={async () => {
+          await httpClient.post(`/purchase-requisitions/${id}/decide`, {
+            decision: 'rejected',
+            comment: rejectComment.trim(),
+          });
+          setRejectOpen(false);
+          load();
+        }}
+      >
+        <Form layout="vertical">
+          <Form.Item label="Comment" required>
+            <Input.TextArea
+              rows={3}
+              value={rejectComment}
+              onChange={(e) => setRejectComment(e.target.value)}
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
       <Modal
         title="Cancel requisition"
         open={reasonOpen}

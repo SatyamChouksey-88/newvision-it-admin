@@ -15,6 +15,7 @@ import type { Identity } from '../../providers/authProvider';
 import { apiErrorMessage, httpClient } from '../../providers/axios';
 import type { AssetStatus } from '../../types';
 import { formatCurrency, formatDate } from '../../utils/format';
+import { useConfirmAction } from '../../hooks/useConfirmAction';
 
 function EmployeeLink({
   emp,
@@ -36,6 +37,7 @@ function EmployeeLink({
 
 export function AssetShow() {
   const { message } = AntdApp.useApp();
+  const { confirmAction } = useConfirmAction();
   const { data: identity } = useGetIdentity<Identity>();
   const canManage = ['SUPER_ADMIN', 'IT_ADMIN'].includes(identity?.role ?? '');
   const { query } = useShow({ resource: 'assets' });
@@ -47,10 +49,23 @@ export function AssetShow() {
 
   const changeStatus = async (status: AssetStatus) => {
     if (!asset?.id) return;
-    try {
+    const run = async () => {
       await httpClient.post(`/assets/${asset.id}/status`, { status });
       message.success(`Status updated to ${status.replace('_', ' ')}`);
       void query.refetch();
+    };
+    if (['retired', 'disposed', 'lost', 'damaged'].includes(status) && status !== asset.status) {
+      await confirmAction({
+        title: `Mark ${asset.assetCode} as ${status.replaceAll('_', ' ')}?`,
+        content: 'This status change is recorded on the asset and in the audit log.',
+        okText: 'Change status',
+        okDanger: true,
+        onOk: run,
+      });
+      return;
+    }
+    try {
+      await run();
     } catch (e) {
       message.error(apiErrorMessage(e, 'Could not change status'));
     }
@@ -88,28 +103,34 @@ export function AssetShow() {
         canManage && asset ? (
           <Space>
             <Button
-              onClick={async () => {
-                try {
-                  await httpClient.post(`/assets/${asset.id}/audit`, {});
-                  message.success('Audit stamped — next due in 12 months');
-                  void query.refetch();
-                } catch (e) {
-                  message.error(apiErrorMessage(e, 'Could not stamp audit'));
-                }
-              }}
+              onClick={() =>
+                void confirmAction({
+                  title: `Audit ${asset.assetCode} now?`,
+                  content: 'Stamps today’s audit date and sets the next due date in 12 months.',
+                  okText: 'Audit now',
+                  onOk: async () => {
+                    await httpClient.post(`/assets/${asset.id}/audit`, {});
+                    message.success('Audit stamped — next due in 12 months');
+                    void query.refetch();
+                  },
+                })
+              }
             >
               Audit now
             </Button>
             <Button
-              onClick={async () => {
-                try {
-                  const { data } = await httpClient.post(`/assets/${asset.id}/duplicate`);
-                  message.success(`Created ${data.assetCode} — fill in the serial`);
-                  window.location.assign(`/assets/show/${data.id}`);
-                } catch (e) {
-                  message.error(apiErrorMessage(e, 'Could not duplicate'));
-                }
-              }}
+              onClick={() =>
+                void confirmAction({
+                  title: `Duplicate ${asset.assetCode}?`,
+                  content: 'Creates a new asset with a fresh number. You will fill in the serial.',
+                  okText: 'Duplicate',
+                  onOk: async () => {
+                    const { data } = await httpClient.post(`/assets/${asset.id}/duplicate`);
+                    message.success(`Created ${data.assetCode} — fill in the serial`);
+                    window.location.assign(`/assets/show/${data.id}`);
+                  },
+                })
+              }
             >
               Duplicate
             </Button>
@@ -130,10 +151,14 @@ export function AssetShow() {
             >
               Print QR label
             </Button>
+            <Link to={`/assets/edit/${asset.id}`}>
+              <Button>Edit number</Button>
+            </Link>
             <ManualEditButton
               entityType="Asset"
               id={asset.id}
               fields={[
+                { name: 'assetCode', label: 'Asset number', value: asset.assetCode },
                 { name: 'brand', label: 'Brand', value: asset.brand },
                 { name: 'model', label: 'Model', value: asset.model },
                 { name: 'serialNumber', label: 'Serial', value: asset.serialNumber },

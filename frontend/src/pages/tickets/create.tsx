@@ -7,6 +7,7 @@ import { EmployeeMultiSelect } from '../../components/EmployeeSelect';
 import { ScreenshotPasteZone } from '../../components/ScreenshotPasteZone';
 import { TICKET_PRIORITY_OPTIONS } from '../../components/TicketStatusTag';
 import { useToast } from '../../components/Toast';
+import { useConfirmAction } from '../../hooks/useConfirmAction';
 import type { Identity } from '../../providers/authProvider';
 import { apiErrorMessage, httpClient } from '../../providers/axios';
 import type { TicketCategory, TicketPriority, TicketTemplate } from '../../types';
@@ -14,6 +15,7 @@ import type { TicketCategory, TicketPriority, TicketTemplate } from '../../types
 export function TicketCreate() {
   const navigate = useNavigate();
   const toast = useToast();
+  const { confirmAction } = useConfirmAction();
   const [params] = useSearchParams();
   const [form] = Form.useForm();
   const [categories, setCategories] = useState<TicketCategory[]>([]);
@@ -198,7 +200,23 @@ export function TicketCreate() {
           <Button type="primary" htmlType="submit" loading={busy} data-testid="submit-ticket">
             Submit ticket
           </Button>
-          <Button onClick={() => navigate('/tickets')}>Cancel</Button>
+          <Button
+            onClick={() => {
+              if (form.isFieldsTouched()) {
+                void confirmAction({
+                  title: 'Discard unsaved changes?',
+                  content: 'This ticket draft will be lost.',
+                  okText: 'Discard',
+                  okDanger: true,
+                  onOk: () => navigate('/tickets'),
+                });
+                return;
+              }
+              navigate('/tickets');
+            }}
+          >
+            Cancel
+          </Button>
         </Space>
       </Form>
     </Card>

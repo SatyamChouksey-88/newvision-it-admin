@@ -35,6 +35,7 @@ import { ASSET_STATUS_OPTIONS, StatusTag } from '../../components/StatusTag';
 import { TablePagination } from '../../components/TablePagination';
 import { TableSkeleton } from '../../components/TableSkeleton';
 import { useToast } from '../../components/Toast';
+import { useConfirmAction } from '../../hooks/useConfirmAction';
 import { useRefinePagination } from '../../hooks/useRefinePagination';
 import { useSetupStatus } from '../../hooks/useSetupStatus';
 import type { Identity } from '../../providers/authProvider';
@@ -57,6 +58,7 @@ export function AssetList() {
   const navigate = useNavigate();
   const { message } = AntdApp.useApp();
   const toast = useToast();
+  const { confirmAction } = useConfirmAction();
   const { data: identity } = useGetIdentity<Identity>();
   const canManage = IT_ROLES.includes(identity?.role ?? '');
   const { freshInstall } = useSetupStatus();
@@ -134,10 +136,24 @@ export function AssetList() {
   const clearFilters = () => applyFilterState({});
 
   const changeStatus = async (asset: Asset, status: AssetStatus) => {
-    try {
+    const destructive = ['retired', 'disposed', 'lost', 'damaged'].includes(status);
+    const run = async () => {
       await httpClient.post(`/assets/${asset.id}/status`, { status });
       message.success(`${asset.assetCode}: ${asset.status} → ${status}`);
       tableQuery.refetch();
+    };
+    if (destructive && status !== asset.status) {
+      await confirmAction({
+        title: `Mark ${asset.assetCode} as ${status.replaceAll('_', ' ')}?`,
+        content: 'This status change is recorded on the asset and in the audit log.',
+        okText: status === 'retired' ? 'Retire' : 'Change status',
+        okDanger: true,
+        onOk: run,
+      });
+      return;
+    }
+    try {
+      await run();
     } catch (e) {
       message.error(apiErrorMessage(e, 'Could not change status'));
     }
@@ -593,16 +609,16 @@ export function AssetList() {
               title: 'Asset',
               dataIndex: 'assetCode',
               sorter: true,
-              defaultWidth: 176,
+              defaultWidth: 220,
               ellipsis: true,
               render: (_, r) => (
-                <Space size={4} style={{ maxWidth: '100%' }}>
+                <div className="nv-cell-pair">
                   <PrimaryWithSub
                     primary={r.assetCode}
                     sub={`${r.brand ?? ''} ${r.model ?? ''}`.trim() || r.serialNumber}
                   />
                   {canManage ? <CopyButton value={r.assetCode} label="asset code" /> : null}
-                </Space>
+                </div>
               ),
             },
             {

@@ -8,6 +8,7 @@ import {
   Input,
   InputNumber,
   Modal,
+  Popconfirm,
   Row,
   Segmented,
   Space,
@@ -239,17 +240,20 @@ export function AccessoriesPage() {
                               {c.employee?.employeeCode})
                             </Typography.Text>
                             {canCheckout && (
-                              <Button
-                                size="small"
-                                type="link"
-                                style={{ padding: 0, height: 'auto' }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  void checkin(r.id, c.id);
-                                }}
+                              <Popconfirm
+                                title={`Check in this accessory from ${c.employee?.firstName ?? ''} ${c.employee?.lastName ?? ''}?`}
+                                okText="Check in"
+                                onConfirm={() => void checkin(r.id, c.id)}
                               >
-                                Check in
-                              </Button>
+                                <Button
+                                  size="small"
+                                  type="link"
+                                  style={{ padding: 0, height: 'auto' }}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  Check in
+                                </Button>
+                              </Popconfirm>
                             )}
                           </Space>
                         ))}

@@ -325,6 +325,32 @@ Definition of Done: UI matches approved mockup look-and-feel; no functional regr
 - [x] Help articles, Reports cards, My work entries for pending approvals and overdue payments
 - [x] Enhancements beyond the brief: invoice overdue auto-flag on list, command-palette jumps, pending-vendor from free-text name, PO PDF marked amended, 2% match tolerance via env
 
+## Prompt 24 — Teams-style Team Chat ✅
+
+- [x] Migrated existing `chat_channels` / messages; added threads, reactions, mentions, attachments, notify prefs, presence fields
+- [x] REST + Socket.IO gateway; staff-only (`SUPER_ADMIN` / `IT_ADMIN` / `IT_SUPPORT`)
+- [x] Full-page `/chat` three-pane UI (NewVision tokens), header launcher preserved
+- [x] Mentions + thread replies notify with `/chat?c=&m=` deep links
+- [x] Sensible extras: in-conversation search, DM/group seen-by, `#helpdesk` + `#procurement` defaults, PO/PR unfurl
+- [x] Follow-ups in `FUTURE_IDEAS.md`: pin/bookmark/forward; no calls/meetings/guests
+- [x] Send uses the HTTP response (not only the socket) and defaults the open conversation to `#it-ops` so a recency-sorted DM cannot steal the composer
+
+## Sidebar account menu + sign-out confirm (2026-09-11)
+
+- [x] Clicking the sidebar name/avatar opens an account menu (Profile / Settings / Help)
+- [x] Sign out always asks “Sign out?” first — Stay signed in cancels; confirm then logs out
+
+## Leftovers pass — 2026-09-11
+
+- [x] Sign out Modal awaits logout + `window.location.assign('/login')`; copy says NewVisionITIS
+- [x] `index.html` title is NewVisionITIS; DocumentTitleHandler stays `{page} | NewVisionITIS`
+- [x] Asset number field on create/edit; `update()` persists `assetCode`; rename confirm; Manual correction includes the code
+- [x] Dashboard cards collapse; My work pages by 10
+- [x] Header search 360–480px; palette 640px; grid search 34px
+- [x] Cell overflow: `.nv-cell-line` / `.nv-cell-pair`; DataGrid no longer nowrap-clips CopyButton
+- [x] Chat: Teams left/right bubbles, light code blocks, wrap, document paste, file cards, in-bubble edit, deep-link highlight
+- [x] Destructive confirm helper on status/delete/leave/PR/users/tickets
+
 ## Known issues
 
 - **Seed resets demo data on container start** when `SEED_ON_START=true` (the compose default). Convenient for demos, but restarting the backend wipes manual changes. Set `SEED_ON_START: "false"` in `docker-compose.yml` after the first boot to persist changes. Documented in README.

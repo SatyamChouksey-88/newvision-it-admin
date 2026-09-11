@@ -57,6 +57,12 @@ test.describe('Accessibility (axe-core)', () => {
     await assertNoSeriousViolations(page);
   });
 
+  test('no serious axe violations on team chat', async ({ page }) => {
+    await page.goto('/chat');
+    await expect(page.getByTestId('chat-page')).toBeVisible();
+    await assertNoSeriousViolations(page);
+  });
+
   test('no serious axe violations on a Help article, including the skip link and nav tree', async ({ page }) => {
     await page.goto('/help/getting-started');
     await expect(page.getByRole('heading', { level: 1, name: 'Getting Started' })).toBeVisible();

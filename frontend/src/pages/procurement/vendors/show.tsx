@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { EventTimeline, type TimelineEvent } from '../../../components/EventTimeline';
 import { useToast } from '../../../components/Toast';
+import { useConfirmAction } from '../../../hooks/useConfirmAction';
 import { apiErrorMessage, httpClient } from '../../../providers/axios';
 import { VendorStatusTag } from '../status';
 
@@ -10,6 +11,7 @@ export function VendorShow() {
   const { id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const { confirmAction } = useConfirmAction();
   const [row, setRow] = useState<Record<string, unknown> | null>(null);
   const [history, setHistory] = useState<TimelineEvent[]>([]);
   const [reasonOpen, setReasonOpen] = useState<string | null>(null);
@@ -97,11 +99,18 @@ export function VendorShow() {
             {row?.bankChangePending ? (
               <Button
                 type="primary"
-                onClick={async () => {
-                  await httpClient.post(`/vendors/${id}/approve-bank`);
-                  toast.success('Bank details approved');
-                  load();
-                }}
+                onClick={() =>
+                  void confirmAction({
+                    title: 'Approve the pending bank details for this vendor?',
+                    content: 'The new bank details become the official record.',
+                    okText: 'Approve bank details',
+                    onOk: async () => {
+                      await httpClient.post(`/vendors/${id}/approve-bank`);
+                      toast.success('Bank details approved');
+                      load();
+                    },
+                  })
+                }
               >
                 Approve bank details
               </Button>

@@ -22,7 +22,8 @@ Nothing here should be implemented without an explicit decision to expand scope.
 - Multi-entity / multi-currency / multi-country procurement consolidation
 - OCR-based automatic invoice capture
 - Full GL / encumbrance accounting
-- Payment execution (NewVision tracks vendor invoice payment **status** only)
+- Pin, bookmark, and forward/quote-reply in Team Chat (search-in-chat, read receipts on small DMs, and per-conversation mute are already shipped)
+- Audio/video calls, meetings, screen sharing, guest/external chat, or federation with Microsoft Teams (explicitly out of scope for the in-app Teams-style chat)
 
 - Bulk manual-edit tool (use import/reconciliation)
 - Editing or deleting audit log entries, notes, or comments once posted

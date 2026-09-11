@@ -20,6 +20,7 @@ export async function logoutIfNeeded(page: Page) {
   const logoutBtn = page.getByTestId('logout-button').first();
   if (await logoutBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
     await logoutBtn.click();
+    await page.getByTestId('logout-confirm').click();
     await expect(emailInput).toBeVisible({ timeout: 10_000 });
     return;
   }

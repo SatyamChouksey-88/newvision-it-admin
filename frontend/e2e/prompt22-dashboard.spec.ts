@@ -7,6 +7,17 @@ test('IT Admin keeps KPI tiles and shows the My work list', async ({ page }) => 
   await expect(page.getByRole('link', { name: /^Total Assets:/ })).toBeVisible();
   await expect(page.getByTestId('my-work')).toBeVisible();
   await expect(page.getByTestId('my-work').getByText('My work')).toBeVisible();
+
+  const myWork = page.getByTestId('my-work');
+  const caret = myWork.getByRole('button', { name: /collapse section/i });
+  await expect(caret).toBeVisible();
+  // Only My work has a collapse caret — not Status / Location / Tickets.
+  await expect(page.getByRole('button', { name: /collapse section/i })).toHaveCount(1);
+  await expect(myWork.getByTestId('my-work-list')).toBeVisible();
+  await caret.click();
+  await expect(myWork.getByTestId('my-work-list')).toBeHidden();
+  await myWork.getByRole('button', { name: /expand section/i }).click();
+  await expect(myWork.getByTestId('my-work-list')).toBeVisible();
 });
 
 test('IT Support home is the My work queue, not estate KPIs', async ({ page }) => {

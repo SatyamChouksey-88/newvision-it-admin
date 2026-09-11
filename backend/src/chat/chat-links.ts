@@ -1,4 +1,4 @@
-export type ChatLinkKind = 'ticket' | 'asset' | 'employee';
+export type ChatLinkKind = 'ticket' | 'asset' | 'employee' | 'po' | 'requisition';
 
 export interface ChatLinkRef {
   kind: ChatLinkKind;
@@ -9,7 +9,7 @@ export interface ChatLinkRef {
   status?: string;
 }
 
-/** Detect TCK / AST / EMP codes and in-app show URLs inside a chat body. */
+/** Detect TCK / AST / EMP / PO / PR codes and in-app show URLs inside a chat body. */
 export function parseChatLinks(body: string): ChatLinkRef[] {
   const found: ChatLinkRef[] = [];
   const seen = new Set<string>();
@@ -22,11 +22,21 @@ export function parseChatLinks(body: string): ChatLinkRef[] {
 
   for (const m of body.matchAll(/TCK-(\d{1,8})/gi)) {
     const id = Number(m[1]);
-    add({ kind: 'ticket', code: `TCK-${String(id).padStart(6, '0')}`, href: `/tickets/show/${id}`, id });
+    add({
+      kind: 'ticket',
+      code: `TCK-${String(id).padStart(6, '0')}`,
+      href: `/tickets/show/${id}`,
+      id,
+    });
   }
   for (const m of body.matchAll(/\/tickets\/show\/(\d+)/gi)) {
     const id = Number(m[1]);
-    add({ kind: 'ticket', code: `TCK-${String(id).padStart(6, '0')}`, href: `/tickets/show/${id}`, id });
+    add({
+      kind: 'ticket',
+      code: `TCK-${String(id).padStart(6, '0')}`,
+      href: `/tickets/show/${id}`,
+      id,
+    });
   }
   for (const m of body.matchAll(/\b(AST-[A-Z0-9-]+)\b/gi)) {
     add({ kind: 'asset', code: m[1].toUpperCase(), href: `/assets?q=${encodeURIComponent(m[1])}` });
@@ -35,10 +45,51 @@ export function parseChatLinks(body: string): ChatLinkRef[] {
     add({ kind: 'asset', code: `Asset #${m[1]}`, href: `/assets/show/${m[1]}`, id: Number(m[1]) });
   }
   for (const m of body.matchAll(/\b(EMP-[A-Z0-9-]+)\b/gi)) {
-    add({ kind: 'employee', code: m[1].toUpperCase(), href: `/employees?q=${encodeURIComponent(m[1])}` });
+    add({
+      kind: 'employee',
+      code: m[1].toUpperCase(),
+      href: `/employees?q=${encodeURIComponent(m[1])}`,
+    });
   }
   for (const m of body.matchAll(/\/employees\/show\/(\d+)/gi)) {
-    add({ kind: 'employee', code: `Employee #${m[1]}`, href: `/employees/show/${m[1]}`, id: Number(m[1]) });
+    add({
+      kind: 'employee',
+      code: `Employee #${m[1]}`,
+      href: `/employees/show/${m[1]}`,
+      id: Number(m[1]),
+    });
+  }
+  for (const m of body.matchAll(/\bPO-(\d{1,8})\b/gi)) {
+    const n = Number(m[1]);
+    const code = `PO-${String(n).padStart(6, '0')}`;
+    add({ kind: 'po', code, href: `/procurement/orders?q=${encodeURIComponent(code)}` });
+  }
+  for (const m of body.matchAll(/\/procurement\/orders\/show\/(\d+)/gi)) {
+    const id = Number(m[1]);
+    add({
+      kind: 'po',
+      code: `PO-${String(id).padStart(6, '0')}`,
+      href: `/procurement/orders/show/${id}`,
+      id,
+    });
+  }
+  for (const m of body.matchAll(/\bPR-(\d{1,8})\b/gi)) {
+    const n = Number(m[1]);
+    const code = `PR-${String(n).padStart(6, '0')}`;
+    add({
+      kind: 'requisition',
+      code,
+      href: `/procurement/requisitions?q=${encodeURIComponent(code)}`,
+    });
+  }
+  for (const m of body.matchAll(/\/procurement\/requisitions\/show\/(\d+)/gi)) {
+    const id = Number(m[1]);
+    add({
+      kind: 'requisition',
+      code: `PR-${String(id).padStart(6, '0')}`,
+      href: `/procurement/requisitions/show/${id}`,
+      id,
+    });
   }
   return found;
 }

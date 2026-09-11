@@ -119,6 +119,7 @@ Every judgment call made while building NewVision, and why. Newest at the bottom
 - **Typeahead / attention `take` caps stay** — search (20/20/10/10) and dashboard attention (10) are summaries, not inventories. Profile/history/report issue lists were raised (50→500, 200→2000).
 - **Accessories default to the mockup card grid** — Excel DataGrid remains behind a Cards/Table toggle so we do not drop sort/filter/export.
 - **Sidebar Sign out carries `data-testid="logout-button"`** — header logout was removed to match the mockup; Playwright still finds the control.
+- **Sign out always confirms first** — clicking the name opens an account menu; Sign out (menu or sidebar) opens “Sign out?”. Stay signed in cancels. Confirm uses `data-testid="logout-confirm"`.
 
 ## Prompt 13 — Tablet, light-only, first-run (2026-09-10)
 
@@ -246,5 +247,27 @@ Every judgment call made while building NewVision, and why. Newest at the bottom
 - **3-way match tolerance is 2%** (`PROCUREMENT_MATCH_TOLERANCE_PCT`). Exception invoices need a note before payment can be approved.
 - **Handoff never deletes.** Amending/cancelling a PO or voiding a GRN flags `needsReconciliation` on auto-created assets/handoffs.
 - **Not built (logged in FUTURE_IDEAS.md):** e-sourcing, supplier portal, PunchOut, full CLM, multi-entity consolidation, OCR invoices, GL, payment execution.
+
+## Prompt 24 — Teams-style Team Chat
+
+- **Full-page `/chat` is the primary UX** (closer to Teams for daily use). The header Chat button navigates there and keeps the unread badge; the old drawer is gone.
+- **Opening `/chat` with no `?c=` lands on `#it-ops`**, not whichever DM had the latest message. Conversation clicks update React state immediately so Send cannot race the URL.
+- **Kept Prisma type `dm`** (not renamed to `direct`) so existing rows stay valid. The UI labels them Direct.
+- **Existing `#it-ops` group rows are promoted to `channel` in `ensureDefaultChannels`** after migrate (Postgres cannot use a newly added enum value in the same migration transaction).
+- **Mention tokens are `[@Name](mention:id)`** plus `@channel` / `@here` — structured ids, not display-name matching.
+- **WebSockets shipped** (`/chat` Socket.IO namespace, JWT in handshake `auth.token`). HTTP polling remains as unread fallback on the launcher.
+- **Who can delete:** sender, or Super Admin / IT Admin for moderation. IT Support cannot delete others’ messages.
+- **Read receipts** only on DMs/groups with ≤8 members. Pin/bookmark/forward deferred.
+- **Not built:** calls, meetings, screen share, guests, Teams federation.
+
+## Leftovers pass — asset codes, dashboard, search, Teams Comfy (2026-09-11)
+
+- **Custom asset numbers are first-class.** Create accepts an optional typed code; blank still auto-assigns `AST-{LOC}-{CAT}-{SEQ}`. Update now persists `assetCode` (it used to drop it). Rename confirms because old QR stickers and scan links die. Format is letters/digits/hyphen, min 3 — sticker codes like `NV-LAP-1042` are allowed if unique.
+- **My work pages 10 rows** client-side. Dashboard cards collapse and remember `nv.dash.collapse.{key}`. This is not the ChatGPT sider toggle.
+- **Header search is a 360–480px rounded-rect field** (10px radius) that still only opens ⌘K. Same family on the palette input.
+- **Chat layout is classic Teams Comfy:** own messages right, others left, including `#it-ops` and threads. Overflow stays inside `max-width: min(72%, 560px)` bubbles. A leftover-scan had said “keep Slack-left”; this pass is the promised Teams replica, so we flipped once and will not flip again.
+- **Clipboard prefers real files over Office/Explorer thumbnails.** Image-only paste is still a screenshot. Ctrl+Shift+V stays plain text.
+- **Sign-out awaits `useLogout().mutateAsync` then hard-assigns `/login`** so a leftover token cannot bounce the user back.
+- **Destructive confirms** go through `useConfirmAction` / Popconfirm. Save, Send, Assign to me, and existing reason modals are not double-wrapped.
 
 

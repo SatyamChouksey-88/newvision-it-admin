@@ -89,7 +89,7 @@ const GLANCE = [
   {
     icon: <AlertOutlined />,
     title: 'Notifications',
-    desc: 'The bell icon, ticket email vs digest, and staff-chat alerts.',
+    desc: 'The bell icon, ticket email vs digest, and team-chat alerts with deep links.',
     to: 'notifications',
   },
   {

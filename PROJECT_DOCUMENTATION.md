@@ -40,9 +40,9 @@ The stack is a **React + Refine + Ant Design** frontend talking to a **NestJS + 
 | **Prompt 18** — Real helpdesk emails | Branded HTML templates for the full ticket lifecycle (created/assigned/unassigned/comment/status-change/resolved/digest); requester creation confirmation added | **Done** |
 | **Prompt 19** — Re-verified against reference | Re-read the mockup directly; reverted an interim "futuristic" visual pass that had drifted from it; kept the command palette and a WCAG contrast fix found while re-testing | **Done** |
 | **Help docs rebuild** | In-app MkDocs-Material-style documentation site (structure, not ING colors); accurate articles + real screenshots | **Done** |
-| **Prompt 23 v2** — Vendor & Procurement | Vendors, requisitions, POs, GRN, 3-way match, contracts, scorecards; edit/amend/void with activity log | **Done** |
+| **Prompt 24** — Teams-style staff chat | Channels, DMs, groups, threads, rich composer, reactions, mentions, presence, WebSockets | **Done** |
 
-**Test counts (current, re-run 2026-09-11):** 81 backend unit + 111 backend integration = **192**; **68** Playwright (incl. axe-core).
+**Test counts (current, re-run 2026-09-11):** 96 backend unit + 122 backend integration = **218**; Playwright includes Team Chat + axe-core.
 
 **Design reference:** `design-reference/NewVision-standalone-src.html` (Prompt 12 source of truth, re-verified in Prompt 19) and `design-reference/DESIGN_TOKENS.md`. Earlier `NewVision_Asset_Manager.html` is historical.
 
@@ -61,6 +61,7 @@ Pulled from `backend/package.json`, `frontend/package.json`, and config files.
 | **Frontend build** | Vite | ^7.3.6 |
 | **Frontend charts** | `@ant-design/plots` | ^2.6.8 |
 | **Frontend HTTP** | Axios | ^1.7.0 |
+| **Frontend realtime** | `socket.io-client` | (chat) |
 | **Frontend language** | TypeScript | ^7.0.0 |
 | **Frontend lint/format** | Biome | ^2.5.12 |
 | **Backend framework** | NestJS (`@nestjs/common`, `@nestjs/core`, …) | ^11.2.3 |
@@ -69,6 +70,7 @@ Pulled from `backend/package.json`, `frontend/package.json`, and config files.
 | **DB driver** | `@prisma/adapter-pg` + `pg` | ^7.10.0 / ^8.23.0 |
 | **Auth** | JWT (`@nestjs/jwt`, `passport-jwt`), passwords hashed with `bcrypt` | jwt ^11.0.2 |
 | **Scheduling** | `@nestjs/schedule` (warranty cron) | ^5.0.1 |
+| **Realtime** | `@nestjs/websockets` + `socket.io` (staff chat) | ^11 / current |
 | **Import/export** | ExcelJS, PapaParse | ^4.4.0 / ^5.7.0 |
 | **PDF reports** | PDFKit | ^0.20.2 |
 | **QR codes** | `qrcode` | ^1.5.4 |
@@ -649,7 +651,8 @@ npm run test:e2e:report           # HTML report
 | `governance.spec.ts` | Saved view, import dry-run, HR reconcile |
 | `scan.spec.ts` | Public scan page without login |
 | `requests.spec.ts` | Employee submit → manager approve → IT fulfill |
-| `a11y.spec.ts` | axe-core WCAG2a/2aa on dashboard, assets, tickets, raise-ticket, asset notes |
+| `a11y.spec.ts` | axe-core WCAG2a/2aa on dashboard, assets, tickets, raise-ticket, asset notes, Help, team chat |
+| `chat.spec.ts` | `/chat` send, thread panel, keyboard rail, employees excluded |
 | `prompt13.spec.ts` | First-run welcome, tablet sider, light-only, phone scan |
 | `prompt14-bugs.spec.ts` | Growth chart scale, select-all checkbox, MANAGE color + logos |
 | `prompt17.spec.ts` | Lazy routes, cumulative growth API + chart, favicon/collapsed mark |
@@ -712,8 +715,26 @@ Help articles embed PNGs from `frontend/public/docs/screenshots/`, captured agai
 | `[SCREENSHOT: audit log]` | `/audit-logs` — paginated audit entries |
 | `[SCREENSHOT: public scan page]` | `/scan/AST-PUN-LAP-0001` — logged out, mobile width |
 | `[SCREENSHOT: help panel]` | `/help` — article chrome + screenshots under `frontend/public/docs/screenshots/` |
+| `[SCREENSHOT: team chat]` | `/chat` — conversation rail, message pane, thread panel |
 
 **Suggested storage:** `docs/screenshots/` with matching filenames (e.g. `dashboard.png`).
+
+---
+
+## 11b. Team Chat (Prompt 24)
+
+Staff-only Microsoft Teams-style chat (Super Admin, IT Admin, IT Support — enforced on every `/api/chat/*` route and on the `/chat` WebSocket namespace). Existing `#it-ops` / DM rows were migrated in place (`chat_channels` kept; `#…` groups promoted to type `channel`).
+
+| Surface | Behaviour |
+|---------|-----------|
+| `/chat` + header **Chat** | Three-pane layout: channels/DMs, messages, thread/details |
+| Composer | Markdown-lite, `@` picker (`[@Name](mention:id)`), emoji, attach, Ctrl+V **document or screenshot**, drag-and-drop |
+| Bubbles | Own messages right (`is-mine`), others left (`is-theirs`) in channels, DMs, groups, and threads |
+| Realtime | Socket.IO namespace `/chat` (JWT in `auth.token`); reconnect resyncs after last id |
+| Notifications | `chat_message`, `chat_mention`, `chat_thread_reply` with `link` deep-link to `/chat?c=&m=` |
+| Moderation | Sender edit/soft-delete; Super Admin / IT Admin may delete any message; both audited |
+
+Not built (see `FUTURE_IDEAS.md`): calls/meetings, guests, pin/bookmark, forward.
 
 ---
 

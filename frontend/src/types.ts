@@ -108,6 +108,7 @@ export interface AppNotification {
   message: string;
   assetId?: number | null;
   supportTicketId?: number | null;
+  link?: string | null;
   isRead: boolean;
   createdAt: string;
   asset?: { id: number; assetCode: string };

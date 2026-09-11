@@ -1,4 +1,5 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import { Test } from '@nestjs/testing';
 import { RoleName } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
@@ -26,6 +27,7 @@ export interface TestContext {
 export async function createTestApp(): Promise<INestApplication> {
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
   const app = moduleRef.createNestApplication();
+  app.useWebSocketAdapter(new IoAdapter(app));
   app.setGlobalPrefix('api');
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   await app.init();
@@ -74,6 +76,12 @@ export async function resetDatabase(prisma: PrismaService): Promise<void> {
   await prisma.reconciliationRun.deleteMany();
   await prisma.importJob.deleteMany();
   await prisma.savedView.deleteMany();
+  await prisma.chatReaction.deleteMany();
+  await prisma.chatMention.deleteMany();
+  await prisma.chatAttachment.deleteMany();
+  await prisma.chatMessage.deleteMany();
+  await prisma.chatChannelMember.deleteMany();
+  await prisma.chatChannel.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.ticketMessage.deleteMany();
   await prisma.ticketPriorityTarget.deleteMany();

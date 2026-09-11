@@ -24,6 +24,7 @@ test('employee submits request; manager approves; IT marks fulfilled', async ({ 
   await managerCtx.close();
 
   await page.getByTestId('logout-button').first().click();
+  await page.getByTestId('logout-confirm').click();
   await login(page, DEMO_USERS.itAdmin);
   await page.goto('/requests');
   await page.getByRole('button', { name: 'Mark fulfilled' }).first().click();

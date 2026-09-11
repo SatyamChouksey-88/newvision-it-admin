@@ -33,6 +33,7 @@ import {
   TicketStatusTag,
 } from '../../components/TicketStatusTag';
 import { useToast } from '../../components/Toast';
+import { useConfirmAction } from '../../hooks/useConfirmAction';
 import type { Identity } from '../../providers/authProvider';
 import { apiErrorMessage, httpClient } from '../../providers/axios';
 import type { CannedResponse, SupportTicket, TicketComment, TicketStatus } from '../../types';
@@ -45,6 +46,7 @@ const MANUAL = ['SUPER_ADMIN', 'IT_ADMIN'];
 export function TicketShow() {
   const navigate = useNavigate();
   const toast = useToast();
+  const { confirmAction } = useConfirmAction();
   const { data: identity } = useGetIdentity<Identity>();
   const isStaff = STAFF.includes(identity?.role ?? '');
   const canManual = MANUAL.includes(identity?.role ?? '');
@@ -139,11 +141,28 @@ export function TicketShow() {
     !ticket?.ratingPromptDropped;
 
   const transition = async (status: TicketStatus) => {
-    if (!ticket) return;
-    try {
+    if (!ticket || status === ticket.status) return;
+    const needs = status === 'resolved' || status === 'closed' || ticket.status === 'closed';
+    const run = async () => {
       await httpClient.patch(`/support-tickets/${ticket.id}/transition`, { status });
       toast.success(`Status → ${status.replaceAll('_', ' ')}`);
       reload();
+    };
+    if (needs) {
+      await confirmAction({
+        title: `Close ticket ${ticket.ticketNumber}?`,
+        content:
+          status === 'closed' || status === 'resolved'
+            ? 'The requester will see this status.'
+            : `Reopen ${ticket.ticketNumber} from closed?`,
+        okText: status === 'resolved' ? 'Resolve' : status === 'closed' ? 'Close' : 'Reopen',
+        okDanger: status === 'closed',
+        onOk: run,
+      });
+      return;
+    }
+    try {
+      await run();
     } catch (e) {
       toast.error(apiErrorMessage(e, 'Could not change status'));
     }
@@ -302,6 +321,24 @@ export function TicketShow() {
                 options={staff.map((s) => ({ label: s.fullName, value: s.id }))}
                 onChange={async (userId) => {
                   if (!ticket) return;
+                  const changing = userId !== ticket.assignedToId && (userId == null || userId !== ticket.assignedToId);
+                  if (changing && (userId == null || (ticket.assignedToId && userId !== ticket.assignedToId))) {
+                    const ok = await confirmAction({
+                      title: userId == null ? 'Unassign this ticket?' : 'Change assignee?',
+                      content: userId == null
+                        ? `${ticket.ticketNumber} will have no assignee.`
+                        : `${ticket.ticketNumber} will be reassigned.`,
+                      okText: userId == null ? 'Unassign' : 'Change assignee',
+                      onOk: async () => {
+                        await httpClient.post(`/support-tickets/${ticket.id}/assign`, {
+                          userId: userId ?? null,
+                        });
+                        reload();
+                      },
+                    });
+                    if (!ok) return;
+                    return;
+                  }
                   await httpClient.post(`/support-tickets/${ticket.id}/assign`, {
                     userId: userId ?? null,
                   });
@@ -496,8 +533,16 @@ export function TicketShow() {
               closable={isStaff}
               onClose={async (e) => {
                 e.preventDefault();
-                await httpClient.delete(`/support-tickets/${ticket!.id}/watchers/${w.employeeId}`);
-                reload();
+                await confirmAction({
+                  title: 'Remove watcher?',
+                  content: `${w.employee.firstName} ${w.employee.lastName} will stop receiving updates.`,
+                  okText: 'Remove',
+                  okDanger: true,
+                  onOk: async () => {
+                    await httpClient.delete(`/support-tickets/${ticket!.id}/watchers/${w.employeeId}`);
+                    reload();
+                  },
+                });
               }}
             >
               {w.employee.firstName} {w.employee.lastName}
@@ -606,15 +651,19 @@ export function TicketShow() {
             form={dupForm}
             layout="inline"
             onFinish={async (v) => {
-              try {
-                await httpClient.post(`/support-tickets/${ticket.id}/duplicate`, {
-                  originalTicketNumber: v.originalTicketNumber,
-                });
-                toast.success('Marked as duplicate');
-                reload();
-              } catch (e) {
-                toast.error(apiErrorMessage(e, 'Could not mark duplicate'));
-              }
+              await confirmAction({
+                title: `Close ${ticket.ticketNumber} as a duplicate?`,
+                content: `This ticket will close as a duplicate of ${v.originalTicketNumber}.`,
+                okText: 'Close as duplicate',
+                okDanger: true,
+                onOk: async () => {
+                  await httpClient.post(`/support-tickets/${ticket.id}/duplicate`, {
+                    originalTicketNumber: v.originalTicketNumber,
+                  });
+                  toast.success('Marked as duplicate');
+                  reload();
+                },
+              });
             }}
           >
             <Form.Item name="originalTicketNumber" rules={[{ required: true }]}>

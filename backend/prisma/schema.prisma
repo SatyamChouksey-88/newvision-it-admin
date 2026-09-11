@@ -32,8 +32,39 @@ enum ChecklistKind {
 }
 
 enum ChatChannelType {
+  channel
   dm
   group
+}
+
+enum ChatVisibility {
+  public
+  private
+}
+
+enum ChatMemberRole {
+  owner
+  member
+}
+
+enum ChatNotifyPref {
+  all
+  mentions
+  muted
+}
+
+enum ChatMentionKind {
+  user
+  channel
+  here
+}
+
+enum ChatPresenceMode {
+  auto
+  available
+  away
+  busy
+  dnd
 }
 
 enum AssetStatus {
@@ -94,6 +125,8 @@ enum NotificationType {
   general
   support_ticket
   chat_message
+  chat_mention
+  chat_thread_reply
   procurement
   contract_renewal
   vendor_payment
@@ -306,6 +339,8 @@ model User {
   accessoryCheckouts AccessoryCheckout[] @relation("AccessoryCheckoutActor")
   consumableIssues   ConsumableIssue[]   @relation("ConsumableIssueActor")
   emailNotifyPref    EmailNotifyPref     @default(immediate) @map("email_notify_pref")
+  lastSeenAt         DateTime?           @map("last_seen_at")
+  presenceMode       ChatPresenceMode    @default(auto) @map("presence_mode")
   assignedTickets    SupportTicket[]     @relation("TicketAssignee")
   ticketComments     TicketComment[]
   ticketTimeLogs     TicketTimeLog[]
@@ -313,8 +348,12 @@ model User {
   ticketTemplates    TicketTemplate[]
   recordNotes        RecordNote[]
   ticketAttachments  TicketAttachment[]  @relation("TicketAttachmentUploader")
-  chatMemberships    ChatChannelMember[]
-  chatMessages       ChatMessage[]       @relation("ChatAuthor")
+  chatMemberships         ChatChannelMember[]
+  chatMessages            ChatMessage[]            @relation("ChatAuthor")
+  chatChannelsCreated     ChatChannel[]            @relation("ChatChannelCreator")
+  chatReactions           ChatReaction[]
+  chatMentions            ChatMention[]
+  chatAttachmentsUploaded ChatAttachment[]         @relation("ChatAttachmentUploader")
   vendorInternalOwned     Vendor[]                    @relation("VendorInternalOwner")
   vendorsApproved         Vendor[]                    @relation("VendorApprover")
   vendorStatusChanges     VendorStatusChange[]
@@ -585,6 +624,7 @@ model Notification {
   supportTicketId Int?             @map("support_ticket_id")
   supportTicket   SupportTicket?   @relation(fields: [supportTicketId], references: [id])
   isRead          Boolean          @default(false) @map("is_read")
+  link            String?
   createdAt       DateTime         @default(now()) @map("created_at")
 
   @@index([userId])
@@ -1044,39 +1084,101 @@ model EmployeeChecklist {
 }
 
 model ChatChannel {
-  id        Int                 @id @default(autoincrement())
-  type      ChatChannelType
-  name      String?
-  createdAt DateTime            @default(now()) @map("created_at")
-  members   ChatChannelMember[]
-  messages  ChatMessage[]
+  id          Int                 @id @default(autoincrement())
+  type        ChatChannelType
+  name        String?
+  description String?
+  topic       String?
+  visibility  ChatVisibility      @default(public)
+  archived    Boolean             @default(false)
+  createdById Int?                @map("created_by_id")
+  createdBy   User?               @relation("ChatChannelCreator", fields: [createdById], references: [id])
+  createdAt   DateTime            @default(now()) @map("created_at")
+  members     ChatChannelMember[]
+  messages    ChatMessage[]
 
   @@map("chat_channels")
 }
 
 model ChatChannelMember {
-  id         Int         @id @default(autoincrement())
-  channelId  Int         @map("channel_id")
-  channel    ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  userId     Int         @map("user_id")
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  lastReadAt DateTime?   @map("last_read_at")
+  id                Int            @id @default(autoincrement())
+  channelId         Int            @map("channel_id")
+  channel           ChatChannel    @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  userId            Int            @map("user_id")
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role              ChatMemberRole @default(member)
+  lastReadAt        DateTime?      @map("last_read_at")
+  lastReadMessageId Int?           @map("last_read_message_id")
+  muted             Boolean        @default(false)
+  notifyPref        ChatNotifyPref @default(all) @map("notify_pref")
+  joinedAt          DateTime       @default(now()) @map("joined_at")
 
   @@unique([channelId, userId])
   @@map("chat_channel_members")
 }
 
 model ChatMessage {
-  id        Int         @id @default(autoincrement())
-  channelId Int         @map("channel_id")
-  channel   ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
-  authorId  Int         @map("author_id")
-  author    User        @relation("ChatAuthor", fields: [authorId], references: [id])
-  body      String
-  createdAt DateTime    @default(now()) @map("created_at")
+  id          Int              @id @default(autoincrement())
+  channelId   Int              @map("channel_id")
+  channel     ChatChannel      @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  authorId    Int              @map("author_id")
+  author      User             @relation("ChatAuthor", fields: [authorId], references: [id])
+  body        String
+  parentId    Int?             @map("parent_id")
+  parent      ChatMessage?     @relation("ChatThread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies     ChatMessage[]    @relation("ChatThread")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  editedAt    DateTime?        @map("edited_at")
+  deletedAt   DateTime?        @map("deleted_at")
+  attachments ChatAttachment[]
+  reactions   ChatReaction[]
+  mentions    ChatMention[]
 
   @@index([channelId, createdAt])
+  @@index([parentId])
   @@map("chat_messages")
+}
+
+model ChatAttachment {
+  id           Int         @id @default(autoincrement())
+  messageId    Int         @map("message_id")
+  message      ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  filename     String
+  mimeType     String      @map("mime_type")
+  sizeBytes    Int         @map("size_bytes")
+  data         Bytes
+  uploadedById Int         @map("uploaded_by_id")
+  uploadedBy   User        @relation("ChatAttachmentUploader", fields: [uploadedById], references: [id])
+  createdAt    DateTime    @default(now()) @map("created_at")
+
+  @@index([messageId])
+  @@map("chat_attachments")
+}
+
+model ChatReaction {
+  id        Int         @id @default(autoincrement())
+  messageId Int         @map("message_id")
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    Int         @map("user_id")
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emoji     String
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  @@unique([messageId, userId, emoji])
+  @@map("chat_reactions")
+}
+
+model ChatMention {
+  id        Int             @id @default(autoincrement())
+  messageId Int             @map("message_id")
+  message   ChatMessage     @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    Int?            @map("user_id")
+  user      User?           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      ChatMentionKind
+
+  @@index([messageId])
+  @@index([userId])
+  @@map("chat_mentions")
 }
 
 model EmployeeChecklistItem {
