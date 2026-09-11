@@ -16,6 +16,7 @@ import { isEmployee, isItConsole, isManager } from '../access';
 import { STATUS_CHART_COLORS, STATUS_LABELS } from '../chartColors';
 import { LocationBreakdownTable, StatusBreakdownTable } from '../components/BreakdownList';
 import { ChipSelect } from '../components/ChipSelect';
+import { DashSection } from '../components/DashSection';
 import { FirstRunWelcome } from '../components/FirstRunWelcome';
 import { KpiCard } from '../components/KpiCard';
 import { LiveTimestamp } from '../components/LiveTimestamp';
@@ -110,9 +111,11 @@ function MyWorkList({
             marginBottom: 12,
           }}
         >
-          <div>
+          <div style={{ minWidth: 0 }}>
             <Link to={item.href}>{item.label}</Link>
-            <div style={{ fontSize: 12, color: COLOR_TEXT_SECONDARY }}>{item.detail}</div>
+            {item.detail ? (
+              <div style={{ fontSize: 12, color: COLOR_TEXT_SECONDARY }}>{item.detail}</div>
+            ) : null}
           </div>
           {item.assignTicketId && onAssign ? (
             <Button size="small" onClick={() => onAssign(item.assignTicketId!)}>
@@ -325,9 +328,9 @@ function SupportHome() {
           <Button>Stale repairs</Button>
         </Link>
       </Space>
-      <Card size="small" title="My work" data-testid="my-work">
+      <DashSection collapseKey="my-work" title="My work" count={work.length} testId="my-work">
         <MyWorkList items={work} onAssign={(id) => void assign(id)} />
-      </Card>
+      </DashSection>
     </Space>
   );
 }
@@ -589,18 +592,16 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
             </Col>
           </Row>
 
-          <Card
-            size="small"
+          <DashSection
+            collapseKey="my-work"
             className="nv-attention-panel"
-            data-testid="my-work"
+            testId="my-work"
+            count={workItems.length}
             title={
               <Space>
                 <AlertOutlined style={{ color: KPI_REPAIR }} />
                 <Typography.Text strong style={{ fontSize: 13 }}>
                   My work
-                </Typography.Text>
-                <Typography.Text style={{ fontSize: 11.5, color: COLOR_TEXT_MUTED }}>
-                  {workItems.length} item{workItems.length === 1 ? '' : 's'}
                 </Typography.Text>
               </Space>
             }
@@ -614,7 +615,7 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
             }
           >
             <MyWorkList items={workItems} onAssign={(id) => void assignWork(id)} />
-          </Card>
+          </DashSection>
 
           <Row gutter={[12, 12]}>
             <Col xs={24} lg={12}>

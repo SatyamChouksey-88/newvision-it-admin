@@ -1,4 +1,5 @@
 import {
+  CommentOutlined,
   CustomerServiceOutlined,
   DashboardOutlined,
   EnvironmentOutlined,
@@ -45,6 +46,7 @@ const NAV_ITEMS: Omit<PaletteItem, 'section'>[] = [
     label: 'Support Tickets',
     run: () => {},
   },
+  { key: 'nav-chat', icon: <CommentOutlined />, label: 'Chat', run: () => {} },
   { key: 'nav-vendors', icon: <SearchOutlined />, label: 'Vendors', run: () => {} },
   { key: 'nav-requisitions', icon: <FormOutlined />, label: 'Requisitions', run: () => {} },
   { key: 'nav-orders', icon: <FormOutlined />, label: 'Purchase Orders', run: () => {} },
@@ -64,6 +66,7 @@ const NAV_ROUTES: Record<string, string> = {
   'nav-requests': '/requests',
   'nav-maintenance': '/maintenance',
   'nav-tickets': '/tickets',
+  'nav-chat': '/chat',
   'nav-vendors': '/procurement/vendors',
   'nav-requisitions': '/procurement/requisitions',
   'nav-orders': '/procurement/orders',
@@ -362,7 +365,7 @@ export function CommandPalette({ open, onClose }: Props) {
       onCancel={onClose}
       footer={null}
       closable={false}
-      width={620}
+      width={640}
       centered
       destroyOnHidden
       className="nv-palette"
@@ -418,7 +421,12 @@ export function CommandPalette({ open, onClose }: Props) {
                   onClick={() => item.run()}
                 >
                   {item.icon}
-                  <span>{item.label}</span>
+                  <span
+                    className="nv-palette-result__label"
+                    title={typeof item.label === 'string' ? item.label : undefined}
+                  >
+                    {item.label}
+                  </span>
                 </div>
               );
             })}

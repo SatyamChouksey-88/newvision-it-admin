@@ -19,6 +19,7 @@ const CRUMBS: Record<string, string> = {
   '/requests': 'Requests',
   '/maintenance': 'Maintenance',
   '/tickets': 'Support Tickets',
+  '/chat': 'Chat',
   '/reports': 'Reports',
   '/audit-logs': 'Audit Log',
   '/settings': 'Settings',
@@ -92,22 +93,18 @@ export function Header() {
         <span className="nv-breadcrumb-current">{crumbFor(pathname)}</span>
       </nav>
 
-      <div style={{ flex: 1 }} />
-
       <button
         type="button"
         id="global-search-input"
         className="nv-header-search"
         onClick={() => setPaletteOpen(true)}
-        title="Search or jump (⌘K / Ctrl+K)"
+        title="Search assets, tickets, people (⌘K / Ctrl+K)"
         aria-label="Open command palette (search or jump to a screen)"
       >
-        <SearchOutlined />
-        <span style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          Search or jump to…
-        </span>
-        <span className="nv-kbd" style={{ fontFamily: FONT_MONO }}>
-          ⌘K
+        <SearchOutlined className="nv-header-search__icon" />
+        <span className="nv-header-search__label">Search assets, tickets, people…</span>
+        <span className="nv-kbd nv-header-search__kbd" style={{ fontFamily: FONT_MONO }}>
+          {typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform) ? '⌘K' : 'Ctrl+K'}
         </span>
       </button>
 

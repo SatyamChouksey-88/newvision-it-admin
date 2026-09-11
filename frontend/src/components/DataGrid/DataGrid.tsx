@@ -264,8 +264,15 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
           // antd `render` may return a RenderedCell ({ children, props }) for row/col spans; leave those alone.
           if (isRenderedCell(content)) return content as React.ReactNode;
           const node = content as React.ReactNode;
-          if (!truncate) return node;
           const text = cellText(col, record) || (typeof node === 'string' ? node : '');
+          if (render) {
+            return (
+              <div className="nv-cell-custom" title={!wrapText && text ? text : undefined}>
+                {node}
+              </div>
+            );
+          }
+          if (!truncate) return node;
           return (
             <OverflowCell text={text} wrap={wrapText}>
               {node}
@@ -423,6 +430,7 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
           {quickFilter && (
             <Input.Search
               id={searchInputId}
+              className="nv-grid-search-input"
               allowClear
               placeholder={quickFilterPlaceholder}
               aria-label={quickFilterPlaceholder}
