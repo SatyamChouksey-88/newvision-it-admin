@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import { TicketStatus } from '@prisma/client';
-import { canTransitionTicket } from './tickets.lifecycle';
+import { canTransitionTicket, currentStatusImpliesWorkStarted } from './tickets.lifecycle';
 
 describe('ticket lifecycle', () => {
   it('allows the documented happy path and reopen', () => {
@@ -19,5 +19,15 @@ describe('ticket lifecycle', () => {
     expect(canTransitionTicket('open', 'resolved')).toBe(false);
     expect(canTransitionTicket('closed', 'in_progress')).toBe(false);
     expect(canTransitionTicket('assigned' as TicketStatus, 'closed')).toBe(false);
+  });
+
+  it('treats assigned / in_progress / waiting_on_employee as already started', () => {
+    expect(currentStatusImpliesWorkStarted('open')).toBe(false);
+    expect(currentStatusImpliesWorkStarted('assigned')).toBe(true);
+    expect(currentStatusImpliesWorkStarted('in_progress')).toBe(true);
+    expect(currentStatusImpliesWorkStarted('waiting_on_employee')).toBe(true);
+    expect(currentStatusImpliesWorkStarted('resolved')).toBe(true);
+    expect(currentStatusImpliesWorkStarted('closed')).toBe(true);
+    expect(currentStatusImpliesWorkStarted('reopened')).toBe(true);
   });
 });

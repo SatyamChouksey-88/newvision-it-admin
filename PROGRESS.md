@@ -291,6 +291,10 @@ Definition of Done: UI matches approved mockup look-and-feel; no functional regr
 - [x] Screenshot script waits for any signed-in home (not “Dashboard”); captures locations + chat
 - [x] Playwright: nav expand/collapse, ToC, search, every article H1, skip-link, Home link; axe-core on `/help` and `/help/getting-started`
 
+## Prompt 22 — Admin efficiency (one item at a time)
+
+- [x] **#1 Ticket timeline “Not started”** — if status is already `assigned` / `in_progress` / `waiting_on_employee` (or resolved/closed/reopened), the timeline shows a backfilled “Work started” from `updatedAt` instead of “Not started”. Verified with e2e (prisma status update, no start audit) + unit helper. Open/unassigned tickets still show Not started.
+
 ## Known issues
 
 - **Seed resets demo data on container start** when `SEED_ON_START=true` (the compose default). Convenient for demos, but restarting the backend wipes manual changes. Set `SEED_ON_START: "false"` in `docker-compose.yml` after the first boot to persist changes. Documented in README.

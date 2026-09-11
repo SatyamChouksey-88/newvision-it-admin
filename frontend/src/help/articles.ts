@@ -824,8 +824,8 @@ That is correct. Employees land on **My IT**. They can raise a ticket, request a
 **Warranty attention is full of thousand-day-expired laptops.**
 The warranty API currently returns already-expired rows mixed with upcoming ones. Sort by days remaining and use the 7-day attention strip. A split “expiring soon / already expired” view is planned.
 
-**A ticket says Not started but it is already In progress.**
-The human timeline can miss a “started” point when there is no audit row for the transition. The status chip on the ticket is the source of truth.
+**A ticket used to say Not started while already In progress.**
+The timeline now treats `assigned` / `in_progress` / `waiting_on_employee` (and later states) as evidence work has started, and backfills a “Work started” point from `updatedAt` when no assign/status audit exists.
 
 **Email never arrived.**
 Without \`SMTP_HOST\` the backend logs the message to the console and the API still succeeds. Check the Nest terminal, not the user’s inbox.

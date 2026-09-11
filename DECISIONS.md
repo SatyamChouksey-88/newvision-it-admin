@@ -202,3 +202,7 @@ Every judgment call made while building NewVision, and why. Newest at the bottom
 - **`?` stays Help; ⌘K is command palette** (and docs search while already in Help). A shortcuts overlay must use a different key later (`Shift+/`), not `?`.
 - **Home is a nav link** to `/help` (landing), not a fake article, so the At a Glance grid remains the docs home.
 
+## Prompt 22 — item 1 (ticket timeline)
+
+- **Current status is evidence work started.** If a ticket is `assigned` / `in_progress` / `waiting_on_employee` and there is no assign/status audit, backfill “Work started” from `updatedAt` rather than showing “Not started”. Also treat `reopened` / `resolved` / `closed` the same way — those states cannot honestly be “not started”. Open + unassigned still shows Not started.
+

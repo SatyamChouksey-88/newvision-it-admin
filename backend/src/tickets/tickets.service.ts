@@ -26,7 +26,7 @@ import {
   ticketStatusChangedEmail,
 } from '../notifications/ticket-email-templates';
 import { PrismaService } from '../prisma/prisma.service';
-import { canTransitionTicket } from './tickets.lifecycle';
+import { canTransitionTicket, currentStatusImpliesWorkStarted } from './tickets.lifecycle';
 import { computeSla, DEFAULT_PRIORITY_TARGETS, type SlaDecor } from './ticket-sla';
 
 const STAFF: RoleName[] = [RoleName.SUPER_ADMIN, RoleName.IT_ADMIN, RoleName.IT_SUPPORT];
@@ -775,14 +775,14 @@ export class TicketsService {
       color: '#1677FF',
     });
 
-    const startLog = logs.find(
-      (l) =>
-        l.action === 'assign' ||
-        (l.action === 'status_change' &&
-          typeof l.newValue === 'object' &&
-          l.newValue !== null &&
-          (l.newValue as { status?: string }).status === 'in_progress'),
-    );
+    const startLog = logs.find((l) => {
+      if (l.action === 'assign') return true;
+      if (l.action !== 'status_change' || typeof l.newValue !== 'object' || l.newValue === null) {
+        return false;
+      }
+      const status = (l.newValue as { status?: string }).status;
+      return status === 'assigned' || status === 'in_progress' || status === 'waiting_on_employee';
+    });
     if (startLog) {
       events.push({
         id: 'started',
@@ -791,6 +791,18 @@ export class TicketsService {
         summary: 'Work started',
         actor: startLog.changedBy?.fullName ?? 'IT',
         color: '#15803D',
+      });
+    } else if (currentStatusImpliesWorkStarted(ticket.status)) {
+      // Seeded / imported tickets often already sit in assigned/in_progress with no
+      // matching audit row — the current status is evidence work has started.
+      events.push({
+        id: 'started',
+        at: new Date(ticket.updatedAt),
+        action: 'started',
+        summary: 'Work started',
+        actor: ticket.assignedTo?.fullName ?? 'IT',
+        color: '#15803D',
+        backfilled: true,
       });
     } else {
       events.push({

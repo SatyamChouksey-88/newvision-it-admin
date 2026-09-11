@@ -17,3 +17,17 @@ export function allowedTicketTransitions(from: TicketStatus): TicketStatus[] {
 export function canTransitionTicket(from: TicketStatus, to: TicketStatus): boolean {
   return from === to || allowedTicketTransitions(from).includes(to);
 }
+
+/** Statuses that mean work has already begun — even with no "started" audit row. */
+const IMPLIES_STARTED: TicketStatus[] = [
+  'assigned',
+  'in_progress',
+  'waiting_on_employee',
+  'reopened',
+  'resolved',
+  'closed',
+];
+
+export function currentStatusImpliesWorkStarted(status: TicketStatus): boolean {
+  return IMPLIES_STARTED.includes(status);
+}

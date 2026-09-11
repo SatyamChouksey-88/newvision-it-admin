@@ -474,4 +474,50 @@ describe('Support tickets, CSAT, digest, notes, manual edit (e2e)', () => {
     expect(row.body.isBackfilled).toBe(true);
     expect(row.body.notes).toContain('[Backfilled]');
   });
+
+  it('does not show Not started when the ticket is already in progress without a start audit', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/api/support-tickets')
+      .set(auth(employee))
+      .send({
+        subject: 'Timeline backfill',
+        description: 'Status was set without an assign audit row.',
+        categoryId: softwareId,
+        autoAssign: false,
+      })
+      .expect(201);
+
+    await prisma.supportTicket.update({
+      where: { id: created.body.id },
+      data: { status: 'in_progress' },
+    });
+    await prisma.auditLog.deleteMany({
+      where: { entityType: 'SupportTicket', entityId: String(created.body.id), action: { in: ['assign', 'status_change'] } },
+    });
+
+    const openTimeline = await request(app.getHttpServer())
+      .get(`/api/support-tickets/${created.body.id}/timeline`)
+      .set(auth(admin))
+      .expect(200);
+    const summaries = openTimeline.body.map((e: { summary: string }) => e.summary);
+    expect(summaries).toContain('Work started');
+    expect(summaries).not.toContain('Not started');
+    expect(openTimeline.body.find((e: { action: string }) => e.action === 'started')?.backfilled).toBe(true);
+
+    const stillOpen = await request(app.getHttpServer())
+      .post('/api/support-tickets')
+      .set(auth(employee))
+      .send({
+        subject: 'Truly not started',
+        description: 'Still open and unassigned.',
+        categoryId: softwareId,
+        autoAssign: false,
+      })
+      .expect(201);
+    const untouched = await request(app.getHttpServer())
+      .get(`/api/support-tickets/${stillOpen.body.id}/timeline`)
+      .set(auth(admin))
+      .expect(200);
+    expect(untouched.body.map((e: { summary: string }) => e.summary)).toContain('Not started');
+  });
 });
