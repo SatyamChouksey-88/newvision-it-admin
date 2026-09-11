@@ -164,6 +164,57 @@ Audit date: 2026-09-10. Each item lists the finding and resolution status.
 | P24-x | Beyond the brief | **Shipped** — message search, seen-by on small chats, `#helpdesk`/`#procurement`, PO/PR unfurl |
 | P24-b | All messages stacked left; Word paste stole the thumbnail | **Fixed** — Teams Comfy left/right; clipboard prefers real files |
 
+## Post-Prompt-25 hardening & enhancement pass (2026-09-12)
 
+Full-repo audit against `PROJECT_HISTORY.md`, resolving its "Known Issues" table plus a fresh bug
+sweep. Every item below was verified against the running app, a real Postgres DB, or the test
+suites — not just read from code.
 
+### Confirmed-real bugs found and fixed
+
+| # | Finding | Resolution |
+|---|---------|------------|
+| H1 | `prisma/seed.ts` deletion order never cleared `chat_channels` / `chat_messages` (added in Prompt 24) before `user.deleteMany()` — reseeding **any** database that had chat activity crashed with a foreign-key violation (`P2003`) | **Fixed** — delete `chatMessage`/`chatChannel` (their children cascade) before `user` |
+| H2 | Same reseed also crashed on `ticket_priority_targets` — the table was never cleared before `createMany()` re-inserted the four default priority targets, so a second `npm run seed` hit a unique-constraint violation on `priority` | **Fixed** — added `ticketPriorityTarget.deleteMany()` to the reset block |
+| H3 | Employee search: the "does this look like a full employee code?" heuristic (`/^EMP[-A-Z0-9]+$/i`) matched a bare prefix like `"EMP-"`, forcing an **exact-match** lookup that matched nothing — searching just `EMP-` (or any partial code) returned zero results instead of a prefix match | **Fixed** — heuristic now requires `EMP-` + digits (`/^EMP-\d+$/i`); a bare prefix falls through to the existing `contains` search. Regression tests added in `employees-offboard.e2e-spec.ts` |
+| H4 | `backend/test/assets.e2e-spec.ts` referenced undefined identifiers `laptop`/`pune` (should have been `ids.categoryLap`/`ids.locationPune`) in 6 test cases — the file didn't even **compile**, so the whole e2e suite was silently broken | **Fixed** — corrected to the seeded `ids` fixture; confirms `PROJECT_HISTORY.md`'s "suite-wide green not re-confirmed" was hiding a real break |
+| H5 | `MailerService.send()` had no try/catch — an unreachable SMTP host (Render Free blocking 587/465, or any transient failure) would throw **out of the ticket/requisition/contract/password-reset mutation that triggered it**, failing the whole request even though the underlying record had already saved | **Fixed** — `send()` now catches transport errors, logs them loudly, and tracks the last failure instead of propagating |
+| H6 | The dashboard's `SEED_ON_START` warning banner was unconditional and inaccurate: it says "restarting will wipe demo data," but `prisma/seed.ts` already skips reseeding via `SEED_IF_EMPTY` (which `render.yaml` sets alongside `SEED_ON_START`) — so production was never actually at risk, but every admin saw a permanent false alarm | **Fixed** — `/dashboard/setup` now returns `seedWipeRisk` (true only when `SEED_ON_START=true` **and** `SEED_IF_EMPTY` is not), and the UI banner text was corrected |
+| H7 | Backend `IT_ADMIN` permission list omitted `request:approve` / `issue:report` / `asset:request` even though `@Roles()` on the relevant controllers already grants IT_ADMIN those actions — the frontend's own mirrored list (and the informational "Your permissions" panel under Settings → Account) disagreed with the backend | **Fixed** — added the three keys to backend `IT_ADMIN`; matrices now agree. Confirmed via `curl` against the live API and a new `permissions.spec.ts` case |
+| H8 | Frontend CI gate (`npm run lint`) was **red on `main`**: a stale `biome-ignore` comment on the wrong line in `tickets/list.tsx`, a missing one on `tickets/create.tsx`, and an `aria-label` on a `<span>` with no ARIA-naming-capable role in `AppSider.tsx` | **Fixed** — moved/added the ignore comments to the actual flagged line; gave the sider badge dot `role="status"` |
+| H9 | Dashboard "My work" section header count (`.nv-dash-title__count`, `#64748b` on `#f4f8fc`) failed WCAG AA color contrast (4.45:1, axe-core `color-contrast`, serious) | **Fixed** — darkened to `#475569` |
+
+### Test-suite fixes (stale/fragile tests, not app bugs)
+
+Six Playwright specs were failing for reasons unrelated to the app: stale copy assertions
+(`prompt17.spec.ts` expected a pre-Help-rebuild heading; `audit-fixes.spec.ts` expected a generic
+DataGrid placeholder a page had since customized), a UI restyle the tests never caught up with
+(`assets.spec.ts`/`governance.spec.ts` used a placeholder-text selector for the `Status` filter,
+which became a `ChipSelect` chip with a shared "All" placeholder — fixed via a new
+`selectByLabel()` helper targeting the combobox's `aria-label` instead), a genuine Playwright API
+gap (`chat.spec.ts`'s `Locator.dispatchEvent('paste', { clipboardData })` doesn't wire
+`clipboardData` onto the event the way it special-cases `dataTransfer` for drag events — rebuilt
+via `locator.evaluate()` constructing a real `ClipboardEvent` in-page), an AntD `Modal.confirm`
+DOM quirk (duplicates its title into a hidden node for `aria-labelledby` plus the visible
+`.ant-modal-confirm-title` — `assets.spec.ts` now targets the latter specifically), and a
+non-deterministic test fixture pick (`employee-history.spec.ts` blindly clicked "whatever
+employee sorts first" for an `EMP-` search, which deterministically lands on a demo account with
+no history under the app's default `id desc` sort — rewritten to fetch a genuinely-assigned
+employee via the API first).
+
+### Enhancements
+
+| # | What | Why |
+|---|------|-----|
+| E1 | Extended `enableQueueKeys` (J/K row nav, Enter-to-open) to the four procurement lists — Requisitions, Purchase Orders, Contracts, Vendors — matching the pattern already used on Tickets | Closes the "keyboard shortcuts inconsistently applied" item; skipped Accessories/Consumables/Requests/Maintenance since those use an expand-in-place row pattern where "Enter to open a show page" doesn't apply cleanly — extending it there would need a different interaction, not a drop-in |
+| E2 | Committed the real employee-feedback Word template under `docs/NewVision_Employee_Feedback_Form.docx`; removed the accidental default-named `New Microsoft Word Document.docx` (its content was leftover UI-request notes, not a deliverable) | Closes the "leftover uncommitted binary file" item |
+
+### Investigated, found already correct (no change needed)
+
+- **SMTP on Render Free**: confirmed the app never silently swallows a send failure without a
+  trace — it now logs `[email:failed]` and surfaces `mailFailing` on the dashboard (H5/H6 above).
+  A real fix for outbound mail itself (a provider whose ports aren't blocked) is an operational
+  change, not a code one — documented in `render.yaml`'s comments and here.
+- **Email-in (IMAP)**: still unproven without a real mailbox, as documented; this is an
+  operational/credentials gap, not something fixable from within this pass.
 

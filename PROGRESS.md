@@ -353,5 +353,42 @@ Definition of Done: UI matches approved mockup look-and-feel; no functional regr
 
 ## Known issues
 
-- **Seed resets demo data on container start** when `SEED_ON_START=true` (the compose default). Convenient for demos, but restarting the backend wipes manual changes. Set `SEED_ON_START: "false"` in `docker-compose.yml` after the first boot to persist changes. Documented in README.
+- **Seed resets demo data on container start** when `SEED_ON_START=true` (the compose default) **and `SEED_IF_EMPTY` is not also set true** — `prisma/seed.ts`'s reset block skips itself once the database has users, so `render.yaml` (which sets both flags) is not actually at risk. Set `SEED_ON_START: "false"` in `docker-compose.yml` after the first boot if you don't also set `SEED_IF_EMPTY`. Post-Prompt-25 pass: the dashboard warning banner was flagging this unconditionally (even when safe) — it now only fires when the real risk combination is present (`seedWipeRisk` in `/dashboard/setup`).
 - Playwright's `create asset` test asserts on the rendered `brand model` subtext (the list intentionally shows a secondary identifier instead of the serial column), so re-runs accumulate demo assets with the same model — harmless, and reset by reseeding.
+
+## Post-Prompt-25 hardening & enhancement pass (2026-09-12)
+
+Full audit of the repo against `PROJECT_HISTORY.md`'s known-issues table, plus a fresh bug sweep.
+See `ENHANCEMENTS.md` for the full item-by-item list with file references. Summary:
+
+- [x] Fixed a reseed-crashing bug: `prisma/seed.ts` never cleared Prompt 24's chat tables or
+      `ticket_priority_targets` before re-deleting users / re-inserting targets — any second
+      `npm run seed` on a DB that had chat activity or had been seeded once already threw a
+      Prisma FK/unique-constraint error. Verified by reseeding the same DB twice in a row.
+- [x] Fixed employee search: a bare code prefix like `EMP-` forced an exact-match lookup and
+      returned zero results instead of a prefix match. Root-caused via direct Prisma queries
+      against the live DB, not just code reading. Regression tests added.
+- [x] Fixed `backend/test/assets.e2e-spec.ts` — it referenced undefined identifiers and didn't
+      compile, so `npm run test:e2e` for that file was silently broken. Full e2e suite (19 files
+      / 126 tests) now passes.
+- [x] `MailerService.send()` no longer throws into the ticket/requisition/contract/password-reset
+      mutation that called it when SMTP is unreachable; failures are logged and surfaced on the
+      dashboard instead (`mailFailing`).
+- [x] Aligned backend `IT_ADMIN` permissions with what its `@Roles()` guards already grant
+      (`request:approve` / `issue:report` / `asset:request`), resolving the drift flagged as
+      "unclear" in `PROJECT_HISTORY.md`.
+- [x] Fixed the `SEED_ON_START` dashboard banner to reflect the real (safe) production
+      configuration instead of a blanket, always-on false alarm.
+- [x] Frontend `npm run lint` — the CI gate — was red on `main` (stale `biome-ignore` placement,
+      one missing ignore comment, and an invalid `aria-label` usage); fixed, lint is clean.
+- [x] Fixed a WCAG AA color-contrast failure on the dashboard "My work" header (axe-core).
+- [x] Extended ticket-style keyboard shortcuts (J/K/Enter) to the four procurement lists.
+- [x] Committed the real employee-feedback Word template under `docs/`; removed the accidental
+      leftover `New Microsoft Word Document.docx`.
+- [x] Fixed six Playwright tests that were failing for reasons unrelated to the app (stale copy
+      assertions, a UI restyle the tests hadn't caught up with, a Playwright `dispatchEvent`
+      limitation with `ClipboardEvent`, and a non-deterministic test-fixture pick) — all
+      root-caused via live reproduction (direct API calls, an in-page `ClipboardEvent` test, and
+      Playwright trace runs), not guessed at.
+- [x] Full suite status after this pass: backend unit **98/98**, backend e2e **126/126**,
+      frontend Playwright **78/78**, frontend `lint`/`typecheck`/`build` clean.

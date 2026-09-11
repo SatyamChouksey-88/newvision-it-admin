@@ -1,6 +1,6 @@
 # NewVision — Project Documentation
 
-> Internal reference for developers and operators. Last aligned with the codebase after **Prompt 19** (real helpdesk emails; re-verified against `design-reference/NewVision-standalone-src.html`). Everything below is verified against the actual repo — not the original build prompts.
+> Internal reference for developers and operators. Sections 1–11 were written after **Prompt 19** and describe the app as it stood then; they were spot-checked and corrected during the **post-Prompt-25 hardening pass** (2026-09-12) but were not rewritten wholesale. Prompts 20–25 added JWT refresh tokens + password reset, vendor/procurement management, and Teams-style staff chat — none of that is described here. **For current, verified state, use `PROJECT_HISTORY.md`** (prompt-by-prompt build log, feature inventory, open issues) as the primary reference; treat this file as background on the pre-Prompt-20 architecture.
 
 ---
 
@@ -81,7 +81,7 @@ Pulled from `backend/package.json`, `frontend/package.json`, and config files.
 | **Containerization** | Docker Compose (Postgres + backend + frontend) | `docker-compose.yml` |
 | **CI** | GitHub Actions (`.github/workflows/ci.yml`) | lint, typecheck, unit, integration, Playwright |
 
-**Auth approach:** Single JWT access token (no refresh-token rotation). Token sent as `Authorization: Bearer …` from the frontend Axios client. Global `JwtAuthGuard` on the API; `@Roles()` decorator + `RolesGuard` for role checks. Public routes (login, public scan/QR) use `@Public()`.
+**Auth approach:** JWT access token (15–30 min) plus a rotating refresh token (7d), added in Prompt 20 — the frontend Axios client (`providers/axios.ts`) transparently refreshes on a 401 and retries. Token sent as `Authorization: Bearer …`. Global `JwtAuthGuard` on the API; `@Roles()` decorator + `RolesGuard` for role checks. Public routes (login, public scan/QR) use `@Public()`. Forgot/change/admin-reset password flows also shipped in Prompt 20.
 
 **Node:** README specifies Node 22+; project was developed on Node 24.
 
@@ -253,7 +253,7 @@ erDiagram
 
 **Status:** Fully working. RBAC enforced on controllers via `@Roles()`. Employees see a reduced UI (e.g. no assign/retire buttons) matching API enforcement. Playwright `auth.spec.ts` verifies employee cannot see management actions.
 
-**Not implemented:** Refresh tokens, SSO/LDAP, password reset, user self-registration.
+**Not implemented (deliberate non-goals):** SSO/LDAP/live AD sync, user self-registration. Refresh tokens and password reset (forgot/change/admin-reset) shipped in Prompt 20 — see §3.
 
 ---
 
@@ -300,7 +300,7 @@ erDiagram
 
 **Frontend:** `/accessories`, `/consumables` list pages with modals for CRUD, checkout, issue, stock adjust.
 
-**Status:** Fully working backend + UI. **Limitation:** `prisma/seed.ts` does **not** seed accessories or consumables — catalog pages are empty on fresh seed until items are created via UI or tests.
+**Status:** Fully working backend + UI. `prisma/seed.ts` seeds a demo accessories/consumables catalog per location (added in Prompt 6) — catalog pages are populated on fresh seed, not empty.
 
 ---
 
@@ -503,7 +503,6 @@ From `PROJECT_STATUS.md` / product scope — these are **deliberate exclusions**
 | Network auto-discovery | Not applicable to manual inventory |
 | AI / natural-language search | Out of scope |
 | Redis/job queue for imports | In-process `setImmediate` chosen for local-dev simplicity |
-| JWT refresh tokens | Simplicity for internal tool; noted as future hardening |
 | Dark mode | Approved design system is light-only; OS dark preference is forced to light |
 | Phone-width authenticated admin | Tablet is the floor; phones use the public scan page |
 
@@ -679,8 +678,8 @@ Summarized from `DECISIONS.md` — things a future developer should not accident
 3. **Ant Design 5 + Refine 5** — `@refinedev/antd` requires AntD 5; AntD 6 was planned but incompatible.
 4. **Prisma 7.10.0 with `@prisma/adapter-pg`** — Prisma 7 removed datasource URL from schema; driver adapter required.
 5. **Biome instead of ESLint** — TypeScript 7 unsupported by typescript-eslint at build time.
-6. **JWT access token only** — no refresh rotation yet; bcrypt password hashing.
-7. **RBAC at API layer** — `ROLE_PERMISSIONS` in `permissions.ts` is single source of truth; UI hides actions but API is authoritative.
+6. **JWT access + rotating refresh token** (Prompt 20) — 15–30 min access token, 7d refresh; bcrypt password hashing.
+7. **RBAC at API layer** — controllers gate with explicit `@Roles()` lists; `ROLE_PERMISSIONS` in `permissions.ts` is the informational matrix mirrored on the frontend and shown under Settings → Account, kept aligned with what `@Roles()` actually grants. UI hides actions but the API is authoritative.
 8. **Asset lifecycle as explicit transition table** — illegal transitions throw `InvalidTransitionError`; idempotent same-status allowed.
 9. **Maintenance coupled to asset status in one transaction** — ticket transition and asset status change never diverge.
 10. **Accessories/consumables separate from assets** — quantity-based, not serialized; no fake asset codes for mice/cables.
@@ -740,16 +739,11 @@ Not built (see `FUTURE_IDEAS.md`): calls/meetings, guests, pin/bookmark, forward
 
 ## 12. What would come next
 
-Reasonable increments given what exists today — not the excluded enterprise wishlist:
-
-1. **JWT refresh tokens / session hardening** — noted since Phase 0 as deferred security work.
-2. **Ticket queue keys shipped** — `/tickets` supports `J`/`K`/`Enter`/`I`; `Ctrl+/` is the cheatsheet; `?` remains Help.
-3. **Self-service first admin** — a migrate-only database still needs a user before anyone can see the Welcome card.
-4. **Screenshot gallery refresh** — recapture Help shots after any future chrome change (`frontend/scripts/capture-screenshots.mjs`).
-
-Tablet layout, light-only, and first-run onboarding shipped in Prompt 13. Prompt 3 Help, seed accessories, structured import codes, and DataGrid are already done.
-
-For the full list of deliberately excluded enterprise features, see `PROJECT_STATUS.md` §8.
+This document only covers architecture as of Prompt 19; the app has since shipped Prompts 20–25
+(refresh tokens, procurement/vendor management, Teams-style staff chat, and a rebuilt Help site)
+plus a post-Prompt-25 hardening pass. For the current, verified feature inventory, prompt-by-prompt
+build log, and open-issues list, see **`PROJECT_HISTORY.md`** — it supersedes this section and
+`PROJECT_STATUS.md` §8 for "what's built" and "what's next."
 
 ---
 
