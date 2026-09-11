@@ -355,7 +355,7 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
   const [overrides, setOverrides] = useState<{ id: number; summary: string; createdAt: string }[]>(
     [],
   );
-  const { freshInstall, seedOnStart } = useSetupStatus();
+  const { freshInstall, seedWipeRisk, mailFailing } = useSetupStatus();
 
   useEffect(() => {
     httpClient
@@ -462,11 +462,18 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }} data-testid="estate-dashboard">
-      {seedOnStart && (
+      {seedWipeRisk && (
         <Alert
           type="warning"
           showIcon
-          message="SEED_ON_START is on — restarting the backend will wipe and reseed demo data. Set SEED_ON_START=false after first boot."
+          message="SEED_ON_START is on without SEED_IF_EMPTY — restarting the backend will wipe and reseed demo data. Set SEED_IF_EMPTY=true (or SEED_ON_START=false) to stop this."
+        />
+      )}
+      {mailFailing && (
+        <Alert
+          type="warning"
+          showIcon
+          message="Outbound email is failing — ticket, procurement, and password-reset mail is not reaching recipients. Check SMTP_HOST/PORT/USER/PASS and the server logs."
         />
       )}
       {loadFailed && (

@@ -4,6 +4,7 @@ import { AssetStatus, Prisma, RoleName } from '@prisma/client';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { daysRemaining } from '../common/warranty';
+import { MailerService } from '../notifications/mailer.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { computeSla, DEFAULT_PRIORITY_TARGETS } from '../tickets/ticket-sla';
 import { isFreshInstall } from './fresh-install';
@@ -14,7 +15,10 @@ const ESTATE_ROLES = [RoleName.SUPER_ADMIN, RoleName.IT_ADMIN, RoleName.IT_SUPPO
 @ApiTags('dashboard')
 @Controller('dashboard')
 export class DashboardController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mailer: MailerService,
+  ) {}
 
   /**
    * Estate-wide metric cards + per-location filter. Restricted to IT roles — Manager/Employee
@@ -70,16 +74,21 @@ export class DashboardController {
       this.prisma.location.count(),
       this.prisma.assetCategory.count(),
     ]);
+    // B12: SEED_ON_START (docker-entrypoint.sh) re-runs `npm run seed` on every container
+    // restart when left on. `prisma/seed.ts` skips that reseed whenever SEED_IF_EMPTY=true
+    // and the database already has users — so demo edits are actually safe as long as both
+    // flags are set together (as render.yaml does). Only warn when that safety net is missing.
+    const seedOnStart = process.env.SEED_ON_START === 'true';
+    const seedIfEmpty = process.env.SEED_IF_EMPTY === 'true';
     return {
       assetCount: assets,
       employeeCount: employees,
       locationCount: locations,
       categoryCount: categories,
       freshInstall: isFreshInstall({ assets, employees, locations }),
-      // B12: SEED_ON_START (docker-entrypoint.sh) wipes and reseeds on every container
-      // restart if left on — surfaced so IT Admin/Super Admin sees a clear warning rather
-      // than losing real data silently. Only meaningful in the docker-compose deployment.
-      seedOnStart: process.env.SEED_ON_START === 'true',
+      seedOnStart,
+      seedWipeRisk: seedOnStart && !seedIfEmpty,
+      mailFailing: this.mailer.hasRecentFailure(),
     };
   }
 

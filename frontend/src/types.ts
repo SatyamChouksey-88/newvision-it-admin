@@ -269,6 +269,8 @@ export interface SetupStatus {
   categoryCount: number;
   freshInstall: boolean;
   seedOnStart?: boolean;
+  seedWipeRisk?: boolean;
+  mailFailing?: boolean;
 }
 
 export type TicketStatus =

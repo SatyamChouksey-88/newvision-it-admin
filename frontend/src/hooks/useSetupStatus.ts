@@ -12,6 +12,8 @@ export function useSetupStatus() {
     setup: query.data?.data,
     freshInstall: query.data?.data?.freshInstall === true,
     seedOnStart: query.data?.data?.seedOnStart === true,
+    seedWipeRisk: query.data?.data?.seedWipeRisk === true,
+    mailFailing: query.data?.data?.mailFailing === true,
     isLoading: query.isLoading,
   };
 }
