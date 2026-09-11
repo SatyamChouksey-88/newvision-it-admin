@@ -18,6 +18,15 @@ describe('RBAC permission matrix', () => {
     expect(can(RoleName.IT_ADMIN, 'user:manage')).toBe(false);
   });
 
+  it('gives IT Admin the same request-approve/issue-report/asset-request reach as the controllers already grant it', () => {
+    // Controllers gate these with explicit @Roles() lists that already include IT_ADMIN
+    // (e.g. asset-requests approve, maintenance report-issue) — the permission matrix must
+    // match that reality, not just Manager/Employee.
+    expect(can(RoleName.IT_ADMIN, 'request:approve')).toBe(true);
+    expect(can(RoleName.IT_ADMIN, 'issue:report')).toBe(true);
+    expect(can(RoleName.IT_ADMIN, 'asset:request')).toBe(true);
+  });
+
   it('limits IT Support to viewing assets and managing maintenance', () => {
     expect(can(RoleName.IT_SUPPORT, 'asset:read')).toBe(true);
     expect(can(RoleName.IT_SUPPORT, 'maintenance:manage')).toBe(true);
