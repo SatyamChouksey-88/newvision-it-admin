@@ -263,7 +263,7 @@ Every judgment call made while building NewVision, and why. Newest at the bottom
 ## Leftovers pass — asset codes, dashboard, search, Teams Comfy (2026-09-11)
 
 - **Custom asset numbers are first-class.** Create accepts an optional typed code; blank still auto-assigns `AST-{LOC}-{CAT}-{SEQ}`. Update now persists `assetCode` (it used to drop it). Rename confirms because old QR stickers and scan links die. Format is letters/digits/hyphen, min 3 — sticker codes like `NV-LAP-1042` are allowed if unique.
-- **My work pages 10 rows** client-side. Dashboard cards collapse and remember `nv.dash.collapse.{key}`. This is not the ChatGPT sider toggle.
+- **My work stays a scrolled list** (`maxHeight: 420`), same simple rows as before (label + detail, Assign / Open). Only that card’s header caret collapses it; the browser remembers `nv.dash.collapse.my-work`. Status distribution, assets by location, and support tickets stay open — no caret. This is not the ChatGPT sider toggle.
 - **Header search is a 360–480px rounded-rect field** (10px radius) that still only opens ⌘K. Same family on the palette input.
 - **Chat layout is classic Teams Comfy:** own messages right, others left, including `#it-ops` and threads. Overflow stays inside `max-width: min(72%, 560px)` bubbles. A leftover-scan had said “keep Slack-left”; this pass is the promised Teams replica, so we flipped once and will not flip again.
 - **Clipboard prefers real files over Office/Explorer thumbnails.** Image-only paste is still a screenshot. Ctrl+Shift+V stays plain text.

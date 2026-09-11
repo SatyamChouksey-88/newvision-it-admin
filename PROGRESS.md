@@ -345,7 +345,7 @@ Definition of Done: UI matches approved mockup look-and-feel; no functional regr
 - [x] Sign out Modal awaits logout + `window.location.assign('/login')`; copy says NewVisionITIS
 - [x] `index.html` title is NewVisionITIS; DocumentTitleHandler stays `{page} | NewVisionITIS`
 - [x] Asset number field on create/edit; `update()` persists `assetCode`; rename confirm; Manual correction includes the code
-- [x] Dashboard cards collapse; My work pages by 10
+- [x] My work header caret collapses just that list (remembered); other dashboard cards stay open; list scrolls at 420px, no paging / row chevrons
 - [x] Header search 360–480px; palette 640px; grid search 34px
 - [x] Cell overflow: `.nv-cell-line` / `.nv-cell-pair`; DataGrid no longer nowrap-clips CopyButton
 - [x] Chat: Teams left/right bubbles, light code blocks, wrap, document paste, file cards, in-bubble edit, deep-link highlight

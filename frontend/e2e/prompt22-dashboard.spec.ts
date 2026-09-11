@@ -16,8 +16,10 @@ test('IT Admin keeps KPI tiles and shows the My work list', async ({ page }) => 
   await expect(myWork.getByTestId('my-work-list')).toBeVisible();
   await caret.click();
   await expect(myWork.getByTestId('my-work-list')).toBeHidden();
-  await myWork.getByRole('button', { name: /expand section/i }).click();
-  await expect(myWork.getByTestId('my-work-list')).toBeVisible();
+  await page.reload();
+  await expect(page.getByTestId('my-work').getByTestId('my-work-list')).toBeHidden();
+  await page.getByTestId('my-work').getByRole('button', { name: /expand section/i }).click();
+  await expect(page.getByTestId('my-work').getByTestId('my-work-list')).toBeVisible();
 });
 
 test('IT Support home is the My work queue, not estate KPIs', async ({ page }) => {
