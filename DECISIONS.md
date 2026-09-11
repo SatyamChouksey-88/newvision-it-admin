@@ -206,3 +206,7 @@ Every judgment call made while building NewVision, and why. Newest at the bottom
 
 - **Current status is evidence work started.** If a ticket is `assigned` / `in_progress` / `waiting_on_employee` and there is no assign/status audit, backfill “Work started” from `updatedAt` rather than showing “Not started”. Also treat `reopened` / `resolved` / `closed` the same way — those states cannot honestly be “not started”. Open + unassigned still shows Not started.
 
+## Prompt 22 — item 6 (My work)
+
+- **Needs attention is now an ordered My work list.** Priority is my overdue tickets, unassigned, waiting on the employee 3+ days, stale repairs, incomplete checklists, contracts ending within 14 days, then warranties expiring within 14 days. Low-stock and to-fulfill stay on the API for the sider badge but are not mixed into this morning list. IT Admin keeps KPI tiles; IT Support’s home *is* the list. Unassigned rows expose Assign to me. Waiting threshold is 3 days (not configurable) so the list stays predictable.
+

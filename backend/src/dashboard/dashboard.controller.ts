@@ -5,6 +5,7 @@ import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorat
 import { Roles } from '../common/decorators/roles.decorator';
 import { daysRemaining } from '../common/warranty';
 import { PrismaService } from '../prisma/prisma.service';
+import { computeSla, DEFAULT_PRIORITY_TARGETS } from '../tickets/ticket-sla';
 import { isFreshInstall } from './fresh-install';
 import { buildTrendPoints, trendWindowStart } from './trends';
 
@@ -158,7 +159,7 @@ export class DashboardController {
     limit.setDate(limit.getDate() + withinDays);
     const warrantyEnd =
       bucket === 'expired'
-        ? { not: null as const, lt: now }
+        ? { not: null, lt: now }
         : { gte: now, lte: limit };
     const assets = await this.prisma.asset.findMany({
       where: {
@@ -225,20 +226,37 @@ export class DashboardController {
     return { from, to, preset: preset ?? 'today', open, unassigned, inProgress, resolved, created, due };
   }
 
-  /** Actionable items for the dashboard "needs attention" panel. */
+  /** Ordered "My work" list plus the older attention buckets (low stock, requests). */
   @Roles(...ESTATE_ROLES)
   @Get('attention')
-  async attention(@Query('locationId') locationIdRaw?: string) {
+  async attention(@CurrentUser() actor: AuthUser, @Query('locationId') locationIdRaw?: string) {
     const locationId = locationIdRaw ? Number(locationIdRaw) : undefined;
     const assetWhere = locationId ? { locationId } : {};
     const now = new Date();
-    const in7 = new Date();
+    const in7 = new Date(now);
     in7.setDate(in7.getDate() + 7);
-    const staleBefore = new Date();
+    const in14 = new Date(now);
+    in14.setDate(in14.getDate() + 14);
+    const staleBefore = new Date(now);
     staleBefore.setDate(staleBefore.getDate() - 14);
+    const waitingStaleBefore = new Date(now);
+    waitingStaleBefore.setDate(waitingStaleBefore.getDate() - 3);
+    const OPEN = ['open', 'assigned', 'in_progress', 'reopened', 'waiting_on_employee'] as const;
+    const ACTIVE = ['open', 'assigned', 'in_progress', 'reopened'] as const;
 
-    const [warrantyUrgent, staleRepairs, lowStock, pendingRequests, approvedRequests] =
-      await Promise.all([
+    const [
+      warrantyUrgent,
+      staleRepairs,
+      lowStock,
+      pendingRequests,
+      approvedRequests,
+      myOpenTickets,
+      unassignedTickets,
+      waitingStale,
+      incompleteChecklists,
+      contractsEnding,
+      warranties14,
+    ] = await Promise.all([
         this.prisma.asset.findMany({
           where: {
             ...assetWhere,
@@ -275,7 +293,140 @@ export class DashboardController {
           orderBy: { reviewedAt: 'asc' },
           take: 10,
         }),
+        this.prisma.supportTicket.findMany({
+          where: { assignedToId: actor.id, status: { in: [...ACTIVE] } },
+          select: {
+            id: true,
+            ticketNumber: true,
+            subject: true,
+            createdAt: true,
+            firstResponseAt: true,
+            waitingSince: true,
+            waitingTotalMinutes: true,
+            status: true,
+            priority: true,
+            dueDate: true,
+          },
+          orderBy: { createdAt: 'asc' },
+          take: 40,
+        }),
+        this.prisma.supportTicket.findMany({
+          where: { assignedToId: null, status: { in: [...OPEN] } },
+          select: { id: true, ticketNumber: true, subject: true, createdAt: true },
+          orderBy: { createdAt: 'asc' },
+          take: 8,
+        }),
+        this.prisma.supportTicket.findMany({
+          where: { status: 'waiting_on_employee', waitingSince: { lte: waitingStaleBefore } },
+          select: { id: true, ticketNumber: true, subject: true, waitingSince: true },
+          orderBy: { waitingSince: 'asc' },
+          take: 8,
+        }),
+        this.prisma.employeeChecklist.findMany({
+          where: { status: { not: 'complete' } },
+          include: {
+            employee: { select: { id: true, firstName: true, lastName: true, employeeCode: true } },
+            items: { select: { done: true } },
+          },
+          orderBy: { createdAt: 'asc' },
+          take: 15,
+        }),
+        this.prisma.employee.findMany({
+          where: {
+            isActive: true,
+            contractEndDate: { gte: now, lte: in14 },
+          },
+          select: { id: true, firstName: true, lastName: true, employeeCode: true, contractEndDate: true },
+          orderBy: { contractEndDate: 'asc' },
+          take: 8,
+        }),
+        this.prisma.asset.findMany({
+          where: {
+            ...assetWhere,
+            warrantyEnd: { gte: now, lte: in14 },
+            status: { notIn: ['retired', 'disposed'] },
+          },
+          select: { id: true, assetCode: true, warrantyEnd: true },
+          orderBy: { warrantyEnd: 'asc' },
+          take: 8,
+        }),
       ]);
+
+    const seenTicketIds = new Set<number>();
+    const uniqueTickets = <T extends { id: number }>(rows: T[]) =>
+      rows.filter((t) => {
+        if (seenTicketIds.has(t.id)) return false;
+        seenTicketIds.add(t.id);
+        return true;
+      });
+
+    const myOverdue = uniqueTickets(
+      myOpenTickets.filter((t) => {
+        if (t.dueDate && t.dueDate < now) return true;
+        return computeSla(t, DEFAULT_PRIORITY_TARGETS[t.priority], now).slaOverdue;
+      }),
+    ).slice(0, 8);
+
+    const checklistRows = incompleteChecklists.filter((c) => c.items.some((i) => !i.done)).slice(0, 8);
+
+    const myWork = [
+      ...myOverdue.map((t) => ({
+        type: 'ticket' as const,
+        id: t.id,
+        label: t.ticketNumber,
+        detail: `Overdue · ${t.subject}`,
+        href: `/tickets/show/${t.id}`,
+        assignTicketId: null as number | null,
+      })),
+      ...uniqueTickets(unassignedTickets).map((t) => ({
+        type: 'ticket' as const,
+        id: t.id,
+        label: t.ticketNumber,
+        detail: `Unassigned · ${t.subject}`,
+        href: `/tickets/show/${t.id}`,
+        assignTicketId: t.id,
+      })),
+      ...uniqueTickets(waitingStale).map((t) => ({
+        type: 'ticket' as const,
+        id: t.id,
+        label: t.ticketNumber,
+        detail: `Waiting on employee 3+ days · ${t.subject}`,
+        href: `/tickets/show/${t.id}`,
+        assignTicketId: null as number | null,
+      })),
+      ...staleRepairs.map((t) => ({
+        type: 'repair' as const,
+        id: t.id,
+        label: t.asset.assetCode,
+        detail: `Stale repair · ${t.issue.slice(0, 80)}`,
+        href: '/maintenance?filters[0][field]=staleDays&filters[0][operator]=eq&filters[0][value]=14',
+        assignTicketId: null as number | null,
+      })),
+      ...checklistRows.map((c) => ({
+        type: 'checklist' as const,
+        id: c.id,
+        label: `${c.employee.firstName} ${c.employee.lastName} · ${c.employee.employeeCode}`,
+        detail: `Incomplete ${c.kind} checklist`,
+        href: `/employees/show/${c.employee.id}`,
+        assignTicketId: null as number | null,
+      })),
+      ...contractsEnding.map((e) => ({
+        type: 'contract' as const,
+        id: e.id,
+        label: `${e.firstName} ${e.lastName} · ${e.employeeCode}`,
+        detail: e.contractEndDate ? `Contract ends ${e.contractEndDate.toISOString().slice(0, 10)}` : 'Contract ending',
+        href: `/employees/show/${e.id}`,
+        assignTicketId: null as number | null,
+      })),
+      ...warranties14.map((a) => ({
+        type: 'warranty' as const,
+        id: a.id,
+        label: a.assetCode,
+        detail: a.warrantyEnd ? `Warranty ${daysRemaining(a.warrantyEnd)} days left` : 'Warranty expiring',
+        href: `/assets/show/${a.id}`,
+        assignTicketId: null as number | null,
+      })),
+    ];
 
     return {
       warrantyUrgent: warrantyUrgent.map((a) => ({
@@ -307,6 +458,7 @@ export class DashboardController {
         detail: r.kind === 'asset' ? 'Asset request' : (r.accessoryName ?? 'Accessory request'),
         href: '/requests',
       })),
+      myWork,
     };
   }
 

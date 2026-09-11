@@ -76,12 +76,12 @@ Press **/** anywhere to focus global search.
     id: 'dashboard',
     title: 'Dashboard & Analytics',
     category: 'Reports & Analytics',
-    summary: 'Role-specific homes, KPI tiles, status and location tables, ticket summary, and needs-attention alerts.',
-    keywords: ['dashboard', 'status', 'metrics', 'warranty', 'attention', 'tables'],
+    summary: 'Role-specific homes, KPI tiles, status and location tables, ticket summary, and the My work list.',
+    keywords: ['dashboard', 'status', 'metrics', 'warranty', 'attention', 'my work', 'tables'],
     screenshot: '/docs/screenshots/dashboard.png',
     callouts: [
       { n: 1, label: 'Metric cards' },
-      { n: 2, label: 'Needs attention' },
+      { n: 2, label: 'My work' },
       { n: 3, label: 'Status table' },
       { n: 4, label: 'Ticket summary' },
     ],
@@ -90,15 +90,15 @@ Press **/** anywhere to focus global search.
 ### IT console (Super Admin / IT Admin)
 
 - **Metric cards** — Total, Assigned, Available, Under Repair, Retired, Open tickets. Click a card to open the matching list.
-- **Support tickets** — Today / Yesterday / Tomorrow / date range counts. Warranty expiry stays under Needs attention.
+- **Support tickets** — Today / Yesterday / Tomorrow / date range counts.
 - **Status table** — one coloured row per status (tag, count, share). Click a row to filter Assets.
 - **Assets by location** — one row per office (from live Location records, never hardcoded city names). Each status is its own coloured column. Click a count to filter.
 - There is **no Growth chart**. Estate size is the Total KPI.
-- **Needs attention** — warranty, stale repairs, low stock, and requests awaiting fulfillment.
+- **My work** — an ordered list: your overdue tickets, unassigned tickets, tickets waiting on the employee for 3+ days, stale repairs, incomplete checklists, contracts ending within 14 days, then warranties expiring within 14 days. Unassigned rows have **Assign to me**.
 
 ### Other homes
 
-- **IT Support** — unassigned tickets, stale repairs, items assigned to you.
+- **IT Support** — the same **My work** list is the home page (KPI tiles are hidden). Shortcuts still jump to unassigned tickets, your tickets, and stale repairs.
 - **Manager** — requests waiting on you, team tickets, team devices.
 - **Employee (My IT)** — your assigned devices, a Raise a ticket / Request a device action, and your open tickets.`,
   },
@@ -268,7 +268,7 @@ Both lists use the same Excel-grade grid as Assets.
 - **IT Support / IT Admin / Super Admin** run the queue: Start Repair, Mark Repaired (enter actual cost), Reassign, Cancel.
 - Vendor name, estimated cost, expected completion, and actual cost are optional fields on the ticket.
 - Starting repair sets the **asset** to \`under_repair\` in the same transaction. Reassignment returns it to \`assigned\` (if an employee remains) or \`available\`.
-- The dashboard **Needs attention** card for stale repairs opens Maintenance pre-filtered to tickets reported 14+ days ago (\`staleDays=14\`).
+- Stale repairs appear on the dashboard **My work** list and open Maintenance pre-filtered to tickets reported 14+ days ago (\`staleDays=14\`).
 
 > [!NOTE]
 > Maintenance and Support Tickets are not linked yet. If the same incident exists in both places, keep the ticket numbers in a note on each record.`
@@ -284,7 +284,7 @@ Both lists use the same Excel-grade grid as Assets.
 ### What is working today
 
 - The **Open tickets** KPI replaced the old **Warranty ≤90d** tile on the main dashboard row.
-- Warranties that expire within **7 days** still appear under **Needs attention**, with a link to the **Expiring (14d)** Assets filter.
+- Warranties that expire within **14 days** appear on the dashboard **My work** list, with a link to the **Expiring (14d)** Assets filter.
 - \`GET /dashboard/warranty-expiring\` defaults to **upcoming only** (\`bucket=expiring\`, \`withinDays=30\`). Pass \`bucket=expired\` for already-lapsed kit. Negative thousand-day rows no longer mix into the to-do list.
 - Assets list **Warranty** chip: expiring in 14 / 30 / 90 days, or **Already expired**.
 - **Reports → Warranty** is upcoming dates only (sorted soonest first).

@@ -22,7 +22,7 @@ import { TicketStatusTag } from '../components/TicketStatusTag';
 import { STATUS_CHART_COLORS, STATUS_LABELS } from '../chartColors';
 import { useSetupStatus } from '../hooks/useSetupStatus';
 import type { Identity } from '../providers/authProvider';
-import { httpClient } from '../providers/axios';
+import { apiErrorMessage, httpClient } from '../providers/axios';
 import {
   COLOR_TEXT_MUTED,
   COLOR_TEXT_SECONDARY,
@@ -32,8 +32,10 @@ import {
   KPI_RETIRED,
   KPI_TOTAL,
 } from '../theme';
+import { useToast } from '../components/Toast';
 import type {
   AssetStatus,
+  AttentionItem,
   DashboardAttention,
   DashboardMetrics,
   Location,
@@ -84,7 +86,41 @@ function ticketsHref(filters: Record<string, string | number | undefined> = {}) 
   return listHref('/tickets', filters);
 }
 
-const DISMISS_KEY = 'nv:attention-dismissed';
+function MyWorkList({
+  items,
+  onAssign,
+}: {
+  items: AttentionItem[];
+  onAssign?: (ticketId: number) => void;
+}) {
+  if (items.length === 0) {
+    return <Typography.Text type="secondary">Nothing in your work list right now.</Typography.Text>;
+  }
+  return (
+    <div data-testid="my-work-list" style={{ maxHeight: 420, overflow: 'auto' }}>
+      {items.map((item) => (
+        <div
+          key={`${item.type}-${item.id}-${item.href}`}
+          style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 12 }}
+        >
+          <div>
+            <Link to={item.href}>{item.label}</Link>
+            <div style={{ fontSize: 12, color: COLOR_TEXT_SECONDARY }}>{item.detail}</div>
+          </div>
+          {item.assignTicketId && onAssign ? (
+            <Button size="small" onClick={() => onAssign(item.assignTicketId!)}>
+              Assign to me
+            </Button>
+          ) : (
+            <Link to={item.href} style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+              Open →
+            </Link>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export function DashboardPage() {
   const { data: identity } = useGetIdentity<Identity>();
@@ -218,12 +254,23 @@ function ManagerHome() {
 }
 
 function SupportHome() {
+  const toast = useToast();
   const { query: attentionQuery } = useCustom<DashboardAttention>({
     url: 'dashboard/attention',
     method: 'get',
     queryOptions: { queryKey: ['dashboard-attention-support'] },
   });
   const attention = attentionQuery.data?.data;
+  const work = attention?.myWork ?? attention?.staleRepairs ?? [];
+  const assign = async (ticketId: number) => {
+    try {
+      await httpClient.post(`/support-tickets/${ticketId}/assign-to-me`);
+      toast.success('Assigned to you');
+      void attentionQuery.refetch();
+    } catch (e) {
+      toast.error(apiErrorMessage(e, 'Could not assign ticket'));
+    }
+  };
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }} data-testid="support-home">
       <div>
@@ -231,7 +278,7 @@ function SupportHome() {
           Queue
         </Typography.Title>
         <Typography.Text style={{ fontSize: 12.5, color: COLOR_TEXT_SECONDARY }}>
-          Unassigned tickets, stale repairs, and work assigned to you.
+          Ordered work list — overdue mine, unassigned, waiting, stale repairs, then estate follow-ups.
         </Typography.Text>
       </div>
       <Space wrap>
@@ -241,20 +288,12 @@ function SupportHome() {
         <Link to="/tickets?view=mine">
           <Button>My tickets</Button>
         </Link>
-        <Link to="/maintenance">
-          <Button>Maintenance</Button>
+        <Link to="/maintenance?filters[0][field]=staleDays&filters[0][operator]=eq&filters[0][value]=14">
+          <Button>Stale repairs</Button>
         </Link>
       </Space>
-      <Card size="small" title="Needs attention">
-        {(attention?.staleRepairs ?? []).slice(0, 6).map((item) => (
-          <div key={`${item.href}-${item.label}`} style={{ marginBottom: 10 }}>
-            <Link to={item.href}>{item.label}</Link>
-            <div style={{ fontSize: 12, color: COLOR_TEXT_SECONDARY }}>{item.detail}</div>
-          </div>
-        ))}
-        {(attention?.staleRepairs ?? []).length === 0 && (
-          <Typography.Text type="secondary">No stale repairs right now.</Typography.Text>
-        )}
+      <Card size="small" title="My work" data-testid="my-work">
+        <MyWorkList items={work} onAssign={(id) => void assign(id)} />
       </Card>
     </Space>
   );
@@ -277,7 +316,6 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
     );
 
   const [locations, setLocations] = useState<Location[]>([]);
-  const [dismissed, setDismissed] = useState(() => sessionStorage.getItem(DISMISS_KEY) === '1');
   const [overrides, setOverrides] = useState<{ id: number; summary: string; createdAt: string }[]>([]);
   const { freshInstall, seedOnStart } = useSetupStatus();
 
@@ -331,12 +369,22 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
     queryOptions: { queryKey: ['dashboard-attention', locationId] },
   });
   const attention = attentionQuery.data?.data;
-  const attentionItems = [
+  const workItems = attention?.myWork ?? [
     ...(attention?.warrantyUrgent ?? []),
     ...(attention?.staleRepairs ?? []),
     ...(attention?.lowStock ?? []),
     ...(attention?.toFulfill ?? []),
   ];
+  const toast = useToast();
+  const assignWork = async (ticketId: number) => {
+    try {
+      await httpClient.post(`/support-tickets/${ticketId}/assign-to-me`);
+      toast.success('Assigned to you');
+      void attentionQuery.refetch();
+    } catch (e) {
+      toast.error(apiErrorMessage(e, 'Could not assign ticket'));
+    }
+  };
 
   const { query: byLocationQuery } = useCustom<LocationBreakdown[]>({
     url: 'dashboard/by-location',
@@ -463,51 +511,29 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
             </Col>
           </Row>
 
-          {!dismissed && attentionItems.length > 0 && (
-            <Card
-              size="small"
-              className="nv-attention-panel"
-              title={
-                <Space>
-                  <AlertOutlined style={{ color: KPI_REPAIR }} />
-                  <Typography.Text strong style={{ fontSize: 13 }}>
-                    Needs attention
-                  </Typography.Text>
-                  <Typography.Text style={{ fontSize: 11.5, color: COLOR_TEXT_MUTED }}>
-                    {attentionItems.length} item{attentionItems.length === 1 ? '' : 's'}
-                  </Typography.Text>
-                </Space>
-              }
-              extra={
-                <Space size={8}>
-                  <Link to={assetsHref({ warrantyExpiringInDays: 14, locationId })} style={{ fontSize: 12 }}>
-                    Expiring (14d)
-                  </Link>
-                  <Button type="link" size="small" onClick={() => { sessionStorage.setItem(DISMISS_KEY, '1'); setDismissed(true); }}>
-                    Dismiss all
-                  </Button>
-                </Space>
-              }
-            >
-              <div className="nv-attention-grid">
-                {attentionItems.slice(0, 8).map((item) => (
-                  <div key={`${item.href}-${item.label}`} className="nv-attention-item">
-                    <Typography.Text strong style={{ fontSize: 12.5, display: 'block' }}>
-                      {item.label}
-                    </Typography.Text>
-                    <Typography.Text style={{ fontSize: 11.5, color: COLOR_TEXT_SECONDARY }}>
-                      {item.detail}
-                    </Typography.Text>
-                    <div>
-                      <Link to={item.href} style={{ fontSize: 11.5 }}>
-                        Open →
-                      </Link>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
+          <Card
+            size="small"
+            className="nv-attention-panel"
+            data-testid="my-work"
+            title={
+              <Space>
+                <AlertOutlined style={{ color: KPI_REPAIR }} />
+                <Typography.Text strong style={{ fontSize: 13 }}>
+                  My work
+                </Typography.Text>
+                <Typography.Text style={{ fontSize: 11.5, color: COLOR_TEXT_MUTED }}>
+                  {workItems.length} item{workItems.length === 1 ? '' : 's'}
+                </Typography.Text>
+              </Space>
+            }
+            extra={
+              <Link to={assetsHref({ warrantyExpiringInDays: 14, locationId })} style={{ fontSize: 12 }}>
+                Expiring (14d)
+              </Link>
+            }
+          >
+            <MyWorkList items={workItems} onAssign={(id) => void assignWork(id)} />
+          </Card>
 
           <Row gutter={[12, 12]}>
             <Col xs={24} lg={12}>

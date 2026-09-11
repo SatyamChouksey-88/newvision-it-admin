@@ -298,6 +298,7 @@ Definition of Done: UI matches approved mockup look-and-feel; no functional regr
 - [x] **#3 Assign to me** — row action on the ticket list and a header button on ticket detail. Assigns the current IT Admin/IT Support user and moves `open`/unassigned tickets to `in_progress`. Employees get 403. Verified in tickets e2e for both staff roles.
 - [x] **#4 Warranty split** — `/dashboard/warranty-expiring` defaults to upcoming only (`bucket=expiring`, 30 days); `bucket=expired` is the lapsed list. Assets Warranty chip: 14/30/90 days vs Already expired. Dashboard attention has an **Expiring (14d)** deep-link. Warranty report is upcoming dates only.
 - [x] **#5 Stale-repair attention link** — Needs attention now opens `/maintenance` with `staleDays=14` (open repairs reported 14+ days ago), not the unfiltered queue.
+- [x] **#6 My work list** — `/dashboard/attention` returns ordered `myWork`: my overdue tickets → unassigned → waiting on employee 3+ days → stale repairs → incomplete checklists → contracts ending in 14 days → warranties expiring in 14 days. IT Admin keeps KPI tiles; IT Support’s home is this list. Unassigned rows have Assign to me.
 
 ## Known issues
 

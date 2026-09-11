@@ -208,11 +208,12 @@ export interface Consumable {
 }
 
 export interface AttentionItem {
-  type: 'warranty' | 'repair' | 'low_stock' | 'request';
+  type: 'warranty' | 'repair' | 'low_stock' | 'request' | 'ticket' | 'checklist' | 'contract';
   id: number;
   label: string;
   detail: string;
   href: string;
+  assignTicketId?: number | null;
 }
 
 export interface DashboardAttention {
@@ -221,6 +222,8 @@ export interface DashboardAttention {
   lowStock: AttentionItem[];
   pendingRequestCount: number;
   toFulfill: AttentionItem[];
+  /** Ordered work list (Prompt 22 #6). */
+  myWork?: AttentionItem[];
 }
 
 export interface DashboardMetrics {
