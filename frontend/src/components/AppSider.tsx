@@ -152,7 +152,11 @@ function SiderBody({ collapsed }: { collapsed: boolean }) {
           <span className="nv-sider-label">{item.label}</span>
           {count != null ? (
             collapsed ? (
-              <span className="nv-nav-badge nv-nav-badge--dot" aria-label={`${count}`} />
+              <span
+                className="nv-nav-badge nv-nav-badge--dot"
+                role="status"
+                aria-label={`${count}`}
+              />
             ) : (
               <span className="nv-nav-badge">{count}</span>
             )

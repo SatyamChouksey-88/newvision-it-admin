@@ -940,7 +940,8 @@ a:hover {
 .nv-dash-title__count {
   font-size: 11.5px;
   font-weight: 400;
-  color: #64748b;
+  /* #64748b measures 4.45:1 on this card's #f4f8fc background — just under WCAG AA's 4.5:1. */
+  color: #475569;
 }
 
 .nv-dash-caret {

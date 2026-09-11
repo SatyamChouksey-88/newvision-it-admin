@@ -26,6 +26,7 @@ export function TicketCreate() {
   const { data: identity } = useGetIdentity<Identity>();
   const isEmployee = identity?.role === 'EMPLOYEE';
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: form/params are intentionally excluded — this must run exactly once on mount to load categories/templates and prefill from localStorage
   useEffect(() => {
     Promise.all([
       httpClient.get('/ticket-categories').then(({ data }) => {

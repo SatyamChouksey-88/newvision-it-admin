@@ -134,6 +134,8 @@ export function TicketList() {
     }
   };
 
+  // one-shot restore of the last staff queue view
+  // biome-ignore lint/correctness/useExhaustiveDependencies: applyFilterState/search are intentionally excluded — this must run exactly once on mount, guarded by restoredView.current
   useEffect(() => {
     if (!isStaff || restoredView.current) return;
     restoredView.current = true;
@@ -144,8 +146,6 @@ export function TicketList() {
     } catch {
       /* ignore */
     }
-    // one-shot restore of the last staff queue view
-    // biome-ignore lint/correctness/useExhaustiveDependencies: applyFilterState is stable enough for first paint
   }, [isStaff]);
 
   const assignToMe = async (id: number, e?: MouseEvent) => {
