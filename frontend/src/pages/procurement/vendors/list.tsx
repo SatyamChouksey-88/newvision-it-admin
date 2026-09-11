@@ -77,6 +77,8 @@ export function VendorList() {
             rowKey="id"
             density={density}
             onDensityChange={setDensity}
+            enableQueueKeys
+            onOpenRow={(r) => navigate(`/procurement/vendors/show/${r.id}`)}
             onRow={(r) => ({ onClick: () => navigate(`/procurement/vendors/show/${r.id}`) })}
             columns={[
               {

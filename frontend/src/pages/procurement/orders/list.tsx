@@ -63,6 +63,8 @@ export function PurchaseOrderList() {
             rowKey="id"
             density={density}
             onDensityChange={setDensity}
+            enableQueueKeys
+            onOpenRow={(r) => navigate(`/procurement/orders/show/${r.id}`)}
             onRow={(r) => ({ onClick: () => navigate(`/procurement/orders/show/${r.id}`) })}
             columns={[
               {

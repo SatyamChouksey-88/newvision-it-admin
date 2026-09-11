@@ -77,6 +77,8 @@ export function RequisitionList() {
             rowKey="id"
             density={density}
             onDensityChange={setDensity}
+            enableQueueKeys
+            onOpenRow={(r) => navigate(`/procurement/requisitions/show/${r.id}`)}
             onRow={(r) => ({ onClick: () => navigate(`/procurement/requisitions/show/${r.id}`) })}
             columns={[
               {

@@ -76,6 +76,8 @@ export function ContractList() {
             rowKey="id"
             density={density}
             onDensityChange={setDensity}
+            enableQueueKeys
+            onOpenRow={(r) => navigate(`/procurement/contracts/show/${r.id}`)}
             onRow={(r) => ({ onClick: () => navigate(`/procurement/contracts/show/${r.id}`) })}
             columns={[
               {
