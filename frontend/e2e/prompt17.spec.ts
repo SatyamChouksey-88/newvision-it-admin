@@ -26,7 +26,7 @@ test.describe('Prompt 17 / 20 — routes, branding, role homes', () => {
     await page.goto('/settings');
     await expect(page.getByText('Your account')).toBeVisible();
     await page.goto('/help');
-    await expect(page.getByRole('heading', { name: 'Help & Documentation' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'NewVision documentation' })).toBeVisible();
   });
 
   test('favicon and login wordmark use brand assets', async ({ page }) => {

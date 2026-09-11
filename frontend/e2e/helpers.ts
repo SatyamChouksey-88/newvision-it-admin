@@ -77,6 +77,24 @@ export async function selectByPlaceholder(page: Page, placeholder: string, optio
   await option.click();
 }
 
+/**
+ * Open an Ant Design Select by its aria-label and pick an option. Prefer this over
+ * `selectByPlaceholder` for the chip-style filters (`ChipSelect`) on list pages — their
+ * placeholder text is a generic "All" shared across several filters, so only the
+ * aria-label ("Filter by status", "Filter by location", …) identifies a specific one.
+ */
+export async function selectByLabel(page: Page, label: string, optionText?: string | RegExp) {
+  // AntD sets aria-label on both the wrapping .ant-select div and its inner combobox input —
+  // getByLabel would hit both (strict-mode violation), so target the combobox role directly.
+  await page.getByRole('combobox', { name: label, exact: true }).click();
+  const dd = openDropdown(page);
+  await dd.waitFor({ state: 'visible' });
+  const option = optionText
+    ? dd.locator('.ant-select-item-option', { hasText: optionText }).first()
+    : dd.locator('.ant-select-item-option').first();
+  await option.click();
+}
+
 /** Pick the first option of the Nth Ant Design Select inside a given scope (e.g. a modal). */
 export async function selectFirstOption(page: Page, scope: Locator, index = 0) {
   await scope.locator('.ant-select').nth(index).click();

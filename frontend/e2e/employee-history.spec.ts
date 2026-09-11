@@ -1,5 +1,13 @@
-import { expect, test } from '@playwright/test';
-import { DEMO_USERS, login } from './helpers';
+import { expect, test, type Page } from '@playwright/test';
+import { DEMO_PASSWORD, DEMO_USERS, login } from './helpers';
+
+const API = 'http://localhost:3000/api';
+
+async function apiToken(page: Page, email = DEMO_USERS.itAdmin) {
+  const res = await page.request.post(`${API}/auth/login`, { data: { email, password: DEMO_PASSWORD } });
+  expect(res.ok()).toBeTruthy();
+  return (await res.json()).access_token as string;
+}
 
 test.describe('Employee profile history', () => {
   test.beforeEach(async ({ page }) => {
@@ -7,11 +15,21 @@ test.describe('Employee profile history', () => {
   });
 
   test('shows History tab with timeline events', async ({ page }) => {
-    await page.goto('/employees');
-    await page.getByLabel('Search employees').fill('EMP-');
-    await page.getByLabel('Search employees').press('Enter');
-    await page.locator('table tbody tr.ant-table-row').first().click();
-    await page.waitForURL(/\/employees\/show\//);
+    // Picking "whatever sorts first" for a bare "EMP-" search is non-deterministic in intent —
+    // the default employees sort (most recently created first) can surface a demo/system
+    // account with no assignment history at all. Ask the API for an employee who definitely
+    // has an open asset assignment instead, so the History tab has something to show.
+    const token = await apiToken(page);
+    const assigned = await page.request.get(
+      `${API}/assets?_start=0&_end=1&status=assigned`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    expect(assigned.ok()).toBeTruthy();
+    const { data } = await assigned.json();
+    const employeeId = data[0]?.assignedEmployeeId;
+    expect(employeeId).toBeTruthy();
+
+    await page.goto(`/employees/show/${employeeId}`);
     const historyResp = page.waitForResponse(
       (r) => r.url().includes('/employees/') && r.url().includes('/history') && r.status() === 200,
     );

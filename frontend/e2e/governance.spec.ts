@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
-import { expectSuccess, login, selectByPlaceholder } from './helpers';
+import { expectSuccess, login, selectByLabel } from './helpers';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
 
 test('saves the current asset filters as a named view', async ({ page }) => {
   await page.goto('/assets');
-  await selectByPlaceholder(page, 'Status', 'Available');
+  await selectByLabel(page, 'Filter by status', 'Available');
 
   await page.getByRole('button', { name: 'Save view' }).click();
   const dialog = page.getByRole('dialog', { name: /Save current filters/i });

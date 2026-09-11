@@ -182,7 +182,7 @@ test.describe('Functionality audit — browser regressions', () => {
     await page.request.patch(`${API}/asset-requests/${req.id}/fulfill`, { headers });
 
     await page.goto('/requests');
-    await page.getByPlaceholder(/Filter rows/i).fill('Editable after fulfill');
+    await page.getByPlaceholder(/Search requests/i).fill('Editable after fulfill');
     await page.getByRole('button', { name: 'Edit' }).first().click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();

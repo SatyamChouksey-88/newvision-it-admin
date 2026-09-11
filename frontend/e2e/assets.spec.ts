@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
-import { expectSuccess, login, selectByPlaceholder, selectFirstOption } from './helpers';
+import { expectSuccess, login, selectByLabel, selectByPlaceholder, selectFirstOption } from './helpers';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -71,14 +71,16 @@ test('renames an asset number after confirm', async ({ page }) => {
   const next = `NV-REN-${Date.now().toString().slice(-5)}`;
   await page.getByLabel('Asset number').fill(next);
   await page.getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByRole('dialog').getByText(/Change asset number/i)).toBeVisible();
+  // AntD's Modal.confirm duplicates the title into a hidden .ant-modal-title (only used for
+  // aria-labelledby) plus the actual visible .ant-modal-confirm-title heading — target the latter.
+  await expect(page.getByRole('dialog').locator('.ant-modal-confirm-title')).toBeVisible();
   await page.getByRole('button', { name: 'Change number' }).click();
   await expect(page).toHaveURL(/\/assets(\/show)?/);
 });
 
 test('assigns an available asset to an employee', async ({ page }) => {
   await page.goto('/assets');
-  await selectByPlaceholder(page, 'Status', 'Available');
+  await selectByLabel(page, 'Filter by status', 'Available');
   const assignBtn = page.getByRole('button', { name: 'Assign' }).first();
   await assignBtn.click();
 
@@ -92,7 +94,7 @@ test('assigns an available asset to an employee', async ({ page }) => {
 
 test('transfers an assigned asset to another location', async ({ page }) => {
   await page.goto('/assets');
-  await selectByPlaceholder(page, 'Status', 'Assigned');
+  await selectByLabel(page, 'Filter by status', 'Assigned');
   const transferBtn = page.getByRole('button', { name: 'Transfer' }).first();
   await transferBtn.click();
 

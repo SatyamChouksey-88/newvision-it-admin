@@ -56,15 +56,18 @@ test.describe('Team chat', () => {
     await page.goto('/chat');
     await page.getByRole('option', { name: /#it-ops/i }).click();
     const composer = page.getByTestId('chat-composer').getByLabel('Message');
-    const dt = await page.evaluateHandle(() => {
+    // Locator.dispatchEvent('paste', { clipboardData }) doesn't wire clipboardData onto the
+    // event the way it special-cases dataTransfer for drag events — build and dispatch a real
+    // ClipboardEvent inside the page instead, which React's onPaste reads correctly.
+    await composer.evaluate((el) => {
       const file = new File(['PK'], 'brief.docx', {
         type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       });
       const data = new DataTransfer();
       data.items.add(file);
-      return data;
+      const event = new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true });
+      el.dispatchEvent(event);
     });
-    await composer.dispatchEvent('paste', { clipboardData: dt });
     await expect(page.getByTestId('chat-composer').getByText('brief.docx')).toBeVisible();
   });
 
