@@ -2,6 +2,8 @@ export interface HelpArticle {
   id: string;
   title: string;
   category: string;
+  /** Optional second nav level within a category (e.g. "Lifecycle", "For IT staff"). */
+  group?: string;
   summary: string;
   keywords: string[];
   screenshot?: string;
@@ -12,12 +14,18 @@ export interface HelpArticle {
 export const HELP_CATEGORIES = [
   'Getting Started',
   'Assets',
+  'Employees',
+  'Locations & Departments',
   'Accessories & Consumables',
-  'People & Locations',
-  'Operations',
+  'Maintenance',
   'Support tickets',
-  'Governance',
+  'Requests',
+  'Reports & Analytics',
+  'Import & Reconciliation',
+  'Notifications',
+  'Settings',
   'Reference',
+  'Tips & Troubleshooting',
 ] as const;
 
 export const helpArticles: HelpArticle[] = [
@@ -59,12 +67,15 @@ All seeded accounts use password **Password123!**:
 3. **Import** — **Settings → Import jobs** upload a CSV/XLSX of assets or employees.
 4. **Assign** — open **Assets**, pick an available asset, click **Assign**.
 
-Press **/** anywhere to focus global search. Press **?** in the header to return to Help.`,
+Press **/** anywhere to focus global search.
+
+> [!TIP]
+> Press **⌘K** / **Ctrl+K** to open the command palette from anywhere in the app — it jumps straight to a screen or a record by typing its code (e.g. \`TCK-000123\`).`,
   },
   {
     id: 'dashboard',
     title: 'Dashboard & Analytics',
-    category: 'Operations',
+    category: 'Reports & Analytics',
     summary: 'Role-specific homes, KPI tiles, status and location tables, ticket summary, and needs-attention alerts.',
     keywords: ['dashboard', 'status', 'metrics', 'warranty', 'attention', 'tables'],
     screenshot: '/docs/screenshots/dashboard.png',
@@ -117,6 +128,7 @@ A quiet **⧉** chip copies a single field (asset code, ticket number). That is 
     id: 'assets-assign-transfer',
     title: 'Assigning & Transferring Assets',
     category: 'Assets',
+    group: 'Actions',
     summary: 'Assign to employees, transfer location, optional accessory checkout.',
     keywords: ['assign', 'transfer', 'employee', 'location'],
     screenshot: '/docs/screenshots/assign-modal.png',
@@ -134,7 +146,31 @@ A quiet **⧉** chip copies a single field (asset code, ticket number). That is 
 
 ### Retire
 
-**Retire** moves asset to \`retired\` (requires reason). Only \`retired\` assets can reach \`disposed\`.`,
+**Retire** moves asset to \`retired\` (requires reason). Only \`retired\` assets can reach \`disposed\`.
+
+> [!WARNING]
+> Retire is meant to be end-of-life. If the asset is still in active use, **Transfer** it instead of retiring it by mistake.`,
+  },
+  {
+    id: 'assets-bulk',
+    title: 'Bulk actions',
+    category: 'Assets',
+    group: 'Actions',
+    summary: 'Change status, transfer, or retire many selected assets at once.',
+    keywords: ['bulk', 'select', 'retire', 'transfer', 'status'],
+    screenshot: '/docs/screenshots/assets-list.png',
+    body: `On **Assets**, tick one or more rows. The toolbar then shows **Bulk status**, **Bulk transfer**, and **Bulk retire**.
+
+### What is working today
+
+1. Select rows (header checkbox selects the current page).
+2. Pick the action. Transfer asks for a location (and optional assignee). Retire asks for a reason.
+3. The API applies the change per id and returns succeeded/failed counts. A row that is not eligible (already retired, invalid transition) is reported, not silently skipped without a count.
+
+There is **no bulk assign** yet — assign is still one asset (plus optional accessories) at a time.
+
+> [!NOTE]
+> Bulk actions reuse the same lifecycle rules as the single-asset buttons. You cannot jump \`available → disposed\` in one step.`,
   },
   {
     id: 'assets-detail',
@@ -146,61 +182,120 @@ A quiet **⧉** chip copies a single field (asset code, ticket number). That is 
     body: `The asset **show** page lists all fields, assignment history, maintenance tickets, and a **QR sticker** card.
 
 - **Download QR** — PNG encoding \`{PUBLIC_APP_URL}/scan/{assetCode}\`
-- **Open scan page** — public mobile-friendly view (no login): status, item, serial, location, assignee, warranty days. Cost and history are omitted by design.`,
+- **Open scan page** — public mobile-friendly view (no login): **status, item, category, location, warranty days**. Anyone who can photograph the sticker can open this URL, so the page **never shows the assignee name or the serial number**. Cost, invoice, and history are also omitted.
+
+> [!WARNING]
+> Do not put names or serials on the printed sticker. The QR only needs the asset code.`
   },
   {
     id: 'accessories-consumables',
     title: 'Accessories & Consumables',
     category: 'Accessories & Consumables',
-    summary: 'Non-serialized peripherals and depletable stock.',
-    keywords: ['accessories', 'consumables', 'checkout', 'issue', 'stock'],
+    summary: 'The difference between peripherals you get back and stock you consume.',
+    keywords: ['accessories', 'consumables', 'checkout', 'issue', 'stock', 'low-stock'],
     screenshot: '/docs/screenshots/accessories.png',
-    body: `**Accessories** (mice, chargers, docks) track \`quantity_total\` vs \`quantity_checked_out\`. IT Admin checks out to employees and checks in when returned.
+    body: `These are two different stock models. Do not mix them.
 
-**Consumables** (toner, cables, batteries) track \`quantity_available\`. **Issue** decrements stock. When quantity falls below \`low_stock_threshold\`, a notification fires and the item appears on the dashboard attention panel.
+### Accessories (you expect them back)
 
-Both modules use the same Excel-grade grid as Assets.`,
+Mice, chargers, docks, headsets. Each SKU has \`quantity_total\` vs \`quantity_checked_out\`.
+
+1. Open **Accessories**.
+2. **Checkout** to an employee (quantity can be more than 1).
+3. **Check in** when the item comes back — that restores available quantity.
+4. You can also attach accessories during **Assign** on an asset (same checkout).
+
+### Consumables (you do not get them back)
+
+Toner, cables, batteries. Each SKU has \`quantity_available\`.
+
+1. Open **Consumables**.
+2. **Issue** to an employee — quantity goes down and is recorded on their profile.
+3. When quantity falls below \`low_stock_threshold\`, a notification fires and the item appears on the dashboard attention panel.
+
+Both lists use the same Excel-grade grid as Assets.
+
+> [!TIP]
+> If IT is handing a laptop *and* a charger together, use Assign on the laptop and tick the charger in the same modal. That is one history event, not two screens.`
   },
   {
     id: 'employees',
     title: 'Employees & Profiles',
-    category: 'People & Locations',
-    summary: 'Employee directory and profile with assigned assets.',
-    keywords: ['employees', 'profile', 'manager'],
+    category: 'Employees',
+    summary: 'Directory, profile, assigned kit, and creating a login.',
+    keywords: ['employees', 'profile', 'manager', 'login', 'EMP-'],
     screenshot: '/docs/screenshots/employee-profile.png',
-    body: `**Employees** lists all staff with search by name or employee ID. Statuses: Active, Inactive, Contract Active, Contract Inactive.
+    callouts: [
+      { n: 1, label: 'Employment status chip' },
+      { n: 2, label: 'Assigned assets and accessories' },
+      { n: 3, label: 'Onboard / offboard checklist' },
+    ],
+    body: `**Employees** is the people directory. Search by name or employee code (\`EMP-…\`). Statuses: Active, Inactive, Contract Active, Contract Inactive.
 
-Click a row for the **profile** — assign / transfer / return assets, and run onboarding or offboarding **checklists** (templates live in Settings → Onboard / Offboard).
+### What is working today
 
-Managers viewing profiles see **direct reports only** (API-enforced).`
+- List uses the same Excel-grade grid as Assets (sort, columns, density, export).
+- Click a row for the **profile**: identity, location/department, assigned assets, accessories checked out, consumables issued, notes, and the **History** tab.
+- **Add employee** (IT Admin+) can optionally **create a login** in the same save — pick a role (usually Employee). Super Admin can also create users from Settings → Users.
+- **Onboard / offboard checklists** start from the profile. Templates are edited in Settings → Onboard / Offboard.
+- Managers viewing the list or profiles see **direct reports only** (API-enforced).
+
+### Creating a login for an employee
+
+1. Open **Employees → Add employee** (or edit an existing person who has no user).
+2. Tick **Create login** and choose a role.
+3. They sign in with their work email. Super Admin can reset or disable the account later under Settings → Users.
+
+> [!NOTE]
+> There is no self-service “first Super Admin” wizard. The first admin comes from seed or a Super Admin creating the user.`
   },
   {
     id: 'maintenance',
     title: 'Maintenance & Repairs',
-    category: 'Operations',
-    summary: 'Report issues, repair queue, vendor and cost tracking.',
-    keywords: ['maintenance', 'repair', 'issue', 'vendor'],
+    category: 'Maintenance',
+    summary: 'Hardware repair on a known asset — not the general helpdesk.',
+    keywords: ['maintenance', 'repair', 'issue', 'vendor', 'stale'],
     screenshot: '/docs/screenshots/maintenance.png',
-    body: `Repair lifecycle: \`reported → under_repair → repaired → reassigned\` (or \`cancelled\`).
+    body: `Use **Maintenance** when a *specific asset* is broken. VPN / password / software issues belong on **Support Tickets**.
 
-- **Employees** report issues only on assets assigned to them.
-- **IT Support/Admin** manage the queue: Start Repair, Mark Repaired (enter actual cost), Reassign, Cancel.
-- Asset status is coupled — starting repair sets asset to \`under_repair\`; reassignment returns it to \`assigned\` or \`available\`.`,
+### Lifecycle
+
+\`reported → under_repair → repaired → reassigned\` (or \`cancelled\` from reported/under_repair).
+
+### What is working today
+
+- **Employees** can report an issue only on an asset assigned to them (API-enforced).
+- **IT Support / IT Admin / Super Admin** run the queue: Start Repair, Mark Repaired (enter actual cost), Reassign, Cancel.
+- Vendor name, estimated cost, expected completion, and actual cost are optional fields on the ticket.
+- Starting repair sets the **asset** to \`under_repair\` in the same transaction. Reassignment returns it to \`assigned\` (if an employee remains) or \`available\`.
+- The dashboard **Needs attention** card for stale repairs currently opens the unfiltered Maintenance list. Filter the list yourself to \`under_repair\` until the deep-link ships.
+
+> [!NOTE]
+> Maintenance and Support Tickets are not linked yet. If the same incident exists in both places, keep the ticket numbers in a note on each record.`
   },
   {
     id: 'warranty',
     title: 'Warranty Tracking',
-    category: 'Operations',
-    summary: 'Warranty dates, expiry alerts, dashboard panel.',
+    category: 'Reports & Analytics',
+    summary: 'Warranty dates, expiry alerts, and where they appear on the dashboard.',
     keywords: ['warranty', 'expiry', 'alert', 'email'],
-    body: `Assets store \`warranty_start\` and \`warranty_end\`. The dashboard lists assets expiring within 90 days, sorted by days remaining.
+    body: `Assets store \`warranty_start\` and \`warranty_end\`.
 
-A daily cron creates de-duplicated notifications at **90, 60, and 30 days** before expiry and emails IT Admins (SMTP when configured, console log otherwise).`,
+### What is working today
+
+- The **Open tickets** KPI replaced the old **Warranty ≤90d** tile on the main dashboard row.
+- Warranties that expire within **7 days** still appear under **Needs attention**.
+- \`GET /dashboard/warranty-expiring\` lists assets by days remaining (including already-expired kit).
+- **Reports → Warranty** downloads CSV/PDF sorted most-urgent first.
+- A daily cron creates de-duplicated notifications at **90, 60, and 30 days** before expiry and emails IT Admins (SMTP when configured, console log otherwise).
+
+> [!NOTE]
+> The warranty API currently mixes long-expired assets with upcoming ones. Use days-remaining and the 7-day attention strip for a usable to-do list until the expiring/expired split ships.`,
   },
   {
     id: 'reports',
     title: 'Reports',
-    category: 'Operations',
+    category: 'Reports & Analytics',
     summary: 'Download asset, employee, location, warranty, and supplies reports.',
     keywords: ['reports', 'csv', 'pdf', 'export'],
     screenshot: '/docs/screenshots/reports.png',
@@ -214,7 +309,7 @@ Requires \`report:run\` permission (IT Admin, IT Support, Manager, Super Admin).
   {
     id: 'import-export',
     title: 'Import & Export',
-    category: 'Governance',
+    category: 'Import & Reconciliation',
     summary: 'Background import jobs, dry-run, rollback, scoped export.',
     keywords: ['import', 'export', 'csv', 'excel', 'rollback'],
     screenshot: '/docs/screenshots/import-summary.png',
@@ -228,12 +323,15 @@ Requires \`report:run\` permission (IT Admin, IT Support, Manager, Super Admin).
 
 ### Scoped export
 
-**Assets** list **Export** respects active filters. Empty result returns an error (prevents accidental full dumps).`,
+**Assets** list **Export** respects active filters.
+
+> [!NOTE]
+> An export with zero matching rows returns an error instead of a silent full-estate dump — this guards against accidentally exporting everyone's data when a filter typo matched nothing.`,
   },
   {
     id: 'requests',
     title: 'Asset Requests',
-    category: 'Operations',
+    category: 'Requests',
     summary: 'Employee submit → manager approve → IT fulfill.',
     keywords: ['requests', 'approve', 'reject', 'fulfill'],
     screenshot: '/docs/screenshots/requests.png',
@@ -276,6 +374,7 @@ Staff can **@mention** colleagues on the ticket, copy a ready **email draft** (m
     id: 'tickets-statuses',
     title: 'Understanding ticket statuses',
     category: 'Support tickets',
+    group: 'Lifecycle',
     summary: 'Open, assigned, in progress, waiting on employee, resolved, closed, and reopened.',
     keywords: ['status', 'lifecycle', 'reopen', 'overdue'],
     screenshot: '/docs/screenshots/tickets.png',
@@ -294,6 +393,7 @@ Staff can **@mention** colleagues on the ticket, copy a ready **email draft** (m
     id: 'tickets-comments-watchers',
     title: 'Comments and watchers',
     category: 'Support tickets',
+    group: 'Lifecycle',
     summary: 'Public replies, internal notes, and extra people on the ticket.',
     keywords: ['comment', 'internal', 'watcher', 'cc'],
     screenshot: '/docs/screenshots/ticket-detail.png',
@@ -311,6 +411,7 @@ Anyone who can view the ticket can read public comments. Internal notes never ap
     id: 'tickets-it-queue',
     title: 'Managing the IT queue',
     category: 'Support tickets',
+    group: 'For IT staff',
     summary: 'Assignment, canned replies, time logging, and reports for IT staff.',
     keywords: ['queue', 'assign', 'canned', 'time', 'reports'],
     screenshot: '/docs/screenshots/tickets.png',
@@ -339,10 +440,15 @@ Quick views include **Email-in** for tickets that arrived by mail. The ticket sh
     keywords: ['email', 'imap', 'reply', 'helpdesk', 'mailbox'],
     body: `One shared mailbox (configured as \`HELPDESK_MAILBOX\`, typically it@your-domain).
 
-- A **new** email creates a ticket (channel: Email). The sender is matched to an Employee by email. If nobody matches, the ticket is still created and flagged so IT can link it — we never auto-create an employee from a random address.
+- A **new** email creates a ticket (channel: Email). The sender is matched to an Employee by email.
 - A **reply** is matched first by \`In-Reply-To\` / \`References\` (the app stores outbound Message-IDs), then by \`[TCK-000123]\` in the subject if the client stripped headers.
 - Out-of-office auto-replies, bulk/list mail, and mail from the system's own address are discarded. The same Message-ID is never processed twice.
-- Reply to a notification to add a public comment. Do not remove the ticket number from the subject.
+
+> [!NOTE]
+> If nobody matches the sender's address, the ticket is still created and flagged so IT can link it manually. NewVision never auto-creates an employee record from a random email address.
+
+> [!TIP]
+> Reply to any ticket notification to add a public comment. Just don't remove the \`[TCK-000123]\` ticket number from the subject line.
 
 Settings → Helpdesk shows mailbox status and a connection check. Local development without IMAP simply does not poll.`,
   },
@@ -350,6 +456,7 @@ Settings → Helpdesk shows mailbox status and a connection check. Local develop
     id: 'tickets-rating',
     title: 'Rating a resolved ticket',
     category: 'Support tickets',
+    group: 'Lifecycle',
     summary: 'Requesters rate a resolution once on a 1–5 scale.',
     keywords: ['csat', 'rating', 'satisfaction', 'resolved'],
     screenshot: '/docs/screenshots/ticket-detail.png',
@@ -366,6 +473,7 @@ Averages appear on Ticket reports, overall and per staff member.`,
     id: 'tickets-notify-pref',
     title: 'Ticket email notification preference',
     category: 'Support tickets',
+    group: 'For IT staff',
     summary: 'IT staff can choose immediate emails or a daily digest.',
     keywords: ['digest', 'email', 'notifications', 'noise'],
     screenshot: '/docs/screenshots/settings.png',
@@ -382,6 +490,7 @@ Requesters and watchers always get immediate email for events on their tickets.`
     id: 'tickets-search-views-export',
     title: 'Searching, quick views, bulk actions, and export',
     category: 'Support tickets',
+    group: 'For IT staff',
     summary: 'Find tickets by text, reuse views, assign or close many at once, export CSV/PDF.',
     keywords: ['search', 'views', 'bulk', 'export', 'duplicate'],
     screenshot: '/docs/screenshots/tickets.png',
@@ -400,7 +509,7 @@ Requesters and watchers always get immediate email for events on their tickets.`
   {
     id: 'notes-manual-edit',
     title: 'Notes, manual correction, and backfilling',
-    category: 'Governance',
+    category: 'Settings',
     summary: 'Append-only notes on records, and a reason-required override for Super Admin / IT Admin.',
     keywords: ['notes', 'manual', 'override', 'backfill', 'audit'],
     screenshot: '/docs/screenshots/audit-log.png',
@@ -415,23 +524,43 @@ Requesters and watchers always get immediate email for events on their tickets.`
 2. **Manual correction** (Super Admin and IT Admin) sits apart from Assign/Transfer. Every save needs a **reason** and a confirm step showing old → new.
 3. Review **Audit Log → Manual overrides** to see every flagged correction.
 
-This does not bypass field validation (unknown statuses or missing employees are still rejected). There is no bulk manual-edit tool and no way to edit or delete an audit row.`,
+> [!WARNING]
+> Manual correction does not bypass field validation — an unknown status or a missing employee is still rejected. There is no bulk manual-edit tool, and no way to edit or delete an audit row once written.`,
   },
   {
     id: 'notifications',
     title: 'Notifications',
-    category: 'Operations',
-    summary: 'Bell icon, unread count, mark as read.',
-    keywords: ['notifications', 'bell', 'alert'],
+    category: 'Notifications',
+    summary: 'Bell icon, ticket email vs digest, and staff-chat alerts.',
+    keywords: ['notifications', 'bell', 'alert', 'chat', 'digest'],
     screenshot: '/docs/screenshots/notifications.png',
-    body: `The header **bell** shows unread notifications: warranty alerts, repair updates, low stock, request events, assignments.
+    body: `## In-app bell
 
-Open the dropdown to read items. Bulk **Mark all read** is available when notifications are selected in the grid (where shown).`,
+The header **bell** shows unread notifications for the signed-in user:
+
+- Warranty threshold days (90 / 60 / 30)
+- Asset assigned / transferred
+- Repair reported and status changes
+- Low stock
+- Asset requests
+- Support-ticket events (create, assign, comment, status, @mention)
+- Staff chat messages (\`chat_message\`) when someone posts in a channel you belong to and you are not looking at it
+
+## Email
+
+Ticket mail is branded HTML with \`[TCK-000123]\` in the subject and a Reply-To of the helpdesk mailbox. Without \`SMTP_HOST\`, the backend **logs the message to the console** — it does not fail the API.
+
+IT staff can pick **Immediate** vs **Daily digest** under Settings → Account (IT Support currently has no Settings nav — use the Account path once it is exposed on Queue, or ask a Super Admin).
+
+Requesters and watchers always get immediate ticket email when SMTP is configured.
+
+> [!TIP]
+> Use the mail icon on a ticket to **copy a ready Outlook draft**. That does not send mail; it is a paste helper.`,
   },
   {
     id: 'audit',
     title: 'Audit Log',
-    category: 'Governance',
+    category: 'Settings',
     summary: 'Append-only change history (Super Admin & IT Admin).',
     keywords: ['audit', 'history', 'log'],
     screenshot: '/docs/screenshots/audit-log.png',
@@ -443,39 +572,278 @@ Expand a row for full before/after payloads. Copy entry IDs via the copy icon.`,
     id: 'roles',
     title: 'Roles & Permissions',
     category: 'Reference',
-    summary: 'Five roles and what each can do at the API layer.',
+    summary: 'Five roles and what each can see and do.',
     keywords: ['roles', 'rbac', 'permissions', 'security'],
-    body: `Permissions are enforced on the API; the UI hides unauthorized actions.
+    body: `Permissions are enforced on the API. The UI hides unauthorized actions, but a crafted request still gets 403.
 
-- **SUPER_ADMIN** — all permissions including \`user:manage\`, \`audit:read\`, asset delete
-- **IT_ADMIN** — full asset lifecycle, org CRUD, maintenance, import/export, audit read, fulfill requests
-- **IT_SUPPORT** — read assets/employees, manage maintenance, run reports, manage support tickets
-- **MANAGER** — read assets/employees, \`request:approve\`, reports; own + direct-report support tickets
-- **EMPLOYEE** — read assets (scoped), \`issue:report\`, \`asset:request\`, raise/view own support tickets
+| Capability | Super Admin | IT Admin | IT Support | Manager | Employee |
+|---|---|---|---|---|---|
+| Estate dashboard / metrics | Yes | Yes | Queue home | Team home | My IT |
+| Assets create / assign / transfer / retire | Yes | Yes | Read | Read (scoped) | Own assigned |
+| Locations / categories / departments | Yes | Yes | Read | Read | No |
+| Employees create / offboard / login | Yes | Yes | Read | Direct reports | Own profile |
+| Maintenance queue | Yes | Yes | Yes | Report only | Report own asset |
+| Support tickets (all) | Yes | Yes | Yes | Own + reports | Own only |
+| Internal notes / assign tickets | Yes | Yes | Yes | No | No |
+| Requests approve | Yes | Yes | No | Yes (team) | Submit only |
+| Fulfill requests | Yes | Yes | No | No | No |
+| Reports | Yes | Yes | Yes | Yes | No |
+| Import / reconcile / webhooks | Yes | Yes | No | No | No |
+| Settings → Users | Yes | No | No | No | No |
+| Audit log | Yes | Yes | No | No | No |
+| Staff chat | Yes | Yes | Yes | No | No |
 
-View your permissions under **Settings → Account**.`,
+View **your** permission tags under **Settings → Account**.
+
+> [!NOTE]
+> IT Support has no Settings item in the sidebar today, so they cannot reach the Account digest radio unless a Super Admin opens Settings for them or a later change adds an Account entry on Queue.`
   },
   {
     id: 'qr-webhooks',
-    title: 'QR Codes & Webhooks',
-    category: 'Governance',
-    summary: 'Physical audit stickers and outbound event hooks.',
-    keywords: ['qr', 'webhook', 'scan', 'integration'],
-    body: `**QR** — per-asset PNG; encodes public scan URL. **Webhooks** (Settings) subscribe to \`asset.created\` and \`asset.status_changed\` with HMAC-SHA256 signatures. Secret shown once on create.`,
+    title: 'QR Codes, labels & public scan',
+    category: 'Assets',
+    group: 'QR & labels',
+    summary: 'Printable stickers and the public, login-free scan page.',
+    keywords: ['qr', 'scan', 'label', 'sticker', 'public'],
+    screenshot: '/docs/screenshots/scan-page.png',
+    body: `Every asset can show a **QR sticker** that encodes \`{PUBLIC_APP_URL}/scan/{assetCode}\`.
+
+### What is working today
+
+- **Download QR** on the asset show page — PNG of that public URL.
+- **Print labels** — 20-up PDF of selected assets from the Assets list (IT Admin+).
+- **Public scan** (\`/scan/:code\`) works **without login**. It shows status, item, category, location, and warranty days.
+- The public page **never** shows assignee name, serial number, cost, invoice, or history. That is deliberate PII protection — anyone who photographs the sticker can open the URL.
+- Authenticated staff who open the same code from inside the app still use the normal asset show page.
+
+### Webhooks (separate Settings tab)
+
+Settings → Webhooks (IT Admin+) subscribe to \`asset.created\` and \`asset.status_changed\` with HMAC-SHA256 signatures. The secret is shown **once** on create.
+
+\`\`\`
+POST /webhooks/your-endpoint
+X-NewVision-Signature: sha256=…
+{ "event": "asset.status_changed", "assetCode": "AST-PUN-LAP-0001" }
+\`\`\`
+
+> [!WARNING]
+> Do not print names or serials on the sticker. The QR only needs the asset code.`
   },
   {
     id: 'keyboard-shortcuts',
-    title: 'Keyboard Shortcuts',
+    title: 'Keyboard Shortcuts & Command Palette',
     category: 'Reference',
-    summary: 'All keyboard shortcuts across NewVision.',
-    keywords: ['keyboard', 'shortcuts', 'hotkeys'],
-    body: `| Shortcut | Action |
+    summary: 'Every shortcut, ⌘K jump, and the ? Help key.',
+    keywords: ['keyboard', 'shortcuts', 'hotkeys', 'command palette', 'ctrl+k'],
+    body: `### Command palette
+
+Press **⌘K** / **Ctrl+K** anywhere in the signed-in app. Type a screen name or a record code (\`AST-…\`, \`EMP-…\`, \`TCK-…\`). Arrow keys move the highlight; Enter opens it.
+
+The palette currently lists the same destinations for every role. An Employee will still see “New asset” or “Audit Log” in the list — the destination then 403s or hides the action. Role-filtering is not built yet.
+
+### App shortcuts
+
+| Shortcut | Action |
 |----------|--------|
-| \`/\` | Focus global search (or grid filter when on a table page) |
+| \`⌘K\` / \`Ctrl+K\` | Open the command palette (or docs search when you are already in Help) |
+| \`?\` | Open Help (ignored while typing in an input) |
+| \`/\` | Focus the grid filter on a table page |
 | \`Esc\` | Clear row focus / close expanded rows |
 | \`↑\` \`↓\` | Move row focus on data tables |
-| \`Ctrl+C\` / \`Cmd+C\` | Copy focused row as tab-separated values |
-| Copy icon | Copy individual codes, IDs, emails, URLs with toast confirmation |`,
+| \`Ctrl+C\` / \`Cmd+C\` | Copy the focused row as tab-separated values (for Excel) |
+| ⧉ chip | Copy one code, ticket number, email, or URL, with a toast |
+
+### Staff Chat
+
+There is no keyboard shortcut for Chat. Super Admin, IT Admin, and IT Support use the **Chat** button in the header (#it-ops plus 1:1 DMs). Ticket numbers pasted in a message become clickable previews.
+
+> [!TIP]
+> \`?\` opens Help. Do not reuse \`?\` for a shortcuts overlay — that key is already taken.`
+  },
+  {
+    id: 'employees-history',
+    title: 'Employee History timeline',
+    category: 'Employees',
+    group: 'Lifecycle',
+    summary: 'Every assignment, transfer, repair, and status change on one person.',
+    keywords: ['history', 'timeline', 'offboard', 'assignment'],
+    screenshot: '/docs/screenshots/employee-profile.png',
+    body: `Open an employee → **History**.
+
+The timeline is built from assignment, transfer, maintenance, and employment events — not a free-form journal. Each row has a when, a what, and usually an actor.
+
+### What is working today
+
+- Assign / transfer / return of assets appear here and on the asset show page.
+- Offboard and reinstate write a History row and an audit-log row.
+- Notes you add on the profile are **not** the History tab — they live in the Notes section (append-only).
+
+> [!NOTE]
+> History is read-only. To correct a past assignment, use Transfer / Return on the asset, or Manual correction (reason required) if the field itself was wrong.`,
+  },
+  {
+    id: 'employees-offboarding',
+    title: 'Offboarding and reinstating',
+    category: 'Employees',
+    group: 'Lifecycle',
+    summary: 'Take a leaver out of pickers, recover kit, then optionally bring them back.',
+    keywords: ['offboard', 'reinstate', 'inactive', 'leaver'],
+    screenshot: '/docs/screenshots/employee-profile.png',
+    body: `### Offboard
+
+1. Open the employee profile (IT Admin+).
+2. Optionally start an **offboard checklist** and tick each item (collect laptop, revoke access, …).
+3. Click **Offboard**, add notes if useful, confirm.
+4. The person becomes inactive: they disappear from assignment pickers, and their login is disabled. Assigned assets stay on the record until you return or transfer them — offboard does **not** auto-check-in kit.
+
+### Reinstate
+
+**Reinstate** flips them active again and re-enables the login. History is preserved.
+
+> [!WARNING]
+> Offboarding a person who still holds assets does not move those assets to Available. Clear the kit first (or immediately after) so the estate numbers stay honest.`,
+  },
+  {
+    id: 'locations-departments',
+    title: 'Locations & Departments',
+    category: 'Locations & Departments',
+    summary: 'Sites (Pune / Hyderabad / Bhopal) and the departments that sit under them.',
+    keywords: ['locations', 'departments', 'office', 'city', 'PUN', 'HYD', 'BHO'],
+    screenshot: '/docs/screenshots/locations.png',
+    body: `**Locations** are physical sites. Seeded demo: Pune (\`PUN\`), Hyderabad (\`HYD\`), Bhopal (\`BHO\`). Each location has a code, name, city, and optional address.
+
+**Departments** are org units (Finance, Engineering, …) managed under **Settings → Departments**. Employees and assets can both carry a department.
+
+### How they relate
+
+- Every **employee** must have a location (the Add employee form blocks save until at least one location exists).
+- Every **asset** has a location; transfer can change it. The dashboard **Assets by location** table is one row per live Location record — city names are never hardcoded.
+- Accessories and consumables are estate-wide stock, not per-location bins (there is no warehouse module).
+- Asset codes often embed the location prefix (\`AST-PUN-LAP-0001\`) but the prefix is a naming convention, not a constraint the API re-validates on transfer.
+
+### What is working today
+
+1. **Locations** in the sidebar — Super Admin / IT Admin can create, edit, delete.
+2. **Settings → Departments** — same roles, full CRUD.
+3. Filters on Assets and Employees let you slice by location and department.
+4. Reports include a Locations export.
+
+> [!TIP]
+> Add the three offices before importing employees. The import will fail rows that point at an unknown location code.`,
+  },
+  {
+    id: 'settings',
+    title: 'Settings',
+    category: 'Settings',
+    summary: 'Account, helpdesk mailbox, org data, imports, users, and webhooks.',
+    keywords: ['settings', 'account', 'users', 'mailbox', 'categories', 'digest'],
+    screenshot: '/docs/screenshots/settings.png',
+    callouts: [
+      { n: 1, label: 'Account (every signed-in user who can open Settings)' },
+      { n: 2, label: 'Helpdesk mailbox status' },
+      { n: 3, label: 'Users (Super Admin only)' },
+    ],
+    body: `Settings is a tabbed page. Which tabs you see depends on role.
+
+### Account (IT Admin, Super Admin, and IT Support if they can open the page)
+
+- Your name, email, role, and the raw permission tags the API granted you.
+- **Ticket email notifications**: Immediate vs Daily digest (ticket staff only).
+- **Change password**.
+
+IT Support currently has **no Settings item in the sidebar**, so they cannot reach this tab from navigation. That is a known gap.
+
+### Helpdesk (ticket staff)
+
+Mailbox address, IMAP connection check, canned responses. Local development without \`IMAP_HOST\` simply does not poll. Inbound mail is not “proven” until a real mailbox is configured.
+
+### IT Admin / Super Admin tabs
+
+- **Categories** — LAP, MON, DES, … Delete is blocked while assets still use the category.
+- **Departments** — org units used on employees and assets.
+- **Import jobs** — upload, map columns, dry-run, commit, rollback.
+- **Reconciliation** — upload an HR/inventory CSV and see set-diff vs live records.
+- **Webhooks** — \`asset.created\` / \`asset.status_changed\`, HMAC secret shown once.
+- **Onboard / Offboard** — checklist templates used on employee profiles.
+
+### Users (Super Admin only)
+
+Create and disable logins, assign roles. This is the only place that can create an IT Admin. There is no public self-service signup.
+
+\`\`\`
+# Typical local mailbox (does nothing until IMAP_HOST is set)
+HELPDESK_MAILBOX=it@newvision.local
+SMTP_HOST=
+\`\`\`
+
+> [!NOTE]
+> Forgot-password and JWT refresh are implemented. Without SMTP, reset tokens are logged to the backend console.`,
+  },
+  {
+    id: 'staff-chat',
+    title: 'Staff chat',
+    category: 'Support tickets',
+    group: 'For IT staff',
+    summary: '#it-ops and 1:1 DMs for Super Admin, IT Admin, and IT Support.',
+    keywords: ['chat', 'dm', 'it-ops', 'unfurl'],
+    screenshot: '/docs/screenshots/chat.png',
+    body: `The header **Chat** button is staff-only (\`SUPER_ADMIN\`, \`IT_ADMIN\`, \`IT_SUPPORT\`). Managers and Employees never see it.
+
+### What is working today
+
+- **#it-ops** group channel, plus 1:1 DMs with other staff.
+- Messages poll every few seconds (same idea as notifications — no WebSocket).
+- Unread badge on the Chat button; \`chat_message\` also lands in the bell if you are not looking at the channel.
+- Paste \`TCK-000123\` (or an asset/employee code) and the message shows a clickable preview card.
+- Chat is **not** a ticket comment. Requesters never see it.
+
+> [!TIP]
+> Use Chat to ask a colleague “are you on TCK-000035?” before two people reply on the same ticket. There is no live “someone else is viewing this ticket” indicator yet.`,
+  },
+  {
+    id: 'tips-troubleshooting',
+    title: 'Tips & Troubleshooting',
+    category: 'Tips & Troubleshooting',
+    summary: 'Power-user habits and the problems people actually hit.',
+    keywords: ['tips', 'troubleshoot', 'hidden gems', 'smtp', 'seed', 'scroll'],
+    body: `### Hidden gems
+
+- **⌘K** then type a code. Faster than opening the list and filtering.
+- The quiet **⧉** chip copies \`TCK-\` / \`AST-\` / \`EMP-\` without selecting the text.
+- **Ctrl+C** on a focused grid row copies the row as TSV — paste straight into Excel.
+- Saved views on Assets (and tickets) remember filters you reuse.
+- Duplicate an asset from the show page when you unbox a second identical laptop — you get a new code, not a clone of history.
+- Print **20-up QR labels** from the Assets list instead of downloading one PNG at a time.
+- Copy-email on a ticket builds an Outlook-ready draft. It does **not** send mail and does **not** add a public comment unless you paste/send yourself.
+
+### Common problems
+
+**I signed in as Employee and I do not see Dashboard / Settings.**
+That is correct. Employees land on **My IT**. They can raise a ticket, request a device, and see their own assets.
+
+**Warranty attention is full of thousand-day-expired laptops.**
+The warranty API currently returns already-expired rows mixed with upcoming ones. Sort by days remaining and use the 7-day attention strip. A split “expiring soon / already expired” view is planned.
+
+**A ticket says Not started but it is already In progress.**
+The human timeline can miss a “started” point when there is no audit row for the transition. The status chip on the ticket is the source of truth.
+
+**Email never arrived.**
+Without \`SMTP_HOST\` the backend logs the message to the console and the API still succeeds. Check the Nest terminal, not the user’s inbox.
+
+**Email-in did nothing.**
+IMAP is only polled when mailbox env vars are set. Settings → Helpdesk shows connection status. Local default is “not polling”.
+
+**Restarting Docker wiped my demo edits.**
+Compose defaults to \`SEED_ON_START=true\`. Set it to \`false\` after the first boot if you want data to persist.
+
+**Two scrollbars on a list.**
+The page and the grid each have a scrollbar. Use the grid’s thicker bar to move columns; the page bar moves the chrome.
+
+**IT Support cannot change digest preference.**
+They have no Settings nav item. Ask a Super Admin, or wait for an Account entry on Queue.
+
+> [!WARNING]
+> Do not put real employee names or serial numbers on a printed QR sticker. The public scan URL is reachable by anyone with the photo.`,
   },
 ];
 

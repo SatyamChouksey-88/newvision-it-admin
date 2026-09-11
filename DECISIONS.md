@@ -194,3 +194,11 @@ Every judgment call made while building NewVision, and why. Newest at the bottom
 - **First-response SLA is three numbers in Settings**, not a rules engine. The clock pauses in `waiting_on_employee`. Business hours and escalation stay in `FUTURE_IDEAS.md`.
 - **Access tokens are 15 minutes + a 7-day rotating refresh token.** Long-lived 8h JWTs were a real limitation outside a trusted LAN.
 
+## Help docs rebuild (MkDocs Material structure, in-app)
+
+- **Stay inside the React app, do not host MkDocs.** The reference site (`ing-bank.github.io/ingenious-doc`) is the structural model (fixed header, skip-link, collapsible 2–3 level nav, auto ToC, At a Glance cards, client-side search, admonitions). NewVision tokens stay (`#F8FAFC` canvas, `#0958D9` links) — ING blue/orange is not copied.
+- **Content is a structured `helpArticles` model**, not one-off JSX per page, so search + ToC stay generic. Articles describe what actually works today, including known gaps (warranty dump mixes expired rows, ticket timeline can say “Not started” on an in-progress ticket, IT Support has no Settings nav, email-in is unproven without IMAP, public scan omits assignee/serial).
+- **Screenshots are captured from the running app** via `frontend/scripts/capture-screenshots.mjs`. The script must not wait for a “Dashboard” heading — Employees land on My IT.
+- **`?` stays Help; ⌘K is command palette** (and docs search while already in Help). A shortcuts overlay must use a different key later (`Shift+/`), not `?`.
+- **Home is a nav link** to `/help` (landing), not a fake article, so the At a Glance grid remains the docs home.
+

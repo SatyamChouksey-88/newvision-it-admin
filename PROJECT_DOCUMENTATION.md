@@ -39,6 +39,7 @@ The stack is a **React + Refine + Ant Design** frontend talking to a **NestJS + 
 | **Prompt 17** — Verified enhancement pass | Route-level code splitting + vendor chunks; cumulative growth chart; docs test-count correction; helpdesk/notes polish | **Done** |
 | **Prompt 18** — Real helpdesk emails | Branded HTML templates for the full ticket lifecycle (created/assigned/unassigned/comment/status-change/resolved/digest); requester creation confirmation added | **Done** |
 | **Prompt 19** — Re-verified against reference | Re-read the mockup directly; reverted an interim "futuristic" visual pass that had drifted from it; kept the command palette and a WCAG contrast fix found while re-testing | **Done** |
+| **Help docs rebuild** | In-app MkDocs-Material-style documentation site (structure, not ING colors); accurate articles + real screenshots | **Done** |
 
 **Test counts (current, re-run 2026-09-10):** 58 backend unit + 84 backend integration = **142**; **55** Playwright (incl. axe-core).
 
@@ -639,7 +640,7 @@ npm run test:e2e:report           # HTML report
 | `prompt14-bugs.spec.ts` | Growth chart scale, select-all checkbox, MANAGE color + logos |
 | `prompt17.spec.ts` | Lazy routes, cumulative growth API + chart, favicon/collapsed mark |
 | `tickets.spec.ts` | Raise ticket (blank + template), IT queue, comments/time/export, Help, notes/manual edit |
-| `help.spec.ts` | Help home, search, articles |
+| `help.spec.ts` | Docs home + At a Glance, nav tree expand/collapse, auto ToC, search (page + heading), every article H1, skip-link / Home |
 | `employee-history.spec.ts` | History tab + dashboard drill-down |
 | `audit-fixes.spec.ts` | Offboard/reinstate, audit filter, search → maintenance |
 
@@ -676,7 +677,7 @@ Summarized from `DECISIONS.md` — things a future developer should not accident
 
 ## 11. Screenshots
 
-Screenshots were not captured in the documentation environment. Replace each placeholder with a PNG from a running instance (`http://localhost:5173`, logged in as `itadmin@newvision.local` unless noted).
+Help articles embed PNGs from `frontend/public/docs/screenshots/`, captured against the running app (`cd frontend && npm run screenshots`). Recapture after chrome changes. The script logs in as `itadmin@newvision.local` except `requests.png` (employee) and `scan-page.png` (logged out).
 
 | Placeholder | Suggested capture |
 |-------------|-------------------|

@@ -31,19 +31,24 @@ async function logoutIfNeeded(page) {
       localStorage.clear();
       sessionStorage.clear();
     } catch {
-      /* ignore cross-origin */
+      /* ignore */
     }
   });
   await page.goto(`${base}/login`, { waitUntil: 'domcontentloaded' });
   await emailInput.waitFor({ state: 'visible', timeout: 15_000 });
 }
 
+/** Wait for any signed-in home — Employees land on My IT, not "Dashboard". */
 async function login(page, email) {
   await logoutIfNeeded(page);
   await page.locator('#email').fill(email);
   await page.locator('#password').fill(password);
   await page.getByRole('button', { name: /sign in/i }).click();
-  await page.getByRole('heading', { name: 'Dashboard' }).waitFor();
+  await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 25_000 });
+  const signedIn = page.getByTestId('logout-button').first();
+  if (!(await signedIn.isVisible({ timeout: 8_000 }).catch(() => false))) {
+    await page.locator('h1, h2, .nv-page-title').first().waitFor({ timeout: 15_000 });
+  }
 }
 
 const shots = [
@@ -61,12 +66,13 @@ const shots = [
     await page.goto(`${base}/employees`);
     await page.locator('table tbody tr.ant-table-row').first().click();
   }},
+  { name: 'locations.png', fn: async (page) => { await login(page, 'itadmin@newvision.local'); await page.goto(`${base}/locations`); } },
   { name: 'maintenance.png', fn: async (page) => { await login(page, 'itadmin@newvision.local'); await page.goto(`${base}/maintenance`); } },
   { name: 'accessories.png', fn: async (page) => { await login(page, 'itadmin@newvision.local'); await page.goto(`${base}/accessories`); } },
   { name: 'reports.png', fn: async (page) => { await login(page, 'itadmin@newvision.local'); await page.goto(`${base}/reports`); } },
   { name: 'requests.png', fn: async (page) => { await login(page, 'employee@newvision.local'); await page.goto(`${base}/requests`); } },
   { name: 'audit-log.png', fn: async (page) => { await login(page, 'itadmin@newvision.local'); await page.goto(`${base}/audit-logs`); } },
-  { name: 'import-summary.png', fn: async (page) => { await login(page, 'itadmin@newvision.local'); await page.goto(`${base}/settings`); } },
+  { name: 'import-summary.png', fn: async (page) => { await login(page, 'itadmin@newvision.local'); await page.goto(`${base}/settings?tab=imports`); } },
   { name: 'notifications.png', fn: async (page) => {
     await login(page, 'itadmin@newvision.local');
     await page.getByRole('button', { name: /notifications/i }).click();
@@ -92,6 +98,11 @@ const shots = [
     await page.waitForURL(/\/tickets\/show\//);
   }},
   { name: 'settings.png', fn: async (page) => { await login(page, 'itadmin@newvision.local'); await page.goto(`${base}/settings`); } },
+  { name: 'chat.png', fn: async (page) => {
+    await login(page, 'itadmin@newvision.local');
+    await page.getByRole('button', { name: /IT staff chat|Chat/i }).first().click();
+    await page.getByText('#it-ops').waitFor({ timeout: 10_000 }).catch(() => undefined);
+  }},
 ];
 
 await mkdir(outDir, { recursive: true });

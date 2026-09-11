@@ -127,6 +127,13 @@ If any of these become a real, demonstrated need later, they should be scoped as
 - Email-in (IMAP and/or webhook): new mail → ticket, reply → comment, loops/OOO/duplicates dropped, unmatched From flagged
 - Duplicate asset + printable QR label sheets; Help updated for the screens that actually exist
 
+## 7f. What’s covered (Help docs rebuild — MkDocs Material structure)
+
+- In-app documentation site at `/help` (not a separately hosted MkDocs site): skip-link, fixed header, collapsible 2–3 level nav tree, auto-generated right-hand ToC, At a Glance card grid, client-side search, Note/Tip/Warning admonitions
+- Articles cover every major feature area with accurate “what is working today” copy (including known gaps) and screenshots from `frontend/public/docs/screenshots/`
+- New sections: Locations & Departments, Settings, Staff chat, Tips & Troubleshooting, employee History/offboarding, bulk asset actions
+- Help e2e + axe-core cover the new chrome (nav, ToC, search, every article route, skip-to-content)
+
 ## 9. Remaining gaps (true leftovers, not silent undecided items)
 
 - **Seed resets demo data** when `SEED_ON_START=true` (compose default). Documented and warned in-app; set `false` after first boot to persist edits

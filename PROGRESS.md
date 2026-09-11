@@ -281,6 +281,16 @@ Definition of Done: UI matches approved mockup look-and-feel; no functional regr
 - [x] Duplicate asset + 20-up QR label PDF; category delete blocked when assets remain
 - [x] Help rewritten for the new dashboard/homes/tickets; Playwright no longer asserts a Growth chart
 
+## Help documentation site (MkDocs-style, in-app) ✅
+
+- [x] Full-page Help shell: skip-to-content, fixed header (logo → home, search, Back to app), collapsible multi-level left nav, auto ToC from article headings, footer credit
+- [x] Landing “At a glance” cards for every major area + “How the app is organized”
+- [x] Instant client-side search (titles, headings, body) — no server round-trip
+- [x] Admonition components (Note / Tip / Warning) + fenced code blocks
+- [x] Articles rewritten for real behaviour (scan PII, warranty dump, chat, settings tabs, tips)
+- [x] Screenshot script waits for any signed-in home (not “Dashboard”); captures locations + chat
+- [x] Playwright: nav expand/collapse, ToC, search, every article H1, skip-link, Home link; axe-core on `/help` and `/help/getting-started`
+
 ## Known issues
 
 - **Seed resets demo data on container start** when `SEED_ON_START=true` (the compose default). Convenient for demos, but restarting the backend wipes manual changes. Set `SEED_ON_START: "false"` in `docker-compose.yml` after the first boot to persist changes. Documented in README.

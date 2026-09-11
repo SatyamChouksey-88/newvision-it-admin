@@ -50,4 +50,19 @@ test.describe('Accessibility (axe-core)', () => {
     await expect(page.getByTestId('record-notes')).toBeVisible();
     await assertNoSeriousViolations(page);
   });
+
+  test('no serious axe violations on the Help documentation home', async ({ page }) => {
+    await page.goto('/help');
+    await expect(page.getByRole('heading', { name: 'NewVision documentation' })).toBeVisible();
+    await assertNoSeriousViolations(page);
+  });
+
+  test('no serious axe violations on a Help article, including the skip link and nav tree', async ({ page }) => {
+    await page.goto('/help/getting-started');
+    await expect(page.getByRole('heading', { level: 1, name: 'Getting Started' })).toBeVisible();
+    // The skip-to-content link must be the first focusable element on the page.
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('link', { name: 'Skip to content' })).toBeFocused();
+    await assertNoSeriousViolations(page);
+  });
 });

@@ -741,6 +741,19 @@ a:hover {
   margin-bottom: 8px;
 }
 
+.nv-help-code {
+  margin: 12px 0 20px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  background: #f8fafc;
+  border: 1px solid #e4e9f0;
+  border-radius: 8px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #1f1f1f;
+}
+
 .nv-help-footer {
   margin-top: 24px;
   padding-top: 16px;
@@ -1221,4 +1234,218 @@ a:hover {
   font-style: normal;
   font-size: 11px;
   text-transform: capitalize;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Help documentation site — modeled on MkDocs Material's structure
+   (fixed header, collapsible nav tree, right-hand TOC), NewVision's own
+   light tokens throughout. Deliberately full-page, not nested in the
+   main app shell (AppSider/Header) — see App.tsx's dedicated route.
+   ══════════════════════════════════════════════════════════════════════ */
+
+.nv-doc-shell {
+  min-height: 100vh;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+}
+
+.nv-skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 200;
+  background: #0958d9;
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 0 0 6px 0;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.nv-skip-link:focus {
+  left: 0;
+}
+
+.nv-doc-header {
+  height: 52px;
+  flex: 0 0 52px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 18px;
+  background: #fff;
+  border-bottom: 1px solid #e9edf2;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.nv-doc-nav-toggle {
+  display: none;
+  border: 1px solid #e4e9f0;
+  background: #fff;
+  border-radius: 6px;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #475569;
+}
+
+.nv-doc-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: #1f1f1f;
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.nv-doc-search-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid #e4e9f0;
+  background: #fafbfc;
+  border-radius: 6px;
+  color: #64748b;
+  font-size: 13px;
+  cursor: pointer;
+  width: 240px;
+  max-width: 34vw;
+}
+
+.nv-doc-search-trigger span:nth-child(2) {
+  flex: 1;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nv-doc-back-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: #0958d9;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.nv-doc-body {
+  flex: 1;
+  display: flex;
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px 24px 0;
+  gap: 32px;
+}
+
+.nv-doc-sider-desktop {
+  flex: 0 0 220px;
+  position: sticky;
+  top: 76px;
+  align-self: flex-start;
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+}
+
+.nv-doc-main {
+  flex: 1;
+  min-width: 0;
+  padding-bottom: 48px;
+}
+
+.nv-doc-main:focus {
+  outline: none;
+}
+
+.nv-doc-article-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 200px;
+  gap: 32px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .nv-doc-article-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.nv-doc-nav-section {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 6px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1f1f1f;
+  cursor: pointer;
+  text-align: left;
+}
+
+.nv-doc-nav-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 5px 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  text-align: left;
+}
+
+.nv-doc-nav-item {
+  display: block;
+  padding: 5px 8px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  text-decoration: none;
+  line-height: 1.4;
+}
+
+.nv-doc-nav-item:hover {
+  background: #f6f8fa;
+}
+
+.nv-doc-footer {
+  text-align: center;
+  font-size: 11.5px;
+  color: #64748b;
+  padding: 20px 0 28px;
+}
+
+@media (max-width: 900px) {
+  .nv-doc-nav-toggle {
+    display: inline-flex;
+  }
+  .nv-doc-sider-desktop,
+  .nv-help-toc-desktop {
+    display: none;
+  }
+  .nv-doc-search-trigger {
+    width: 140px;
+  }
+  .nv-doc-body {
+    padding: 16px 16px 0;
+    gap: 0;
+  }
 }

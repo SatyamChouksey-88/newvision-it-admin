@@ -209,9 +209,22 @@ export default function App() {
                   <Route path="/reports" element={<ReportsPage />} />
                   <Route path="/audit-logs" element={<AuditList />} />
                   <Route path="/settings" element={<SettingsPage />} />
-                  <Route path="/help/*" element={<HelpSection />} />
 
                   <Route path="*" element={<ErrorComponent />} />
+                </Route>
+
+                {/* Help is a full-page documentation site with its own chrome (header, nav
+                    tree, table of contents) — deliberately not nested in the main app shell. */}
+                <Route
+                  element={
+                    <Authenticated key="help-auth" fallback={<CatchAllNavigate to="/login" />}>
+                      <Suspense fallback={<RouteFallback />}>
+                        <Outlet />
+                      </Suspense>
+                    </Authenticated>
+                  }
+                >
+                  <Route path="/help/*" element={<HelpSection />} />
                 </Route>
 
                 <Route

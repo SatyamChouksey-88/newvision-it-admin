@@ -51,7 +51,7 @@ export function Header() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [navigate]);
 
   return (
     <Layout.Header
