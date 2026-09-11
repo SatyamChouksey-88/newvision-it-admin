@@ -114,6 +114,10 @@ export function HelpdeskSettings() {
       ) : null}
       <div>
         <Typography.Title level={5}>Canned responses</Typography.Title>
+        <Typography.Paragraph type="secondary">
+          Optional After send sets the ticket to waiting on the employee or resolved when the snippet is used as a
+          public reply.
+        </Typography.Paragraph>
         <Table
           rowKey="id"
           size="small"
@@ -123,6 +127,12 @@ export function HelpdeskSettings() {
           columns={[
             { title: 'Title', dataIndex: 'title' },
             { title: 'Body', dataIndex: 'body', ellipsis: true },
+            {
+              title: 'After send',
+              dataIndex: 'statusOnSend',
+              render: (v: CannedResponse['statusOnSend']) =>
+                v === 'waiting_on_employee' ? 'Wait on employee' : v === 'resolved' ? 'Resolve' : '—',
+            },
             {
               title: '',
               render: (_, r) => (
@@ -160,6 +170,18 @@ export function HelpdeskSettings() {
           </Form.Item>
           <Form.Item name="body" rules={[{ required: true }]}>
             <Input placeholder="Body" style={{ minWidth: 280 }} />
+          </Form.Item>
+          <Form.Item name="statusOnSend">
+            <Select
+              allowClear
+              placeholder="After send (optional)"
+              aria-label="Status after sending this canned reply"
+              style={{ minWidth: 200 }}
+              options={[
+                { label: 'Wait on employee', value: 'waiting_on_employee' },
+                { label: 'Resolve', value: 'resolved' },
+              ]}
+            />
           </Form.Item>
           <Button htmlType="submit" type="primary">
             Add

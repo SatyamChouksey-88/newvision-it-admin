@@ -214,3 +214,7 @@ Every judgment call made while building NewVision, and why. Newest at the bottom
 
 - **Make the existing queries visible.** Templates already lived in a migration; they were invisible once you left the profile. Seed one contractor (`EMP-00002`, ends in 8 days) and one incomplete onboard checklist (`EMP-00001`). Employees list gets a Follow-up chip (contracts ending 14d / incomplete checklist) plus row tags; the profile warns when a contract is due. Dashboard My work already had the queries from #6; contracts now require `employmentType=contract` so a stray end date on a permanent employee is ignored.
 
+## Prompt 22 — item 8 (canned macros)
+
+- **Status rides along with the public reply.** Canned responses store optional `statusOnSend` (`waiting_on_employee` | `resolved`). The comment endpoint applies it only for staff public replies, not internal notes. Open tickets are allowed to jump to waiting/resolved so a first-reply macro does not get stuck.
+

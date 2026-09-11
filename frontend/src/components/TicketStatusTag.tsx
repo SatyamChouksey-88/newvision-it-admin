@@ -106,7 +106,7 @@ export const TICKET_PRIORITY_OPTIONS = (Object.keys(PRIORITY_META) as TicketPrio
 }));
 
 export const TICKET_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
-  open: ['assigned', 'in_progress', 'closed'],
+  open: ['assigned', 'in_progress', 'waiting_on_employee', 'resolved', 'closed'],
   assigned: ['in_progress', 'open', 'waiting_on_employee', 'resolved'],
   in_progress: ['assigned', 'waiting_on_employee', 'resolved'],
   waiting_on_employee: ['in_progress', 'assigned', 'resolved'],

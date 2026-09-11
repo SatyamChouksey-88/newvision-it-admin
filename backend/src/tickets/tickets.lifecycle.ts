@@ -1,7 +1,7 @@
 import { TicketStatus } from '@prisma/client';
 
 const NEXT: Record<TicketStatus, TicketStatus[]> = {
-  open: ['assigned', 'in_progress', 'closed'],
+  open: ['assigned', 'in_progress', 'waiting_on_employee', 'resolved', 'closed'],
   assigned: ['in_progress', 'open', 'waiting_on_employee', 'resolved'],
   in_progress: ['assigned', 'waiting_on_employee', 'resolved'],
   waiting_on_employee: ['in_progress', 'assigned', 'resolved'],

@@ -348,6 +348,7 @@ export interface CannedResponse {
   id: number;
   title: string;
   body: string;
+  statusOnSend?: 'waiting_on_employee' | 'resolved' | null;
 }
 
 export interface RecordNote {

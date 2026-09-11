@@ -5,6 +5,7 @@ import {
   IsBoolean,
   IsDateString,
   IsEnum,
+  IsIn,
   IsInt,
   IsObject,
   IsOptional,
@@ -59,6 +60,7 @@ export class TransitionTicketDto {
 export class CommentDto {
   @IsString() @MinLength(1) body!: string;
   @IsOptional() @IsBoolean() isInternal?: boolean;
+  @IsOptional() @Type(() => Number) @IsInt() cannedResponseId?: number;
 }
 
 export class WatcherDto {
@@ -73,6 +75,7 @@ export class TimeLogDto {
 export class CannedDto {
   @IsString() @MinLength(2) title!: string;
   @IsString() @MinLength(2) body!: string;
+  @IsOptional() @IsIn(['waiting_on_employee', 'resolved']) statusOnSend?: 'waiting_on_employee' | 'resolved' | null;
 }
 
 export class TemplateDto {

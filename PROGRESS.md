@@ -300,6 +300,7 @@ Definition of Done: UI matches approved mockup look-and-feel; no functional regr
 - [x] **#5 Stale-repair attention link** — Needs attention now opens `/maintenance` with `staleDays=14` (open repairs reported 14+ days ago), not the unfiltered queue.
 - [x] **#6 My work list** — `/dashboard/attention` returns ordered `myWork`: my overdue tickets → unassigned → waiting on employee 3+ days → stale repairs → incomplete checklists → contracts ending in 14 days → warranties expiring in 14 days. IT Admin keeps KPI tiles; IT Support’s home is this list. Unassigned rows have Assign to me.
 - [x] **#7 Contracts + checklists on screen** — seed one contractor ending in 8 days (`EMP-00002`) and one incomplete onboard checklist (`EMP-00001`). Employees **Follow-up** filter (14-day contracts / incomplete checklist), list tags, and a profile warning. Dashboard My work already lists both.
+- [x] **#8 Canned macros** — canned replies can optionally **wait on the employee** or **resolve** when sent as a public reply. Internal notes do not change status. Settings → Helpdesk has the After send field. Open tickets may move straight to waiting/resolved so a first reply can close the loop.
 
 ## Known issues
 

@@ -427,7 +427,7 @@ Anyone who can view the ticket can read public comments. Internal notes never ap
 1. **Filter** with status chips or built-in quick views: My tickets, Unassigned, Overdue, Awaiting my reply.
 2. The list shows **Requester** (Name · EMP-code), **Assignee**, and an **Age / SLA** badge matching the ticket header — you do not need to open a ticket to see who owns it.
 3. **Assign** from the ticket or in bulk from the list.
-4. **Insert a canned response** before sending a reply (Settings → Helpdesk).
+4. **Insert a canned response** before sending a reply (Settings → Helpdesk). A snippet can also **wait on the employee** or **resolve** the ticket when you send it.
 5. **Log time** in minutes; the running total appears on the ticket and in reports.
 6. **Reports** show volume by status/category/priority, average resolution time, overdue open tickets, closed counts per staff member, and average satisfaction.
 

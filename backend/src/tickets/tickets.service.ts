@@ -389,7 +389,13 @@ export class TicketsService {
     return this.decorateOne(updated);
   }
 
-  async comment(id: number, body: string, isInternal: boolean, actor: AuthUser) {
+  async comment(
+    id: number,
+    body: string,
+    isInternal: boolean,
+    actor: AuthUser,
+    cannedResponseId?: number,
+  ) {
     const ticket = await this.require(id);
     await this.assertCanView(ticket, actor);
     if (isInternal && !isTicketStaff(actor.role)) {
@@ -401,7 +407,7 @@ export class TicketsService {
       });
       if (!watching) throw new ForbiddenException('You cannot comment on this ticket');
     }
-    return this.addPublicOrInternalComment({
+    const row = await this.addPublicOrInternalComment({
       ticket,
       body,
       isInternal,
@@ -410,6 +416,10 @@ export class TicketsService {
       actorRole: actor.role,
       actorEmployeeId: actor.employeeId,
     });
+    if (cannedResponseId && !isInternal && isTicketStaff(actor.role)) {
+      await this.applyCannedMacroStatus(id, cannedResponseId, actor);
+    }
+    return row;
   }
 
   /**
@@ -1008,10 +1018,18 @@ export class TicketsService {
     });
   }
 
-  async createCanned(dto: { title: string; body: string }, actor: AuthUser) {
+  async createCanned(
+    dto: { title: string; body: string; statusOnSend?: 'waiting_on_employee' | 'resolved' | null },
+    actor: AuthUser,
+  ) {
     this.assertStaff(actor);
     const row = await this.prisma.cannedResponse.create({
-      data: { title: dto.title, body: dto.body, createdById: actor.id },
+      data: {
+        title: dto.title,
+        body: dto.body,
+        statusOnSend: dto.statusOnSend ?? null,
+        createdById: actor.id,
+      },
     });
     await this.audit.record({
       entityType: 'CannedResponse',
@@ -1023,7 +1041,11 @@ export class TicketsService {
     return row;
   }
 
-  async updateCanned(id: number, dto: { title?: string; body?: string }, actor: AuthUser) {
+  async updateCanned(
+    id: number,
+    dto: { title?: string; body?: string; statusOnSend?: 'waiting_on_employee' | 'resolved' | null },
+    actor: AuthUser,
+  ) {
     this.assertStaff(actor);
     return this.prisma.cannedResponse.update({ where: { id }, data: dto });
   }
@@ -1137,6 +1159,16 @@ export class TicketsService {
     });
     if (!row) throw new NotFoundException('Attachment not found');
     return row;
+  }
+
+  private async applyCannedMacroStatus(ticketId: number, cannedResponseId: number, actor: AuthUser) {
+    const canned = await this.prisma.cannedResponse.findUnique({ where: { id: cannedResponseId } });
+    const next = canned?.statusOnSend;
+    if (next !== 'waiting_on_employee' && next !== 'resolved') return;
+    const ticket = await this.require(ticketId);
+    if (ticket.status === next) return;
+    if (!canTransitionTicket(ticket.status, next)) return;
+    await this.transition(ticketId, next, actor);
   }
 
   private waitingClockPatch(

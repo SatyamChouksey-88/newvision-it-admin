@@ -715,6 +715,7 @@ async function main() {
           title: 'Please restart',
           body: 'Please restart your machine and try again. Reply here if the issue remains.',
           createdById: itAdminUser.id,
+          statusOnSend: 'waiting_on_employee',
         },
         {
           title: 'Network team',

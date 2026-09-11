@@ -818,13 +818,15 @@ model TicketAttachment {
 }
 
 model CannedResponse {
-  id          Int      @id @default(autoincrement())
-  title       String
-  body        String
-  createdById Int      @map("created_by_id")
-  createdBy   User     @relation(fields: [createdById], references: [id])
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id           Int            @id @default(autoincrement())
+  title        String
+  body         String
+  /** Optional status applied when this snippet is sent as a public reply. */
+  statusOnSend TicketStatus?  @map("status_on_send")
+  createdById  Int            @map("created_by_id")
+  createdBy    User           @relation(fields: [createdById], references: [id])
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
 
   @@map("canned_responses")
 }

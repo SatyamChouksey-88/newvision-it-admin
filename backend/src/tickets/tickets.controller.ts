@@ -323,7 +323,7 @@ export class TicketsController {
     @Body() dto: CommentDto,
     @CurrentUser() user: AuthUser,
   ) {
-    return this.tickets.comment(id, dto.body, dto.isInternal === true, user);
+    return this.tickets.comment(id, dto.body, dto.isInternal === true, user, dto.cannedResponseId);
   }
 
   @Post('support-tickets/:id/watchers')

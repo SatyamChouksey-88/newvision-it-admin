@@ -111,10 +111,14 @@ export function TicketShow() {
     }
   };
 
-  const sendComment = async (values: { body: string; isInternal?: boolean }) => {
+  const sendComment = async (values: { body: string; isInternal?: boolean; cannedResponseId?: number }) => {
     if (!ticket) return;
     try {
-      await httpClient.post(`/support-tickets/${ticket.id}/comments`, values);
+      await httpClient.post(`/support-tickets/${ticket.id}/comments`, {
+        body: values.body,
+        isInternal: values.isInternal,
+        cannedResponseId: values.isInternal ? undefined : values.cannedResponseId,
+      });
       commentForm.resetFields();
       toast.success(values.isInternal ? 'Internal note added' : 'Reply sent');
       reload();
@@ -317,14 +321,29 @@ export function TicketShow() {
           <Form form={commentForm} layout="vertical" onFinish={(v) => void sendComment(v)}>
             {isStaff && canned.length > 0 ? (
               <Form.Item label="Quick reply">
+                <Form.Item name="cannedResponseId" hidden>
+                  <Input />
+                </Form.Item>
                 <Select
                   allowClear
                   placeholder="Insert a canned response"
                   aria-label="Canned response"
-                  options={canned.map((c) => ({ label: c.title, value: c.id }))}
+                  options={canned.map((c) => ({
+                    label: c.statusOnSend
+                      ? `${c.title} → ${c.statusOnSend === 'resolved' ? 'Resolve' : 'Wait on employee'}`
+                      : c.title,
+                    value: c.id,
+                  }))}
                   onChange={(id) => {
+                    if (!id) {
+                      commentForm.setFieldValue('cannedResponseId', undefined);
+                      return;
+                    }
                     const row = canned.find((c) => c.id === id);
-                    if (row) commentForm.setFieldValue('body', row.body);
+                    commentForm.setFieldsValue({
+                      body: row?.body,
+                      cannedResponseId: row?.id,
+                    });
                   }}
                 />
               </Form.Item>
