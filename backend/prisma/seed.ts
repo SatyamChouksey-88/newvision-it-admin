@@ -191,6 +191,14 @@ function weightedStatus(): AssetStatus {
 }
 
 async function main() {
+  if (process.env.SEED_IF_EMPTY === 'true') {
+    const existing = await prisma.user.count();
+    if (existing > 0) {
+      console.log(`Skipping seed (SEED_IF_EMPTY=true, ${existing} users already exist).`);
+      return;
+    }
+  }
+
   console.log('Resetting demo data...');
   // Delete in dependency order (append-only audit is cleared only for seeding convenience).
   await prisma.procurementHandoff.deleteMany();

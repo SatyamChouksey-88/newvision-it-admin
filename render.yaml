@@ -1,7 +1,8 @@
-# NewVision on Render
+# NewVision on Render (Hobby / Free)
 # Dashboard → New → Blueprint → connect this repo → apply.
 # First-boot login: superadmin@newvision.local / Password123!
-# Then change that password. Seed runs once via initialDeployHook (not on every restart).
+# Then change that password.
+# Free Postgres expires after 30 days. Free API sleeps after 15 min idle.
 
 databases:
   - name: newvision-db
@@ -9,8 +10,7 @@ databases:
     user: newvision
     postgresMajorVersion: '16'
     region: singapore
-    plan: 0.1c-256mb
-    diskSizeGB: 1
+    plan: free
     ipAllowList: []
 
 services:
@@ -39,7 +39,9 @@ services:
       - key: JWT_EXPIRES_IN
         value: 30m
       - key: SEED_ON_START
-        value: 'false'
+        value: 'true'
+      - key: SEED_IF_EMPTY
+        value: 'true'
       - key: CORS_ORIGIN
         fromService:
           name: newvision-web

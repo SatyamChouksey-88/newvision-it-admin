@@ -96,15 +96,15 @@ The frontend reads the API base URL from `VITE_API_URL` (defaults to `http://loc
 2. Open [dashboard.render.com](https://dashboard.render.com/) → **New → Blueprint** → select the repo.
 3. Confirm names (`newvision-db`, `newvision-api`, `newvision-web`) and region **Singapore**.
 4. SMTP / mailbox fields can stay empty (app logs mail to the console).
-5. Apply. First API deploy runs `npm run seed` once (`initialDeployHook`) so demo logins exist.
+5. Apply. First API boot seeds demo logins. Later boots skip seed if users already exist (`SEED_IF_EMPTY=true`).
 6. Open `https://newvision-web.onrender.com` and sign in with `superadmin@newvision.local` / `Password123!`.
-7. Change that password. Do **not** set `SEED_ON_START=true` on Render — seed wipes operational data.
+7. Change that password.
 
 Swagger: `https://newvision-api.onrender.com/api/docs`. Health: `/api/health`.
 
 If the UI calls the wrong host after the first apply, trigger a **Manual Deploy** of `newvision-web` so Vite rebuilds with the live `VITE_API_URL`.
 
-Postgres uses the cheapest Basic plan (`0.1c-256mb`, 1 GB). The API can stay on **Free** (sleeps after idle). Static site is free.
+Hobby / Free limits ([Render free docs](https://render.com/docs/free)): API sleeps after 15 minutes idle (~1 min wake-up). Free Postgres is 1 GB and **expires after 30 days**. SMTP on ports 587/465 will not work from a Free web service.
 
 ---
 
