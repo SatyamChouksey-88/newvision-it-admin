@@ -19,6 +19,42 @@ import type { SavedView, SupportTicket } from '../../types';
 import { formatDate } from '../../utils/format';
 
 const STAFF = ['SUPER_ADMIN', 'IT_ADMIN', 'IT_SUPPORT'];
+
+function requesterLabel(emp?: { firstName?: string; lastName?: string; employeeCode?: string } | null) {
+  if (!emp) return '—';
+  const name = `${emp.firstName ?? ''} ${emp.lastName ?? ''}`.trim() || '—';
+  return emp.employeeCode ? `${name} · ${emp.employeeCode}` : name;
+}
+
+function assigneeLabel(user?: SupportTicket['assignedTo']) {
+  if (!user) return 'Unassigned';
+  const code = user.employee?.employeeCode;
+  return code ? `${user.fullName} · ${code}` : user.fullName;
+}
+
+function ageLabel(iso?: string) {
+  if (!iso) return '—';
+  const ms = Date.now() - new Date(iso).getTime();
+  if (Number.isNaN(ms) || ms < 0) return '—';
+  const mins = Math.floor(ms / 60_000);
+  if (mins < 60) return `${Math.max(1, mins)}m`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 48) return `${hours}h`;
+  return `${Math.floor(hours / 24)}d`;
+}
+
+function SlaTag({ ticket }: { ticket: SupportTicket }) {
+  if (ticket.slaLabel) {
+    return (
+      <Tag color={ticket.slaState === 'overdue' ? 'red' : ticket.slaState === 'soon' ? 'gold' : undefined}>
+        {ticket.slaLabel}
+      </Tag>
+    );
+  }
+  if (ticket.overdue) return <Tag color="red">Overdue</Tag>;
+  return null;
+}
+
 const QUICK_VIEWS = [
   { key: '', label: 'All' },
   { key: 'mine', label: 'My tickets' },
@@ -248,17 +284,38 @@ export function TicketList() {
                     <CopyButton value={v} label="ticket number" />
                     {isStaff ? <CopyEmailButton compact ticket={r} /> : null}
                     {r.channel === 'email' ? <Tag>Email</Tag> : null}
-                    {r.slaLabel ? (
-                      <Tag color={r.slaState === 'overdue' ? 'red' : r.slaState === 'soon' ? 'gold' : undefined}>
-                        {r.slaLabel}
-                      </Tag>
-                    ) : r.overdue ? (
-                      <Tag color="red">Overdue</Tag>
-                    ) : null}
                   </Space>
                 ),
               },
               { title: 'Subject', dataIndex: 'subject', defaultWidth: 240, ellipsis: true },
+              {
+                title: 'Requester',
+                gridKey: 'requester',
+                defaultWidth: 180,
+                ellipsis: true,
+                render: (_, r) => requesterLabel(r.raisedBy),
+                getExportValue: (r) => requesterLabel(r.raisedBy),
+              },
+              {
+                title: 'Assignee',
+                gridKey: 'assignee',
+                defaultWidth: 160,
+                ellipsis: true,
+                render: (_, r) => assigneeLabel(r.assignedTo),
+                getExportValue: (r) => assigneeLabel(r.assignedTo),
+              },
+              {
+                title: 'Age / SLA',
+                gridKey: 'ageSla',
+                defaultWidth: 160,
+                render: (_, r) => (
+                  <Space size={4} wrap>
+                    <span>{ageLabel(r.createdAt)}</span>
+                    <SlaTag ticket={r} />
+                  </Space>
+                ),
+                getExportValue: (r) => [ageLabel(r.createdAt), r.slaLabel ?? (r.overdue ? 'Overdue' : '')].filter(Boolean).join(' '),
+              },
               {
                 title: 'Status',
                 dataIndex: 'status',

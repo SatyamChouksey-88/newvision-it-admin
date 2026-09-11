@@ -423,10 +423,11 @@ Anyone who can view the ticket can read public comments. Internal notes never ap
     body: `IT Admin and IT Support see every ticket. Super Admin has the same access.
 
 1. **Filter** with status chips or built-in quick views: My tickets, Unassigned, Overdue, Awaiting my reply.
-2. **Assign** from the ticket or in bulk from the list.
-3. **Insert a canned response** before sending a reply (Settings → Helpdesk).
-4. **Log time** in minutes; the running total appears on the ticket and in reports.
-5. **Reports** show volume by status/category/priority, average resolution time, overdue open tickets, closed counts per staff member, and average satisfaction.
+2. The list shows **Requester** (Name · EMP-code), **Assignee**, and an **Age / SLA** badge matching the ticket header — you do not need to open a ticket to see who owns it.
+3. **Assign** from the ticket or in bulk from the list.
+4. **Insert a canned response** before sending a reply (Settings → Helpdesk).
+5. **Log time** in minutes; the running total appears on the ticket and in reports.
+6. **Reports** show volume by status/category/priority, average resolution time, overdue open tickets, closed counts per staff member, and average satisfaction.
 
 Managers see their own tickets plus direct reports. They cannot assign, add internal notes, or log time.
 
@@ -825,7 +826,7 @@ That is correct. Employees land on **My IT**. They can raise a ticket, request a
 The warranty API currently returns already-expired rows mixed with upcoming ones. Sort by days remaining and use the 7-day attention strip. A split “expiring soon / already expired” view is planned.
 
 **A ticket used to say Not started while already In progress.**
-The timeline now treats `assigned` / `in_progress` / `waiting_on_employee` (and later states) as evidence work has started, and backfills a “Work started” point from `updatedAt` when no assign/status audit exists.
+The timeline now treats \`assigned\` / \`in_progress\` / \`waiting_on_employee\` (and later states) as evidence work has started, and backfills a “Work started” point from \`updatedAt\` when no assign/status audit exists.
 
 **Email never arrived.**
 Without \`SMTP_HOST\` the backend logs the message to the console and the API still succeeds. Check the Nest terminal, not the user’s inbox.

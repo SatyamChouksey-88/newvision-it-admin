@@ -22,7 +22,9 @@ test.describe('Support tickets', () => {
   test('IT queue shows quick views, search, and reports', async ({ page }) => {
     await login(page);
     await page.goto('/tickets');
-    await expect(page.getByRole('heading', { name: 'Support Tickets' })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'Requester' })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'Assignee' })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'Age / SLA' })).toBeVisible();
     await expect(page.getByTestId('quick-view-unassigned')).toBeVisible();
     await page.getByLabel('Search tickets').fill('Outlook');
     await page.getByLabel('Search tickets').press('Enter');

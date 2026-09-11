@@ -294,6 +294,7 @@ Definition of Done: UI matches approved mockup look-and-feel; no functional regr
 ## Prompt 22 — Admin efficiency (one item at a time)
 
 - [x] **#1 Ticket timeline “Not started”** — if status is already `assigned` / `in_progress` / `waiting_on_employee` (or resolved/closed/reopened), the timeline shows a backfilled “Work started” from `updatedAt` instead of “Not started”. Verified with e2e (prisma status update, no start audit) + unit helper. Open/unassigned tickets still show Not started.
+- [x] **#2 Ticket list columns** — Requester (`Name · EMP-code`), Assignee, and Age/SLA badge (same colours as the ticket header). SLA tags moved out of the Ticket column so the grid is scannable. Playwright asserts the three headers.
 
 ## Known issues
 
