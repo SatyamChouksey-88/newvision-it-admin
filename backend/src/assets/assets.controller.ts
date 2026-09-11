@@ -18,6 +18,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { AssetListQuery, AssetsService } from './assets.service';
 import {
   AssignAssetDto,
+  AuditAssetDto,
   BulkAssetsDto,
   ChangeStatusDto,
   CreateAssetDto,
@@ -101,6 +102,16 @@ export class AssetsController {
     @CurrentUser() user: AuthUser,
   ) {
     return this.assets.assign(id, dto, user);
+  }
+
+  @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
+  @Post(':id/audit')
+  audit(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AuditAssetDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.assets.stampAudit(id, dto, user);
   }
 
   @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)

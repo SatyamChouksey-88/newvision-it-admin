@@ -1,4 +1,4 @@
-import { BookOutlined, SearchOutlined } from '@ant-design/icons';
+import { BookOutlined, QuestionCircleOutlined, SearchOutlined } from '@ant-design/icons';
 import { Button, Layout, Space } from 'antd';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
@@ -6,6 +6,7 @@ import { COLOR_BORDER, FONT_MONO } from '../theme';
 import { CommandPalette } from './CommandPalette';
 import { HistoryNav } from './HistoryNav';
 import { NotificationBell } from './NotificationBell';
+import { ShortcutsOverlay } from './ShortcutsOverlay';
 import { StaffChatLauncher } from './StaffChat';
 
 const CRUMBS: Record<string, string> = {
@@ -35,6 +36,7 @@ export function Header() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -48,6 +50,18 @@ export function Header() {
           return;
         e.preventDefault();
         navigate('/help');
+      }
+      // Ctrl+/ — `key` may be '/' or '?' depending on the OS/layout
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        (e.key === '/' || e.code === 'Slash') &&
+        !e.altKey
+      ) {
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable)
+          return;
+        e.preventDefault();
+        setShortcutsOpen(true);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -98,10 +112,19 @@ export function Header() {
       </button>
 
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
 
       <Space size={8} wrap={false} style={{ flexShrink: 0 }}>
         <StaffChatLauncher />
         <NotificationBell />
+        <Button
+          size="small"
+          icon={<QuestionCircleOutlined />}
+          onClick={() => setShortcutsOpen(true)}
+          aria-label="Keyboard shortcuts"
+        >
+          <span className="nv-header-action-text">Keys</span>
+        </Button>
         <Button
           size="small"
           icon={<BookOutlined />}

@@ -14,6 +14,7 @@ import { ReconciliationPanel } from './settings/reconciliation';
 import { ChecklistsPanel } from './settings/checklists';
 import { UsersPanel } from './settings/users';
 import { WebhooksPanel } from './settings/webhooks';
+import { IssueKitsPanel } from './settings/issue-kits';
 
 const GOVERNANCE_ROLES = ['SUPER_ADMIN', 'IT_ADMIN'];
 const TICKET_STAFF = ['SUPER_ADMIN', 'IT_ADMIN', 'IT_SUPPORT'];
@@ -102,6 +103,7 @@ export function SettingsPage() {
             { key: 'reconcile', label: 'Reconciliation', children: <ReconciliationPanel /> },
             { key: 'webhooks', label: 'Webhooks', children: <WebhooksPanel /> },
             { key: 'checklists', label: 'Onboard / Offboard', children: <ChecklistsPanel /> },
+            { key: 'kits', label: 'Issue kits', children: <IssueKitsPanel /> },
           ]
         : []),
       ...(isSuperAdmin ? [{ key: 'users', label: 'Users', children: <UsersPanel /> }] : []),

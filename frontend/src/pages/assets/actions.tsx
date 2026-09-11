@@ -1,4 +1,5 @@
-import { App as AntdApp, Checkbox, Form, Input, Modal, Select, Space, Typography } from 'antd';
+import { App as AntdApp, Checkbox, DatePicker, Form, Input, Modal, Select, Space, Typography } from 'antd';
+import type { Dayjs } from 'dayjs';
 import { useEffect, useState } from 'react';
 import { EmployeeSelect } from '../../components/EmployeeSelect';
 import { apiErrorMessage, httpClient } from '../../providers/axios';
@@ -18,6 +19,7 @@ export function AssignModal({
   const [notes, setNotes] = useState('');
   const [accessoryIds, setAccessoryIds] = useState<number[]>([]);
   const [accessories, setAccessories] = useState<Accessory[]>([]);
+  const [expectedReturnAt, setExpectedReturnAt] = useState<Dayjs | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -42,6 +44,7 @@ export function AssignModal({
     setEmployeeId(undefined);
     setNotes('');
     setAccessoryIds([]);
+    setExpectedReturnAt(null);
   };
 
   const submit = async () => {
@@ -55,6 +58,7 @@ export function AssignModal({
         employeeId,
         notes: notes.trim() || undefined,
         accessoryIds: accessoryIds.length ? accessoryIds : undefined,
+        expectedReturnAt: expectedReturnAt ? expectedReturnAt.toISOString() : undefined,
       });
       message.success(`Assigned ${asset.assetCode}`);
       reset();
@@ -85,6 +89,13 @@ export function AssignModal({
         </Form.Item>
         <Form.Item label="Notes">
           <Input.TextArea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
+        </Form.Item>
+        <Form.Item label="Expected return (loaner, optional)">
+          <DatePicker
+            value={expectedReturnAt}
+            onChange={(d) => setExpectedReturnAt(d)}
+            style={{ width: '100%' }}
+          />
         </Form.Item>
         {accessories.length > 0 && (
           <Form.Item label="Also issue accessories (optional)">

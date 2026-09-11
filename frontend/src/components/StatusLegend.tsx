@@ -1,5 +1,5 @@
 import { QuestionCircleOutlined } from '@ant-design/icons';
-import { Popover, Space } from 'antd';
+import { Button, Popover, Space } from 'antd';
 import { MaintenanceStatusTag } from './MaintenanceStatusTag';
 import { TicketStatusTag } from './TicketStatusTag';
 import { ASSET_STATUS_OPTIONS, StatusTag } from './StatusTag';
@@ -40,7 +40,14 @@ export function StatusLegend({ kind = 'asset' }: { kind?: 'asset' | 'maintenance
 
   return (
     <Popover title="Status legend" content={content} trigger="click">
-      <QuestionCircleOutlined style={{ color: '#595959', cursor: 'pointer' }} aria-label="Status legend" />
+      <Button
+        type="text"
+        size="small"
+        icon={<QuestionCircleOutlined />}
+        aria-label="Status legend"
+      >
+        Legend
+      </Button>
     </Popover>
   );
 }

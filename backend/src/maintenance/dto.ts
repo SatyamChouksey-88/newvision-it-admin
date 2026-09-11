@@ -8,6 +8,7 @@ export class CreateMaintenanceDto {
   @IsOptional() @IsNumber() estimatedCost?: number;
   @IsOptional() @IsString() expectedCompletionDate?: string;
   @IsOptional() @IsString() notes?: string;
+  @IsOptional() @IsInt() supportTicketId?: number;
 }
 
 export class UpdateMaintenanceDto {

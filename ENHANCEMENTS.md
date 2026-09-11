@@ -144,5 +144,17 @@ Audit date: 2026-09-10. Each item lists the finding and resolution status.
 | P23-UI | Duplicate Active on Employees; ticket CSV/PDF split from grid actions | **Fixed** — status only in Status column; CSV/PDF on the right toolbar |
 | P23-UX | Tickets needed file attach plus Snipping Tool paste | **Fixed** — Paste screenshot / Ctrl+V |
 
+## Prompt 22 remainder
+
+| # | Finding / addition | Resolution |
+|---|--------------------|------------|
+| P22-kit | No named laptop+accessories checkout | **Fixed** — issue kits + employee runbook |
+| P22-bulk | Bulk actions were status/transfer/retire only | **Fixed** — bulk assign |
+| P22-audit | QR scan was read-only; no last-seen stamp | **Fixed** — Audit now on asset show |
+| P22-loaner | Temporary assign had no expected return | **Fixed** — `expectedReturnAt` + My work |
+| P22-queue | Ticket list had no J/K/I; `?` was Help only | **Fixed** — queue keys + Ctrl+/ overlay |
+| P22-ui | Ticket search and CSV/PDF sat on two cramped rows | **Fixed** — one toolbar: search+Legend left, actions right |
+
+
 
 

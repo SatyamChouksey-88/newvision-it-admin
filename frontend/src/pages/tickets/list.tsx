@@ -2,8 +2,8 @@ import { DownloadOutlined, PlusOutlined } from '@ant-design/icons';
 import { useTable } from '@refinedev/antd';
 import { useGetIdentity } from '@refinedev/core';
 import { Button, Card, Form, Input, Modal, Select, Space, Tag, Typography } from 'antd';
-import { type MouseEvent, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { type MouseEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { CopyButton } from '../../components/CopyButton';
 import { CopyEmailButton } from '../../components/CopyEmailButton';
 import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid';
@@ -71,15 +71,20 @@ const QUICK_VIEWS = [
   { key: 'mine', label: 'My tickets' },
   { key: 'unassigned', label: 'Unassigned' },
   { key: 'overdue', label: 'Overdue' },
+  { key: 'due_tomorrow', label: 'My due tomorrow' },
   { key: 'awaiting_reply', label: 'Awaiting my reply' },
   { key: 'email', label: 'Email-in' },
 ];
 
+const LAST_VIEW_KEY = 'nv.tickets.lastView';
+
 export function TicketList() {
   const navigate = useNavigate();
+  const { search } = useLocation();
   const toast = useToast();
   const { data: identity } = useGetIdentity<Identity>();
   const isStaff = STAFF.includes(identity?.role ?? '');
+  const restoredView = useRef(false);
   const [density, setDensity] = useState<TableDensity>('Compact');
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
@@ -120,7 +125,28 @@ export function TicketList() {
       'replace',
     );
     setSelectedIds([]);
+    if (isStaff) {
+      try {
+        localStorage.setItem(LAST_VIEW_KEY, String(next.view ?? ''));
+      } catch {
+        /* ignore quota */
+      }
+    }
   };
+
+  useEffect(() => {
+    if (!isStaff || restoredView.current) return;
+    restoredView.current = true;
+    if (new URLSearchParams(search).toString()) return;
+    try {
+      const saved = localStorage.getItem(LAST_VIEW_KEY);
+      if (saved) applyFilterState({ view: saved });
+    } catch {
+      /* ignore */
+    }
+    // one-shot restore of the last staff queue view
+    // biome-ignore lint/correctness/useExhaustiveDependencies: applyFilterState is stable enough for first paint
+  }, [isStaff]);
 
   const assignToMe = async (id: number, e?: MouseEvent) => {
     e?.stopPropagation();
@@ -243,16 +269,6 @@ export function TicketList() {
           </Button>
         </div>
       ) : null}
-      <div className="nv-list-search-row">
-        <Input.Search
-          allowClear
-          placeholder="Search subject, description, comments…"
-          aria-label="Search tickets"
-          defaultValue={String(activeFilters.q ?? '')}
-          onSearch={(q) => applyFilterState({ ...activeFilters, q: q || undefined })}
-        />
-      </div>
-      <StatusLegend kind="ticket" />
       {tableQuery.isLoading ? (
         <TableSkeleton columns={6} />
       ) : tableQuery.isError ? (
@@ -281,7 +297,24 @@ export function TicketList() {
             onDensityChange={setDensity}
             serverSide
             onChange={tableProps.onChange}
+            searchInputId="ticket-search"
+            enableQueueKeys={isStaff}
+            onOpenRow={(r) => navigate(`/tickets/show/${r.id}`)}
+            onAssignToMe={(r) => void assignToMe(r.id)}
             onRow={(r) => ({ onClick: () => navigate(`/tickets/show/${r.id}`) })}
+            toolbarLead={
+              <div className="nv-grid-search">
+                <Input.Search
+                  id="ticket-search"
+                  allowClear
+                  placeholder="Search subject, description, comments…"
+                  aria-label="Search tickets"
+                  defaultValue={String(activeFilters.q ?? '')}
+                  onSearch={(q) => applyFilterState({ ...activeFilters, q: q || undefined })}
+                />
+                <StatusLegend kind="ticket" />
+              </div>
+            }
             rowSelection={
               isStaff
                 ? {

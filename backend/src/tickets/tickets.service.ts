@@ -62,6 +62,9 @@ export class TicketsService {
     private readonly mailer: MailerService,
   ) {}
 
+  /** ticketId → userId → last heartbeat. In-memory only (no WebSocket). */
+  private readonly viewers = new Map<number, Map<number, { name: string; at: number }>>();
+
   async list(
     query: ListQuery & {
       status?: string;
@@ -73,6 +76,7 @@ export class TicketsService {
       awaitingReply?: string;
       mine?: string;
       view?: string;
+      due?: string;
     },
     actor: AuthUser,
   ) {
@@ -90,7 +94,9 @@ export class TicketsService {
     if (query.categoryId) where.categoryId = Number(query.categoryId);
     if (query.assignedToId) where.assignedToId = Number(query.assignedToId);
     if (query.unassigned === 'true' || query.view === 'unassigned') where.assignedToId = null;
-    if (query.mine === 'true' || query.view === 'mine') where.assignedToId = actor.id;
+    if (query.mine === 'true' || query.view === 'mine' || query.view === 'due_tomorrow') {
+      where.assignedToId = actor.id;
+    }
     if (query.view === 'awaiting_reply' || query.awaitingReply === 'true') {
       where.assignedToId = actor.id;
     }
@@ -98,6 +104,15 @@ export class TicketsService {
     if (query.overdue === 'true' || query.view === 'overdue') {
       where.dueDate = { lt: new Date() };
       where.status = { in: DUE_OPEN_STATUSES };
+    }
+    if (query.due === 'tomorrow' || query.view === 'due_tomorrow') {
+      const now = new Date();
+      const t = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      const from = t;
+      const to = new Date(t.getFullYear(), t.getMonth(), t.getDate(), 23, 59, 59, 999);
+      where.dueDate = { gte: from, lte: to };
+      where.status = { in: DUE_OPEN_STATUSES };
+      where.assignedToId = actor.id;
     }
     if (query.q?.trim()) {
       const q = query.q.trim();
@@ -189,7 +204,19 @@ export class TicketsService {
     const comments = isTicketStaff(actor.role)
       ? ticket.comments
       : ticket.comments.filter((c) => !c.isInternal);
-    return this.decorateOne({ ...ticket, comments });
+    const openRepairs = ticket.assetId
+      ? await this.prisma.assetMaintenance.findMany({
+          where: {
+            assetId: ticket.assetId,
+            status: { in: ['reported', 'under_repair'] },
+          },
+          select: { id: true, issue: true, status: true, reportedAt: true, supportTicketId: true },
+          orderBy: { reportedAt: 'desc' },
+          take: 5,
+        })
+      : [];
+    const decorated = await this.decorateOne({ ...ticket, comments });
+    return { ...decorated, openRepairs };
   }
 
   async create(
@@ -228,6 +255,16 @@ export class TicketsService {
     if (!isTicketStaff(actor.role) && raisedById !== actor.employeeId) {
       throw new ForbiddenException('You can only raise tickets for yourself');
     }
+
+    const linkedAsset = dto.assetId
+      ? await this.prisma.asset.findUnique({ where: { id: dto.assetId }, select: { assetCode: true } })
+      : null;
+    const vars = {
+      employee: `${emp.firstName} ${emp.lastName} · ${emp.employeeCode}`,
+      asset: linkedAsset?.assetCode ?? '',
+    };
+    subject = fillTicketPlaceholders(subject, vars);
+    description = fillTicketPlaceholders(description, vars);
 
     const priority = dto.priority ?? category.defaultPriority;
     let assignedToId: number | null = null;
@@ -336,6 +373,29 @@ export class TicketsService {
       ticket = await this.transition(id, 'in_progress', actor);
     }
     return ticket;
+  }
+
+  /** Light collision: record that this staff user is viewing the ticket; return other current viewers. */
+  async heartbeatPresence(id: number, actor: AuthUser) {
+    this.assertStaff(actor);
+    await this.require(id);
+    const now = Date.now();
+    const staleMs = 25_000;
+    let map = this.viewers.get(id);
+    if (!map) {
+      map = new Map();
+      this.viewers.set(id, map);
+    }
+    map.set(actor.id, { name: actor.fullName ?? actor.email, at: now });
+    const others: { userId: number; name: string }[] = [];
+    for (const [userId, row] of map) {
+      if (now - row.at > staleMs) {
+        map.delete(userId);
+        continue;
+      }
+      if (userId !== actor.id) others.push({ userId, name: row.name });
+    }
+    return { viewers: others };
   }
 
   async transition(id: number, status: TicketStatus, actor: AuthUser) {
@@ -1506,4 +1566,13 @@ function extractMailbox(from?: string): string {
 
 function cryptoRandom(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+export function fillTicketPlaceholders(
+  text: string,
+  vars: { employee?: string; asset?: string },
+): string {
+  return text
+    .replaceAll('{{employee}}', vars.employee ?? '')
+    .replaceAll('{{asset}}', vars.asset ?? '');
 }

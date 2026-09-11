@@ -20,6 +20,7 @@ import {
   CreateAssetDto,
   TransferAssetDto,
   UpdateAssetDto,
+  AuditAssetDto,
 } from './dto';
 import { assertTransition, InvalidTransitionError } from './lifecycle';
 
@@ -46,6 +47,8 @@ export interface AssetListQuery extends ListQuery {
   assignedEmployeeId?: string;
   warrantyExpiringInDays?: string;
   warrantyExpired?: string;
+  /** When 'true', assets with no audit stamp or last audit older than 12 months. */
+  unaudited?: string;
 }
 
 @Injectable()
@@ -176,6 +179,12 @@ export class AssetsService {
       ...(query.warrantyExpired === 'true'
         ? {
             warrantyEnd: { not: null, lt: new Date() },
+          }
+        : {}),
+      ...(query.unaudited === 'true'
+        ? {
+            status: { notIn: ['retired', 'disposed'] },
+            OR: [{ lastAuditedAt: null }, { lastAuditedAt: { lt: addDays(new Date(), -365) } }],
           }
         : {}),
       ...(query.q ? this.searchClause(query.q) : {}),
@@ -404,6 +413,7 @@ export class AssetsService {
           employeeId: dto.employeeId,
           assignedById: actor.id,
           notes: dto.notes,
+          expectedReturnAt: dto.expectedReturnAt ? new Date(dto.expectedReturnAt) : null,
         },
       });
       const next = await tx.asset.update({
@@ -569,6 +579,9 @@ export class AssetsService {
     if (dto.action === 'transfer' && !dto.toEmployeeId && !dto.toLocationId) {
       throw new BadRequestException('Bulk transfer requires a target employee and/or location');
     }
+    if (dto.action === 'assign' && !dto.employeeId) {
+      throw new BadRequestException('Bulk assign requires an employee');
+    }
     const results: { id: number; ok: boolean; error?: string }[] = [];
     for (const id of dto.ids) {
       try {
@@ -576,6 +589,16 @@ export class AssetsService {
           await this.retire(id, dto.reason, actor);
         } else if (dto.action === 'status' && dto.status) {
           await this.changeStatus(id, { status: dto.status, reason: dto.reason }, actor);
+        } else if (dto.action === 'assign' && dto.employeeId) {
+          await this.assign(
+            id,
+            {
+              employeeId: dto.employeeId,
+              notes: dto.reason,
+              expectedReturnAt: dto.expectedReturnAt,
+            },
+            actor,
+          );
         } else {
           await this.transfer(
             id,
@@ -594,6 +617,35 @@ export class AssetsService {
       failed: results.filter((r) => !r.ok).length,
       results,
     };
+  }
+
+  async stampAudit(id: number, dto: AuditAssetDto, actor: AuthUser) {
+    const asset = await this.get(id, actor);
+    const lastAuditedAt = new Date();
+    const nextAuditDueAt = dto.nextAuditDueAt
+      ? new Date(dto.nextAuditDueAt)
+      : addDays(lastAuditedAt, 365);
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const next = await tx.asset.update({
+        where: { id },
+        data: { lastAuditedAt, nextAuditDueAt },
+        include: assetInclude,
+      });
+      await this.audit.record(
+        {
+          entityType: 'Asset',
+          entityId: id,
+          action: 'update',
+          summary: `Audited ${asset.assetCode}${dto.notes ? ` — ${dto.notes}` : ''}`,
+          changedById: actor.id,
+          oldValue: { lastAuditedAt: asset.lastAuditedAt, nextAuditDueAt: asset.nextAuditDueAt },
+          newValue: { lastAuditedAt, nextAuditDueAt },
+        },
+        tx,
+      );
+      return next;
+    });
+    return updated;
   }
 
   async changeStatus(id: number, dto: ChangeStatusDto, actor: AuthUser): Promise<Asset> {

@@ -221,7 +221,17 @@ Every judgment call made while building NewVision, and why. Newest at the bottom
 ## UI polish (tickets / employees / search) — 2026-09-11
 
 - **Employees list:** employment status (`Active` / `Contract Active` / …) lives only in the Status column. The name cell keeps the person + `EMP-` code (plus onboard/offboard and contract-ending tags on the sub-line). Duplicate green Active next to the name was a visual bug, not two fields.
-- **Tickets toolbar:** CSV/PDF sit with Compact / Columns / Export CSV on the right of the DataGrid toolbar (one row, no wrap).
+- **Tickets toolbar:** search + **Legend** sit on the left of the DataGrid toolbar; CSV/PDF / Compact / Columns / Export CSV sit on the right. Groups wrap; we dropped `overflow-x: auto` so the row no longer clips into a lone circle under the search.
+
+## Prompt 22 — remainder (#9–#20)
+
+- **Issue kits are named checkout recipes**, not a workflow engine. Next available asset in category (+ optional location) plus accessory IDs already supported on assign. Settings CRUD; employee runbook “Issue kit”.
+- **Bulk assign is best-effort** like bulk retire. Only `available` rows succeed; failures are counted, not rolled back.
+- **Audit stamp is staff-only on asset show**, not the public `/scan/:code` card (PII-safe, read-only). Next due defaults to last + 365 days. My work does **not** list never-audited assets (the seed pile would drown the morning list); the Assets filter “Not audited in 12 months” does include never-audited.
+- **Loaner `expectedReturnAt` never auto-checks-in.** Overdue rows are a nudge on My work.
+- **`?` stays Help.** The shortcuts overlay is **Ctrl+/** so it does not fight Help on US keyboards (where Shift+/ types `?`).
+- **Presence is an in-memory 10s heartbeat**, no WebSocket, pruned after 25s. Fine for two staff; not a lock.
+- **EMP-code search is exact** when `q` matches `EMP-…`. Name searches still return many Kabirs; the picker shows the match count.
 - **Screenshot paste:** tickets accept Snipping Tool images via Ctrl+V on the attach zone or **Paste screenshot**, in addition to file upload.
 - **⌘K colour only:** header search and palette rows got a blue focus ring, left-border on the active row, and kbd chips. Search behaviour is unchanged.
 - **Muted text token:** `#64748B` on `#F4F8FC` card heads was 4.45:1 (just under WCAG AA). `COLOR_TEXT_MUTED` is `#475569`.

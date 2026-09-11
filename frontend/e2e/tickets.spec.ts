@@ -27,8 +27,12 @@ test.describe('Support tickets', () => {
     await expect(page.getByRole('columnheader', { name: 'Age / SLA' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Assign to me' }).first()).toBeVisible();
     await expect(page.getByTestId('quick-view-unassigned')).toBeVisible();
-    await page.getByLabel('Search tickets').fill('Outlook');
-    await page.getByLabel('Search tickets').press('Enter');
+    await expect(page.getByLabel('Search tickets')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Status legend' })).toBeVisible();
+    const toolbar = page.locator('.nv-grid-toolbar');
+    await expect(toolbar.getByLabel('Search tickets')).toBeVisible();
+    await expect(toolbar.getByRole('button', { name: 'download CSV', exact: true })).toBeVisible();
+    await expect(toolbar.getByRole('button', { name: 'Columns' })).toBeVisible();
     await page.getByRole('main').getByRole('link', { name: 'Reports' }).click();
     await expect(page.getByRole('heading', { name: 'Ticket reports' })).toBeVisible();
   });
@@ -81,6 +85,17 @@ test.describe('Support tickets', () => {
     await expect(page.getByText('Ticket email notifications')).toBeVisible();
     await expect(page.getByRole('radio', { name: 'Immediate' })).toBeVisible();
     await expect(page.getByRole('radio', { name: 'Daily digest' })).toBeVisible();
+  });
+
+  test('Keys opens the shortcuts overlay; Help still goes to docs', async ({ page }) => {
+    await login(page);
+    await page.goto('/tickets');
+    await page.getByRole('button', { name: 'Keyboard shortcuts' }).click();
+    await expect(page.getByTestId('shortcuts-overlay')).toBeVisible();
+    await page.getByRole('button', { name: 'Close' }).click();
+    await expect(page.getByTestId('shortcuts-overlay')).toBeHidden();
+    await page.getByRole('button', { name: 'Help and documentation' }).click();
+    await expect(page).toHaveURL(/\/help/);
   });
 
   test('asset notes and manual correction require a reason', async ({ page }) => {

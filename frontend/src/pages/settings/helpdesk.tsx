@@ -190,6 +190,10 @@ export function HelpdeskSettings() {
       </div>
       <div>
         <Typography.Title level={5}>Ticket templates</Typography.Title>
+        <Typography.Paragraph type="secondary">
+          Use <code>{'{{employee}}'}</code> and <code>{'{{asset}}'}</code> — they fill in when the
+          ticket is created.
+        </Typography.Paragraph>
         <Table
           rowKey="id"
           size="small"

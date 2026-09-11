@@ -301,11 +301,17 @@ Definition of Done: UI matches approved mockup look-and-feel; no functional regr
 - [x] **#6 My work list** — `/dashboard/attention` returns ordered `myWork`: my overdue tickets → unassigned → waiting on employee 3+ days → stale repairs → incomplete checklists → contracts ending in 14 days → warranties expiring in 14 days. IT Admin keeps KPI tiles; IT Support’s home is this list. Unassigned rows have Assign to me.
 - [x] **#7 Contracts + checklists on screen** — seed one contractor ending in 8 days (`EMP-00002`) and one incomplete onboard checklist (`EMP-00001`). Employees **Follow-up** filter (14-day contracts / incomplete checklist), list tags, and a profile warning. Dashboard My work already lists both.
 - [x] **#8 Canned macros** — canned replies can optionally **wait on the employee** or **resolve** when sent as a public reply. Internal notes do not change status. Settings → Helpdesk has the After send field. Open tickets may move straight to waiting/resolved so a first reply can close the loop.
+- [x] **#9 Issue kit** — named kit (category + optional location + default accessories). Settings → Issue kits. Employee profile **Onboarding runbook** issues the next available matching asset and checks out accessories. Seed: “Pune laptop standard”.
+- [x] **#10 Bulk assign** — Assets list selected available rows → pick employee → assign (best-effort, same as bulk retire).
+- [x] **#11 Queue keyboard** — on `/tickets`, `J`/`K` move, `Enter` open, `I` assign to me. `Ctrl+/` opens the shortcuts overlay (`?` still goes to Help).
+- [x] **#12 Audit stamp** — `lastAuditedAt` / `nextAuditDueAt` on the asset. **Audit now** on asset show (IT Admin). List filter “Not audited in 12 months”. My work lists overdue/due audits only (not the never-audited seed pile).
+- [x] **#13 Loaner return** — optional `expectedReturnAt` on assign. Overdue loaners appear on My work. Does not auto check-in.
+- [x] **#14–#20 rest** — My due tomorrow (dashboard + `view=due_tomorrow`); last ticket view + last create category in `localStorage`; command palette role-filtered; IT Support **Account** nav (digest); copy-email can log as a public comment; `{{employee}}` / `{{asset}}` on templates; optional `supportTicketId` on maintenance + Open repair on the ticket; light presence heartbeat; employee `EMP-` exact match + match count; onboarding runbook (checklist + kit + create login).
 
 ## UI polish (2026-09-11)
 
 - [x] Employees list: **Active** only in the Status column (name cell is name + EMP code)
-- [x] Support Tickets DataGrid toolbar: CSV/PDF aligned with Compact / Columns / Export CSV
+- [x] Support Tickets DataGrid toolbar: search + Legend on the left; CSV/PDF / Compact / Columns / Export CSV on the right (wraps as groups, no orphan icon)
 - [x] Paste screenshot (Snipping Tool / Ctrl+V) on raise-ticket and ticket attachments
 - [x] Command palette / header search colour UI (behaviour unchanged)
 

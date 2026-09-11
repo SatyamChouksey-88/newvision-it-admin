@@ -58,6 +58,12 @@ export class EmployeesController {
   }
 
   @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
+  @Post(':id/create-login')
+  createLogin(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
+    return this.employees.createLogin(id, user);
+  }
+
+  @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
   @Post()
   create(@Body() dto: CreateEmployeeDto, @CurrentUser() user: AuthUser) {
     return this.employees.create(dto, user);

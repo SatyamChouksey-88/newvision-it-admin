@@ -308,6 +308,12 @@ export class TicketsController {
   }
 
   @Roles(...STAFF)
+  @Post('support-tickets/:id/presence')
+  presence(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
+    return this.tickets.heartbeatPresence(id, user);
+  }
+
+  @Roles(...STAFF)
   @Patch('support-tickets/:id/transition')
   transition(
     @Param('id', ParseIntPipe) id: number,

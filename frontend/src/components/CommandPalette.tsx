@@ -15,7 +15,10 @@ import {
 import { Input, Modal, Tag, Typography } from 'antd';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { useGetIdentity } from '@refinedev/core';
+import { can, navForRole } from '../access';
 import { useDebouncedCallback } from '../hooks/useDebouncedCallback';
+import type { Identity } from '../providers/authProvider';
 import { httpClient } from '../providers/axios';
 
 interface PaletteItem {
@@ -114,6 +117,7 @@ interface Props {
  */
 export function CommandPalette({ open, onClose }: Props) {
   const navigate = useNavigate();
+  const { data: identity } = useGetIdentity<Identity>();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PaletteItem[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -138,37 +142,43 @@ export function CommandPalette({ open, onClose }: Props) {
     [navigate, onClose],
   );
 
-  const staticItems: PaletteItem[] = useMemo(
-    () => [
-      {
+  const staticItems: PaletteItem[] = useMemo(() => {
+    const role = identity?.role;
+    const allowedHrefs = new Set(navForRole(role).map((n) => n.href));
+    allowedHrefs.add('/help');
+    const actions: PaletteItem[] = [];
+    if (can(role, 'asset:create')) {
+      actions.push({
         key: 'action-new-asset',
         section: 'Actions',
         icon: <PlusOutlined />,
         label: 'New asset',
         run: () => go('/assets/create'),
-      },
-      {
-        key: 'action-new-ticket',
-        section: 'Actions',
-        icon: <PlusOutlined />,
-        label: 'Raise a ticket',
-        run: () => go('/tickets/create'),
-      },
-      {
+      });
+    }
+    actions.push({
+      key: 'action-new-ticket',
+      section: 'Actions',
+      icon: <PlusOutlined />,
+      label: 'Raise a ticket',
+      run: () => go('/tickets/create'),
+    });
+    if (can(role, 'employee:manage')) {
+      actions.push({
         key: 'action-new-employee',
         section: 'Actions',
         icon: <PlusOutlined />,
         label: 'New employee',
         run: () => go('/employees?action=new'),
-      },
-      ...NAV_ITEMS.map((n) => ({
-        ...n,
-        section: 'Navigate',
-        run: () => go(NAV_ROUTES[n.key]),
-      })),
-    ],
-    [go],
-  );
+      });
+    }
+    const nav = NAV_ITEMS.filter((n) => allowedHrefs.has(NAV_ROUTES[n.key])).map((n) => ({
+      ...n,
+      section: 'Navigate',
+      run: () => go(NAV_ROUTES[n.key]),
+    }));
+    return [...actions, ...nav];
+  }, [go, identity?.role]);
 
   const fetchResults = async (q: string) => {
     const mine = ++seq.current;

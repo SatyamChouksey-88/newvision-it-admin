@@ -69,6 +69,8 @@ export interface Asset {
   condition: AssetCondition;
   vendor?: string;
   invoiceNo?: string;
+  lastAuditedAt?: string;
+  nextAuditDueAt?: string;
   createdAt?: string;
   category?: AssetCategory;
   location?: Location;
@@ -325,6 +327,7 @@ export interface SupportTicket {
   updatedAt: string;
   resolvedAt?: string | null;
   closedAt?: string | null;
+  openRepairs?: { id: number; issue: string; status: string; reportedAt: string }[];
 }
 
 export interface TicketComment {

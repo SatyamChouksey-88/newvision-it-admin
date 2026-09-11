@@ -174,7 +174,7 @@ All tables are defined in `backend/prisma/schema.prisma`. Postgres table names u
 | `employees` | People | `employee_code`, `first_name`, `last_name`, `email`, `location_id`, `department_id`, `manager_id` (self-relation) |
 | `asset_categories` | Asset types | `code` (LAP/DES/MON), `name` |
 | `assets` | Serialized IT assets | `asset_code` (AST-{LOC}-{CAT}-{SEQ}), `serial_number`, `status`, `condition`, `location_id`, `assigned_employee_id`, warranty/purchase fields |
-| `asset_assignments` | Assignment history | `asset_id`, `employee_id`, `assigned_at`, `returned_at` |
+| `asset_assignments` | Assignment history | `asset_id`, `employee_id`, `assigned_at`, `returned_at`, `expected_return_at` |
 | `asset_transfers` | Transfer history | `from/to` employee and location, `transferred_at`, `reason` |
 | `asset_maintenance` | Repair tickets | `issue`, `status` (`MaintenanceStatus`), vendor/cost/dates |
 
@@ -273,7 +273,8 @@ erDiagram
 | `disposed` | *(terminal)* |
 
 **Actions (not separate statuses):**
-- **Assign** — `POST /api/assets/:id/assign` → sets `assigned`, creates `AssetAssignment`. Optional `accessoryIds[]` checks out accessories in same call.
+- **Assign** — `POST /api/assets/:id/assign` → sets `assigned`, creates `AssetAssignment`. Optional `accessoryIds[]` checks out accessories in same call. Optional `expectedReturnAt` marks a loaner (does not auto check-in). Bulk assign is `POST /api/assets/bulk` `{ action: 'assign', employeeId }`. Named kits are `POST /api/issue-kits/:id/issue`.
+- **Audit stamp** — `POST /api/assets/:id/audit` sets `lastAuditedAt` and `nextAuditDueAt` (default +365 days). Public `/scan/:code` stays read-only.
 - **Transfer** — `POST /api/assets/:id/transfer` → changes location and/or assignee; records `AssetTransfer`. Asset stays `assigned` if an employee remains.
 - **Retire** — `POST /api/assets/:id/retire` → `retired` with reason; audited.
 - **Change status** — `POST /api/assets/:id/status` for other allowed transitions.
@@ -721,7 +722,7 @@ Help articles embed PNGs from `frontend/public/docs/screenshots/`, captured agai
 Reasonable increments given what exists today — not the excluded enterprise wishlist:
 
 1. **JWT refresh tokens / session hardening** — noted since Phase 0 as deferred security work.
-2. **Extend keyboard shortcuts** — to maintenance, audit, requests, accessories tables (global `/` search already works).
+2. **Ticket queue keys shipped** — `/tickets` supports `J`/`K`/`Enter`/`I`; `Ctrl+/` is the cheatsheet; `?` remains Help.
 3. **Self-service first admin** — a migrate-only database still needs a user before anyone can see the Welcome card.
 4. **Screenshot gallery refresh** — recapture Help shots after any future chrome change (`frontend/scripts/capture-screenshots.mjs`).
 

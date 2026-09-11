@@ -732,7 +732,7 @@ X-NewVision-Signature: sha256=…
 
 Press **⌘K** / **Ctrl+K** anywhere in the signed-in app. Type a screen name or a record code (\`AST-…\`, \`EMP-…\`, \`TCK-…\`). Arrow keys move the highlight; Enter opens it.
 
-The palette currently lists the same destinations for every role. An Employee will still see “New asset” or “Audit Log” in the list — the destination then 403s or hides the action. Role-filtering is not built yet.
+The command palette is role-filtered. Employees see their screens and “Raise a ticket”, not New asset or Audit Log. IT Support sees Account (digest) instead of the full Settings set. Hidden destinations no longer appear in ⌘K.
 
 ### App shortcuts
 

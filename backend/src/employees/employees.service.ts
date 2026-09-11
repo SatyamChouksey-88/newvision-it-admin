@@ -38,6 +38,7 @@ const employeeInclude = {
   department: true,
   location: true,
   manager: { select: { id: true, firstName: true, lastName: true, employeeCode: true } },
+  user: { select: { id: true, email: true, isActive: true } },
 } satisfies Prisma.EmployeeInclude;
 
 @Injectable()
@@ -88,14 +89,16 @@ export class EmployeesService {
           }
         : {}),
       ...(query.q
-        ? {
-            OR: [
-              { firstName: { contains: query.q, mode: 'insensitive' } },
-              { lastName: { contains: query.q, mode: 'insensitive' } },
-              { email: { contains: query.q, mode: 'insensitive' } },
-              { employeeCode: { contains: query.q, mode: 'insensitive' } },
-            ],
-          }
+        ? /^EMP[-A-Z0-9]+$/i.test(query.q.trim())
+          ? { employeeCode: { equals: query.q.trim(), mode: 'insensitive' as const } }
+          : {
+              OR: [
+                { firstName: { contains: query.q, mode: 'insensitive' } },
+                { lastName: { contains: query.q, mode: 'insensitive' } },
+                { email: { contains: query.q, mode: 'insensitive' } },
+                { employeeCode: { contains: query.q, mode: 'insensitive' } },
+              ],
+            }
         : {}),
     };
     const [rows, total] = await Promise.all([
@@ -582,6 +585,38 @@ export class EmployeesService {
     }
 
     return employee;
+  }
+
+  /** Create a portal login for an existing employee who does not have one yet. */
+  async createLogin(id: number, actor: AuthUser) {
+    const employee = await this.get(id, actor);
+    const existing = await this.prisma.user.findUnique({ where: { employeeId: id } });
+    if (existing) {
+      throw new BadRequestException(`${employee.employeeCode} already has a login`);
+    }
+    const role = await this.prisma.role.findUnique({ where: { name: RoleName.EMPLOYEE } });
+    if (!role) throw new BadRequestException('EMPLOYEE role is missing');
+    const user = await this.prisma.user.create({
+      data: {
+        email: employee.email,
+        fullName: `${employee.firstName} ${employee.lastName}`,
+        passwordHash: await AuthService.hashPassword(crypto.randomBytes(24).toString('hex')),
+        roleId: role.id,
+        employeeId: employee.id,
+      },
+    });
+    await this.authService.sendSetPasswordLink(user.id, user.email, {
+      subject: 'Set your NewVision password',
+      intro: `IT created a NewVision login for you. Set your password using the link below.`,
+    });
+    await this.audit.record({
+      entityType: 'User',
+      entityId: user.id,
+      action: 'create',
+      summary: `Created login ${user.email} for ${employee.employeeCode}`,
+      changedById: actor.id,
+    });
+    return this.get(id, actor);
   }
 
   async update(id: number, dto: UpdateEmployeeDto, actor: AuthUser) {

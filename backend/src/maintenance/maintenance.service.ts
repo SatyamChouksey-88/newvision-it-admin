@@ -128,6 +128,7 @@ export class MaintenanceService {
           notes: dto.notes ?? null,
           reportedById: actor.id,
           status: 'reported',
+          supportTicketId: dto.supportTicketId ?? null,
         },
         include: maintenanceInclude,
       });

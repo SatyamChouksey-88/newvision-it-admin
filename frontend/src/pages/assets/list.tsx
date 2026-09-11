@@ -77,7 +77,9 @@ export function AssetList() {
   const [views, setViews] = useState<SavedView[]>([]);
   const [saveViewOpen, setSaveViewOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [bulkOpen, setBulkOpen] = useState<null | 'status' | 'transfer' | 'retire'>(null);
+  const [bulkOpen, setBulkOpen] = useState<null | 'status' | 'transfer' | 'retire' | 'assign'>(
+    null,
+  );
   const { page, pageSize, total, onPageChange } = useRefinePagination(tableProps);
   const rows = tableProps.dataSource ?? [];
 
@@ -168,7 +170,7 @@ export function AssetList() {
   };
 
   const runBulk = async (
-    action: 'status' | 'transfer' | 'retire',
+    action: 'status' | 'transfer' | 'retire' | 'assign',
     extra: Record<string, unknown> = {},
   ) => {
     try {
@@ -287,6 +289,9 @@ export function AssetList() {
         case 'warrantyExpired':
           chips.push({ key: k, label: 'Already expired' });
           break;
+        case 'unaudited':
+          chips.push({ key: k, label: 'Not audited in 12 months' });
+          break;
         case 'assignedEmployeeId':
           chips.push({ key: k, label: `Assigned to employee #${String(v)}` });
           break;
@@ -310,6 +315,9 @@ export function AssetList() {
               </Button>
               <Button size="small" onClick={() => setBulkOpen('transfer')}>
                 Bulk transfer
+              </Button>
+              <Button size="small" onClick={() => setBulkOpen('assign')}>
+                Bulk assign
               </Button>
               <Button size="small" danger onClick={() => setBulkOpen('retire')}>
                 Bulk retire
@@ -418,6 +426,21 @@ export function AssetList() {
             }
           }}
         />
+        <Button
+          size="small"
+          type={activeFilters.unaudited === true || activeFilters.unaudited === 'true' ? 'primary' : 'default'}
+          onClick={() =>
+            applyFilterState({
+              ...activeFilters,
+              unaudited:
+                activeFilters.unaudited === true || activeFilters.unaudited === 'true'
+                  ? undefined
+                  : true,
+            })
+          }
+        >
+          Not audited in 12 months
+        </Button>
         <Select
           allowClear
           aria-label="Saved view"
@@ -525,6 +548,9 @@ export function AssetList() {
                 </Button>
                 <Button size="small" onClick={() => setBulkOpen('transfer')}>
                   Bulk transfer
+                </Button>
+                <Button size="small" onClick={() => setBulkOpen('assign')}>
+                  Bulk assign
                 </Button>
                 <Button size="small" danger onClick={() => setBulkOpen('retire')}>
                   Bulk retire
@@ -817,16 +843,20 @@ function BulkActionModal({
   onClose,
   onRun,
 }: {
-  mode: null | 'status' | 'transfer' | 'retire';
+  mode: null | 'status' | 'transfer' | 'retire' | 'assign';
   count: number;
   locations: Location[];
   onClose: () => void;
-  onRun: (action: 'status' | 'transfer' | 'retire', extra?: Record<string, unknown>) => void;
+  onRun: (
+    action: 'status' | 'transfer' | 'retire' | 'assign',
+    extra?: Record<string, unknown>,
+  ) => void;
 }) {
   const [status, setStatus] = useState<AssetStatus>('retired');
   const [toLocationId, setToLocationId] = useState<number | undefined>();
   const [toEmployeeId, setToEmployeeId] = useState<number | undefined>();
   const transferInvalid = mode === 'transfer' && !toLocationId && !toEmployeeId;
+  const assignInvalid = mode === 'assign' && !toEmployeeId;
   const noun = `${count} asset${count === 1 ? '' : 's'}`;
 
   return (
@@ -837,7 +867,9 @@ function BulkActionModal({
           ? `Change status of ${noun}`
           : mode === 'transfer'
             ? `Transfer ${noun}`
-            : `Retire ${noun}`
+            : mode === 'assign'
+              ? `Assign ${noun}`
+              : `Retire ${noun}`
       }
       onCancel={onClose}
       afterClose={() => {
@@ -847,10 +879,14 @@ function BulkActionModal({
       onOk={() => {
         if (mode === 'status') onRun('status', { status });
         else if (mode === 'transfer') onRun('transfer', { toLocationId, toEmployeeId });
+        else if (mode === 'assign') onRun('assign', { employeeId: toEmployeeId });
         else onRun('retire');
       }}
       okText="Apply"
-      okButtonProps={{ danger: mode === 'retire', disabled: transferInvalid }}
+      okButtonProps={{
+        danger: mode === 'retire',
+        disabled: transferInvalid || assignInvalid,
+      }}
     >
       {mode === 'status' && (
         <Select
@@ -877,15 +913,22 @@ function BulkActionModal({
           />
         </Space>
       )}
-      {mode === 'transfer' && transferInvalid && (
-        <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
-          Choose a target location and/or employee.
-        </Typography.Text>
+      {mode === 'assign' && (
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Typography.Paragraph type="secondary" style={{ marginTop: 0 }}>
+            Only rows that are currently available will succeed. Others are reported as failed.
+          </Typography.Paragraph>
+          <EmployeeSelect
+            value={toEmployeeId}
+            onChange={setToEmployeeId}
+            placeholder="Employee to receive these assets"
+          />
+        </Space>
       )}
       {mode === 'retire' && (
         <Typography.Paragraph>
-          Retire the selected assets? Assets that are already retired/disposed, or that cannot move
-          to retired from their current status, are skipped and reported.
+          Retire {noun}. This cannot be undone from the list — reopen a retired asset from its
+          detail page if needed.
         </Typography.Paragraph>
       )}
     </Modal>

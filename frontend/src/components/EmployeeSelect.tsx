@@ -41,6 +41,7 @@ export function EmployeeSelect({
 }) {
   const [options, setOptions] = useState<Opt[]>([]);
   const [loading, setLoading] = useState(false);
+  const [matchTotal, setMatchTotal] = useState<number | null>(null);
   const seq = useRef(0);
 
   const load = async (q?: string) => {
@@ -51,9 +52,13 @@ export function EmployeeSelect({
         params: { _start: 0, _end: 20, isActive: 'true', ...(q ? { q } : {}) },
       });
       if (mine !== seq.current) return; // a newer search has superseded this response
+      setMatchTotal(typeof data.total === 'number' ? data.total : null);
       setOptions((data.data ?? []).filter((e: EmployeeLite) => e.id !== excludeId).map(toOpt));
     } catch {
-      if (mine === seq.current) setOptions([]);
+      if (mine === seq.current) {
+        setOptions([]);
+        setMatchTotal(null);
+      }
     } finally {
       if (mine === seq.current) setLoading(false);
     }
@@ -93,7 +98,23 @@ export function EmployeeSelect({
       onChange={(v) => onChange?.(v as number | undefined)}
       options={options}
       placeholder={placeholder}
-      notFoundContent={loading ? 'Searching…' : 'No active employee matches'}
+      notFoundContent={
+        loading
+          ? 'Searching…'
+          : matchTotal && matchTotal > 1
+            ? `${matchTotal} matches — type an EMP-code to pick one`
+            : 'No active employee matches'
+      }
+      popupRender={(menu) => (
+        <>
+          {menu}
+          {matchTotal != null && matchTotal > options.length ? (
+            <div style={{ padding: '4px 12px 8px', fontSize: 12, color: '#64748b' }}>
+              {matchTotal} matches — type EMP-… to jump to one person
+            </div>
+          ) : null}
+        </>
+      )}
       disabled={disabled}
       style={{ width: '100%' }}
     />

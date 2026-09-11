@@ -208,6 +208,9 @@ export function navForRole(role?: string): NavItem[] {
     it.push({ key: 'audit', href: '/audit-logs', label: 'Audit Log', resource: 'audit-logs' });
     it.push({ key: 'settings', href: '/settings', label: 'Settings', resource: 'settings' });
   }
+  if (role === 'IT_SUPPORT') {
+    it.push({ key: 'account', href: '/settings', label: 'Account', resource: 'settings' });
+  }
   return it;
 }
 

@@ -185,6 +185,7 @@ export class DashboardController {
   @Roles(...ESTATE_ROLES)
   @Get('tickets')
   async tickets(
+    @CurrentUser() actor: AuthUser,
     @Query('preset') preset?: string,
     @Query('from') fromRaw?: string,
     @Query('to') toRaw?: string,
@@ -211,7 +212,15 @@ export class DashboardController {
     }
     const createdWhere = { createdAt: { gte: from, lte: to } };
     const dueWhere = { dueDate: { gte: from, lte: to } };
-    const [open, unassigned, inProgress, resolved, created, due] = await Promise.all([
+    const tomorrowStart = (() => {
+      const t = new Date(now);
+      t.setDate(t.getDate() + 1);
+      t.setHours(0, 0, 0, 0);
+      return t;
+    })();
+    const tomorrowEnd = new Date(tomorrowStart);
+    tomorrowEnd.setHours(23, 59, 59, 999);
+    const [open, unassigned, inProgress, resolved, created, due, myDueTomorrow] = await Promise.all([
       this.prisma.supportTicket.count({
         where: {
           status: { in: ['open', 'assigned', 'in_progress', 'waiting_on_employee', 'reopened'] },
@@ -226,6 +235,13 @@ export class DashboardController {
       }),
       this.prisma.supportTicket.count({ where: createdWhere }),
       this.prisma.supportTicket.count({ where: dueWhere }),
+      this.prisma.supportTicket.count({
+        where: {
+          assignedToId: actor.id,
+          dueDate: { gte: tomorrowStart, lte: tomorrowEnd },
+          status: { in: ['open', 'assigned', 'in_progress', 'reopened'] },
+        },
+      }),
     ]);
     return {
       from,
@@ -237,6 +253,7 @@ export class DashboardController {
       resolved,
       created,
       due,
+      myDueTomorrow,
     };
   }
 
@@ -270,6 +287,8 @@ export class DashboardController {
       incompleteChecklists,
       contractsEnding,
       warranties14,
+      overdueLoaners,
+      unauditedAssets,
     ] = await Promise.all([
       this.prisma.asset.findMany({
         where: {
@@ -371,6 +390,36 @@ export class DashboardController {
         orderBy: { warrantyEnd: 'asc' },
         take: 8,
       }),
+      this.prisma.assetAssignment.findMany({
+        where: {
+          returnedAt: null,
+          expectedReturnAt: { lt: now },
+          asset: locationId ? { locationId } : undefined,
+        },
+        include: {
+          asset: { select: { id: true, assetCode: true } },
+          employee: { select: { id: true, firstName: true, lastName: true, employeeCode: true } },
+        },
+        orderBy: { expectedReturnAt: 'asc' },
+        take: 8,
+      }),
+      this.prisma.asset.findMany({
+        where: {
+          ...assetWhere,
+          status: { notIn: ['retired', 'disposed'] },
+          OR: [
+            { nextAuditDueAt: { lte: now } },
+            {
+              lastAuditedAt: {
+                lt: new Date(now.getFullYear() - 1, now.getMonth(), now.getDate()),
+              },
+            },
+          ],
+        },
+        select: { id: true, assetCode: true, lastAuditedAt: true },
+        orderBy: { lastAuditedAt: 'asc' },
+        take: 5,
+      }),
     ]);
 
     const seenTicketIds = new Set<number>();
@@ -468,6 +517,22 @@ export class DashboardController {
         detail: a.warrantyEnd
           ? `Warranty ${daysRemaining(a.warrantyEnd)} days left`
           : 'Warranty expiring',
+        href: `/assets/show/${a.id}`,
+        assignTicketId: null as number | null,
+      })),
+      ...overdueLoaners.map((row) => ({
+        type: 'loaner' as const,
+        id: row.id,
+        label: row.asset.assetCode,
+        detail: `Loaner overdue · ${row.employee.firstName} ${row.employee.lastName} · ${row.employee.employeeCode}`,
+        href: `/assets/show/${row.asset.id}`,
+        assignTicketId: null as number | null,
+      })),
+      ...unauditedAssets.map((a) => ({
+        type: 'audit' as const,
+        id: a.id,
+        label: a.assetCode,
+        detail: a.lastAuditedAt ? 'Not audited in 12 months' : 'Never audited',
         href: `/assets/show/${a.id}`,
         assignTicketId: null as number | null,
       })),

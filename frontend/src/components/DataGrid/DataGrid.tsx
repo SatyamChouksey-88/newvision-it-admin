@@ -58,7 +58,12 @@ export interface DataGridProps<T extends object> {
   /** Local search input id for `/` shortcut within this grid. */
   searchInputId?: string;
   toolbarExtra?: React.ReactNode;
+  /** Search / legend / other controls on the left of the toolbar (same row as Columns / Export). */
+  toolbarLead?: React.ReactNode;
   onChange?: TableProps<T>['onChange'];
+  onOpenRow?: (record: T) => void;
+  onAssignToMe?: (record: T) => void;
+  enableQueueKeys?: boolean;
 }
 
 const MIN_COL_WIDTH = 60;
@@ -155,7 +160,11 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
     rowClassName,
     searchInputId,
     toolbarExtra,
+    toolbarLead,
     onChange,
+    onOpenRow,
+    onAssignToMe,
+    enableQueueKeys = false,
   } = props;
 
   const defaultKeys = useMemo(() => columnDefs.map(colKey), [columnDefs]);
@@ -320,6 +329,15 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
     rowCount: filteredData.length,
     focusedRow,
     onFocusRow: setFocusedRow,
+    enableQueueKeys,
+    onOpenFocused: () => {
+      if (focusedRow < 0 || focusedRow >= filteredData.length) return;
+      onOpenRow?.(filteredData[focusedRow]);
+    },
+    onAssignFocused: () => {
+      if (focusedRow < 0 || focusedRow >= filteredData.length) return;
+      onAssignToMe?.(filteredData[focusedRow]);
+    },
   });
 
   const handleCopy = useCallback(
@@ -396,13 +414,14 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
     <Space direction="vertical" size={8} style={{ width: '100%' }} ref={tableRef}>
       <div className="nv-grid-toolbar">
         <div className="nv-grid-toolbar__left">
+          {toolbarLead}
           {quickFilter && (
             <Input.Search
               id={searchInputId}
               allowClear
               placeholder={quickFilterPlaceholder}
               aria-label={quickFilterPlaceholder}
-              style={{ width: 240 }}
+              style={{ width: 240, maxWidth: '100%' }}
               value={quickQ}
               onChange={(e) => setQuickQ(e.target.value)}
             />

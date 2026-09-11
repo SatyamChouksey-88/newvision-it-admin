@@ -29,6 +29,16 @@ export function TicketCreate() {
       httpClient.get('/ticket-categories').then(({ data }) => {
         const rows = Array.isArray(data) ? data : (data.data ?? []);
         setCategories(rows);
+        try {
+          const saved = Number(localStorage.getItem('nv.tickets.lastCategoryId') ?? '');
+          if (saved && rows.some((c: TicketCategory) => c.id === saved) && !params.get('template')) {
+            form.setFieldsValue({ categoryId: saved });
+            const cat = rows.find((c: TicketCategory) => c.id === saved);
+            if (cat) form.setFieldsValue({ priority: cat.defaultPriority as TicketPriority });
+          }
+        } catch {
+          /* ignore */
+        }
       }),
       httpClient.get('/ticket-templates').then(({ data }) => {
         setTemplates(Array.isArray(data) ? data : (data.data ?? []));
@@ -40,10 +50,13 @@ export function TicketCreate() {
     const tpl = templates.find((t) => t.id === id);
     if (!tpl) return;
     const cat = categories.find((c) => c.id === tpl.categoryId);
+    const employee = identity?.fullName ?? '{{employee}}';
     form.setFieldsValue({
       templateId: id,
-      subject: tpl.subject,
-      description: tpl.description,
+      subject: tpl.subject.replaceAll('{{employee}}', employee).replaceAll('{{asset}}', '{{asset}}'),
+      description: tpl.description
+        .replaceAll('{{employee}}', employee)
+        .replaceAll('{{asset}}', '{{asset}}'),
       categoryId: tpl.categoryId,
       priority: cat?.defaultPriority ?? 'medium',
     });
@@ -75,6 +88,11 @@ export function TicketCreate() {
         });
       }
       toast.success(`Opened ${data.ticketNumber}`);
+      try {
+        if (values.categoryId) localStorage.setItem('nv.tickets.lastCategoryId', String(values.categoryId));
+      } catch {
+        /* ignore */
+      }
       navigate(`/tickets/show/${data.id}`);
     } catch (e) {
       toast.error(apiErrorMessage(e, 'Could not raise ticket'));

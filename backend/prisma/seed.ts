@@ -220,6 +220,8 @@ async function main() {
   await prisma.vendor.deleteMany();
   await prisma.consumableIssue.deleteMany();
   await prisma.accessoryCheckout.deleteMany();
+  await prisma.issueKitAccessory.deleteMany();
+  await prisma.issueKit.deleteMany();
   await prisma.consumable.deleteMany();
   await prisma.accessory.deleteMany();
   await prisma.assetRequest.deleteMany();
@@ -679,9 +681,17 @@ async function main() {
       locationId: punId,
     },
   });
+  const accCharger = await prisma.accessory.create({
+    data: {
+      name: 'USB-C Charger 65W',
+      category: 'Power',
+      quantityTotal: 80,
+      quantityCheckedOut: 32,
+      locationId: punId,
+    },
+  });
   await prisma.accessory.createMany({
     data: [
-      { name: 'USB-C Charger 65W', category: 'Power', quantityTotal: 80, quantityCheckedOut: 32, locationId: punId },
       { name: 'Laptop Docking Station', category: 'Peripherals', quantityTotal: 40, quantityCheckedOut: 28, locationId: hydId },
       { name: 'Headset USB', category: 'Audio', quantityTotal: 60, quantityCheckedOut: 22, locationId: hydId },
       { name: 'HDMI Cable 2m', category: 'Cables', quantityTotal: 200, quantityCheckedOut: 90, locationId: bhoId },
@@ -695,6 +705,20 @@ async function main() {
         employeeId: sampleEmp.id,
         quantity: 1,
         processedById: superAdmin?.id ?? null,
+      },
+    });
+  }
+  const laptopCat = await prisma.assetCategory.findUnique({ where: { code: 'LAP' } });
+  if (laptopCat && punId) {
+    await prisma.issueKit.create({
+      data: {
+        name: 'Pune laptop standard',
+        categoryId: laptopCat.id,
+        locationId: punId,
+        notes: 'Next available Pune laptop plus charger and mouse',
+        accessories: {
+          create: [{ accessoryId: accMouse.id }, { accessoryId: accCharger.id }],
+        },
       },
     });
   }
@@ -760,8 +784,9 @@ async function main() {
         },
         {
           title: 'Need software installed',
-          subject: 'Software installation request',
-          description: 'Please install the following application on my machine:',
+          subject: 'Software installation request for {{employee}}',
+          description:
+            'Please install the following application on {{asset}} for {{employee}}:\n\n(list the app and version)',
           categoryId: catByCode.get('software')!.id,
           createdById: itAdminUser.id,
         },

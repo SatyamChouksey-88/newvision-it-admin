@@ -1,6 +1,16 @@
 import { PartialType } from '@nestjs/swagger';
 import { AssetCondition, AssetStatus } from '@prisma/client';
-import { ArrayNotEmpty, IsArray, IsEnum, IsInt, IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+  ArrayNotEmpty,
+  IsArray,
+  IsDateString,
+  IsEnum,
+  IsIn,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class CreateAssetDto {
   @IsInt() categoryId!: number;
@@ -29,6 +39,13 @@ export class AssignAssetDto {
   @IsOptional() @IsString() notes?: string;
   /** Optional accessory IDs to check out alongside this assignment. */
   @IsOptional() @IsArray() @IsInt({ each: true }) accessoryIds?: number[];
+  /** Optional loaner due date — does not auto check-in. */
+  @IsOptional() @IsDateString() expectedReturnAt?: string;
+}
+
+export class AuditAssetDto {
+  @IsOptional() @IsString() notes?: string;
+  @IsOptional() @IsDateString() nextAuditDueAt?: string;
 }
 
 export class TransferAssetDto {
@@ -46,13 +63,35 @@ export class RetireAssetDto {
   @IsOptional() @IsString() reason?: string;
 }
 
-export type BulkAssetAction = 'status' | 'transfer' | 'retire';
+export type BulkAssetAction = 'status' | 'transfer' | 'retire' | 'assign';
 
 export class BulkAssetsDto {
   @IsArray() @ArrayNotEmpty() @IsInt({ each: true }) ids!: number[];
-  @IsEnum(['status', 'transfer', 'retire']) action!: BulkAssetAction;
+  @IsIn(['status', 'transfer', 'retire', 'assign']) action!: BulkAssetAction;
   @IsOptional() @IsEnum(AssetStatus) status?: AssetStatus;
   @IsOptional() @IsInt() toEmployeeId?: number;
   @IsOptional() @IsInt() toLocationId?: number;
   @IsOptional() @IsString() reason?: string;
+  @IsOptional() @IsInt() employeeId?: number;
+  @IsOptional() @IsDateString() expectedReturnAt?: string;
+}
+
+export class CreateIssueKitDto {
+  @IsString() name!: string;
+  @IsInt() categoryId!: number;
+  @IsOptional() @IsInt() locationId?: number;
+  @IsOptional() @IsString() notes?: string;
+  @IsOptional() @IsArray() @IsInt({ each: true }) accessoryIds?: number[];
+}
+
+export class UpdateIssueKitDto {
+  @IsOptional() @IsString() name?: string;
+  @IsOptional() @IsInt() categoryId?: number;
+  @IsOptional() @IsInt() locationId?: number | null;
+  @IsOptional() @IsString() notes?: string;
+  @IsOptional() @IsArray() @IsInt({ each: true }) accessoryIds?: number[];
+}
+
+export class IssueKitToEmployeeDto {
+  @IsInt() employeeId!: number;
 }

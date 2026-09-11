@@ -90,6 +90,19 @@ export function AssetShow() {
             <Button
               onClick={async () => {
                 try {
+                  await httpClient.post(`/assets/${asset.id}/audit`, {});
+                  message.success('Audit stamped — next due in 12 months');
+                  void query.refetch();
+                } catch (e) {
+                  message.error(apiErrorMessage(e, 'Could not stamp audit'));
+                }
+              }}
+            >
+              Audit now
+            </Button>
+            <Button
+              onClick={async () => {
+                try {
                   const { data } = await httpClient.post(`/assets/${asset.id}/duplicate`);
                   message.success(`Created ${data.assetCode} — fill in the serial`);
                   window.location.assign(`/assets/show/${data.id}`);
@@ -199,6 +212,12 @@ export function AssetShow() {
           </Descriptions.Item>
           <Descriptions.Item label="Vendor">{asset?.vendor ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="Invoice No">{asset?.invoiceNo ?? '—'}</Descriptions.Item>
+          <Descriptions.Item label="Last audited">
+            {asset?.lastAuditedAt ? formatDate(asset.lastAuditedAt) : 'Never'}
+          </Descriptions.Item>
+          <Descriptions.Item label="Next audit due">
+            {asset?.nextAuditDueAt ? formatDate(asset.nextAuditDueAt) : '—'}
+          </Descriptions.Item>
         </Descriptions>
         {asset?.needsReconciliation ? (
           <Alert

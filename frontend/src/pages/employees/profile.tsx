@@ -60,6 +60,8 @@ export function EmployeeProfile() {
   const [assignOpen, setAssignOpen] = useState(false);
   const [transferTarget, setTransferTarget] = useState<Asset | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [kits, setKits] = useState<{ id: number; name: string }[]>([]);
+  const [issuingKit, setIssuingKit] = useState(false);
 
   const { query } = useCustom<any>({
     url: `employees/${id}/profile`,
@@ -77,7 +79,13 @@ export function EmployeeProfile() {
       .get('/locations', { params: { _start: 0, _end: 50 } })
       .then(({ data }) => setLocations(data.data ?? data ?? []))
       .catch(() => undefined);
-  }, []);
+    if (canOffboard) {
+      httpClient
+        .get('/issue-kits')
+        .then(({ data }) => setKits(Array.isArray(data) ? data : []))
+        .catch(() => setKits([]));
+    }
+  }, [canOffboard]);
 
   const isFetching = query.isFetching;
   const emp = query.data?.data;
@@ -173,6 +181,67 @@ export function EmployeeProfile() {
       ) : null}
 
       <RecordNotes entityType="Employee" entityId={emp?.id} canAdd={canOffboard} />
+
+      {canOffboard && emp ? (
+        <Card size="small" title="Onboarding runbook" data-testid="onboard-runbook">
+          <Typography.Paragraph type="secondary" style={{ marginTop: 0 }}>
+            Guided order — not a workflow engine. Tick the checklist, issue a kit, then create a
+            login if they do not have one.
+          </Typography.Paragraph>
+          <Space wrap>
+            <Button
+              size="small"
+              onClick={async () => {
+                await httpClient.post(`/employees/${emp.id}/checklists`, { kind: 'onboard' });
+                void query.refetch();
+              }}
+            >
+              Start onboard checklist
+            </Button>
+            {kits.map((kit) => (
+              <Button
+                key={kit.id}
+                size="small"
+                loading={issuingKit}
+                onClick={async () => {
+                  setIssuingKit(true);
+                  try {
+                    const { data } = await httpClient.post(`/issue-kits/${kit.id}/issue`, {
+                      employeeId: emp.id,
+                    });
+                    toast.success(`Issued ${data.asset?.assetCode ?? 'kit'} from ${kit.name}`);
+                    void query.refetch();
+                  } catch (e) {
+                    toast.error(apiErrorMessage(e, 'Could not issue kit'));
+                  } finally {
+                    setIssuingKit(false);
+                  }
+                }}
+              >
+                Issue kit: {kit.name}
+              </Button>
+            ))}
+            {!emp.user ? (
+              <Button
+                size="small"
+                onClick={async () => {
+                  try {
+                    await httpClient.post(`/employees/${emp.id}/create-login`);
+                    toast.success('Login created — they will get a set-password email');
+                    void query.refetch();
+                  } catch (e) {
+                    toast.error(apiErrorMessage(e, 'Could not create login'));
+                  }
+                }}
+              >
+                Create login
+              </Button>
+            ) : (
+              <Tag>Has login</Tag>
+            )}
+          </Space>
+        </Card>
+      ) : null}
 
       {canOffboard && emp ? (
         <Card size="small" title="Onboard / offboard checklist">

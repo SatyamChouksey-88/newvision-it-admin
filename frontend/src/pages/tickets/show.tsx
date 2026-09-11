@@ -60,6 +60,7 @@ export function TicketShow() {
   const [timeForm] = Form.useForm();
   const [dupForm] = Form.useForm();
   const [rateForm] = Form.useForm();
+  const [viewers, setViewers] = useState<{ userId: number; name: string }[]>([]);
 
   const reload = () => void query.refetch();
 
@@ -110,6 +111,25 @@ export function TicketShow() {
       .then(({ data }) => setRequesterAssets(Array.isArray(data) ? data : []))
       .catch(() => setRequesterAssets([]));
   }, [ticket?.id, ticket?.updatedAt]);
+
+  useEffect(() => {
+    if (!isStaff || !ticket?.id) return;
+    let cancelled = false;
+    const beat = () => {
+      httpClient
+        .post(`/support-tickets/${ticket.id}/presence`)
+        .then(({ data }) => {
+          if (!cancelled) setViewers(data.viewers ?? []);
+        })
+        .catch(() => undefined);
+    };
+    beat();
+    const t = setInterval(beat, 10_000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, [isStaff, ticket?.id]);
 
   const isRequester = ticket && identity?.employeeId === ticket.raisedById;
   const canRate =
@@ -181,6 +201,11 @@ export function TicketShow() {
               <Tag>Portal</Tag>
             )}
             {ticket?.unmatchedSender ? <Tag color="orange">Unmatched sender</Tag> : null}
+            {viewers.length > 0 ? (
+              <Tag color="blue" data-testid="ticket-presence">
+                {viewers.map((v) => v.name).join(', ')} viewing
+              </Tag>
+            ) : null}
             {ticket?.slaLabel ? (
               <Tag
                 color={
@@ -295,7 +320,12 @@ export function TicketShow() {
           </Descriptions.Item>
           <Descriptions.Item label="Linked asset">
             {ticket?.asset ? (
-              <Link to={`/assets/show/${ticket.asset.id}`}>{ticket.asset.assetCode}</Link>
+              <Space>
+                <Link to={`/assets/show/${ticket.asset.id}`}>{ticket.asset.assetCode}</Link>
+                {(ticket.openRepairs ?? []).length > 0 ? (
+                  <Link to="/maintenance">Open repair</Link>
+                ) : null}
+              </Space>
             ) : (
               '—'
             )}

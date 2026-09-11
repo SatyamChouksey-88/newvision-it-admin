@@ -51,6 +51,7 @@ interface TicketSummary {
   resolved: number;
   created: number;
   due: number;
+  myDueTomorrow?: number;
   preset: string;
 }
 
@@ -703,6 +704,11 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
                   label: 'In progress',
                   value: ticketSummary?.inProgress ?? 0,
                   href: ticketsHref({ status: 'in_progress' }),
+                },
+                {
+                  label: 'My due tomorrow',
+                  value: ticketSummary?.myDueTomorrow ?? 0,
+                  href: ticketsHref({ view: 'due_tomorrow' }),
                 },
                 {
                   label: ticketPreset === 'tomorrow' ? 'Due' : 'Resolved in window',

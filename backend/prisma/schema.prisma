@@ -357,6 +357,7 @@ model Location {
   purchaseOrders PurchaseOrder[]
   goodsReceipts  GoodsReceipt[]
   contracts      VendorContract[]
+  issueKits      IssueKit[]
 
   @@map("locations")
 }
@@ -428,6 +429,7 @@ model AssetCategory {
   description   String?
   assets        Asset[]
   assetRequests AssetRequest[]
+  issueKits     IssueKit[]
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
 
@@ -464,6 +466,8 @@ model Asset {
   goodsReceipt       GoodsReceipt?  @relation(fields: [goodsReceiptId], references: [id])
   needsReconciliation Boolean       @default(false) @map("needs_reconciliation")
   reconciliationNote  String?       @map("reconciliation_note")
+  lastAuditedAt      DateTime?      @map("last_audited_at")
+  nextAuditDueAt     DateTime?      @map("next_audit_due_at")
   createdAt          DateTime       @default(now()) @map("created_at")
   updatedAt          DateTime       @updatedAt @map("updated_at")
 
@@ -479,6 +483,7 @@ model Asset {
   @@index([locationId])
   @@index([categoryId])
   @@index([assignedEmployeeId])
+  @@index([lastAuditedAt])
   @@map("assets")
 }
 
@@ -490,12 +495,14 @@ model AssetAssignment {
   employee     Employee  @relation(fields: [employeeId], references: [id])
   assignedById Int?      @map("assigned_by_id")
   assignedBy   User?     @relation("AssignmentActor", fields: [assignedById], references: [id])
-  assignedAt   DateTime  @default(now()) @map("assigned_at")
-  returnedAt   DateTime? @map("returned_at")
-  notes        String?
+  assignedAt         DateTime  @default(now()) @map("assigned_at")
+  returnedAt         DateTime? @map("returned_at")
+  expectedReturnAt   DateTime? @map("expected_return_at")
+  notes              String?
 
   @@index([assetId])
   @@index([employeeId])
+  @@index([expectedReturnAt])
   @@map("asset_assignments")
 }
 
@@ -535,9 +542,12 @@ model AssetMaintenance {
   expectedCompletionDate DateTime?         @map("expected_completion_date")
   completedAt            DateTime?         @map("completed_at")
   notes                  String?
+  supportTicketId        Int?              @map("support_ticket_id")
+  supportTicket          SupportTicket?    @relation(fields: [supportTicketId], references: [id])
 
   @@index([assetId])
   @@index([status])
+  @@index([supportTicketId])
   @@map("asset_maintenance")
 }
 
@@ -704,6 +714,7 @@ model Accessory {
   updatedAt          DateTime            @updatedAt @map("updated_at")
   checkouts          AccessoryCheckout[]
   procurementHandoffs ProcurementHandoff[]
+  issueKits          IssueKitAccessory[]
 
   @@index([category])
   @@index([locationId])
@@ -726,6 +737,34 @@ model AccessoryCheckout {
   @@index([accessoryId])
   @@index([employeeId])
   @@map("accessory_checkouts")
+}
+
+/** Named hardware kit: next available asset in a category (+ optional site) plus default accessories. */
+model IssueKit {
+  id         Int           @id @default(autoincrement())
+  name       String
+  categoryId Int           @map("category_id")
+  category   AssetCategory @relation(fields: [categoryId], references: [id])
+  locationId Int?          @map("location_id")
+  location   Location?     @relation(fields: [locationId], references: [id])
+  notes      String?
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
+  accessories IssueKitAccessory[]
+
+  @@map("issue_kits")
+}
+
+model IssueKitAccessory {
+  id          Int       @id @default(autoincrement())
+  kitId       Int       @map("kit_id")
+  kit         IssueKit  @relation(fields: [kitId], references: [id], onDelete: Cascade)
+  accessoryId Int       @map("accessory_id")
+  accessory   Accessory @relation(fields: [accessoryId], references: [id])
+  quantity    Int       @default(1)
+
+  @@unique([kitId, accessoryId])
+  @@map("issue_kit_accessories")
 }
 
 model Consumable {
@@ -821,6 +860,7 @@ model SupportTicket {
   attachments   TicketAttachment[]
   notifications Notification[]
   messages      TicketMessage[]
+  maintenance   AssetMaintenance[]
 
   @@index([status])
   @@index([priority])
