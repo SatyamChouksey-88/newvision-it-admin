@@ -22,14 +22,14 @@ import {
 } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
+import { AssetStatusSelect } from '../../components/AssetStatusSelect';
 import { PrimaryWithSub, WarrantyDays } from '../../components/Cells';
+import { ChipSelect } from '../../components/ChipSelect';
 import { CopyButton } from '../../components/CopyButton';
 import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid';
 import { EmployeeSelect } from '../../components/EmployeeSelect';
 import { EmptyState } from '../../components/EmptyState';
 import { FirstRunWelcome } from '../../components/FirstRunWelcome';
-import { ChipSelect } from '../../components/ChipSelect';
-import { AssetStatusSelect } from '../../components/AssetStatusSelect';
 import { ASSET_STATUS_OPTIONS, StatusTag } from '../../components/StatusTag';
 import { TablePagination } from '../../components/TablePagination';
 import { TableSkeleton } from '../../components/TableSkeleton';
@@ -349,6 +349,7 @@ export function AssetList() {
     >
       <div className="nv-filter-row">
         <Input.Search
+          id="assets-grid-search"
           aria-label="Search assets"
           placeholder="Search code, serial, model…"
           allowClear
@@ -418,17 +419,33 @@ export function AssetList() {
           }
           onChange={(v) => {
             if (v === 'expired') {
-              applyFilterState({ ...activeFilters, warrantyExpired: true, warrantyExpiringInDays: undefined });
+              applyFilterState({
+                ...activeFilters,
+                warrantyExpired: true,
+                warrantyExpiringInDays: undefined,
+              });
             } else if (v) {
-              applyFilterState({ ...activeFilters, warrantyExpiringInDays: Number(v), warrantyExpired: undefined });
+              applyFilterState({
+                ...activeFilters,
+                warrantyExpiringInDays: Number(v),
+                warrantyExpired: undefined,
+              });
             } else {
-              applyFilterState({ ...activeFilters, warrantyExpiringInDays: undefined, warrantyExpired: undefined });
+              applyFilterState({
+                ...activeFilters,
+                warrantyExpiringInDays: undefined,
+                warrantyExpired: undefined,
+              });
             }
           }}
         />
         <Button
           size="small"
-          type={activeFilters.unaudited === true || activeFilters.unaudited === 'true' ? 'primary' : 'default'}
+          type={
+            activeFilters.unaudited === true || activeFilters.unaudited === 'true'
+              ? 'primary'
+              : 'default'
+          }
           onClick={() =>
             applyFilterState({
               ...activeFilters,
@@ -443,6 +460,7 @@ export function AssetList() {
         </Button>
         <Select
           allowClear
+          size="small"
           aria-label="Saved view"
           placeholder="Saved view"
           style={{ width: 180 }}
@@ -534,9 +552,7 @@ export function AssetList() {
               ? {
                   selectedRowKeys: selectedIds,
                   onChange: (keys) => setSelectedIds(keys as number[]),
-                  columnTitle: (checkbox) => (
-                    <span title="Select all assets">{checkbox}</span>
-                  ),
+                  columnTitle: (checkbox) => <span title="Select all assets">{checkbox}</span>,
                 }
               : undefined
           }
@@ -603,7 +619,10 @@ export function AssetList() {
               defaultWidth: 180,
               render: (_, r) =>
                 canManage ? (
-                  <AssetStatusSelect value={r.status} onChange={(next) => void changeStatus(r, next)} />
+                  <AssetStatusSelect
+                    value={r.status}
+                    onChange={(next) => void changeStatus(r, next)}
+                  />
                 ) : (
                   <StatusTag status={r.status} />
                 ),
@@ -664,7 +683,6 @@ export function AssetList() {
               ? [
                   {
                     title: 'Actions',
-                    fixed: 'right' as const,
                     width: 190,
                     render: (_: unknown, r: Asset) => (
                       <Space size={4} onClick={(e) => e.stopPropagation()} role="presentation">

@@ -57,7 +57,7 @@ export function RequisitionList() {
         </Button>
       }
     >
-      <div className="nv-list-search-row">
+      <div className="nv-filter-row">
         <Input.Search
           allowClear
           placeholder="Search requisitions…"

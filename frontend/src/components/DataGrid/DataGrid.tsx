@@ -5,7 +5,7 @@ import {
   SettingOutlined,
 } from '@ant-design/icons';
 import type { TableProps } from 'antd';
-import { Button, Checkbox, Dropdown, Input, Segmented, Space, Table } from 'antd';
+import { Button, Checkbox, Dropdown, Input, Segmented, Space, Table, Tooltip } from 'antd';
 import type { ColumnType } from 'antd/es/table';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTableKeyboard } from '../../hooks/useTableKeyboard';
@@ -58,8 +58,10 @@ export interface DataGridProps<T extends object> {
   /** Local search input id for `/` shortcut within this grid. */
   searchInputId?: string;
   toolbarExtra?: React.ReactNode;
-  /** Search / legend / other controls on the left of the toolbar (same row as Columns / Export). */
+  /** Search / filters on the left of the tools row (same centreline as Columns / Export). */
   toolbarLead?: React.ReactNode;
+  /** Hide the built-in visible-columns CSV button when the page already exports. */
+  hideClientExport?: boolean;
   onChange?: TableProps<T>['onChange'];
   onOpenRow?: (record: T) => void;
   onAssignToMe?: (record: T) => void;
@@ -161,6 +163,7 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
     searchInputId,
     toolbarExtra,
     toolbarLead,
+    hideClientExport = false,
     onChange,
     onOpenRow,
     onAssignToMe,
@@ -412,7 +415,7 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
 
   return (
     <Space direction="vertical" size={8} style={{ width: '100%' }} ref={tableRef}>
-      <div className="nv-grid-toolbar">
+      <div className="nv-grid-toolbar" title="Select a row and press Ctrl+C to copy it for Excel">
         <div className="nv-grid-toolbar__left">
           {toolbarLead}
           {quickFilter && (
@@ -421,13 +424,12 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
               allowClear
               placeholder={quickFilterPlaceholder}
               aria-label={quickFilterPlaceholder}
-              style={{ width: 240, maxWidth: '100%' }}
               value={quickQ}
               onChange={(e) => setQuickQ(e.target.value)}
             />
           )}
           {quickQ.trim() ? (
-            <span style={{ fontSize: 12, color: '#64748B' }} aria-live="polite">
+            <span className="nv-grid-toolbar__hint" aria-live="polite">
               {rowsShown} of {rowsTotal} loaded row{rowsTotal === 1 ? '' : 's'}
               {serverSide ? ' on this page' : ''}
             </span>
@@ -447,20 +449,27 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
               ]}
             />
           )}
-          <Dropdown popupRender={() => columnMenu} trigger={['click']}>
-            <Button size="small" icon={<SettingOutlined />} aria-label="Show or hide columns">
-              Columns
-            </Button>
-          </Dropdown>
-          <Button size="small" icon={<DownloadOutlined />} onClick={handleExport}>
-            Export CSV
-          </Button>
-          <span
-            style={{ fontSize: 11, color: '#64748b' }}
-            title="Select a row and press Ctrl+C to copy it for Excel"
-          >
-            Ctrl+C copies the selected row
-          </span>
+          <Tooltip title="Select a row and press Ctrl+C to copy it for Excel">
+            <span>
+              <Dropdown popupRender={() => columnMenu} trigger={['click']}>
+                <Button size="small" icon={<SettingOutlined />} aria-label="Show or hide columns">
+                  Columns
+                </Button>
+              </Dropdown>
+            </span>
+          </Tooltip>
+          {hideClientExport ? null : (
+            <Tooltip title="Export visible columns as CSV. Select a row and press Ctrl+C to copy it.">
+              <Button
+                size="small"
+                icon={<DownloadOutlined />}
+                aria-label="Export CSV"
+                onClick={handleExport}
+              >
+                Export CSV
+              </Button>
+            </Tooltip>
+          )}
         </div>
       </div>
 

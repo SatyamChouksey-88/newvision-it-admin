@@ -136,6 +136,7 @@ export function EmployeeList() {
       />
       <div className="nv-filter-row">
         <Input.Search
+          id="employees-grid-search"
           placeholder="Search name or employee ID…"
           allowClear
           aria-label="Search employees"

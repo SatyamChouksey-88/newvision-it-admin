@@ -1,6 +1,18 @@
 import { PlusOutlined, RollbackOutlined, UserAddOutlined } from '@ant-design/icons';
 import { useGetIdentity } from '@refinedev/core';
-import { Button, Card, Col, Form, Input, InputNumber, Modal, Row, Segmented, Space, Typography } from 'antd';
+import {
+  Button,
+  Card,
+  Col,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Row,
+  Segmented,
+  Space,
+  Typography,
+} from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { PrimaryWithSub } from '../../components/Cells';
 import { CopyButton } from '../../components/CopyButton';
@@ -106,21 +118,7 @@ export function AccessoriesPage() {
 
   return (
     <Card
-      title={
-        <Space>
-          Accessories
-          <StatusLegend kind="asset" />
-          <Segmented
-            size="small"
-            value={view}
-            onChange={(v) => setView(v as 'cards' | 'table')}
-            options={[
-              { label: 'Cards', value: 'cards' },
-              { label: 'Table', value: 'table' },
-            ]}
-          />
-        </Space>
-      }
+      title="Accessories"
       extra={
         canManage ? (
           <Button
@@ -134,6 +132,17 @@ export function AccessoriesPage() {
         ) : null
       }
     >
+      <div className="nv-filter-row">
+        <Segmented
+          size="small"
+          value={view}
+          onChange={(v) => setView(v as 'cards' | 'table')}
+          options={[
+            { label: 'Cards', value: 'cards' },
+            { label: 'Table', value: 'table' },
+          ]}
+        />
+      </div>
       {loading && rows.length === 0 ? (
         <TableSkeleton />
       ) : loadError ? (
@@ -200,147 +209,150 @@ export function AccessoriesPage() {
             </Row>
           )}
           {view === 'table' && (
-          <DataGrid<Accessory>
-            tableKey="accessories"
-            searchInputId="accessories-grid-search"
-            rowKey="id"
-            dataSource={rows}
-            loading={loading}
-            density={density}
-            onDensityChange={setDensity}
-            fixFirstColumn
-            expandable={{
-              expandedRowKeys: expanded,
-              onExpandedRowsChange: (keys) => setExpanded(keys as number[]),
-              expandedRowRender: (r) => (
-                <Space direction="vertical" size={12} style={{ width: '100%' }}>
-                  {(r.checkouts ?? []).length === 0 ? (
-                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                      No open checkouts
-                    </Typography.Text>
-                  ) : (
-                    <Space wrap size={[8, 4]}>
-                      {(r.checkouts ?? []).map((c) => (
-                        <Space key={c.id} size={4}>
-                          <Typography.Text style={{ fontSize: 12 }}>
-                            {c.quantity}× → {c.employee?.firstName} {c.employee?.lastName} (
-                            {c.employee?.employeeCode})
-                          </Typography.Text>
-                          {canCheckout && (
-                            <Button
-                              size="small"
-                              type="link"
-                              style={{ padding: 0, height: 'auto' }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                void checkin(r.id, c.id);
-                              }}
-                            >
-                              Check in
-                            </Button>
-                          )}
-                        </Space>
-                      ))}
-                    </Space>
-                  )}
-                  <RecordNotes entityType="Accessory" entityId={r.id} canAdd={canManage} />
-                </Space>
-              ),
-            }}
-            columns={[
-              {
-                title: 'ID',
-                gridKey: 'id',
-                dataIndex: 'id',
-                defaultWidth: 72,
-                render: (v: number) => (
-                  <Space size={4}>
-                    {v}
-                    <CopyButton value={String(v)} label="accessory id" />
-                  </Space>
-                ),
-              },
-              {
-                title: 'Item',
-                gridKey: 'item',
-                render: (_, r) => (
-                  <Space size={4}>
-                    <PrimaryWithSub primary={r.name} sub={r.category} />
-                    <CopyButton value={r.name} label="accessory name" />
-                  </Space>
-                ),
-              },
-              {
-                title: 'Total',
-                dataIndex: 'quantityTotal',
-                align: 'right',
-                sorter: (a, b) => a.quantityTotal - b.quantityTotal,
-                render: (v) => <span style={tabularNums}>{v}</span>,
-              },
-              {
-                title: 'Checked out',
-                dataIndex: 'quantityCheckedOut',
-                align: 'right',
-                sorter: (a, b) => a.quantityCheckedOut - b.quantityCheckedOut,
-                render: (v) => <span style={tabularNums}>{v}</span>,
-              },
-              {
-                title: 'Available',
-                dataIndex: 'quantityAvailable',
-                align: 'right',
-                sorter: (a, b) => a.quantityAvailable - b.quantityAvailable,
-                render: (v) => <span style={tabularNums}>{v}</span>,
-              },
-              {
-                title: 'Actions',
-                gridKey: 'actions',
-                exportable: false,
-                render: (_, r) => (
-                  <Space size={4}>
-                    {canCheckout && r.quantityAvailable > 0 && (
-                      <Button
-                        size="small"
-                        icon={<UserAddOutlined />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setCheckoutTarget(r);
-                        }}
-                      >
-                        Check out
-                      </Button>
+            <DataGrid<Accessory>
+              tableKey="accessories"
+              searchInputId="accessories-grid-search"
+              rowKey="id"
+              dataSource={rows}
+              loading={loading}
+              density={density}
+              onDensityChange={setDensity}
+              quickFilter
+              quickFilterPlaceholder="Search accessories"
+              toolbarExtra={<StatusLegend kind="asset" />}
+              fixFirstColumn
+              expandable={{
+                expandedRowKeys: expanded,
+                onExpandedRowsChange: (keys) => setExpanded(keys as number[]),
+                expandedRowRender: (r) => (
+                  <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                    {(r.checkouts ?? []).length === 0 ? (
+                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                        No open checkouts
+                      </Typography.Text>
+                    ) : (
+                      <Space wrap size={[8, 4]}>
+                        {(r.checkouts ?? []).map((c) => (
+                          <Space key={c.id} size={4}>
+                            <Typography.Text style={{ fontSize: 12 }}>
+                              {c.quantity}× → {c.employee?.firstName} {c.employee?.lastName} (
+                              {c.employee?.employeeCode})
+                            </Typography.Text>
+                            {canCheckout && (
+                              <Button
+                                size="small"
+                                type="link"
+                                style={{ padding: 0, height: 'auto' }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void checkin(r.id, c.id);
+                                }}
+                              >
+                                Check in
+                              </Button>
+                            )}
+                          </Space>
+                        ))}
+                      </Space>
                     )}
-                    {canCheckout &&
-                      (r.checkouts ?? []).slice(0, 3).map((c) => (
+                    <RecordNotes entityType="Accessory" entityId={r.id} canAdd={canManage} />
+                  </Space>
+                ),
+              }}
+              columns={[
+                {
+                  title: 'ID',
+                  gridKey: 'id',
+                  dataIndex: 'id',
+                  defaultWidth: 72,
+                  render: (v: number) => (
+                    <Space size={4}>
+                      {v}
+                      <CopyButton value={String(v)} label="accessory id" />
+                    </Space>
+                  ),
+                },
+                {
+                  title: 'Item',
+                  gridKey: 'item',
+                  render: (_, r) => (
+                    <Space size={4}>
+                      <PrimaryWithSub primary={r.name} sub={r.category} />
+                      <CopyButton value={r.name} label="accessory name" />
+                    </Space>
+                  ),
+                },
+                {
+                  title: 'Total',
+                  dataIndex: 'quantityTotal',
+                  align: 'right',
+                  sorter: (a, b) => a.quantityTotal - b.quantityTotal,
+                  render: (v) => <span style={tabularNums}>{v}</span>,
+                },
+                {
+                  title: 'Checked out',
+                  dataIndex: 'quantityCheckedOut',
+                  align: 'right',
+                  sorter: (a, b) => a.quantityCheckedOut - b.quantityCheckedOut,
+                  render: (v) => <span style={tabularNums}>{v}</span>,
+                },
+                {
+                  title: 'Available',
+                  dataIndex: 'quantityAvailable',
+                  align: 'right',
+                  sorter: (a, b) => a.quantityAvailable - b.quantityAvailable,
+                  render: (v) => <span style={tabularNums}>{v}</span>,
+                },
+                {
+                  title: 'Actions',
+                  gridKey: 'actions',
+                  exportable: false,
+                  render: (_, r) => (
+                    <Space size={4}>
+                      {canCheckout && r.quantityAvailable > 0 && (
                         <Button
-                          key={c.id}
                           size="small"
-                          icon={<RollbackOutlined />}
-                          title={`Check in ${c.quantity}× from ${c.employee?.firstName ?? ''} ${c.employee?.lastName ?? ''}`}
+                          icon={<UserAddOutlined />}
                           onClick={(e) => {
                             e.stopPropagation();
-                            void checkin(r.id, c.id);
+                            setCheckoutTarget(r);
                           }}
                         >
-                          Check in · {c.employee?.employeeCode ?? `#${c.id}`}
+                          Check out
                         </Button>
-                      ))}
-                    {canCheckout && (r.checkouts?.length ?? 0) > 3 && (
-                      <Button
-                        size="small"
-                        type="link"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setExpanded((prev) => (prev.includes(r.id) ? prev : [...prev, r.id]));
-                        }}
-                      >
-                        +{(r.checkouts?.length ?? 0) - 3} more
-                      </Button>
-                    )}
-                  </Space>
-                ),
-              },
-            ]}
-          />
+                      )}
+                      {canCheckout &&
+                        (r.checkouts ?? []).slice(0, 3).map((c) => (
+                          <Button
+                            key={c.id}
+                            size="small"
+                            icon={<RollbackOutlined />}
+                            title={`Check in ${c.quantity}× from ${c.employee?.firstName ?? ''} ${c.employee?.lastName ?? ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void checkin(r.id, c.id);
+                            }}
+                          >
+                            Check in · {c.employee?.employeeCode ?? `#${c.id}`}
+                          </Button>
+                        ))}
+                      {canCheckout && (r.checkouts?.length ?? 0) > 3 && (
+                        <Button
+                          size="small"
+                          type="link"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpanded((prev) => (prev.includes(r.id) ? prev : [...prev, r.id]));
+                          }}
+                        >
+                          +{(r.checkouts?.length ?? 0) - 3} more
+                        </Button>
+                      )}
+                    </Space>
+                  ),
+                },
+              ]}
+            />
           )}
           <TablePagination
             total={total}

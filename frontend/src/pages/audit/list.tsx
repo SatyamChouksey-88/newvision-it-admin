@@ -90,35 +90,40 @@ export function AuditList() {
         </Space>
       }
     >
-      <Input.Search
-        allowClear
-        placeholder="Search summary, entity id or actor…"
-        defaultValue={search}
-        onSearch={(v) =>
-          setFilters([
-            { field: 'q', operator: 'contains', value: v || undefined },
-            ...(actionFilter ? [{ field: 'action', operator: 'eq' as const, value: actionFilter }] : []),
-          ])
-        }
-        style={{ maxWidth: 360, marginBottom: 12 }}
-        aria-label="Search audit log"
-      />
-      <Button
-        size="small"
-        data-testid="filter-manual-overrides"
-        type={actionFilter?.includes('manual_override') ? 'primary' : 'default'}
-        onClick={() =>
-          setFilters(
-            actionFilter?.includes('manual_override')
-              ? [{ field: 'action', operator: 'eq', value: undefined }]
-              : [{ field: 'action', operator: 'eq', value: 'manual_override' }],
-            'replace',
-          )
-        }
-        style={{ marginBottom: 12, marginLeft: 8 }}
-      >
-        Manual overrides
-      </Button>
+      {rows.length === 0 ? (
+        <div className="nv-filter-row">
+          <Input.Search
+            id="audit-grid-search"
+            allowClear
+            placeholder="Search summary, entity id or actor…"
+            defaultValue={search}
+            onSearch={(v) =>
+              setFilters([
+                { field: 'q', operator: 'contains', value: v || undefined },
+                ...(actionFilter
+                  ? [{ field: 'action', operator: 'eq' as const, value: actionFilter }]
+                  : []),
+              ])
+            }
+            aria-label="Search audit log"
+          />
+          <Button
+            size="small"
+            data-testid="filter-manual-overrides"
+            type={actionFilter?.includes('manual_override') ? 'primary' : 'default'}
+            onClick={() =>
+              setFilters(
+                actionFilter?.includes('manual_override')
+                  ? [{ field: 'action', operator: 'eq', value: undefined }]
+                  : [{ field: 'action', operator: 'eq', value: 'manual_override' }],
+                'replace',
+              )
+            }
+          >
+            Manual overrides
+          </Button>
+        </div>
+      ) : null}
       {tableQuery.isLoading ? (
         <TableSkeleton columns={5} />
       ) : tableQuery.isError ? (
@@ -157,6 +162,40 @@ export function AuditList() {
             fixFirstColumn
             serverSide
             onChange={tableProps.onChange}
+            toolbarLead={
+              <>
+                <Input.Search
+                  id="audit-grid-search"
+                  allowClear
+                  placeholder="Search summary, entity id or actor…"
+                  defaultValue={search}
+                  onSearch={(v) =>
+                    setFilters([
+                      { field: 'q', operator: 'contains', value: v || undefined },
+                      ...(actionFilter
+                        ? [{ field: 'action', operator: 'eq' as const, value: actionFilter }]
+                        : []),
+                    ])
+                  }
+                  aria-label="Search audit log"
+                />
+                <Button
+                  size="small"
+                  data-testid="filter-manual-overrides"
+                  type={actionFilter?.includes('manual_override') ? 'primary' : 'default'}
+                  onClick={() =>
+                    setFilters(
+                      actionFilter?.includes('manual_override')
+                        ? [{ field: 'action', operator: 'eq', value: undefined }]
+                        : [{ field: 'action', operator: 'eq', value: 'manual_override' }],
+                      'replace',
+                    )
+                  }
+                >
+                  Manual overrides
+                </Button>
+              </>
+            }
             expandable={{
               expandedRowKeys: expanded,
               onExpandedRowsChange: (keys) => setExpanded(keys as number[]),

@@ -55,6 +55,8 @@ export function LocationList() {
             loading={tableQuery.isFetching}
             density={density}
             onDensityChange={setDensity}
+            quickFilter
+            quickFilterPlaceholder="Search locations"
             fixFirstColumn
             serverSide
             onChange={tableProps.onChange}

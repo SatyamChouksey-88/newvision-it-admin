@@ -120,20 +120,7 @@ export function ConsumablesPage() {
 
   return (
     <Card
-      title={
-        <Space size="middle" wrap>
-          <Typography.Text strong>Consumables</Typography.Text>
-          <Checkbox
-            checked={lowOnly}
-            onChange={(e) => {
-              setLowOnly(e.target.checked);
-              setPage(1);
-            }}
-          >
-            Low stock only
-          </Checkbox>
-        </Space>
-      }
+      title={<Typography.Text strong>Consumables</Typography.Text>}
       extra={
         canManage ? (
           <Button
@@ -147,6 +134,19 @@ export function ConsumablesPage() {
         ) : null
       }
     >
+      {rows.length === 0 ? (
+        <div className="nv-filter-row">
+          <Checkbox
+            checked={lowOnly}
+            onChange={(e) => {
+              setLowOnly(e.target.checked);
+              setPage(1);
+            }}
+          >
+            Low stock only
+          </Checkbox>
+        </div>
+      ) : null}
       {loading && rows.length === 0 ? (
         <TableSkeleton />
       ) : loadError ? (
@@ -175,6 +175,19 @@ export function ConsumablesPage() {
             loading={loading}
             density={density}
             onDensityChange={setDensity}
+            quickFilter
+            quickFilterPlaceholder="Search consumables"
+            toolbarLead={
+              <Checkbox
+                checked={lowOnly}
+                onChange={(e) => {
+                  setLowOnly(e.target.checked);
+                  setPage(1);
+                }}
+              >
+                Low stock only
+              </Checkbox>
+            }
             fixFirstColumn
             expandable={{
               expandedRowKeys: expanded,
@@ -185,7 +198,9 @@ export function ConsumablesPage() {
                     Recent issues:{' '}
                     {(r.issues ?? [])
                       .slice(0, 5)
-                      .map((i) => `${i.quantity}× → ${i.employee?.firstName} ${i.employee?.lastName}`)
+                      .map(
+                        (i) => `${i.quantity}× → ${i.employee?.firstName} ${i.employee?.lastName}`,
+                      )
                       .join(' · ') || 'None yet'}
                   </Typography.Text>
                   <RecordNotes entityType="Consumable" entityId={r.id} canAdd={canManage} />

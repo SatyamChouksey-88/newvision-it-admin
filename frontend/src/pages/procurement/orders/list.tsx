@@ -43,7 +43,7 @@ export function PurchaseOrderList() {
 
   return (
     <Card title="Purchase orders">
-      <div className="nv-list-search-row">
+      <div className="nv-filter-row">
         <Input.Search
           allowClear
           placeholder="Search POs…"

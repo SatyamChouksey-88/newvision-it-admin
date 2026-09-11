@@ -2,8 +2,8 @@ import { PlusOutlined, ToolOutlined } from '@ant-design/icons';
 import { useTable } from '@refinedev/antd';
 import { useGetIdentity } from '@refinedev/core';
 import {
-  App as AntdApp,
   Alert,
+  App as AntdApp,
   Button,
   Card,
   DatePicker,
@@ -22,11 +22,8 @@ import { CopyButton } from '../components/CopyButton';
 import { DataGrid, type TableDensity } from '../components/DataGrid/DataGrid';
 import { EmployeeSelect } from '../components/EmployeeSelect';
 import { EmptyState } from '../components/EmptyState';
+import { MaintenanceStatusSelect, MaintenanceStatusTag } from '../components/MaintenanceStatusTag';
 import { ManualEditButton } from '../components/ManualEdit';
-import {
-  MaintenanceStatusSelect,
-  MaintenanceStatusTag,
-} from '../components/MaintenanceStatusTag';
 import { RecordNotes } from '../components/RecordNotes';
 import { StatusLegend } from '../components/StatusLegend';
 import { TablePagination } from '../components/TablePagination';
@@ -123,71 +120,66 @@ export function MaintenancePage() {
 
   return (
     <Card
-      title={
-        <Space size="middle" wrap>
-          <Typography.Text strong>Maintenance &amp; Repairs</Typography.Text>
-          <StatusLegend kind="maintenance" />
-          {canView && (
-            <>
-              <Input.Search
-                allowClear
-                placeholder="Search issue, vendor, ticket #…"
-                aria-label="Search tickets"
-                style={{ width: 260 }}
-                key={qFilter}
-                defaultValue={qFilter}
-                onSearch={(v) =>
-                  setFilters(
-                    [{ field: 'q', operator: 'contains', value: v.trim() || undefined }],
-                    'merge',
-                  )
-                }
-              />
-              <div className="nv-status-chips" role="tablist" aria-label="Ticket status">
-                {(
-                  [
-                    ['all', 'All'],
-                    ['reported', 'Reported'],
-                    ['under_repair', 'Under repair'],
-                    ['repaired', 'Repaired'],
-                    ['reassigned', 'Reassigned'],
-                  ] as const
-                ).map(([key, label]) => {
-                  const active = key === 'all' ? !statusFilter : statusFilter === key;
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      className={`nv-status-chip${active ? ' is-active' : ''}`}
-                      onClick={() =>
-                        setFilters(
-                          [
-                            {
-                              field: 'status',
-                              operator: 'eq',
-                              value: key === 'all' ? undefined : key,
-                            },
-                          ],
-                          'merge',
-                        )
-                      }
-                    >
-                      {label}
-                      <span className="nv-status-chip-count">{statusCounts[key] ?? '—'}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          )}
-        </Space>
-      }
+      title={<Typography.Text strong>Maintenance &amp; Repairs</Typography.Text>}
       extra={
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setReportOpen(true)}>
           Report Issue
         </Button>
       }
     >
+      {canView ? (
+        <div className="nv-filter-row">
+          <Input.Search
+            id="maintenance-grid-search"
+            allowClear
+            placeholder="Search issue, vendor, ticket #…"
+            aria-label="Search maintenance"
+            key={qFilter}
+            defaultValue={qFilter}
+            onSearch={(v) =>
+              setFilters(
+                [{ field: 'q', operator: 'contains', value: v.trim() || undefined }],
+                'merge',
+              )
+            }
+          />
+          <div className="nv-status-chips" role="tablist" aria-label="Maintenance status">
+            {(
+              [
+                ['all', 'All'],
+                ['reported', 'Reported'],
+                ['under_repair', 'Under repair'],
+                ['repaired', 'Repaired'],
+                ['reassigned', 'Reassigned'],
+              ] as const
+            ).map(([key, label]) => {
+              const active = key === 'all' ? !statusFilter : statusFilter === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  className={`nv-status-chip${active ? ' is-active' : ''}`}
+                  onClick={() =>
+                    setFilters(
+                      [
+                        {
+                          field: 'status',
+                          operator: 'eq',
+                          value: key === 'all' ? undefined : key,
+                        },
+                      ],
+                      'merge',
+                    )
+                  }
+                >
+                  {label}
+                  <span className="nv-status-chip-count">{statusCounts[key] ?? '—'}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
       {staleDaysFilter > 0 ? (
         <Alert
           type="info"
@@ -245,14 +237,15 @@ export function MaintenancePage() {
               serverSide
               onChange={tableProps.onChange}
               scroll={{ x: 1000 }}
+              toolbarExtra={<StatusLegend kind="maintenance" />}
               expandable={{
                 expandedRowKeys: expanded,
                 onExpandedRowsChange: (keys) => setExpanded(keys as number[]),
                 expandedRowRender: (r) => (
                   <Space direction="vertical" size={12} style={{ width: '100%' }}>
                     <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                      Notes: {r.notes ?? '—'} · Completed: {formatDate(r.completedAt)} · Reported by:{' '}
-                      {r.reportedBy?.fullName ?? '—'}
+                      Notes: {r.notes ?? '—'} · Completed: {formatDate(r.completedAt)} · Reported
+                      by: {r.reportedBy?.fullName ?? '—'}
                     </Typography.Text>
                     {canManual ? (
                       <ManualEditButton
@@ -352,7 +345,6 @@ export function MaintenancePage() {
                   title: 'Actions',
                   gridKey: 'actions',
                   exportable: false,
-                  fixed: 'right',
                   defaultWidth: 230,
                   render: (_, r) => (
                     <Space size={4}>

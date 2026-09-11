@@ -3,6 +3,7 @@ import { useGetIdentity } from '@refinedev/core';
 import { Button, Card, Form, Input, Modal, Select, Space, Tag, Typography } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { PrimaryWithSub } from '../../components/Cells';
+import { ChipSelect } from '../../components/ChipSelect';
 import { CopyButton } from '../../components/CopyButton';
 import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid';
 import { EmptyState } from '../../components/EmptyState';
@@ -32,7 +33,10 @@ export function RequestsPage() {
   const [form] = Form.useForm();
   const [editForm] = Form.useForm();
   const [historyById, setHistoryById] = useState<
-    Record<number, { id: number; createdAt: string; summary: string; changedBy?: { fullName: string } }[]>
+    Record<
+      number,
+      { id: number; createdAt: string; summary: string; changedBy?: { fullName: string } }[]
+    >
   >({});
   const [density, setDensity] = useState<TableDensity>('Compact');
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
@@ -197,6 +201,40 @@ export function RequestsPage() {
         ) : null
       }
     >
+      <div className="nv-filter-row">
+        <ChipSelect
+          label="Status"
+          tone="status"
+          allowClear
+          aria-label="Filter by request status"
+          placeholder="All"
+          options={['pending', 'approved', 'rejected', 'fulfilled'].map((s) => ({
+            label: s[0].toUpperCase() + s.slice(1),
+            value: s,
+          }))}
+          value={statusFilter[0]}
+          onChange={(v) => {
+            setStatusFilter(v ? [v] : []);
+            setPage(1);
+          }}
+        />
+        <ChipSelect
+          label="Type"
+          tone="category"
+          allowClear
+          aria-label="Filter by request type"
+          placeholder="All"
+          options={[
+            { label: 'Asset', value: 'asset' },
+            { label: 'Accessory', value: 'accessory' },
+          ]}
+          value={kindFilter}
+          onChange={(v) => {
+            setKindFilter(v);
+            setPage(1);
+          }}
+        />
+      </div>
       {loading && rows.length === 0 ? (
         <TableSkeleton columns={5} />
       ) : loadError ? (
@@ -241,6 +279,8 @@ export function RequestsPage() {
             loading={loading}
             density={density}
             onDensityChange={setDensity}
+            quickFilter
+            quickFilterPlaceholder="Search requests"
             fixFirstColumn
             serverSide
             expandable={{
@@ -249,7 +289,8 @@ export function RequestsPage() {
               },
               expandedRowRender: (r) => {
                 const rows = historyById[r.id];
-                if (!rows) return <Typography.Text type="secondary">Loading history…</Typography.Text>;
+                if (!rows)
+                  return <Typography.Text type="secondary">Loading history…</Typography.Text>;
                 if (rows.length === 0) {
                   return <Typography.Text type="secondary">No change history yet</Typography.Text>;
                 }
@@ -523,8 +564,8 @@ export function RequestsPage() {
         confirmLoading={submitting}
       >
         <Typography.Paragraph type="secondary" style={{ fontSize: 12 }}>
-          Fulfilled and rejected requests stay editable. Every save is written to the change
-          history (expand the row to see who changed what).
+          Fulfilled and rejected requests stay editable. Every save is written to the change history
+          (expand the row to see who changed what).
         </Typography.Paragraph>
         <Form form={editForm} layout="vertical" onFinish={saveEdit}>
           <Form.Item name="kind" label="Request type" rules={[{ required: true }]}>

@@ -31,7 +31,7 @@ test.describe('Support tickets', () => {
     await expect(page.getByRole('button', { name: 'Status legend' })).toBeVisible();
     const toolbar = page.locator('.nv-grid-toolbar');
     await expect(toolbar.getByLabel('Search tickets')).toBeVisible();
-    await expect(toolbar.getByRole('button', { name: 'download CSV', exact: true })).toBeVisible();
+    await expect(toolbar.getByRole('button', { name: 'Export tickets' })).toBeVisible();
     await expect(toolbar.getByRole('button', { name: 'Columns' })).toBeVisible();
     await page.getByRole('main').getByRole('link', { name: 'Reports' }).click();
     await expect(page.getByRole('heading', { name: 'Ticket reports' })).toBeVisible();
@@ -79,7 +79,7 @@ test.describe('Support tickets', () => {
 
     await page.goto('/tickets');
     await expect(page.locator('thead .ant-table-selection-column').first().getByRole('checkbox')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'download CSV', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Export tickets' })).toBeVisible();
 
     await page.goto('/settings');
     await expect(page.getByText('Ticket email notifications')).toBeVisible();

@@ -1,7 +1,7 @@
-import { DownloadOutlined, PlusOutlined } from '@ant-design/icons';
+import { DownloadOutlined, DownOutlined, PlusOutlined } from '@ant-design/icons';
 import { useTable } from '@refinedev/antd';
 import { useGetIdentity } from '@refinedev/core';
-import { Button, Card, Form, Input, Modal, Select, Space, Tag, Typography } from 'antd';
+import { Button, Card, Dropdown, Form, Input, Modal, Select, Space, Tag, Typography } from 'antd';
 import { type MouseEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { CopyButton } from '../../components/CopyButton';
@@ -71,8 +71,8 @@ const QUICK_VIEWS = [
   { key: 'mine', label: 'My tickets' },
   { key: 'unassigned', label: 'Unassigned' },
   { key: 'overdue', label: 'Overdue' },
-  { key: 'due_tomorrow', label: 'My due tomorrow' },
-  { key: 'awaiting_reply', label: 'Awaiting my reply' },
+  { key: 'due_tomorrow', label: 'Due tomorrow' },
+  { key: 'awaiting_reply', label: 'Awaiting reply' },
   { key: 'email', label: 'Email-in' },
 ];
 
@@ -243,32 +243,37 @@ export function TicketList() {
             {counts[s.value] != null ? ` (${counts[s.value]})` : ''}
           </Tag.CheckableTag>
         ))}
+        {isStaff ? (
+          <>
+            <span className="nv-filter-divider" aria-hidden />
+            {QUICK_VIEWS.map((v) => (
+              <Button
+                key={v.key || 'all'}
+                size="small"
+                type={String(activeFilters.view ?? '') === v.key ? 'primary' : 'default'}
+                data-testid={`quick-view-${v.key || 'all'}`}
+                onClick={() =>
+                  applyFilterState({
+                    ...activeFilters,
+                    view: v.key || undefined,
+                    status: undefined,
+                  })
+                }
+              >
+                {v.label}
+              </Button>
+            ))}
+            {views.map((sv) => (
+              <Button key={sv.id} size="small" onClick={() => applyFilterState(sv.filters)}>
+                {sv.name}
+              </Button>
+            ))}
+            <Button size="small" onClick={() => setSaveOpen(true)}>
+              Save view
+            </Button>
+          </>
+        ) : null}
       </div>
-      {isStaff ? (
-        <div className="nv-filter-row">
-          {QUICK_VIEWS.map((v) => (
-            <Button
-              key={v.key || 'all'}
-              size="small"
-              type={String(activeFilters.view ?? '') === v.key ? 'primary' : 'default'}
-              data-testid={`quick-view-${v.key || 'all'}`}
-              onClick={() =>
-                applyFilterState({ ...activeFilters, view: v.key || undefined, status: undefined })
-              }
-            >
-              {v.label}
-            </Button>
-          ))}
-          {views.map((sv) => (
-            <Button key={sv.id} size="small" onClick={() => applyFilterState(sv.filters)}>
-              {sv.name}
-            </Button>
-          ))}
-          <Button size="small" onClick={() => setSaveOpen(true)}>
-            Save view
-          </Button>
-        </div>
-      ) : null}
       {tableQuery.isLoading ? (
         <TableSkeleton columns={6} />
       ) : tableQuery.isError ? (
@@ -307,14 +312,14 @@ export function TicketList() {
                 <Input.Search
                   id="ticket-search"
                   allowClear
-                  placeholder="Search subject, description, comments…"
+                  placeholder="Search tickets"
                   aria-label="Search tickets"
                   defaultValue={String(activeFilters.q ?? '')}
                   onSearch={(q) => applyFilterState({ ...activeFilters, q: q || undefined })}
                 />
-                <StatusLegend kind="ticket" />
               </div>
             }
+            hideClientExport={isStaff}
             rowSelection={
               isStaff
                 ? {
@@ -337,24 +342,24 @@ export function TicketList() {
               ) : undefined
             }
             toolbarExtra={
-              isStaff ? (
-                <Space size={8} wrap={false} align="center">
-                  <Button
-                    size="small"
-                    icon={<DownloadOutlined />}
-                    onClick={() => void exportFile('csv')}
+              <>
+                <StatusLegend kind="ticket" />
+                {isStaff ? (
+                  <Dropdown
+                    trigger={['click']}
+                    menu={{
+                      items: [
+                        { key: 'csv', label: 'CSV', onClick: () => void exportFile('csv') },
+                        { key: 'pdf', label: 'PDF', onClick: () => void exportFile('pdf') },
+                      ],
+                    }}
                   >
-                    CSV
-                  </Button>
-                  <Button
-                    size="small"
-                    icon={<DownloadOutlined />}
-                    onClick={() => void exportFile('pdf')}
-                  >
-                    PDF
-                  </Button>
-                </Space>
-              ) : null
+                    <Button size="small" icon={<DownloadOutlined />} aria-label="Export tickets">
+                      Export <DownOutlined />
+                    </Button>
+                  </Dropdown>
+                ) : null}
+              </>
             }
             columns={[
               {
