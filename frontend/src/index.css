@@ -91,14 +91,56 @@ code,
 .nv-sider-brand {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 9px;
+  justify-content: space-between;
+  gap: 8px;
   height: 56px;
   padding: 8px 12px;
   border-bottom: 1px solid #d5dee8;
   text-decoration: none;
   color: inherit;
   background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);
+  flex-shrink: 0;
+}
+
+.nv-sider-brand a {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.nv-sider-toggle {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid #d5dee8;
+  background: #fff;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  line-height: 1;
+}
+
+.nv-sider-toggle:hover,
+.nv-sider-toggle:focus-visible {
+  background: #f1f5f9;
+  outline: none;
+}
+
+.ant-layout-sider-trigger {
+  display: none !important;
+}
+
+.nv-sider-hamburger {
+  position: fixed;
+  top: 56px;
+  left: 0;
+  z-index: 999;
+  border-start-start-radius: 0 !important;
+  border-end-start-radius: 0 !important;
 }
 
 .nv-sider-wordmark {
@@ -111,7 +153,7 @@ code,
 .nv-brand-img {
   height: 36px;
   width: auto;
-  max-width: 184px;
+  max-width: 152px;
   object-fit: contain;
   display: block;
 }
@@ -163,6 +205,17 @@ code,
   font-weight: 600;
 }
 
+.nv-nav-badge--dot {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  width: 7px;
+  height: 7px;
+  margin: 0;
+  padding: 0;
+  background: #1677ff;
+}
+
 .nv-sider-user {
   margin-top: auto;
   padding: 12px 10px;
@@ -175,6 +228,34 @@ code,
   gap: 9px;
   padding: 6px 8px;
   border-radius: 6px;
+}
+
+.nv-sider-user-meta {
+  min-width: 0;
+  opacity: 1;
+  transition: opacity 160ms ease;
+}
+
+.nv-sider--collapsed .nv-sider-user {
+  padding: 12px 0;
+}
+
+.nv-sider--collapsed .nv-sider-user-row {
+  justify-content: center;
+  padding: 6px 0;
+}
+
+.nv-sider--collapsed .nv-sider-user-meta,
+.nv-sider--collapsed .nv-sider-label,
+.nv-sider--collapsed .nv-sider-section {
+  opacity: 0;
+  width: 0;
+  min-width: 0;
+  height: 0;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  pointer-events: none;
 }
 
 .nv-sider-avatar {
@@ -199,7 +280,8 @@ code,
 }
 
 .nv-sider-signout-item {
-  display: block;
+  display: flex;
+  align-items: center;
   width: 100%;
   font-size: 12px;
   color: #475569;
@@ -209,6 +291,12 @@ code,
   border: 0;
   background: transparent;
   text-align: left;
+}
+
+.nv-sider--collapsed .nv-sider-signout-item {
+  justify-content: center;
+  padding: 8px 0 16px;
+  font-size: 15px;
 }
 
 .nv-sider-signout-item:hover,
@@ -225,6 +313,12 @@ code,
   flex-direction: column;
   background: #fff;
   z-index: 20;
+  overflow: hidden;
+  transition:
+    width 200ms ease,
+    min-width 200ms ease,
+    max-width 200ms ease,
+    flex-basis 200ms ease;
 }
 
 .nv-sider--collapsed {
@@ -232,6 +326,23 @@ code,
   max-width: 72px !important;
   min-width: 72px !important;
   width: 72px !important;
+}
+
+.nv-sider--drawer {
+  height: 100%;
+  position: relative;
+  border-right: none !important;
+}
+
+.nv-sider--collapsed .nv-sider-brand {
+  justify-content: center;
+  padding: 8px 8px;
+  gap: 4px;
+}
+
+.nv-sider--collapsed .nv-brand-img--collapsed {
+  height: 24px;
+  width: 24px;
 }
 
 .nv-sider-nav {
@@ -255,6 +366,18 @@ code,
   color: #334155;
   text-decoration: none;
   border-left: 3px solid transparent;
+  position: relative;
+  min-width: 0;
+}
+
+.nv-sider-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 1;
+  transition: opacity 160ms ease;
 }
 
 .nv-sider-link:hover {

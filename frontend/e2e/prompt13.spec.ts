@@ -62,15 +62,47 @@ test.describe('Prompt 13 — first-run onboarding', () => {
   });
 });
 
+test.describe('Prompt 13 — desktop sidebar toggle', () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test('ChatGPT-style toggle collapses, expands, and restores after refresh', async ({ page }) => {
+    await login(page);
+    await page.evaluate(() => localStorage.removeItem('nv.siderCollapsed'));
+    await page.reload();
+    const sider = page.getByTestId('app-sider');
+    const toggle = page.getByTestId('sider-toggle');
+    await expect(sider).not.toHaveClass(/nv-sider--collapsed/);
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await toggle.click();
+    await expect(sider).toHaveClass(/nv-sider--collapsed/);
+    await expect(page.getByTestId('logout-button')).toHaveAttribute('aria-label', 'Sign out');
+    await expect(page.getByText('Out', { exact: true })).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByTestId('app-sider')).toHaveClass(/nv-sider--collapsed/);
+    await page.getByTestId('sider-toggle').click();
+    await expect(page.getByTestId('app-sider')).not.toHaveClass(/nv-sider--collapsed/);
+  });
+});
+
 test.describe('Prompt 13 — large tablet', () => {
   test.use({ viewport: { width: 1000, height: 800 } });
 
   test('sider collapses to icons between 992px and 1023px', async ({ page }) => {
     await login(page);
-    await expect(page.locator('.ant-layout-sider-collapsed').first()).toBeVisible();
+    const sider = page.getByTestId('app-sider');
+    await expect(sider).toHaveClass(/nv-sider--collapsed/);
+    const toggle = page.getByTestId('sider-toggle');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await toggle.click();
+    await expect(sider).not.toHaveClass(/nv-sider--collapsed/);
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await toggle.click();
+    await expect(sider).toHaveClass(/nv-sider--collapsed/);
     await page.goto('/assets');
     await expect(page.locator('table').first()).toBeVisible();
+    await expect(page.getByTestId('sider-toggle')).toBeVisible();
   });
+
 });
 
 test.describe('Prompt 13 — tablet drawer', () => {

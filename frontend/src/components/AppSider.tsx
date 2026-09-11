@@ -1,6 +1,7 @@
 import {
   AuditOutlined,
   BankOutlined,
+  BarsOutlined,
   CustomerServiceOutlined,
   DashboardOutlined,
   DesktopOutlined,
@@ -9,6 +10,7 @@ import {
   FileTextOutlined,
   GoldOutlined,
   HomeOutlined,
+  LogoutOutlined,
   QuestionCircleOutlined,
   SettingOutlined,
   ShoppingCartOutlined,
@@ -18,12 +20,13 @@ import {
 } from '@ant-design/icons';
 import { useThemedLayoutContext } from '@refinedev/antd';
 import { useGetIdentity, useLogout } from '@refinedev/core';
-import { Avatar, Tooltip } from 'antd';
+import { Avatar, Button, Drawer, Grid, Tooltip } from 'antd';
 import { type ReactNode, useEffect, useState } from 'react';
 import { NavLink } from 'react-router';
 import { navForRole, ROLE_CHIP } from '../access';
 import type { Identity } from '../providers/authProvider';
 import { httpClient } from '../providers/axios';
+import { writeSiderPref } from './siderPref';
 import { Title } from './Title';
 
 const NAV_ICONS: Record<string, ReactNode> = {
@@ -58,10 +61,9 @@ function initials(name?: string) {
     .join('');
 }
 
-export function AppSider() {
+function SiderBody({ collapsed }: { collapsed: boolean }) {
   const { data: identity } = useGetIdentity<Identity>();
   const { mutate: logout } = useLogout();
-  const { siderCollapsed } = useThemedLayoutContext();
   const [counts, setCounts] = useState<Record<string, number | undefined>>({});
   const items = navForRole(identity?.role);
   const procKeys = new Set(['vendors', 'requisitions', 'orders', 'contracts']);
@@ -130,76 +132,49 @@ export function AppSider() {
     };
   }, [identity?.role]);
 
-  return (
-    <aside
-      className={`nv-sider${siderCollapsed ? ' nv-sider--collapsed' : ''}`}
-      data-testid="app-sider"
-      aria-label="Primary"
-    >
-      <Title collapsed={siderCollapsed} />
-      <nav className="nv-sider-nav">
-        {!siderCollapsed && (
-          <span className="nv-sider-section" data-testid="sider-manage-label">
-            {identity?.role === 'EMPLOYEE'
-              ? 'MY IT'
-              : identity?.role === 'MANAGER'
-                ? 'TEAM'
-                : 'MANAGE'}
+  const renderLink = (item: (typeof items)[number]) => {
+    const count = item.badgeKey ? counts[item.badgeKey] : undefined;
+    return (
+      <Tooltip key={item.key} title={collapsed ? item.label : item.hint} placement="right">
+        <NavLink
+          to={item.href}
+          end={item.href === '/'}
+          className={({ isActive }) => `nv-sider-link${isActive ? ' is-active' : ''}`}
+        >
+          <span className="nv-sider-icon" aria-hidden>
+            {NAV_ICONS[item.key] ?? <DashboardOutlined />}
           </span>
-        )}
-        {manageItems.map((item) => (
-          <Tooltip key={item.key} title={siderCollapsed ? item.label : item.hint} placement="right">
-            <NavLink
-              to={item.href}
-              end={item.href === '/'}
-              className={({ isActive }) => `nv-sider-link${isActive ? ' is-active' : ''}`}
-            >
-              <span className="nv-sider-icon" aria-hidden>
-                {NAV_ICONS[item.key] ?? <DashboardOutlined />}
-              </span>
-              {!siderCollapsed ? (
-                <span
-                  style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}
-                >
-                  {item.label}
-                </span>
-              ) : null}
-              {!siderCollapsed && item.badgeKey && counts[item.badgeKey] != null ? (
-                <span className="nv-nav-badge">{counts[item.badgeKey]}</span>
-              ) : null}
-            </NavLink>
-          </Tooltip>
-        ))}
+          <span className="nv-sider-label">{item.label}</span>
+          {count != null ? (
+            collapsed ? (
+              <span className="nv-nav-badge nv-nav-badge--dot" aria-label={`${count}`} />
+            ) : (
+              <span className="nv-nav-badge">{count}</span>
+            )
+          ) : null}
+        </NavLink>
+      </Tooltip>
+    );
+  };
+
+  return (
+    <>
+      <Title collapsed={collapsed} />
+      <nav className="nv-sider-nav">
+        <span className="nv-sider-section" data-testid="sider-manage-label">
+          {identity?.role === 'EMPLOYEE'
+            ? 'MY IT'
+            : identity?.role === 'MANAGER'
+              ? 'TEAM'
+              : 'MANAGE'}
+        </span>
+        {manageItems.map(renderLink)}
         {procItems.length > 0 ? (
           <>
-            {!siderCollapsed && (
-              <span className="nv-sider-section" data-testid="sider-procurement-label">
-                PROCUREMENT
-              </span>
-            )}
-            {procItems.map((item) => (
-              <Tooltip
-                key={item.key}
-                title={siderCollapsed ? item.label : item.hint}
-                placement="right"
-              >
-                <NavLink
-                  to={item.href}
-                  className={({ isActive }) => `nv-sider-link${isActive ? ' is-active' : ''}`}
-                >
-                  <span className="nv-sider-icon" aria-hidden>
-                    {NAV_ICONS[item.key] ?? <DashboardOutlined />}
-                  </span>
-                  {!siderCollapsed ? (
-                    <span
-                      style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}
-                    >
-                      {item.label}
-                    </span>
-                  ) : null}
-                </NavLink>
-              </Tooltip>
-            ))}
+            <span className="nv-sider-section" data-testid="sider-procurement-label">
+              PROCUREMENT
+            </span>
+            {procItems.map(renderLink)}
           </>
         ) : null}
       </nav>
@@ -208,28 +183,98 @@ export function AppSider() {
           <Avatar size={26} className="nv-sider-avatar">
             {initials(identity?.fullName)}
           </Avatar>
-          {!siderCollapsed && (
-            <div className="nv-sider-user-meta" style={{ minWidth: 0 }}>
-              <div className="nv-sider-user-name">{identity?.fullName}</div>
-              <span
-                className="nv-role-chip"
-                style={{ color: chip.color, background: chip.bg }}
-                data-testid="role-chip"
-              >
-                {chip.label}
-              </span>
-            </div>
-          )}
+          <div className="nv-sider-user-meta">
+            <div className="nv-sider-user-name">{identity?.fullName}</div>
+            <span
+              className="nv-role-chip"
+              style={{ color: chip.color, background: chip.bg }}
+              data-testid="role-chip"
+            >
+              {chip.label}
+            </span>
+          </div>
         </div>
       </div>
-      <button
-        type="button"
-        data-testid="logout-button"
-        className="nv-sider-signout-item"
-        onClick={() => logout()}
-      >
-        {siderCollapsed ? 'Out' : 'Sign out'}
-      </button>
+      <Tooltip title={collapsed ? 'Sign out' : undefined} placement="right">
+        <button
+          type="button"
+          data-testid="logout-button"
+          className="nv-sider-signout-item"
+          aria-label="Sign out"
+          onClick={() => logout()}
+        >
+          {collapsed ? <LogoutOutlined /> : 'Sign out'}
+        </button>
+      </Tooltip>
+    </>
+  );
+}
+
+export function AppSider() {
+  const { siderCollapsed, setSiderCollapsed, mobileSiderOpen, setMobileSiderOpen } =
+    useThemedLayoutContext();
+  const breakpoint = Grid.useBreakpoint();
+  const isMobile = typeof breakpoint.lg === 'undefined' ? false : !breakpoint.lg;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      if (e.key !== '[' && e.code !== 'BracketLeft') return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable)
+        return;
+      e.preventDefault();
+      if (isMobile) {
+        setMobileSiderOpen(!mobileSiderOpen);
+        return;
+      }
+      const next = !siderCollapsed;
+      writeSiderPref(next);
+      setSiderCollapsed(next);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [
+    isMobile,
+    mobileSiderOpen,
+    setMobileSiderOpen,
+    setSiderCollapsed,
+    siderCollapsed,
+  ]);
+
+  if (isMobile) {
+    return (
+      <>
+        <Drawer
+          open={mobileSiderOpen}
+          onClose={() => setMobileSiderOpen(false)}
+          placement="left"
+          width={216}
+          closable={false}
+          styles={{ body: { padding: 0, height: '100%' } }}
+        >
+          <aside className="nv-sider nv-sider--drawer" data-testid="app-sider" aria-label="Primary">
+            <SiderBody collapsed={false} />
+          </aside>
+        </Drawer>
+        <Button
+          className="nv-sider-hamburger"
+          size="large"
+          icon={<BarsOutlined />}
+          aria-label="Open navigation"
+          onClick={() => setMobileSiderOpen(true)}
+        />
+      </>
+    );
+  }
+
+  return (
+    <aside
+      className={`nv-sider${siderCollapsed ? ' nv-sider--collapsed ant-layout-sider-collapsed' : ''}`}
+      data-testid="app-sider"
+      aria-label="Primary"
+    >
+      <SiderBody collapsed={siderCollapsed} />
     </aside>
   );
 }

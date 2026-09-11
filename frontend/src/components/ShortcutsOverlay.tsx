@@ -6,6 +6,7 @@ const ROWS: { keys: string; when: string }[] = [
   { keys: 'J / K', when: 'Next / previous ticket row' },
   { keys: 'Enter', when: 'Open the focused ticket' },
   { keys: 'I', when: 'Assign the focused ticket to me' },
+  { keys: 'Ctrl+[', when: 'Collapse or open the sidebar' },
   { keys: 'Ctrl+/', when: 'This shortcuts overlay' },
   { keys: 'Help button', when: 'Documentation' },
 ];

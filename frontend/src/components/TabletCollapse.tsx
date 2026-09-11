@@ -1,26 +1,40 @@
 import { useThemedLayoutContext } from '@refinedev/antd';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { readSiderPref } from './siderPref';
 
-const TABLET_MQ = '(max-width: 1023px)';
+const DESKTOP_MQ = '(min-width: 1024px)';
 
 /**
- * Floor-audit / tablet:
- * - Below Ant Design `lg` (992px) Refine already swaps the sider for a hamburger drawer.
- * - From 992–1023px the full sider still renders; collapse it to icons so content has room.
- * Does not auto-expand on desktop (respects a user who collapsed it themselves).
+ * Viewport policy (do not persist auto-collapse — that would wipe a desktop expand):
+ * - Desktop ≥1024: restore `nv.siderCollapsed`.
+ * - Crossing down through 1024, or first paint below 1024: collapse to the icon rail.
+ * - A user who expands on a 992–1023 tablet keeps that until they collapse or leave the band.
  */
 export function TabletCollapse() {
   const { setSiderCollapsed } = useThemedLayoutContext();
+  const setRef = useRef(setSiderCollapsed);
+  setRef.current = setSiderCollapsed;
 
   useEffect(() => {
-    const mq = window.matchMedia(TABLET_MQ);
-    const apply = () => {
-      if (mq.matches) setSiderCollapsed(true);
+    const desktop = window.matchMedia(DESKTOP_MQ);
+
+    const apply = (reason: 'init' | 'enter-desktop' | 'leave-desktop') => {
+      if (reason === 'enter-desktop' || (reason === 'init' && desktop.matches)) {
+        setRef.current(readSiderPref() === true);
+        return;
+      }
+      if (reason === 'leave-desktop' || (reason === 'init' && !desktop.matches)) {
+        setRef.current(true);
+      }
     };
-    apply();
-    mq.addEventListener('change', apply);
-    return () => mq.removeEventListener('change', apply);
-  }, [setSiderCollapsed]);
+
+    apply('init');
+    const onChange = (e: MediaQueryListEvent) => {
+      apply(e.matches ? 'enter-desktop' : 'leave-desktop');
+    };
+    desktop.addEventListener('change', onChange);
+    return () => desktop.removeEventListener('change', onChange);
+  }, []);
 
   return null;
 }
