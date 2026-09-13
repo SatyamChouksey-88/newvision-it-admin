@@ -13,7 +13,12 @@ import { ApiTags } from '@nestjs/swagger';
 import { RoleName } from '@prisma/client';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
-import { CreateEmployeeDto, OffboardEmployeeDto, UpdateEmployeeDto } from './dto';
+import {
+  CreateEmployeeDto,
+  OffboardEmployeeDto,
+  UpdateEmployeeDto,
+  UpdateOwnProfileDto,
+} from './dto';
 import { EmployeeListQuery, EmployeesService } from './employees.service';
 
 @ApiTags('employees')
@@ -24,6 +29,16 @@ export class EmployeesController {
   @Get()
   list(@Query() query: EmployeeListQuery, @CurrentUser() user: AuthUser) {
     return this.employees.list(query, user);
+  }
+
+  @Get('me')
+  me(@CurrentUser() user: AuthUser) {
+    return this.employees.ownProfile(user);
+  }
+
+  @Put('me')
+  updateMe(@Body() dto: UpdateOwnProfileDto, @CurrentUser() user: AuthUser) {
+    return this.employees.updateOwnProfile(dto, user);
   }
 
   @Get(':id')

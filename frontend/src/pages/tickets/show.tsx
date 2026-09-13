@@ -9,6 +9,7 @@ import {
   Input,
   InputNumber,
   Mentions,
+  Modal,
   Rate,
   Select,
   Space,
@@ -62,6 +63,9 @@ export function TicketShow() {
   const [timeForm] = Form.useForm();
   const [dupForm] = Form.useForm();
   const [rateForm] = Form.useForm();
+  const [editForm] = Form.useForm();
+  const [editOpen, setEditOpen] = useState(false);
+  const [editBusy, setEditBusy] = useState(false);
   const [viewers, setViewers] = useState<{ userId: number; name: string }[]>([]);
 
   const reload = () => void query.refetch();
@@ -285,6 +289,17 @@ export function TicketShow() {
                 ]}
                 onSaved={reload}
               />
+            ) : null}
+            {isRequester && !canManual && ticket ? (
+              <Button
+                data-testid="edit-own-ticket"
+                onClick={() => {
+                  editForm.setFieldsValue({ subject: ticket.subject, description: ticket.description });
+                  setEditOpen(true);
+                }}
+              >
+                Fix subject / description
+              </Button>
             ) : null}
           </Space>
         }
@@ -710,7 +725,46 @@ export function TicketShow() {
         <EventTimeline events={timeline} />
       </Card>
 
-      <RecordNotes entityType="SupportTicket" entityId={ticket?.id} canAdd={Boolean(isStaff)} />
+      <RecordNotes
+        entityType="SupportTicket"
+        entityId={ticket?.id}
+        canAdd={Boolean(isStaff || isRequester)}
+      />
+
+      <Modal
+        title="Fix subject / description"
+        open={editOpen}
+        confirmLoading={editBusy}
+        okText="Save"
+        onCancel={() => setEditOpen(false)}
+        onOk={async () => {
+          if (!ticket) return;
+          const v = await editForm.validateFields();
+          setEditBusy(true);
+          try {
+            await httpClient.patch(`/support-tickets/${ticket.id}`, {
+              subject: v.subject,
+              description: v.description,
+            });
+            toast.success('Ticket updated');
+            setEditOpen(false);
+            reload();
+          } catch (e) {
+            toast.error(apiErrorMessage(e, 'Could not update ticket'));
+          } finally {
+            setEditBusy(false);
+          }
+        }}
+      >
+        <Form form={editForm} layout="vertical">
+          <Form.Item name="subject" label="Subject" rules={[{ required: true, min: 3 }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="description" label="Description" rules={[{ required: true, min: 3 }]}>
+            <Input.TextArea rows={5} />
+          </Form.Item>
+        </Form>
+      </Modal>
     </Space>
   );
 }

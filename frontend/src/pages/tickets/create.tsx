@@ -25,6 +25,7 @@ export function TicketCreate() {
   const [ready, setReady] = useState(false);
   const { data: identity } = useGetIdentity<Identity>();
   const isEmployee = identity?.role === 'EMPLOYEE';
+  const [ownAssets, setOwnAssets] = useState<{ id: number; assetCode: string }[]>([]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: form/params are intentionally excluded — this must run exactly once on mount to load categories/templates and prefill from localStorage
   useEffect(() => {
@@ -48,6 +49,21 @@ export function TicketCreate() {
       }),
     ]).finally(() => setReady(true));
   }, []);
+
+  useEffect(() => {
+    if (identity?.role !== 'EMPLOYEE') {
+      setOwnAssets([]);
+      return;
+    }
+    httpClient
+      .get('/dashboard/my-summary')
+      .then(({ data }) => {
+        const rows = (data?.assets ?? []) as { id: number; assetCode: string }[];
+        setOwnAssets(rows);
+        if (rows.length === 1) form.setFieldsValue({ assetId: rows[0].id });
+      })
+      .catch(() => undefined);
+  }, [form, identity?.role]);
 
   const applyTemplate = (id: number) => {
     const tpl = templates.find((t) => t.id === id);
@@ -159,7 +175,15 @@ export function TicketCreate() {
           <Input.TextArea rows={5} />
         </Form.Item>
         <Form.Item name="assetId" label="Linked asset (optional)">
-          <AssetSelect aria-label="Linked asset" />
+          {isEmployee && ownAssets.length > 0 ? (
+            <Select
+              allowClear
+              aria-label="Linked asset"
+              options={ownAssets.map((a) => ({ label: a.assetCode, value: a.id }))}
+            />
+          ) : (
+            <AssetSelect aria-label="Linked asset" />
+          )}
         </Form.Item>
         {isEmployee ? null : (
           <Form.Item name="watcherEmployeeIds" label="Watchers (optional)">

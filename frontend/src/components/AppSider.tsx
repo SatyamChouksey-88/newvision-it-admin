@@ -70,7 +70,7 @@ function SiderBody({ collapsed }: { collapsed: boolean }) {
   const [counts, setCounts] = useState<Record<string, number | undefined>>({});
   const [accountOpen, setAccountOpen] = useState(false);
   const [signOutOpen, setSignOutOpen] = useState(false);
-  const items = navForRole(identity?.role);
+  const items = navForRole(identity?.role).filter((i) => !i.hidden);
   const procKeys = new Set(['vendors', 'requisitions', 'orders', 'contracts']);
   const manageItems = items.filter((i) => !procKeys.has(i.key));
   const procItems = items.filter((i) => procKeys.has(i.key));

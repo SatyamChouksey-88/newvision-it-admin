@@ -78,6 +78,20 @@ export function RequestsPage() {
       .catch(() => setCategories([]));
   }, []);
 
+  useEffect(() => {
+    if (!createOpen) return;
+    try {
+      const kind = localStorage.getItem('nv.requests.lastKind');
+      const categoryId = Number(localStorage.getItem('nv.requests.lastCategoryId') ?? '');
+      form.setFieldsValue({
+        kind: kind === 'accessory' || kind === 'asset' ? kind : 'asset',
+        categoryId: categoryId || undefined,
+      });
+    } catch {
+      /* ignore */
+    }
+  }, [createOpen, form]);
+
   const submitRequest = async (values: {
     kind: 'asset' | 'accessory';
     categoryId?: number;
@@ -87,6 +101,12 @@ export function RequestsPage() {
     setSubmitting(true);
     try {
       await httpClient.post('/asset-requests', values);
+      try {
+        localStorage.setItem('nv.requests.lastKind', values.kind);
+        if (values.categoryId) localStorage.setItem('nv.requests.lastCategoryId', String(values.categoryId));
+      } catch {
+        /* ignore */
+      }
       toast.success('Request submitted — your manager has been notified');
       setCreateOpen(false);
       form.resetFields();
@@ -444,16 +464,40 @@ export function RequestsPage() {
                       </Button>
                     )}
                     {role === 'MANAGER' && r.status === 'pending' && (
-                      <Button
-                        size="small"
-                        icon={<CheckOutlined />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setReviewTarget(r);
-                        }}
-                      >
-                        Review
-                      </Button>
+                      <>
+                        <Button
+                          size="small"
+                          type="primary"
+                          icon={<CheckOutlined />}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void confirmAction({
+                              title: `Approve request #${r.id}?`,
+                              content: 'Your report will be notified. You can still reject from Review if needed.',
+                              okText: 'Approve',
+                              onOk: async () => {
+                                await httpClient.patch(`/asset-requests/${r.id}/review`, {
+                                  decision: 'approved',
+                                });
+                                toast.success('Request approved');
+                                void load();
+                              },
+                            });
+                          }}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          size="small"
+                          icon={<CloseOutlined />}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setReviewTarget(r);
+                          }}
+                        >
+                          Review
+                        </Button>
+                      </>
                     )}
                     {['SUPER_ADMIN', 'IT_ADMIN'].includes(role) && r.status === 'approved' && (
                       <Button

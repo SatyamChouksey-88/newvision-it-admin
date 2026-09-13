@@ -24,6 +24,12 @@ export class CreateEmployeeDto {
 
 export class UpdateEmployeeDto extends PartialType(CreateEmployeeDto) {}
 
+/** Safe self-service fields — phone / job title only. Org fields stay IT-admin. */
+export class UpdateOwnProfileDto {
+  @IsOptional() @IsString() phone?: string;
+  @IsOptional() @IsString() designation?: string;
+}
+
 export class OffboardEmployeeDto {
   @IsOptional()
   @IsString()

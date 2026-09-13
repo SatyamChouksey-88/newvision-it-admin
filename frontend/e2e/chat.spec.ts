@@ -43,11 +43,10 @@ test.describe('Team chat', () => {
     await page.getByRole('button', { name: 'Send' }).click();
     const mine = page.getByTestId('chat-message-list').locator('article.is-mine').filter({ hasText: ping });
     await expect(mine).toBeVisible({ timeout: 15_000 });
+    await expect(mine).toHaveCSS('justify-content', 'flex-end');
     const other = page.getByTestId('chat-message-list').locator('article.is-theirs').first();
     if (await other.count()) {
-      const mineBox = await mine.boundingBox();
-      const otherBox = await other.boundingBox();
-      expect(mineBox && otherBox && mineBox.x > otherBox.x).toBeTruthy();
+      await expect(other).toHaveCSS('justify-content', 'flex-start');
     }
   });
 

@@ -27,13 +27,24 @@ export function CreateEmployeeModal({
       httpClient.get('/departments', { params: { _start: 0, _end: 100 } }),
     ]).then(([loc, dep]) => {
       if (cancelled) return;
-      if (loc.status === 'fulfilled') setLocations(loc.value.data.data ?? []);
+      if (loc.status === 'fulfilled') {
+        const rows = loc.value.data.data ?? [];
+        setLocations(rows);
+        try {
+          const last = Number(localStorage.getItem('nv.employees.lastLocationId') ?? '');
+          if (last && rows.some((l: Location) => l.id === last)) {
+            form.setFieldsValue({ locationId: last });
+          }
+        } catch {
+          /* ignore */
+        }
+      }
       if (dep.status === 'fulfilled') setDepartments(dep.value.data.data ?? []);
     });
     return () => {
       cancelled = true;
     };
-  }, [open]);
+  }, [open, form.setFieldsValue]);
 
   const submit = async () => {
     let v: {
@@ -62,6 +73,11 @@ export function CreateEmployeeModal({
         createLogin: Boolean(v.createLogin),
         loginRole: v.createLogin ? (v.loginRole ?? 'EMPLOYEE') : undefined,
       });
+      try {
+        localStorage.setItem('nv.employees.lastLocationId', String(v.locationId));
+      } catch {
+        /* ignore */
+      }
       message.success('Employee created');
       form.resetFields();
       onDone();

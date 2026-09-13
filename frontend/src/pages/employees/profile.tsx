@@ -51,6 +51,10 @@ export function EmployeeProfile() {
   const toast = useToast();
   const { data: identity } = useGetIdentity<Identity>();
   const canOffboard = ['SUPER_ADMIN', 'IT_ADMIN'].includes(identity?.role ?? '');
+  const isSelf = Boolean(identity?.employeeId && Number(id) === Number(identity.employeeId));
+  const [selfOpen, setSelfOpen] = useState(false);
+  const [selfBusy, setSelfBusy] = useState(false);
+  const [selfForm] = Form.useForm();
   const [density, setDensity] = useState<TableDensity>('Compact');
   const [offboardOpen, setOffboardOpen] = useState(false);
   const [reassignTo, setReassignTo] = useState<number>();
@@ -180,7 +184,7 @@ export function EmployeeProfile() {
         />
       ) : null}
 
-      <RecordNotes entityType="Employee" entityId={emp?.id} canAdd={canOffboard} />
+      <RecordNotes entityType="Employee" entityId={emp?.id} canAdd={canOffboard || isSelf} />
 
       {canOffboard && emp ? (
         <Card size="small" title="Onboarding runbook" data-testid="onboard-runbook">
@@ -432,7 +436,7 @@ export function EmployeeProfile() {
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Card loading={isFetching}>
+      <Card loading={isFetching} data-testid="employee-profile">
         <Row gutter={16} align="middle">
           <Col>
             <Avatar size={56}>
@@ -515,6 +519,56 @@ export function EmployeeProfile() {
             description="Start offboarding in time to recover assets and revoke access."
           />
         )}
+
+      {isSelf && emp ? (
+        <Card size="small" title="Your details">
+          <Typography.Paragraph type="secondary" style={{ marginTop: 0 }}>
+            Fix a typo in your phone or job title here — no ticket needed.
+          </Typography.Paragraph>
+          <Button
+            data-testid="edit-own-profile"
+            onClick={() => {
+              selfForm.setFieldsValue({ phone: emp.phone, designation: emp.designation });
+              setSelfOpen(true);
+            }}
+          >
+            Edit my phone / title
+          </Button>
+          <Modal
+            title="Edit my details"
+            open={selfOpen}
+            confirmLoading={selfBusy}
+            okText="Save"
+            onCancel={() => setSelfOpen(false)}
+            onOk={async () => {
+              const v = await selfForm.validateFields();
+              setSelfBusy(true);
+              try {
+                await httpClient.put('/employees/me', {
+                  phone: v.phone,
+                  designation: v.designation,
+                });
+                toast.success('Profile updated');
+                setSelfOpen(false);
+                void query.refetch();
+              } catch (e) {
+                toast.error(apiErrorMessage(e, 'Could not update profile'));
+              } finally {
+                setSelfBusy(false);
+              }
+            }}
+          >
+            <Form form={selfForm} layout="vertical">
+              <Form.Item name="phone" label="Phone">
+                <Input />
+              </Form.Item>
+              <Form.Item name="designation" label="Job title">
+                <Input />
+              </Form.Item>
+            </Form>
+          </Modal>
+        </Card>
+      ) : null}
 
       <Card size="small">
         <Tabs

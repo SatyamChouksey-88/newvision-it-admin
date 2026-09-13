@@ -521,6 +521,48 @@ describe('Support tickets, CSAT, digest, notes, manual edit (e2e)', () => {
     expect(untouched.body.map((e: { summary: string }) => e.summary)).toContain('Not started');
   });
 
+  it('lets the requester correct subject and description, and blocks other employees', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/api/support-tickets')
+      .set(auth(employee))
+      .send({
+        subject: 'Typo in the subjet',
+        description: 'Original description.',
+        categoryId: softwareId,
+        autoAssign: false,
+      })
+      .expect(201);
+
+    const fixed = await request(app.getHttpServer())
+      .patch(`/api/support-tickets/${created.body.id}`)
+      .set(auth(employee))
+      .send({ subject: 'Typo in the subject', description: 'Corrected description.' })
+      .expect(200);
+    expect(fixed.body.subject).toBe('Typo in the subject');
+    expect(fixed.body.description).toBe('Corrected description.');
+
+    const audit = await prisma.auditLog.findFirst({
+      where: {
+        entityType: 'SupportTicket',
+        entityId: String(created.body.id),
+        summary: { contains: 'Requester corrected' },
+      },
+    });
+    expect(audit).toBeTruthy();
+
+    await request(app.getHttpServer())
+      .patch(`/api/support-tickets/${created.body.id}`)
+      .set(auth(employee))
+      .send({ priority: 'urgent' })
+      .expect(403);
+
+    await request(app.getHttpServer())
+      .patch(`/api/support-tickets/${created.body.id}`)
+      .set(auth(manager))
+      .send({ subject: 'Manager should not edit this' })
+      .expect(403);
+  });
+
   it('assign-to-me claims the ticket for IT Support and IT Admin and starts work from open', async () => {
     const created = await request(app.getHttpServer())
       .post('/api/support-tickets')

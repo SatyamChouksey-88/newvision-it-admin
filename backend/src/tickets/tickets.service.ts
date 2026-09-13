@@ -328,6 +328,72 @@ export class TicketsService {
     return this.get(ticket.id, actor);
   }
 
+  /** Requester typo-fix (subject/description) or staff field correction — not a status transition. */
+  async updateDetails(
+    id: number,
+    dto: {
+      subject?: string;
+      description?: string;
+      categoryId?: number;
+      priority?: TicketPriority;
+      assetId?: number | null;
+      locationId?: number | null;
+      dueDate?: string | null;
+    },
+    actor: AuthUser,
+  ) {
+    const ticket = await this.require(id);
+    const staff = isTicketStaff(actor.role);
+    const requester = actor.employeeId != null && ticket.raisedById === actor.employeeId;
+    if (!staff && !requester) {
+      throw new ForbiddenException('You can only correct your own ticket');
+    }
+    if (!staff) {
+      const extras =
+        dto.categoryId !== undefined ||
+        dto.priority !== undefined ||
+        dto.assetId !== undefined ||
+        dto.locationId !== undefined ||
+        dto.dueDate !== undefined;
+      if (extras) {
+        throw new ForbiddenException('You can only correct the subject and description');
+      }
+    }
+    if (dto.subject !== undefined && dto.subject.trim().length < 3) {
+      throw new BadRequestException('Subject must be at least 3 characters');
+    }
+    const data: Prisma.SupportTicketUpdateInput = {};
+    if (dto.subject !== undefined) data.subject = dto.subject.trim();
+    if (dto.description !== undefined) data.description = dto.description;
+    if (staff) {
+      if (dto.categoryId !== undefined) data.category = { connect: { id: dto.categoryId } };
+      if (dto.priority !== undefined) data.priority = dto.priority;
+      if (dto.assetId === null) data.asset = { disconnect: true };
+      else if (dto.assetId !== undefined) data.asset = { connect: { id: dto.assetId } };
+      if (dto.locationId === null) data.location = { disconnect: true };
+      else if (dto.locationId !== undefined) data.location = { connect: { id: dto.locationId } };
+      if (dto.dueDate === null) data.dueDate = null;
+      else if (dto.dueDate !== undefined) data.dueDate = new Date(dto.dueDate);
+    }
+    if (Object.keys(data).length === 0) {
+      throw new BadRequestException('Nothing to update');
+    }
+    const updated = await this.prisma.supportTicket.update({ where: { id }, data, include: INCLUDE });
+    await this.audit.record({
+      entityType: 'SupportTicket',
+      entityId: id,
+      action: 'update',
+      summary:
+        requester && !staff
+          ? `Requester corrected ${ticket.ticketNumber}`
+          : `Updated ${ticket.ticketNumber}`,
+      changedById: actor.id,
+      oldValue: { subject: ticket.subject, description: ticket.description },
+      newValue: { subject: updated.subject, description: updated.description },
+    });
+    return this.decorateOne(updated);
+  }
+
   async assign(id: number, userId: number | null, actor: AuthUser) {
     this.assertStaff(actor);
     const ticket = await this.require(id);

@@ -95,6 +95,8 @@ export interface NavItem {
   resource: string;
   badgeKey?: 'assets' | 'employees' | 'maintenance' | 'requests' | 'tickets';
   hint?: string;
+  /** Allowed by RoleRouteGuard but not shown in the sidebar. */
+  hidden?: boolean;
 }
 
 /** Role-specific sidebar. Labels change for My IT / Manager so the shell is visibly different. */
@@ -112,6 +114,13 @@ export function navForRole(role?: string): NavItem[] {
         badgeKey: 'tickets',
       },
       { key: 'help', href: '/help', label: 'Help', resource: 'help' },
+      {
+        key: 'profile',
+        href: '/employees/show',
+        label: 'Profile',
+        resource: 'employees',
+        hidden: true,
+      },
     ];
   }
   if (role === 'MANAGER') {
@@ -139,6 +148,13 @@ export function navForRole(role?: string): NavItem[] {
       },
       { key: 'reports', href: '/reports', label: 'Reports', resource: 'reports' },
       { key: 'help', href: '/help', label: 'Help', resource: 'help' },
+      {
+        key: 'profile',
+        href: '/employees/show',
+        label: 'Profile',
+        resource: 'employees',
+        hidden: true,
+      },
     ];
   }
   const it: NavItem[] = [

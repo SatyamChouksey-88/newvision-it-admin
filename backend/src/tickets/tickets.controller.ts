@@ -35,6 +35,7 @@ import {
   TemplateDto,
   TimeLogDto,
   TransitionTicketDto,
+  UpdateTicketDto,
   WatcherDto,
 } from './dto';
 import { reportsToCsv, reportsToPdf, ticketsToCsv, ticketsToPdf } from './tickets.export';
@@ -311,6 +312,15 @@ export class TicketsController {
   @Post('support-tickets/:id/presence')
   presence(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
     return this.tickets.heartbeatPresence(id, user);
+  }
+
+  @Patch('support-tickets/:id')
+  updateDetails(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateTicketDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.tickets.updateDetails(id, dto, user);
   }
 
   @Roles(...STAFF)

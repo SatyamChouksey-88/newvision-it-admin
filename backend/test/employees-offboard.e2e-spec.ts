@@ -153,6 +153,32 @@ describe('Employees — history & offboarding (e2e)', () => {
       .expect(400);
   });
 
+  it('lets an employee correct their own phone and title without an admin', async () => {
+    const token = await login(app, 'employee@newvision.local');
+    const before = await request(server()).get('/api/employees/me').set(auth(token)).expect(200);
+    expect(before.body.id).toBe(ids.employeeA);
+
+    const updated = await request(server())
+      .put('/api/employees/me')
+      .set(auth(token))
+      .send({ phone: '020-555-0100', designation: 'Analyst' })
+      .expect(200);
+    expect(updated.body.phone).toBe('020-555-0100');
+    expect(updated.body.designation).toBe('Analyst');
+
+    const audit = await prisma.auditLog.findFirst({
+      where: { entityType: 'Employee', entityId: String(ids.employeeA), summary: { contains: 'Self-updated' } },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(audit).toBeTruthy();
+
+    await request(server())
+      .put(`/api/employees/${ids.employeeB}`)
+      .set(auth(token))
+      .send({ phone: '000' })
+      .expect(403);
+  });
+
   it('blocks hard delete when employee has inventory history', async () => {
     await request(server())
       .delete(`/api/employees/${ids.employeeA}`)

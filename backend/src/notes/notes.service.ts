@@ -14,6 +14,10 @@ export const NOTE_ENTITY_TYPES = [
   'AssetRequest',
   'SupportTicket',
   'Location',
+  'Vendor',
+  'PurchaseRequisition',
+  'PurchaseOrder',
+  'VendorContract',
 ] as const;
 export type NoteEntityType = (typeof NOTE_ENTITY_TYPES)[number];
 
@@ -26,6 +30,10 @@ const EDITORS: Record<NoteEntityType, RoleName[]> = {
   AssetRequest: [RoleName.SUPER_ADMIN, RoleName.IT_ADMIN, RoleName.MANAGER],
   SupportTicket: [RoleName.SUPER_ADMIN, RoleName.IT_ADMIN, RoleName.IT_SUPPORT],
   Location: [RoleName.SUPER_ADMIN, RoleName.IT_ADMIN],
+  Vendor: [RoleName.SUPER_ADMIN, RoleName.IT_ADMIN],
+  PurchaseRequisition: [RoleName.SUPER_ADMIN, RoleName.IT_ADMIN, RoleName.MANAGER],
+  PurchaseOrder: [RoleName.SUPER_ADMIN, RoleName.IT_ADMIN],
+  VendorContract: [RoleName.SUPER_ADMIN, RoleName.IT_ADMIN],
 };
 
 @Injectable()
@@ -87,8 +95,16 @@ export class NotesService {
     if (EDITORS[type].includes(actor.role)) return true;
     if (type === 'AssetRequest' && actor.role === RoleName.EMPLOYEE) return true;
     if (type === 'SupportTicket' && actor.employeeId) return true;
-    void entityId;
+    if (type === 'Employee' && actor.employeeId === Number(entityId)) return true;
     return false;
+  }
+
+  private async assertCanViewRequisition(id: number, actor: AuthUser) {
+    const row = await this.prisma.purchaseRequisition.findUnique({ where: { id } });
+    if (!row) throw new NotFoundException('Requisition not found');
+    if (actor.role === RoleName.SUPER_ADMIN || actor.role === RoleName.IT_ADMIN) return;
+    if (actor.role === RoleName.MANAGER && row.requesterId === actor.id) return;
+    throw new ForbiddenException('Not allowed to view these notes');
   }
 
   private async assertCanView(type: NoteEntityType, entityId: string, actor: AuthUser) {
@@ -129,6 +145,34 @@ export class NotesService {
       case 'Location': {
         const row = await this.prisma.location.findUnique({ where: { id } });
         if (!row) throw new NotFoundException('Location not found');
+        return;
+      }
+      case 'Vendor': {
+        const row = await this.prisma.vendor.findUnique({ where: { id } });
+        if (!row) throw new NotFoundException('Vendor not found');
+        if (actor.role !== RoleName.SUPER_ADMIN && actor.role !== RoleName.IT_ADMIN) {
+          throw new ForbiddenException('Not allowed to view these notes');
+        }
+        return;
+      }
+      case 'PurchaseRequisition': {
+        await this.assertCanViewRequisition(id, actor);
+        return;
+      }
+      case 'PurchaseOrder': {
+        const row = await this.prisma.purchaseOrder.findUnique({ where: { id } });
+        if (!row) throw new NotFoundException('Purchase order not found');
+        if (actor.role !== RoleName.SUPER_ADMIN && actor.role !== RoleName.IT_ADMIN) {
+          throw new ForbiddenException('Not allowed to view these notes');
+        }
+        return;
+      }
+      case 'VendorContract': {
+        const row = await this.prisma.vendorContract.findUnique({ where: { id } });
+        if (!row) throw new NotFoundException('Contract not found');
+        if (actor.role !== RoleName.SUPER_ADMIN && actor.role !== RoleName.IT_ADMIN) {
+          throw new ForbiddenException('Not allowed to view these notes');
+        }
         return;
       }
       case 'AssetRequest': {

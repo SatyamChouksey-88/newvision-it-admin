@@ -18,8 +18,9 @@ test('employee submits request; manager approves; IT marks fulfilled', async ({ 
   await login(managerPage, DEMO_USERS.manager);
   await managerPage.goto('/requests');
   await managerPage.getByRole('button', { name: 'Review' }).first().click();
-  await expect(managerPage.getByRole('dialog')).toBeVisible();
-  await managerPage.getByRole('button', { name: 'Approve' }).click();
+  const review = managerPage.getByRole('dialog');
+  await expect(review).toBeVisible();
+  await review.getByRole('button', { name: 'Approve' }).click();
   await expect(managerPage.getByText('approved').first()).toBeVisible({ timeout: 10_000 });
   await managerCtx.close();
 

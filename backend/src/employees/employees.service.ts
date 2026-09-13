@@ -619,6 +619,38 @@ export class EmployeesService {
     return this.get(id, actor);
   }
 
+  async ownProfile(actor: AuthUser) {
+    if (!actor.employeeId) {
+      throw new BadRequestException('Your login is not linked to an employee record');
+    }
+    return this.profile(actor.employeeId, actor);
+  }
+
+  async updateOwnProfile(dto: { phone?: string; designation?: string }, actor: AuthUser) {
+    if (!actor.employeeId) {
+      throw new ForbiddenException('Your login is not linked to an employee record');
+    }
+    const before = await this.prisma.employee.findUnique({ where: { id: actor.employeeId } });
+    if (!before) throw new NotFoundException('Employee not found');
+    const employee = await this.prisma.employee.update({
+      where: { id: actor.employeeId },
+      data: {
+        phone: dto.phone !== undefined ? dto.phone.trim() || null : undefined,
+        designation: dto.designation !== undefined ? dto.designation.trim() || null : undefined,
+      },
+    });
+    await this.audit.record({
+      entityType: 'Employee',
+      entityId: actor.employeeId,
+      action: 'update',
+      summary: `Self-updated profile ${employee.employeeCode}`,
+      changedById: actor.id,
+      oldValue: { phone: before.phone, designation: before.designation },
+      newValue: { phone: employee.phone, designation: employee.designation },
+    });
+    return employee;
+  }
+
   async update(id: number, dto: UpdateEmployeeDto, actor: AuthUser) {
     const before = await this.get(id, actor);
     const { createLogin: _c, loginRole: _r, contractEndDate, dateJoined, ...rest } = dto;

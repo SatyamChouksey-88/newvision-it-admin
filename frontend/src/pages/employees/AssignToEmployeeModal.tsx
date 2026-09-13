@@ -25,10 +25,16 @@ export function AssignToEmployeeModal({
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    httpClient
-      .get('/assets', { params: { _start: 0, _end: 80, status: 'available' } })
-      .then(({ data }) => {
-        if (!cancelled) setAssets(data.data ?? []);
+    Promise.all([
+      httpClient.get('/assets', { params: { _start: 0, _end: 80, status: 'available' } }),
+      httpClient.get(`/employees/${employeeId}`).catch(() => ({ data: null })),
+    ])
+      .then(([assetsRes, empRes]) => {
+        if (cancelled) return;
+        const rows: Asset[] = assetsRes.data.data ?? [];
+        const locationId = empRes.data?.locationId as number | undefined;
+        const atSite = locationId ? rows.filter((a) => a.locationId === locationId) : [];
+        setAssets(atSite.length ? atSite : rows);
       })
       .catch(() => {
         if (!cancelled) setAssets([]);
@@ -36,7 +42,7 @@ export function AssignToEmployeeModal({
     return () => {
       cancelled = true;
     };
-  }, [open]);
+  }, [open, employeeId]);
 
   const submit = async () => {
     if (!assetId) {
@@ -67,7 +73,8 @@ export function AssignToEmployeeModal({
       okButtonProps={{ disabled: !assetId }}
     >
       <Typography.Paragraph type="secondary">
-        Only assets currently marked Available are listed. Search by code, brand, or model.
+        Available assets at this employee&apos;s office are listed first. Search by code, brand, or
+        model.
       </Typography.Paragraph>
       <Select
         showSearch

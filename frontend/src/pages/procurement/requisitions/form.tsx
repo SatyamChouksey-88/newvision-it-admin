@@ -13,8 +13,10 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
+import { useGetIdentity } from '@refinedev/core';
 import { useNavigate, useParams } from 'react-router';
 import { useToast } from '../../../components/Toast';
+import type { Identity } from '../../../providers/authProvider';
 import { apiErrorMessage, httpClient } from '../../../providers/axios';
 import { LINE_KINDS, PROC_CATEGORIES, PROC_TYPES } from '../constants';
 
@@ -30,6 +32,7 @@ export function RequisitionForm() {
   const [departments, setDepartments] = useState<{ id: number; name: string }[]>([]);
   const [locations, setLocations] = useState<{ id: number; name: string; code: string }[]>([]);
   const [file, setFile] = useState<File | null>(null);
+  const { data: identity } = useGetIdentity<Identity>();
 
   useEffect(() => {
     Promise.allSettled([
@@ -39,9 +42,15 @@ export function RequisitionForm() {
     ]).then(([v, d, l]) => {
       if (v.status === 'fulfilled') setVendors(v.value.data.data ?? []);
       if (d.status === 'fulfilled') setDepartments(d.value.data.data ?? []);
-      if (l.status === 'fulfilled') setLocations(l.value.data.data ?? []);
+      if (l.status === 'fulfilled') {
+        const rows = l.value.data.data ?? [];
+        setLocations(rows);
+        if (!id && identity?.locationId && rows.some((x: { id: number }) => x.id === identity.locationId)) {
+          form.setFieldsValue({ locationIds: [identity.locationId] });
+        }
+      }
     });
-  }, []);
+  }, [form, id, identity?.locationId]);
 
   useEffect(() => {
     if (!id) {

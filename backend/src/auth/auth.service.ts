@@ -24,7 +24,7 @@ export class AuthService {
   async validateUser(email: string, password: string): Promise<AuthUser> {
     const user = await this.prisma.user.findUnique({
       where: { email: email.toLowerCase() },
-      include: { role: true },
+      include: { role: true, employee: { select: { locationId: true } } },
     });
     if (!user?.isActive) {
       throw new UnauthorizedException('Invalid credentials');
@@ -39,6 +39,7 @@ export class AuthService {
       fullName: user.fullName,
       role: user.role.name,
       employeeId: user.employeeId,
+      locationId: user.employee?.locationId ?? null,
     };
   }
 
@@ -79,7 +80,7 @@ export class AuthService {
     }
     const row = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      include: { role: true },
+      include: { role: true, employee: { select: { locationId: true } } },
     });
     if (!row?.isActive || !row.refreshTokenHash || !row.refreshTokenExpiresAt) {
       throw new UnauthorizedException('Refresh token no longer valid');
@@ -97,6 +98,7 @@ export class AuthService {
       fullName: row.fullName,
       role: row.role.name,
       employeeId: row.employeeId,
+      locationId: row.employee?.locationId ?? null,
     };
     return this.issueTokenPair(user);
   }

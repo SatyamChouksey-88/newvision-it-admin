@@ -16,6 +16,7 @@ export interface Identity {
   fullName: string;
   role: string;
   employeeId: number | null;
+  locationId?: number | null;
   permissions?: string[];
   emailNotifyPref?: 'immediate' | 'daily_digest';
 }

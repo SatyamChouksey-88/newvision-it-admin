@@ -12,9 +12,11 @@ import {
   App as AntdApp,
   Button,
   Card,
+  Col,
   Form,
   Input,
   Modal,
+  Row,
   Select,
   Space,
   Tag,
@@ -318,6 +320,52 @@ export function AssetList() {
     }
     return chips;
   }, [activeFilters, locations, categories, departments]);
+
+  if (identity?.role === 'EMPLOYEE') {
+    return (
+      <Card title={<Typography.Text strong>My devices</Typography.Text>}>
+        {tableQuery.isLoading ? (
+          <TableSkeleton />
+        ) : rows.length === 0 ? (
+          <EmptyState
+            description="No devices assigned to you yet. Raise a request if you need a laptop or accessory."
+            actionLabel="Request a device"
+            onAction={() => navigate('/requests')}
+          />
+        ) : (
+          <Row gutter={[12, 12]}>
+            {rows.map((a) => (
+              <Col xs={24} sm={12} lg={8} key={a.id}>
+                <Link to={`/assets/show/${a.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <Card size="small" hoverable>
+                    <Typography.Text className="nv-mono" style={{ fontSize: 12, color: '#0958d9' }}>
+                      {a.assetCode}
+                    </Typography.Text>
+                    <div style={{ fontSize: 13, fontWeight: 500, marginTop: 4 }}>
+                      {`${a.brand ?? ''} ${a.model ?? ''}`.trim() || a.category?.name || 'Device'}
+                    </div>
+                    <div style={{ marginTop: 8 }}>
+                      <StatusTag status={a.status} />
+                    </div>
+                    {a.location?.name ? (
+                      <Typography.Text type="secondary" style={{ display: 'block', marginTop: 6, fontSize: 12 }}>
+                        {a.location.name}
+                      </Typography.Text>
+                    ) : null}
+                    {a.warrantyEnd ? (
+                      <div style={{ marginTop: 4 }}>
+                        <WarrantyDays warrantyEnd={a.warrantyEnd} />
+                      </div>
+                    ) : null}
+                  </Card>
+                </Link>
+              </Col>
+            ))}
+          </Row>
+        )}
+      </Card>
+    );
+  }
 
   return (
     <Card
