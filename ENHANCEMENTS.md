@@ -273,3 +273,15 @@ allow/deny cases, and IT Support being blocked).
 | P3 | GitHub Action keep-alive ping every 10 minutes | Free API sleep would silently stop cron, IMAP, and WebSockets |
 | P4 | Documented live URLs; real inbox / real IMAP **not** claimed | No Resend or mailbox credentials were available to paste into Render |
 
+## Prompt 28 — audit pass (2026-09-13)
+
+| # | What | Why |
+|---|------|-----|
+| A1–A5 | Notes, search, inventory, reports, and dashboard trends scoped at the API | UI-hidden buttons were not enough — Employees/Managers could still call the endpoints |
+| A6 | Chat uploads require a known extension | `application/octet-stream` was a free pass for html/jar/svg |
+| A7 | 10 MB cap on import/reconciliation interceptors | Service-only checks left some uploads unbounded |
+| A8 | Ticket digest de-duped per staff member per day | A second cron/manual run no longer double-emails |
+| A9 | Procurement lists show a real error + Retry | Failed fetches used to look like an empty catalog |
+| A10 | Ticket reply Send disables while in flight | Double-click posted two comments |
+| A11 | Indexes on `warranty_end`, `next_audit_due_at`, `notifications.type` | Daily jobs and dashboard filters were sequential-scanning those columns |
+

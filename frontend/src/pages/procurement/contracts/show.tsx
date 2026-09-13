@@ -2,6 +2,7 @@ import { useGetIdentity } from '@refinedev/core';
 import { Button, Card, Descriptions, Space, Tag } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
+import { EmptyState } from '../../../components/EmptyState';
 import { EventTimeline, type TimelineEvent } from '../../../components/EventTimeline';
 import { ManualEditButton } from '../../../components/ManualEdit';
 import { RecordNotes } from '../../../components/RecordNotes';
@@ -15,11 +16,19 @@ export function ContractShow() {
   const { data: identity } = useGetIdentity<Identity>();
   const canManage = ['SUPER_ADMIN', 'IT_ADMIN'].includes(identity?.role ?? '');
   const [row, setRow] = useState<Record<string, unknown> | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [history, setHistory] = useState<TimelineEvent[]>([]);
 
   const load = useCallback(() => {
     if (!id) return;
-    httpClient.get(`/vendor-contracts/${id}`).then(({ data }) => setRow(data));
+    setLoading(true);
+    setLoadError(false);
+    httpClient
+      .get(`/vendor-contracts/${id}`)
+      .then(({ data }) => setRow(data))
+      .catch(() => setLoadError(true))
+      .finally(() => setLoading(false));
     httpClient
       .get(`/vendor-contracts/${id}/history`)
       .then(({ data }) =>
@@ -49,6 +58,17 @@ export function ContractShow() {
   const usage = Number(row?.usageCount ?? 0);
   const entitlement = Number(row?.entitlementCount ?? 0);
   const over = entitlement > 0 && usage / entitlement >= 0.9;
+
+  if (loading && !row) return <Card loading />;
+  if (loadError && !row) {
+    return (
+      <EmptyState
+        description="This contract could not be loaded."
+        actionLabel="Retry"
+        onAction={() => load()}
+      />
+    );
+  }
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>

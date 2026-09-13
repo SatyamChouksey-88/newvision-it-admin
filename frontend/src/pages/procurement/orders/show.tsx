@@ -14,6 +14,7 @@ import {
 } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
+import { EmptyState } from '../../../components/EmptyState';
 import { EventTimeline, type TimelineEvent } from '../../../components/EventTimeline';
 import { ManualEditButton } from '../../../components/ManualEdit';
 import { RecordNotes } from '../../../components/RecordNotes';
@@ -30,6 +31,8 @@ export function PurchaseOrderShow() {
   const { data: identity } = useGetIdentity<Identity>();
   const canManage = ['SUPER_ADMIN', 'IT_ADMIN'].includes(identity?.role ?? '');
   const [row, setRow] = useState<Record<string, unknown> | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [history, setHistory] = useState<TimelineEvent[]>([]);
   const [reasonOpen, setReasonOpen] = useState<'cancel' | 'short' | 'amend' | 'void' | null>(null);
   const [reason, setReason] = useState('');
@@ -39,7 +42,13 @@ export function PurchaseOrderShow() {
 
   const load = useCallback(() => {
     if (!id) return;
-    httpClient.get(`/purchase-orders/${id}`).then(({ data }) => setRow(data));
+    setLoading(true);
+    setLoadError(false);
+    httpClient
+      .get(`/purchase-orders/${id}`)
+      .then(({ data }) => setRow(data))
+      .catch(() => setLoadError(true))
+      .finally(() => setLoading(false));
     httpClient
       .get(`/purchase-orders/${id}/history`)
       .then(({ data }) =>
@@ -76,6 +85,17 @@ export function PurchaseOrderShow() {
       isReversed: boolean;
       receivedAt: string;
     }[]) ?? [];
+
+  if (loading && !row) return <Card loading />;
+  if (loadError && !row) {
+    return (
+      <EmptyState
+        description="This purchase order could not be loaded."
+        actionLabel="Retry"
+        onAction={() => load()}
+      />
+    );
+  }
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>

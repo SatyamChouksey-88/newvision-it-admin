@@ -2,6 +2,7 @@ import { useGetIdentity } from '@refinedev/core';
 import { Button, Card, Descriptions, Form, Input, Modal, Space, Tooltip, Typography } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
+import { EmptyState } from '../../../components/EmptyState';
 import { EventTimeline, type TimelineEvent } from '../../../components/EventTimeline';
 import { ManualEditButton } from '../../../components/ManualEdit';
 import { RecordNotes } from '../../../components/RecordNotes';
@@ -19,13 +20,21 @@ export function VendorShow() {
   const { data: identity } = useGetIdentity<Identity>();
   const canManage = ['SUPER_ADMIN', 'IT_ADMIN'].includes(identity?.role ?? '');
   const [row, setRow] = useState<Record<string, unknown> | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [history, setHistory] = useState<TimelineEvent[]>([]);
   const [reasonOpen, setReasonOpen] = useState<string | null>(null);
   const [reason, setReason] = useState('');
 
   const load = useCallback(() => {
     if (!id) return;
-    httpClient.get(`/vendors/${id}`).then(({ data }) => setRow(data));
+    setLoading(true);
+    setLoadError(false);
+    httpClient
+      .get(`/vendors/${id}`)
+      .then(({ data }) => setRow(data))
+      .catch(() => setLoadError(true))
+      .finally(() => setLoading(false));
     httpClient
       .get(`/vendors/${id}/history`)
       .then(({ data }) =>
@@ -68,6 +77,17 @@ export function VendorShow() {
       toast.error(apiErrorMessage(e, 'Could not change status'));
     }
   };
+
+  if (loading && !row) return <Card loading />;
+  if (loadError && !row) {
+    return (
+      <EmptyState
+        description="This vendor could not be loaded."
+        actionLabel="Retry"
+        onAction={() => load()}
+      />
+    );
+  }
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
