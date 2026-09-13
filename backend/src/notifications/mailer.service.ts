@@ -14,29 +14,54 @@ export interface MailMessage {
   headers?: Record<string, string>;
 }
 
+export type MailTransportKind = 'resend' | 'smtp' | 'console';
+
+/** Prefer Resend (HTTPS) over SMTP so Render Free / blocked 587/465 still send mail. */
+export function mailTransportKind(env: NodeJS.ProcessEnv = process.env): MailTransportKind {
+  if (env.RESEND_API_KEY?.trim()) return 'resend';
+  if (env.SMTP_HOST?.trim()) return 'smtp';
+  return 'console';
+}
+
+export function parseFromAddress(from: string): { email: string; name?: string } {
+  const m = from.match(/^\s*(.+?)\s*<([^>]+)>\s*$/);
+  if (m) return { name: m[1].replaceAll(/^["']|["']$/g, ''), email: m[2].trim() };
+  return { email: from.trim() };
+}
+
+export function resendPayload(from: string, message: MailMessage) {
+  const to = Array.isArray(message.to) ? message.to : [message.to];
+  const payload: Record<string, unknown> = {
+    from,
+    to,
+    subject: message.subject,
+    text: message.text,
+  };
+  if (message.html) payload.html = message.html;
+  if (message.replyTo) payload.reply_to = message.replyTo;
+  if (message.headers) payload.headers = message.headers;
+  return payload;
+}
+
 /**
- * Sends email via SMTP when configured (SMTP_HOST/PORT/USER/PASS), otherwise logs the
- * message to the console. Console fallback is the documented default for local dev
- * (see backend/.env.example) so warranty alerts are observable without a mail server.
- *
- * `send()` never throws: it's called from inside ticket/procurement/auth mutations that
- * must still succeed (and their data must still commit) even when the mail transport is
- * unreachable — e.g. Render Free often blocks outbound 587/465. A failed send is logged
- * loudly and tracked so `hasRecentFailure()` can surface it in the UI instead of it being
- * a silent console line an admin has to go looking for.
+ * Sends email via Resend (HTTPS API) when `RESEND_API_KEY` is set, else SMTP when
+ * `SMTP_HOST` is set, else logs to the console. `send()` never throws — ticket and
+ * procurement mutations must still commit when mail is unreachable.
  */
 @Injectable()
 export class MailerService {
   private readonly logger = new Logger(MailerService.name);
   private readonly transporter: nodemailer.Transporter | null;
   private readonly from: string;
+  private readonly resendKey: string | null;
   private lastFailureAt: Date | null = null;
   private lastFailureMessage: string | null = null;
 
   constructor() {
     this.from = process.env.MAIL_FROM || 'NewVision IT <it-noreply@newvision.local>';
+    this.resendKey = process.env.RESEND_API_KEY?.trim() || null;
     const host = process.env.SMTP_HOST;
-    if (host) {
+    if (!this.resendKey && host) {
       this.transporter = nodemailer.createTransport({
         host,
         port: Number(process.env.SMTP_PORT ?? 587),
@@ -51,11 +76,17 @@ export class MailerService {
     }
   }
 
-  get isLive(): boolean {
-    return this.transporter !== null;
+  get transportKind(): MailTransportKind {
+    if (this.resendKey) return 'resend';
+    if (this.transporter) return 'smtp';
+    return 'console';
   }
 
-  /** True when a live SMTP send has failed within the last hour — surfaced on the dashboard. */
+  get isLive(): boolean {
+    return this.transportKind !== 'console';
+  }
+
+  /** True when a live send has failed within the last hour — surfaced on the dashboard. */
   hasRecentFailure(): boolean {
     if (!this.lastFailureAt) return false;
     return Date.now() - this.lastFailureAt.getTime() < 60 * 60 * 1000;
@@ -68,6 +99,26 @@ export class MailerService {
 
   async send(message: MailMessage): Promise<void> {
     const to = Array.isArray(message.to) ? message.to.join(', ') : message.to;
+    if (this.resendKey) {
+      try {
+        const res = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${this.resendKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(resendPayload(this.from, message)),
+        });
+        if (!res.ok) {
+          const body = await res.text();
+          throw new Error(`Resend ${res.status}: ${body.slice(0, 300)}`);
+        }
+        this.logger.log(`[email:sent:resend] To: ${to} | ${message.subject}`);
+      } catch (err) {
+        this.markFailed(to, message.subject, err);
+      }
+      return;
+    }
     if (!this.transporter) {
       this.logger.log(`[email:console] To: ${to} | ${message.subject}\n${message.text}`);
       return;
@@ -87,12 +138,14 @@ export class MailerService {
       });
       this.logger.log(`[email:sent] To: ${to} | ${message.subject}`);
     } catch (err) {
-      // Best-effort: a broken/unreachable SMTP host must never fail the ticket, requisition,
-      // contract, or password-reset mutation that triggered this notification.
-      const detail = err instanceof Error ? err.message : String(err);
-      this.lastFailureAt = new Date();
-      this.lastFailureMessage = detail;
-      this.logger.error(`[email:failed] To: ${to} | ${message.subject} | ${detail}`);
+      this.markFailed(to, message.subject, err);
     }
+  }
+
+  private markFailed(to: string, subject: string, err: unknown) {
+    const detail = err instanceof Error ? err.message : String(err);
+    this.lastFailureAt = new Date();
+    this.lastFailureMessage = detail;
+    this.logger.error(`[email:failed] To: ${to} | ${subject} | ${detail}`);
   }
 }

@@ -1,0 +1,17 @@
+# Render Free sleeps the API after ~15 minutes idle. A ping every 10 minutes
+# keeps scheduled jobs (warranty, digest, IMAP, contract renewals) and
+# WebSocket chat from going dark overnight. Safe to delete if the API is on a
+# paid instance that never sleeps.
+name: Keep production API awake
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping API health
+        run: curl -fsS --retry 8 --retry-all-errors --retry-delay 10 --max-time 45 https://newvision-api.onrender.com/api/health

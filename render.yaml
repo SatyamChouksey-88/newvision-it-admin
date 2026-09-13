@@ -41,6 +41,16 @@ services:
         value: 'true'
       - key: SEED_IF_EMPTY
         value: 'true'
+      - key: SEED_MODE
+        value: bootstrap
+      - key: BOOTSTRAP_ADMIN_EMAIL
+        sync: false
+      - key: BOOTSTRAP_ADMIN_PASSWORD
+        sync: false
+      - key: BOOTSTRAP_ADMIN_NAME
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
       - key: CORS_ORIGIN
         fromService:
           name: newvision-web
@@ -62,6 +72,18 @@ services:
       - key: MAIL_FROM
         sync: false
       - key: HELPDESK_MAILBOX
+        sync: false
+      - key: IMAP_HOST
+        sync: false
+      - key: IMAP_PORT
+        value: '993'
+      - key: IMAP_USER
+        sync: false
+      - key: IMAP_PASS
+        sync: false
+      - key: IMAP_MAILBOX
+        value: INBOX
+      - key: EMAIL_INGEST_SECRET
         sync: false
 
   - type: web

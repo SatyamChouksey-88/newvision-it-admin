@@ -60,7 +60,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
       });
       await Promise.all(memberships.map((m) => client.join(`channel:${m.channelId}`)));
       this.presence.connect(user.id, client.id, user.presenceMode);
-      await this.prisma.user.update({
+      await this.prisma.user.updateMany({
         where: { id: user.id },
         data: { lastSeenAt: new Date() },
       });
@@ -106,7 +106,10 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     const userId = client.data.userId as number | undefined;
     if (!userId) return;
     this.presence.touch(userId);
-    await this.prisma.user.update({ where: { id: userId }, data: { lastSeenAt: new Date() } });
+    await this.prisma.user.updateMany({
+      where: { id: userId },
+      data: { lastSeenAt: new Date() },
+    });
   }
 
   @SubscribeMessage('presence:set')
@@ -118,7 +121,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     if (!userId || !body?.mode) return;
     if (!Object.values(ChatPresenceMode).includes(body.mode)) return;
     this.presence.setMode(userId, body.mode);
-    await this.prisma.user.update({
+    await this.prisma.user.updateMany({
       where: { id: userId },
       data: { presenceMode: body.mode, lastSeenAt: new Date() },
     });

@@ -190,6 +190,56 @@ function weightedStatus(): AssetStatus {
   return AssetStatus.lost;
 }
 
+async function seedRolesAndPermissions() {
+  const permKeys = Array.from(new Set(Object.values(ROLE_PERMISSIONS).flat()));
+  await prisma.permission.createMany({ data: permKeys.map((key) => ({ key })), skipDuplicates: true });
+  const permissions = await prisma.permission.findMany();
+  const permById = new Map(permissions.map((p) => [p.key, p.id]));
+  const roleIds = new Map<RoleName, number>();
+  for (const roleName of Object.keys(ROLE_PERMISSIONS) as RoleName[]) {
+    const existing = await prisma.role.findUnique({ where: { name: roleName } });
+    if (existing) {
+      roleIds.set(roleName, existing.id);
+      continue;
+    }
+    const role = await prisma.role.create({
+      data: {
+        name: roleName,
+        description: `${roleName} role`,
+        permissions: {
+          connect: ROLE_PERMISSIONS[roleName].map((k) => ({ id: permById.get(k)! })),
+        },
+      },
+    });
+    roleIds.set(roleName, role.id);
+  }
+  return roleIds;
+}
+
+/** Empty production database: one Super Admin, no demo estate. */
+async function bootstrapProductionAdmin() {
+  const email = process.env.BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase();
+  const password = process.env.BOOTSTRAP_ADMIN_PASSWORD;
+  const name = process.env.BOOTSTRAP_ADMIN_NAME?.trim() || 'Super Admin';
+  if (!email || !password) {
+    throw new Error('SEED_MODE=bootstrap requires BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_ADMIN_PASSWORD');
+  }
+  if (password.length < 12) {
+    throw new Error('BOOTSTRAP_ADMIN_PASSWORD must be at least 12 characters');
+  }
+  const roleIds = await seedRolesAndPermissions();
+  const hash = await bcrypt.hash(password, 10);
+  const user = await prisma.user.create({
+    data: {
+      email,
+      passwordHash: hash,
+      fullName: name,
+      roleId: roleIds.get(RoleName.SUPER_ADMIN)!,
+    },
+  });
+  console.log(`Bootstrapped Super Admin ${user.email} (id ${user.id}). Change this password after first login.`);
+}
+
 async function main() {
   if (process.env.SEED_IF_EMPTY === 'true') {
     const existing = await prisma.user.count();
@@ -197,6 +247,12 @@ async function main() {
       console.log(`Skipping seed (SEED_IF_EMPTY=true, ${existing} users already exist).`);
       return;
     }
+  }
+
+  if (process.env.SEED_MODE === 'bootstrap') {
+    console.log('Production bootstrap (roles + first Super Admin, no demo estate)...');
+    await bootstrapProductionAdmin();
+    return;
   }
 
   console.log('Resetting demo data...');

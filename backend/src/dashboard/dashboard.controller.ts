@@ -89,6 +89,7 @@ export class DashboardController {
       seedOnStart,
       seedWipeRisk: seedOnStart && !seedIfEmpty,
       mailFailing: this.mailer.hasRecentFailure(),
+      mailTransport: this.mailer.transportKind,
     };
   }
 
