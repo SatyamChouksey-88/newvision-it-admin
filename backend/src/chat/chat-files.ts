@@ -14,6 +14,11 @@ const BLOCKED_EXTS = new Set([
   '.pif',
   '.dll',
   '.ps1',
+  '.html',
+  '.htm',
+  '.svg',
+  '.jar',
+  '.sh',
 ]);
 
 const ALLOWED_EXTS = new Set([
@@ -69,10 +74,11 @@ export function assertAllowedChatFile(file: {
   if (file.size > CHAT_MAX_FILE_BYTES)
     throw new BadRequestException('Attachments must be 8 MB or smaller');
   const mime = (file.mimetype ?? '').trim();
-  if (!mime) {
-    if (!ALLOWED_EXTS.has(ext)) throw new BadRequestException('That file type is not allowed');
-    return;
-  }
+  // Always require a known extension. `application/octet-stream` is a common
+  // browser default and must not become a free pass for .html / .svg / .jar.
+  if (!ALLOWED_EXTS.has(ext)) throw new BadRequestException('That file type is not allowed');
+  if (!mime) return;
+  if (mime === 'application/octet-stream') return;
   if (!ALLOWED_MIME.has(mime) && !mime.startsWith('image/')) {
     throw new BadRequestException('That file type is not allowed');
   }

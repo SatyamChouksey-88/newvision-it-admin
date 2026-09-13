@@ -29,21 +29,34 @@ export function ContractList() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [reload, setReload] = useState(0);
   const [open, setOpen] = useState(false);
   const [vendors, setVendors] = useState<{ id: number; legalName: string }[]>([]);
   const [form] = Form.useForm();
   const [density, setDensity] = useState<TableDensity>('Compact');
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
+    setLoadError(false);
     httpClient
       .get('/vendor-contracts', { params: { _start: (page - 1) * 25, _end: page * 25 } })
       .then(({ data }) => {
+        if (cancelled) return;
         setRows(data.data ?? []);
         setTotal(data.total ?? 0);
       })
-      .finally(() => setLoading(false));
-  }, [page]);
+      .catch(() => {
+        if (!cancelled) setLoadError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [page, reload]);
 
   useEffect(() => {
     httpClient
@@ -62,6 +75,12 @@ export function ContractList() {
     >
       {loading ? (
         <TableSkeleton columns={4} />
+      ) : loadError ? (
+        <EmptyState
+          description="Could not load contracts. Check your connection and try again."
+          actionLabel="Retry"
+          onAction={() => setReload((n) => n + 1)}
+        />
       ) : rows.length === 0 ? (
         <EmptyState
           description="No contracts yet."

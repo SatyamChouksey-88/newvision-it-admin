@@ -39,10 +39,10 @@ export class SearchController {
     const isIt = IT_ROLES.includes(user.role);
     const ticketId = /^#?\d+$/.test(term) ? Number(term.replace('#', '')) : undefined;
 
-    const isProc =
-      user.role === RoleName.SUPER_ADMIN ||
-      user.role === RoleName.IT_ADMIN ||
-      user.role === RoleName.MANAGER;
+    const isProcAdmin =
+      user.role === RoleName.SUPER_ADMIN || user.role === RoleName.IT_ADMIN;
+    const canSearchRequisitions =
+      isProcAdmin || user.role === RoleName.MANAGER;
 
     const [
       assets,
@@ -59,16 +59,20 @@ export class SearchController {
     ] = await Promise.all([
       this.prisma.asset.findMany({
         where: {
-          ...this.assetScope(user),
-          OR: [{ assetCode: like }, { serialNumber: like }, { model: like }, { brand: like }],
+          AND: [
+            this.assetScope(user),
+            { OR: [{ assetCode: like }, { serialNumber: like }, { model: like }, { brand: like }] },
+          ],
         },
         include: { category: true, location: true, assignedEmployee: true },
         take: 20,
       }),
       this.prisma.employee.findMany({
         where: {
-          ...this.employeeScope(user),
-          OR: [{ firstName: like }, { lastName: like }, { email: like }, { employeeCode: like }],
+          AND: [
+            this.employeeScope(user),
+            { OR: [{ firstName: like }, { lastName: like }, { email: like }, { employeeCode: like }] },
+          ],
         },
         include: { location: true, department: true },
         take: 20,
@@ -146,23 +150,30 @@ export class SearchController {
             take: 10,
           })
         : Promise.resolve([]),
-      isIt
+      isIt || user.role === RoleName.MANAGER
         ? this.prisma.assetRequest.findMany({
-            where: { OR: [{ reason: like }, { accessoryName: like }] },
+            where: {
+              AND: [this.requestScope(user), { OR: [{ reason: like }, { accessoryName: like }] }],
+            },
             select: { id: true, status: true, reason: true, kind: true },
             take: 8,
           })
         : Promise.resolve([]),
-      isProc
+      isProcAdmin
         ? this.prisma.vendor.findMany({
             where: { OR: [{ legalName: like }, { vendorCode: like }, { tradingName: like }] },
             select: { id: true, vendorCode: true, legalName: true, status: true },
             take: 8,
           })
         : Promise.resolve([]),
-      isProc
+      canSearchRequisitions
         ? this.prisma.purchaseRequisition.findMany({
-            where: { OR: [{ title: like }, { requisitionNumber: like }] },
+            where: {
+              AND: [
+                this.requisitionScope(user),
+                { OR: [{ title: like }, { requisitionNumber: like }] },
+              ],
+            },
             select: { id: true, requisitionNumber: true, title: true, status: true },
             take: 8,
           })
@@ -210,5 +221,29 @@ export class SearchController {
       return { OR: [{ id: actor.employeeId }, { managerId: actor.employeeId }] };
     }
     return { id: actor.employeeId };
+  }
+
+  private requestScope(actor: AuthUser): Prisma.AssetRequestWhereInput {
+    if (IT_ROLES.includes(actor.role)) return {};
+    if (actor.role === RoleName.MANAGER && actor.employeeId) {
+      return { requester: { managerId: actor.employeeId } };
+    }
+    return { id: -1 };
+  }
+
+  /** Same visibility as RequisitionsService.scope — managers only see their own / team / assigned. */
+  private requisitionScope(actor: AuthUser): Prisma.PurchaseRequisitionWhereInput {
+    if (actor.role === RoleName.SUPER_ADMIN || actor.role === RoleName.IT_ADMIN) return {};
+    if (actor.role === RoleName.MANAGER && actor.employeeId) {
+      return {
+        OR: [
+          { requesterId: actor.id },
+          { ownerEmployeeId: actor.employeeId },
+          { owner: { managerId: actor.employeeId } },
+          { approvers: { some: { userId: actor.id } } },
+        ],
+      };
+    }
+    return { id: -1 };
   }
 }

@@ -36,6 +36,27 @@ describe('assertAllowedChatFile', () => {
     expect(() =>
       assertAllowedChatFile({ originalname: 'brief.docx', mimetype: '', size: 800 }),
     ).not.toThrow();
+    expect(() =>
+      assertAllowedChatFile({
+        originalname: 'legacy.doc',
+        mimetype: 'application/octet-stream',
+        size: 800,
+      }),
+    ).not.toThrow();
+    expect(() =>
+      assertAllowedChatFile({
+        originalname: 'page.html',
+        mimetype: 'application/octet-stream',
+        size: 80,
+      }),
+    ).toThrow(/not allowed/);
+    expect(() =>
+      assertAllowedChatFile({
+        originalname: 'payload.jar',
+        mimetype: 'application/octet-stream',
+        size: 80,
+      }),
+    ).toThrow(/not allowed/);
     expect(fileExtension('Report.PDF')).toBe('.pdf');
     expect(isImageMime('image/webp')).toBe(true);
   });

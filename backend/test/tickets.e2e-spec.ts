@@ -382,6 +382,11 @@ describe('Support tickets, CSAT, digest, notes, manual edit (e2e)', () => {
       .set(auth(admin))
       .expect(201);
     expect(res.body.sent).toBeGreaterThanOrEqual(1);
+    const again = await request(app.getHttpServer())
+      .post('/api/support-tickets/digest/run')
+      .set(auth(admin))
+      .expect(201);
+    expect(again.body.sent).toBe(0);
   });
 
   it('adds notes with RBAC and flags backfilled entries', async () => {

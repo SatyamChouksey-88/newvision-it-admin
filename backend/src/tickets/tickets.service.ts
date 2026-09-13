@@ -852,8 +852,14 @@ export class TicketsService {
     });
     const since = new Date();
     since.setDate(since.getDate() - 1);
+    const dayKey = new Date().toISOString().slice(0, 10);
+    const marker = `[digest ${dayKey}]`;
     let sent = 0;
     for (const u of staff) {
+      const already = await this.prisma.notification.count({
+        where: { userId: u.id, type: 'general', title: { contains: marker } },
+      });
+      if (already > 0) continue;
       const [created, assigned, awaiting] = await Promise.all([
         this.prisma.supportTicket.count({ where: { createdAt: { gte: since } } }),
         this.prisma.supportTicket.count({ where: { assignedToId: u.id, updatedAt: { gte: since } } }),
@@ -861,6 +867,14 @@ export class TicketsService {
       ]);
       const digest = dailyDigestEmail({ created, assignedUpdates: assigned, stillOpen: awaiting });
       await this.mailer.send({ to: u.email, subject: digest.subject, text: digest.text, html: digest.html });
+      await this.prisma.notification.create({
+        data: {
+          userId: u.id,
+          type: 'general',
+          title: `Helpdesk daily digest ${marker}`,
+          message: digest.subject,
+        },
+      });
       sent += 1;
     }
     return { sent };

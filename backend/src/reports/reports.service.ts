@@ -1,8 +1,19 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
+import { Prisma, RoleName } from '@prisma/client';
 import * as ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
+import { AuthUser } from '../common/decorators/current-user.decorator';
 import { daysRemaining } from '../common/warranty';
 import { PrismaService } from '../prisma/prisma.service';
+
+const IT_ROLES: RoleName[] = [RoleName.SUPER_ADMIN, RoleName.IT_ADMIN, RoleName.IT_SUPPORT];
+const PROCURE_ADMIN: RoleName[] = [RoleName.SUPER_ADMIN, RoleName.IT_ADMIN];
+const ESTATE_PROCUREMENT: ReportType[] = [
+  'procurement-spend',
+  'procurement-renewals',
+  'procurement-overdue',
+  'procurement-scorecards',
+];
 
 export type ReportType =
   | 'assets'
@@ -32,22 +43,23 @@ export interface ReportData {
 export class ReportsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async build(type: ReportType): Promise<ReportData> {
+  async build(type: ReportType, actor: AuthUser): Promise<ReportData> {
+    this.assertAllowed(type, actor);
     switch (type) {
       case 'assets':
-        return this.assetReport();
+        return this.assetReport(actor);
       case 'employees':
-        return this.employeeReport();
+        return this.employeeReport(actor);
       case 'locations':
         return this.locationReport();
       case 'warranty':
-        return this.warrantyReport();
+        return this.warrantyReport(actor);
       case 'supplies':
         return this.suppliesReport();
       case 'procurement-spend':
         return this.procurementSpendReport();
       case 'procurement-open':
-        return this.procurementOpenReport();
+        return this.procurementOpenReport(actor);
       case 'procurement-renewals':
         return this.procurementRenewalsReport();
       case 'procurement-overdue':
@@ -62,16 +74,66 @@ export class ReportsService {
   async render(
     type: ReportType,
     format: ReportFormat,
+    actor: AuthUser,
   ): Promise<{ buffer: Buffer; filename: string }> {
-    const data = await this.build(type);
+    const data = await this.build(type, actor);
     const buffer = format === 'pdf' ? await toPdf(data) : await toCsv(data);
     return { buffer, filename: `${type}-report.${format}` };
   }
 
+  private assertAllowed(type: ReportType, actor: AuthUser) {
+    if (ESTATE_PROCUREMENT.includes(type) && !PROCURE_ADMIN.includes(actor.role)) {
+      throw new ForbiddenException('That report is limited to Super Admin and IT Admin');
+    }
+    if (type === 'supplies' && !IT_ROLES.includes(actor.role)) {
+      throw new ForbiddenException('Supply reports are limited to IT staff');
+    }
+  }
+
+  private assetWhere(actor: AuthUser): Prisma.AssetWhereInput {
+    if (IT_ROLES.includes(actor.role)) return {};
+    if (actor.role === RoleName.MANAGER && actor.employeeId) {
+      return {
+        assignedEmployee: { OR: [{ managerId: actor.employeeId }, { id: actor.employeeId }] },
+      };
+    }
+    return { id: -1 };
+  }
+
+  private employeeWhere(actor: AuthUser): Prisma.EmployeeWhereInput {
+    if (IT_ROLES.includes(actor.role)) return {};
+    if (actor.role === RoleName.MANAGER && actor.employeeId) {
+      return { OR: [{ id: actor.employeeId }, { managerId: actor.employeeId }] };
+    }
+    return { id: -1 };
+  }
+
+  private requisitionWhere(actor: AuthUser): Prisma.PurchaseRequisitionWhereInput {
+    const pending: Prisma.PurchaseRequisitionWhereInput = { status: 'pending_approval' };
+    if (PROCURE_ADMIN.includes(actor.role)) return pending;
+    if (actor.role === RoleName.MANAGER && actor.employeeId) {
+      return {
+        AND: [
+          pending,
+          {
+            OR: [
+              { requesterId: actor.id },
+              { ownerEmployeeId: actor.employeeId },
+              { owner: { managerId: actor.employeeId } },
+              { approvers: { some: { userId: actor.id } } },
+            ],
+          },
+        ],
+      };
+    }
+    return { id: -1 };
+  }
+
   // ------------------------------------------------------------------ reports
 
-  private async assetReport(): Promise<ReportData> {
+  private async assetReport(actor: AuthUser): Promise<ReportData> {
     const assets = await this.prisma.asset.findMany({
+      where: this.assetWhere(actor),
       include: { category: true, location: true, department: true, assignedEmployee: true },
       orderBy: { assetCode: 'asc' },
     });
@@ -106,8 +168,9 @@ export class ReportsService {
     };
   }
 
-  private async employeeReport(): Promise<ReportData> {
+  private async employeeReport(actor: AuthUser): Promise<ReportData> {
     const employees = await this.prisma.employee.findMany({
+      where: this.employeeWhere(actor),
       include: {
         location: true,
         department: true,
@@ -176,9 +239,10 @@ export class ReportsService {
     };
   }
 
-  private async warrantyReport(): Promise<ReportData> {
+  private async warrantyReport(actor: AuthUser): Promise<ReportData> {
     const assets = await this.prisma.asset.findMany({
       where: {
+        ...this.assetWhere(actor),
         warrantyEnd: { not: null, gte: new Date() },
         status: { notIn: ['retired', 'disposed'] },
       },
@@ -311,9 +375,9 @@ export class ReportsService {
     };
   }
 
-  private async procurementOpenReport(): Promise<ReportData> {
+  private async procurementOpenReport(actor: AuthUser): Promise<ReportData> {
     const rows = await this.prisma.purchaseRequisition.findMany({
-      where: { status: 'pending_approval' },
+      where: this.requisitionWhere(actor),
       include: {
         approvers: {
           where: { kind: 'required', status: 'pending' },

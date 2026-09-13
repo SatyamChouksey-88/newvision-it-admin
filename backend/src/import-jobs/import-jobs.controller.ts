@@ -40,7 +40,7 @@ export class ImportJobsController {
 
   @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
   @Post()
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
   create(
     @UploadedFile() file: Uploaded,
     @Query('kind') kindRaw: string,

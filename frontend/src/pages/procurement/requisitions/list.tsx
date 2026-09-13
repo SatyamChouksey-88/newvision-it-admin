@@ -29,20 +29,33 @@ export function RequisitionList() {
   const [page, setPage] = useState(1);
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [reload, setReload] = useState(0);
   const [density, setDensity] = useState<TableDensity>('Compact');
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
+    setLoadError(false);
     httpClient
       .get('/purchase-requisitions', {
         params: { _start: (page - 1) * 25, _end: page * 25, q: q || undefined },
       })
       .then(({ data }) => {
+        if (cancelled) return;
         setRows(data.data ?? []);
         setTotal(data.total ?? 0);
       })
-      .finally(() => setLoading(false));
-  }, [page, q]);
+      .catch(() => {
+        if (!cancelled) setLoadError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [page, q, reload]);
 
   return (
     <Card
@@ -67,6 +80,12 @@ export function RequisitionList() {
       </div>
       {loading ? (
         <TableSkeleton columns={5} />
+      ) : loadError ? (
+        <EmptyState
+          description="Could not load requisitions. Check your connection and try again."
+          actionLabel="Retry"
+          onAction={() => setReload((n) => n + 1)}
+        />
       ) : rows.length === 0 ? (
         <EmptyState description="No requisitions yet." />
       ) : (

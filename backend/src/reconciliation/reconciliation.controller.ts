@@ -38,7 +38,7 @@ export class ReconciliationController {
 
   @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
   @Post()
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
   run(
     @UploadedFile() file: Uploaded,
     @Query('kind') kindRaw: string,

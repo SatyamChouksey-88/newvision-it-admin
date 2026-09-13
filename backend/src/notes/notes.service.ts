@@ -21,6 +21,8 @@ export const NOTE_ENTITY_TYPES = [
 ] as const;
 export type NoteEntityType = (typeof NOTE_ENTITY_TYPES)[number];
 
+const IT_VIEW: RoleName[] = [RoleName.SUPER_ADMIN, RoleName.IT_ADMIN, RoleName.IT_SUPPORT];
+
 const EDITORS: Record<NoteEntityType, RoleName[]> = {
   Asset: [RoleName.SUPER_ADMIN, RoleName.IT_ADMIN],
   Employee: [RoleName.SUPER_ADMIN, RoleName.IT_ADMIN],
@@ -107,52 +109,74 @@ export class NotesService {
     throw new ForbiddenException('Not allowed to view these notes');
   }
 
+  private deny(): never {
+    throw new ForbiddenException('Not allowed to view these notes');
+  }
+
   private async assertCanView(type: NoteEntityType, entityId: string, actor: AuthUser) {
     const id = Number(entityId);
     if (!Number.isFinite(id)) throw new NotFoundException('Invalid id');
     switch (type) {
       case 'Asset': {
-        const row = await this.prisma.asset.findUnique({ where: { id } });
+        const row = await this.prisma.asset.findUnique({
+          where: { id },
+          include: { assignedEmployee: { select: { id: true, managerId: true } } },
+        });
         if (!row) throw new NotFoundException('Asset not found');
+        if (IT_VIEW.includes(actor.role)) return;
+        if (!actor.employeeId) this.deny();
+        if (row.assignedEmployeeId === actor.employeeId) return;
+        if (
+          actor.role === RoleName.MANAGER &&
+          row.assignedEmployee?.managerId === actor.employeeId
+        ) {
+          return;
+        }
+        this.deny();
         return;
       }
       case 'Employee': {
         const row = await this.prisma.employee.findUnique({ where: { id } });
         if (!row) throw new NotFoundException('Employee not found');
-        if (actor.role === RoleName.EMPLOYEE && actor.employeeId !== id) {
-          throw new ForbiddenException('Not allowed to view these notes');
-        }
-        if (actor.role === RoleName.MANAGER && actor.employeeId !== id && row.managerId !== actor.employeeId) {
-          throw new ForbiddenException('Not allowed to view these notes');
+        if (IT_VIEW.includes(actor.role)) return;
+        if (actor.role === RoleName.EMPLOYEE && actor.employeeId !== id) this.deny();
+        if (
+          actor.role === RoleName.MANAGER &&
+          actor.employeeId !== id &&
+          row.managerId !== actor.employeeId
+        ) {
+          this.deny();
         }
         return;
       }
       case 'Accessory': {
         const row = await this.prisma.accessory.findUnique({ where: { id } });
         if (!row) throw new NotFoundException('Accessory not found');
+        if (!IT_VIEW.includes(actor.role)) this.deny();
         return;
       }
       case 'Consumable': {
         const row = await this.prisma.consumable.findUnique({ where: { id } });
         if (!row) throw new NotFoundException('Consumable not found');
+        if (!IT_VIEW.includes(actor.role)) this.deny();
         return;
       }
       case 'AssetMaintenance': {
         const row = await this.prisma.assetMaintenance.findUnique({ where: { id } });
         if (!row) throw new NotFoundException('Maintenance ticket not found');
+        if (!IT_VIEW.includes(actor.role)) this.deny();
         return;
       }
       case 'Location': {
         const row = await this.prisma.location.findUnique({ where: { id } });
         if (!row) throw new NotFoundException('Location not found');
+        if (!IT_VIEW.includes(actor.role)) this.deny();
         return;
       }
       case 'Vendor': {
         const row = await this.prisma.vendor.findUnique({ where: { id } });
         if (!row) throw new NotFoundException('Vendor not found');
-        if (actor.role !== RoleName.SUPER_ADMIN && actor.role !== RoleName.IT_ADMIN) {
-          throw new ForbiddenException('Not allowed to view these notes');
-        }
+        if (actor.role !== RoleName.SUPER_ADMIN && actor.role !== RoleName.IT_ADMIN) this.deny();
         return;
       }
       case 'PurchaseRequisition': {
@@ -162,37 +186,51 @@ export class NotesService {
       case 'PurchaseOrder': {
         const row = await this.prisma.purchaseOrder.findUnique({ where: { id } });
         if (!row) throw new NotFoundException('Purchase order not found');
-        if (actor.role !== RoleName.SUPER_ADMIN && actor.role !== RoleName.IT_ADMIN) {
-          throw new ForbiddenException('Not allowed to view these notes');
-        }
+        if (actor.role !== RoleName.SUPER_ADMIN && actor.role !== RoleName.IT_ADMIN) this.deny();
         return;
       }
       case 'VendorContract': {
         const row = await this.prisma.vendorContract.findUnique({ where: { id } });
         if (!row) throw new NotFoundException('Contract not found');
-        if (actor.role !== RoleName.SUPER_ADMIN && actor.role !== RoleName.IT_ADMIN) {
-          throw new ForbiddenException('Not allowed to view these notes');
-        }
+        if (actor.role !== RoleName.SUPER_ADMIN && actor.role !== RoleName.IT_ADMIN) this.deny();
         return;
       }
       case 'AssetRequest': {
-        const row = await this.prisma.assetRequest.findUnique({ where: { id } });
+        const row = await this.prisma.assetRequest.findUnique({
+          where: { id },
+          include: { requester: { select: { id: true, managerId: true } } },
+        });
         if (!row) throw new NotFoundException('Request not found');
-        if (isTicketStaff(actor.role) || actor.role === RoleName.IT_ADMIN || actor.role === RoleName.SUPER_ADMIN) return;
-        if (actor.role === RoleName.MANAGER) return;
+        if (isTicketStaff(actor.role)) return;
+        if (
+          actor.role === RoleName.MANAGER &&
+          actor.employeeId &&
+          row.requester.managerId === actor.employeeId
+        ) {
+          return;
+        }
         if (row.requesterId === actor.employeeId) return;
-        throw new ForbiddenException('Not allowed to view these notes');
+        this.deny();
+        return;
       }
       case 'SupportTicket': {
         const row = await this.prisma.supportTicket.findUnique({
           where: { id },
-          include: { watchers: true },
+          include: { watchers: true, raisedBy: { select: { id: true, managerId: true } } },
         });
         if (!row) throw new NotFoundException('Ticket not found');
         if (isTicketStaff(actor.role)) return;
         if (row.raisedById === actor.employeeId) return;
         if (row.watchers.some((w) => w.employeeId === actor.employeeId)) return;
-        throw new ForbiddenException('Not allowed to view these notes');
+        if (
+          actor.role === RoleName.MANAGER &&
+          actor.employeeId &&
+          row.raisedBy.managerId === actor.employeeId
+        ) {
+          return;
+        }
+        this.deny();
+        return;
       }
       default:
         throw new NotFoundException('Unknown entity');

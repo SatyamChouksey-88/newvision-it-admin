@@ -1,7 +1,9 @@
 import { FilePdfOutlined, FileTextOutlined } from '@ant-design/icons';
+import { useGetIdentity } from '@refinedev/core';
 import { App as AntdApp, Button, Card, Col, Row, Space, Typography } from 'antd';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { apiErrorMessage, httpClient } from '../providers/axios';
+import type { Identity } from '../providers/authProvider';
 import { COLOR_TEXT_MUTED, COLOR_TEXT_SECONDARY, FONT_MONO } from '../theme';
 import type { Location } from '../types';
 
@@ -96,8 +98,23 @@ function buildReports(
   ];
 }
 
+const MANAGER_REPORTS = new Set([
+  'assets',
+  'employees',
+  'locations',
+  'warranty',
+  'procurement-open',
+]);
+const SUPPORT_HIDDEN = new Set([
+  'procurement-spend',
+  'procurement-renewals',
+  'procurement-overdue',
+  'procurement-scorecards',
+]);
+
 export function ReportsPage() {
   const { message } = AntdApp.useApp();
+  const { data: identity } = useGetIdentity<Identity>();
   const [busy, setBusy] = useState<string | null>(null);
   const [locationCodes, setLocationCodes] = useState<string[]>([]);
 
@@ -108,7 +125,13 @@ export function ReportsPage() {
       .catch(() => setLocationCodes([]));
   }, []);
 
-  const REPORTS = buildReports(locationCodes);
+  const REPORTS = useMemo(() => {
+    const all = buildReports(locationCodes);
+    const role = identity?.role;
+    if (role === 'MANAGER') return all.filter((r) => MANAGER_REPORTS.has(r.type));
+    if (role === 'IT_SUPPORT') return all.filter((r) => !SUPPORT_HIDDEN.has(r.type));
+    return all;
+  }, [identity?.role, locationCodes]);
 
   const get = async (type: string, format: 'csv' | 'pdf') => {
     const key = `${type}:${format}`;
@@ -138,7 +161,9 @@ export function ReportsPage() {
         </Typography.Text>
       </div>
       <div className="nv-filters-banner">
-        No filters applied — exports include the full estate.
+        {identity?.role === 'MANAGER'
+          ? 'Exports are limited to your team — assets, people, and requisitions you can already see.'
+          : 'No filters applied — IT exports include the full estate.'}
         <Button type="link" size="small" disabled style={{ paddingInline: 8 }}>
           Reset
         </Button>

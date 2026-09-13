@@ -98,6 +98,7 @@ export class DashboardController {
    * Each point has `added` (that month) and `total`/`count` (cumulative estate size at month end).
    * Assets created before the window are the baseline so the line starts at the real estate size.
    */
+  @Roles(...ESTATE_ROLES)
   @Get('trends')
   async trends(@Query('months') monthsRaw = '12', @Query('locationId') locationIdRaw?: string) {
     const months = Math.min(24, Math.max(3, Number(monthsRaw) || 12));

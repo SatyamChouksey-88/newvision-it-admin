@@ -69,7 +69,7 @@ export class ImportExportController {
 
   @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
   @Post('import/assets')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
   importAssets(@UploadedFile() file: UploadedCsv, @CurrentUser() user: AuthUser) {
     if (!file) throw new BadRequestException('No file uploaded (field name must be "file")');
     return this.svc.importAssets(file.buffer, file.originalname, user);
@@ -77,7 +77,7 @@ export class ImportExportController {
 
   @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
   @Post('import/employees')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
   importEmployees(@UploadedFile() file: UploadedCsv, @CurrentUser() user: AuthUser) {
     if (!file) throw new BadRequestException('No file uploaded (field name must be "file")');
     return this.svc.importEmployees(file.buffer, file.originalname, user);

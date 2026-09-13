@@ -27,11 +27,13 @@ import {
 export class ConsumablesController {
   constructor(private readonly svc: ConsumablesService) {}
 
+  @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN, RoleName.IT_SUPPORT)
   @Get()
   list(@Query() query: ListQuery & { category?: string; lowStock?: string; locationId?: string }) {
     return this.svc.list(query);
   }
 
+  @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN, RoleName.IT_SUPPORT)
   @Get(':id')
   get(@Param('id', ParseIntPipe) id: number) {
     return this.svc.get(id);
