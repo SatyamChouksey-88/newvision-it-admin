@@ -1,9 +1,13 @@
+import { useGetIdentity } from '@refinedev/core';
 import { Button, Card, Descriptions, Form, Input, Modal, Space, Tooltip, Typography } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { EventTimeline, type TimelineEvent } from '../../../components/EventTimeline';
+import { ManualEditButton } from '../../../components/ManualEdit';
+import { RecordNotes } from '../../../components/RecordNotes';
 import { useToast } from '../../../components/Toast';
 import { useConfirmAction } from '../../../hooks/useConfirmAction';
+import type { Identity } from '../../../providers/authProvider';
 import { apiErrorMessage, httpClient } from '../../../providers/axios';
 import { VendorStatusTag } from '../status';
 
@@ -12,6 +16,8 @@ export function VendorShow() {
   const navigate = useNavigate();
   const toast = useToast();
   const { confirmAction } = useConfirmAction();
+  const { data: identity } = useGetIdentity<Identity>();
+  const canManage = ['SUPER_ADMIN', 'IT_ADMIN'].includes(identity?.role ?? '');
   const [row, setRow] = useState<Record<string, unknown> | null>(null);
   const [history, setHistory] = useState<TimelineEvent[]>([]);
   const [reasonOpen, setReasonOpen] = useState<string | null>(null);
@@ -115,6 +121,23 @@ export function VendorShow() {
                 Approve bank details
               </Button>
             ) : null}
+            {canManage && row ? (
+              <ManualEditButton
+                entityType="Vendor"
+                id={id ? Number(id) : undefined}
+                fields={[
+                  { name: 'legalName', label: 'Legal name', value: row.legalName },
+                  { name: 'tradingName', label: 'Trading name', value: row.tradingName },
+                  { name: 'taxId', label: 'Tax ID', value: row.taxId },
+                  { name: 'registeredAddress', label: 'Registered address', value: row.registeredAddress },
+                  { name: 'remitToAddress', label: 'Remit-to address', value: row.remitToAddress },
+                  { name: 'paymentTerms', label: 'Payment terms', value: row.paymentTerms },
+                  { name: 'currency', label: 'Currency', value: row.currency },
+                  { name: 'defaultBudgetHead', label: 'Default budget head', value: row.defaultBudgetHead },
+                ]}
+                onSaved={load}
+              />
+            ) : null}
           </Space>
         }
       >
@@ -136,6 +159,7 @@ export function VendorShow() {
       <Card title="Edit history">
         <EventTimeline events={history} />
       </Card>
+      <RecordNotes entityType="Vendor" entityId={id ? Number(id) : undefined} canAdd={canManage} />
       <Modal
         title="Reason required"
         open={!!reasonOpen}

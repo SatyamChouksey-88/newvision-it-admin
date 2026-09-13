@@ -1,3 +1,4 @@
+import { useGetIdentity } from '@refinedev/core';
 import {
   Button,
   Card,
@@ -13,8 +14,11 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { EventTimeline, type TimelineEvent } from '../../../components/EventTimeline';
+import { ManualEditButton } from '../../../components/ManualEdit';
+import { RecordNotes } from '../../../components/RecordNotes';
 import { useToast } from '../../../components/Toast';
 import { useConfirmAction } from '../../../hooks/useConfirmAction';
+import type { Identity } from '../../../providers/authProvider';
 import { httpClient } from '../../../providers/axios';
 import { ApprovalChain, type ApproverRow, PrStatusTag } from '../status';
 
@@ -23,6 +27,7 @@ export function RequisitionShow() {
   const navigate = useNavigate();
   const toast = useToast();
   const { confirmAction } = useConfirmAction();
+  const { data: identity } = useGetIdentity<Identity>();
   const [row, setRow] = useState<Record<string, unknown> | null>(null);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectComment, setRejectComment] = useState('');
@@ -66,6 +71,10 @@ export function RequisitionShow() {
   const canCancel = ['draft', 'pending_approval', 'approved'].includes(status);
   const canConvert = status === 'approved';
   const canDecide = status === 'pending_approval';
+  const canManualCorrect = ['SUPER_ADMIN', 'IT_ADMIN'].includes(identity?.role ?? '');
+  const canAddNote =
+    canManualCorrect ||
+    (identity?.role === 'MANAGER' && identity?.id === (row?.requester as { id?: number })?.id);
 
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
@@ -175,6 +184,25 @@ export function RequisitionShow() {
                 Withdraw / cancel
               </Button>
             </Tooltip>
+            {canManualCorrect && row ? (
+              <ManualEditButton
+                entityType="PurchaseRequisition"
+                id={id ? Number(id) : undefined}
+                fields={[
+                  { name: 'title', label: 'Title', value: row.title },
+                  { name: 'businessRequirement', label: 'Business requirement', value: row.businessRequirement },
+                  { name: 'proposedMakeModel', label: 'Proposed make/model', value: row.proposedMakeModel },
+                  { name: 'budgetHead', label: 'Budget head', value: row.budgetHead },
+                  { name: 'procurementType', label: 'Procurement type', value: row.procurementType },
+                  { name: 'departmentFreeText', label: 'Department (free text)', value: row.departmentFreeText },
+                  { name: 'vendorFreeText', label: 'Vendor (free text)', value: row.vendorFreeText },
+                  { name: 'locationFreeText', label: 'Location (free text)', value: row.locationFreeText },
+                  { name: 'expectedProcurementDate', label: 'Expected procurement date', value: row.expectedProcurementDate },
+                  { name: 'expectedDeploymentDate', label: 'Expected deployment date', value: row.expectedDeploymentDate },
+                ]}
+                onSaved={load}
+              />
+            ) : null}
           </Space>
         }
       >
@@ -230,6 +258,7 @@ export function RequisitionShow() {
       <Card title="Edit history">
         <EventTimeline events={history} />
       </Card>
+      <RecordNotes entityType="PurchaseRequisition" entityId={id ? Number(id) : undefined} canAdd={canAddNote} />
       <Modal
         title="Reject requisition"
         open={rejectOpen}

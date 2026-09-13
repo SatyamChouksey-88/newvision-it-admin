@@ -1,3 +1,4 @@
+import { useGetIdentity } from '@refinedev/core';
 import {
   Button,
   Card,
@@ -14,8 +15,11 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
 import { EventTimeline, type TimelineEvent } from '../../../components/EventTimeline';
+import { ManualEditButton } from '../../../components/ManualEdit';
+import { RecordNotes } from '../../../components/RecordNotes';
 import { useToast } from '../../../components/Toast';
 import { useConfirmAction } from '../../../hooks/useConfirmAction';
+import type { Identity } from '../../../providers/authProvider';
 import { apiErrorMessage, httpClient } from '../../../providers/axios';
 import { PoStatusTag } from '../status';
 
@@ -23,6 +27,8 @@ export function PurchaseOrderShow() {
   const { id } = useParams();
   const toast = useToast();
   const { confirmAction } = useConfirmAction();
+  const { data: identity } = useGetIdentity<Identity>();
+  const canManage = ['SUPER_ADMIN', 'IT_ADMIN'].includes(identity?.role ?? '');
   const [row, setRow] = useState<Record<string, unknown> | null>(null);
   const [history, setHistory] = useState<TimelineEvent[]>([]);
   const [reasonOpen, setReasonOpen] = useState<'cancel' | 'short' | 'amend' | 'void' | null>(null);
@@ -169,6 +175,17 @@ export function PurchaseOrderShow() {
             >
               PDF
             </Button>
+            {canManage && row ? (
+              <ManualEditButton
+                entityType="PurchaseOrder"
+                id={id ? Number(id) : undefined}
+                fields={[
+                  { name: 'terms', label: 'Terms', value: row.terms },
+                  { name: 'deliveryDate', label: 'Delivery date', value: row.deliveryDate },
+                ]}
+                onSaved={load}
+              />
+            ) : null}
           </Space>
         }
       >
@@ -228,6 +245,7 @@ export function PurchaseOrderShow() {
       <Card title="Edit history">
         <EventTimeline events={history} />
       </Card>
+      <RecordNotes entityType="PurchaseOrder" entityId={id ? Number(id) : undefined} canAdd={canManage} />
       <Modal
         title={
           reasonOpen === 'void'

@@ -92,6 +92,44 @@ const TICKET_FIELDS = new Set([
 ]);
 const LOCATION_FIELDS = new Set(['code', 'name', 'city', 'address', 'createdAt']);
 
+// Procurement manual-correction fields deliberately exclude status/financial-total/approval
+// fields — those go through the module's own dedicated workflows (status change, amend,
+// bank re-approval) so a manual edit can't silently bypass them. This is for fixing typos and
+// backfilling descriptive data, the same as everywhere else manual correction is offered.
+const VENDOR_FIELDS = new Set([
+  'legalName',
+  'tradingName',
+  'taxId',
+  'registeredAddress',
+  'remitToAddress',
+  'paymentTerms',
+  'currency',
+  'defaultBudgetHead',
+]);
+const REQUISITION_FIELDS = new Set([
+  'title',
+  'businessRequirement',
+  'proposedMakeModel',
+  'budgetHead',
+  'procurementType',
+  'departmentFreeText',
+  'vendorFreeText',
+  'locationFreeText',
+  'expectedProcurementDate',
+  'expectedDeploymentDate',
+]);
+const PURCHASE_ORDER_FIELDS = new Set(['terms', 'deliveryDate']);
+const VENDOR_CONTRACT_FIELDS = new Set([
+  'startDate',
+  'endDate',
+  'value',
+  'slaTerms',
+  'noticePeriodDays',
+  'autoRenew',
+  'entitlementCount',
+  'usageCount',
+]);
+
 export interface ManualEditInput {
   reason: string;
   fields: Record<string, unknown>;
@@ -134,6 +172,14 @@ export class RecordsService {
         return this.patchTicket(id, fields, dto.reason, actor);
       case 'Location':
         return this.patchLocation(id, fields, dto.reason, actor);
+      case 'Vendor':
+        return this.patchVendor(id, fields, dto.reason, actor);
+      case 'PurchaseRequisition':
+        return this.patchRequisition(id, fields, dto.reason, actor);
+      case 'PurchaseOrder':
+        return this.patchPurchaseOrder(id, fields, dto.reason, actor);
+      case 'VendorContract':
+        return this.patchVendorContract(id, fields, dto.reason, actor);
       default:
         throw new NotFoundException(`Manual edit is not available for ${entityType}`);
     }
@@ -354,6 +400,67 @@ export class RecordsService {
     }
     const updated = await this.prisma.location.update({ where: { id }, data });
     await this.flag(actor, 'Location', id, reason, picked, current, updated);
+    return updated;
+  }
+
+  private async patchVendor(id: number, fields: Record<string, unknown>, reason: string, actor: AuthUser) {
+    const current = await this.prisma.vendor.findUnique({ where: { id } });
+    if (!current) throw new NotFoundException('Vendor not found');
+    const picked = this.pick(fields, VENDOR_FIELDS);
+    const updated = await this.prisma.vendor.update({
+      where: { id },
+      data: picked as Prisma.VendorUpdateInput,
+    });
+    await this.flag(actor, 'Vendor', id, reason, picked, current, updated);
+    return updated;
+  }
+
+  private async patchRequisition(id: number, fields: Record<string, unknown>, reason: string, actor: AuthUser) {
+    const current = await this.prisma.purchaseRequisition.findUnique({ where: { id } });
+    if (!current) throw new NotFoundException('Requisition not found');
+    const picked = this.pick(fields, REQUISITION_FIELDS);
+    const data: Prisma.PurchaseRequisitionUpdateInput = {};
+    for (const [k, v] of Object.entries(picked)) {
+      if (['expectedProcurementDate', 'expectedDeploymentDate'].includes(k)) {
+        (data as Record<string, unknown>)[k] = this.asDate(v);
+      } else (data as Record<string, unknown>)[k] = v;
+    }
+    const updated = await this.prisma.purchaseRequisition.update({ where: { id }, data });
+    await this.flag(actor, 'PurchaseRequisition', id, reason, picked, current, updated);
+    return updated;
+  }
+
+  private async patchPurchaseOrder(id: number, fields: Record<string, unknown>, reason: string, actor: AuthUser) {
+    const current = await this.prisma.purchaseOrder.findUnique({ where: { id } });
+    if (!current) throw new NotFoundException('Purchase order not found');
+    const picked = this.pick(fields, PURCHASE_ORDER_FIELDS);
+    const data: Prisma.PurchaseOrderUpdateInput = {};
+    for (const [k, v] of Object.entries(picked)) {
+      if (k === 'deliveryDate') (data as Record<string, unknown>)[k] = this.asDate(v);
+      else (data as Record<string, unknown>)[k] = v;
+    }
+    const updated = await this.prisma.purchaseOrder.update({ where: { id }, data });
+    await this.flag(actor, 'PurchaseOrder', id, reason, picked, current, updated);
+    return updated;
+  }
+
+  private async patchVendorContract(id: number, fields: Record<string, unknown>, reason: string, actor: AuthUser) {
+    const current = await this.prisma.vendorContract.findUnique({ where: { id } });
+    if (!current) throw new NotFoundException('Contract not found');
+    const picked = this.pick(fields, VENDOR_CONTRACT_FIELDS);
+    const data: Prisma.VendorContractUpdateInput = {};
+    for (const [k, v] of Object.entries(picked)) {
+      if (['startDate', 'endDate'].includes(k)) {
+        const parsed = this.asDate(v);
+        if (!parsed) throw new BadRequestException(`${k} cannot be cleared`);
+        (data as Record<string, unknown>)[k] = parsed;
+      } else if (k === 'value') data.value = v == null || v === '' ? current.value : new Prisma.Decimal(String(v));
+      else if (['noticePeriodDays', 'entitlementCount', 'usageCount'].includes(k)) {
+        (data as Record<string, unknown>)[k] = this.asInt(v, k);
+      } else (data as Record<string, unknown>)[k] = v;
+    }
+    const updated = await this.prisma.vendorContract.update({ where: { id }, data });
+    await this.flag(actor, 'VendorContract', id, reason, picked, current, updated);
     return updated;
   }
 

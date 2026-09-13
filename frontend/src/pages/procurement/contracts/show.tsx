@@ -1,13 +1,19 @@
+import { useGetIdentity } from '@refinedev/core';
 import { Button, Card, Descriptions, Space, Tag } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
 import { EventTimeline, type TimelineEvent } from '../../../components/EventTimeline';
+import { ManualEditButton } from '../../../components/ManualEdit';
+import { RecordNotes } from '../../../components/RecordNotes';
 import { useToast } from '../../../components/Toast';
+import type { Identity } from '../../../providers/authProvider';
 import { apiErrorMessage, httpClient } from '../../../providers/axios';
 
 export function ContractShow() {
   const { id } = useParams();
   const toast = useToast();
+  const { data: identity } = useGetIdentity<Identity>();
+  const canManage = ['SUPER_ADMIN', 'IT_ADMIN'].includes(identity?.role ?? '');
   const [row, setRow] = useState<Record<string, unknown> | null>(null);
   const [history, setHistory] = useState<TimelineEvent[]>([]);
 
@@ -49,18 +55,36 @@ export function ContractShow() {
       <Card
         title={`${String((row?.vendor as { legalName?: string })?.legalName ?? 'Contract')} · ${String(row?.type ?? '')}`}
         extra={
-          <Button
-            onClick={async () => {
-              try {
-                const { data } = await httpClient.post(`/vendor-contracts/${id}/renew`);
-                toast.success(`Renewed as contract #${data.id}`);
-              } catch (e) {
-                toast.error(apiErrorMessage(e, 'Could not renew'));
-              }
-            }}
-          >
-            Renew / clone term
-          </Button>
+          <Space wrap>
+            <Button
+              onClick={async () => {
+                try {
+                  const { data } = await httpClient.post(`/vendor-contracts/${id}/renew`);
+                  toast.success(`Renewed as contract #${data.id}`);
+                } catch (e) {
+                  toast.error(apiErrorMessage(e, 'Could not renew'));
+                }
+              }}
+            >
+              Renew / clone term
+            </Button>
+            {canManage && row ? (
+              <ManualEditButton
+                entityType="VendorContract"
+                id={id ? Number(id) : undefined}
+                fields={[
+                  { name: 'startDate', label: 'Start date', value: row.startDate },
+                  { name: 'endDate', label: 'End date', value: row.endDate },
+                  { name: 'value', label: 'Value', value: row.value },
+                  { name: 'slaTerms', label: 'SLA terms', value: row.slaTerms },
+                  { name: 'noticePeriodDays', label: 'Notice period (days)', value: row.noticePeriodDays },
+                  { name: 'entitlementCount', label: 'Entitlement count', value: row.entitlementCount },
+                  { name: 'usageCount', label: 'Usage count', value: row.usageCount },
+                ]}
+                onSaved={load}
+              />
+            ) : null}
+          </Space>
         }
       >
         <Descriptions column={2} size="small">
@@ -95,6 +119,7 @@ export function ContractShow() {
       <Card title="Edit history">
         <EventTimeline events={history} />
       </Card>
+      <RecordNotes entityType="VendorContract" entityId={id ? Number(id) : undefined} canAdd={canManage} />
     </Space>
   );
 }
