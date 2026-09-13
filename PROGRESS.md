@@ -390,5 +390,63 @@ See `ENHANCEMENTS.md` for the full item-by-item list with file references. Summa
       limitation with `ClipboardEvent`, and a non-deterministic test-fixture pick) — all
       root-caused via live reproduction (direct API calls, an in-page `ClipboardEvent` test, and
       Playwright trace runs), not guessed at.
+- [x] Found and fixed one more, genuine app bug while re-confirming a clean full-suite run: the
+      Audit Log page rendered two different `Input.Search` instances (same id) depending on
+      loading state, so typing into it right as data finished loading could silently drop the
+      search. Consolidated to one instance via `DataGrid`'s own `loading` prop.
 - [x] Full suite status after this pass: backend unit **98/98**, backend e2e **126/126**,
       frontend Playwright **78/78**, frontend `lint`/`typecheck`/`build` clean.
+
+## Prompt 26 — Simplification pass + chat completion verification (2026-09-12)
+
+- [x] **Part 2 (Teams-style chat) verified live and found genuinely complete.** Two concurrent
+      logged-in sessions (separate Socket.IO connections) were used to exercise every checklist
+      item — channels, DMs/groups, threads, rich text, real @mentions with typed/deep-linked
+      notifications, reactions with a per-viewer "mine" flag, attachments, edit/delete with
+      tombstone + audit, record-link unfurling to the real row, presence with color+shape, live
+      typing indicators, and WebSocket (not polling) real-time delivery — cross-checked against
+      `audit_logs` and `notifications` rows, not just the UI. No gaps found; no chat code changed.
+      See `ENHANCEMENTS.md` for the full per-feature verification table.
+- [x] **Extended manual correction + notes to procurement** (Vendor, PurchaseRequisition,
+      PurchaseOrder, VendorContract) — a real, confirmed Part 1.2 gap: these four had no way to
+      fix a typo or leave a note without the full formal workflow, unlike every other record
+      type. Fields are deliberately narrow (no status/totals/relational ids — those keep their
+      dedicated workflows). New backend e2e file `procurement-manual-notes.e2e-spec.ts` (8
+      tests: correction, the allowlist rejection, notes on all four types, Manager-scoping
+      allow/deny, IT Support blocked).
+- [x] **Part 1.1 friction reduction** — last location on Add employee; assign-from-profile
+      prefers assets at the employee's office; ticket create remembers category and auto-links
+      a sole assigned device; requests remember last kind/category; Manager one-click Approve;
+      requisition create pre-fills the actor's office; Employee `/assets` is a card grid
+      ("My devices"), not the admin DataGrid.
+- [x] **Self-service correction** — `GET/PUT /api/employees/me` (phone/title, audited as
+      `Self-updated profile`, not `manual_override`); requester `PATCH /api/support-tickets/:id`
+      for subject/description; employees can add notes on their own employee record and ticket.
+- [x] **Chat robustness** — `user.update` → `updateMany` on socket connect / presence ping /
+      presence set so a stale socket after a seed wipe cannot crash the gateway (Prisma P2025).
+
+## Prompt 27 — Finish Prompt 26 leftovers + take NewVision live (2026-09-12)
+
+- [x] Finished remaining Prompt 26 Part 1 items (above). Did **not** rebuild Teams chat —
+      Prompt 26 already live-verified it; only the P2025 crash-hardening landed.
+- [x] Production mailer: `RESEND_API_KEY` sends over HTTPS first, then SMTP, then console.
+      `send()` still never throws. Dashboard `/setup` reports `mailTransport`.
+- [x] `SEED_MODE=bootstrap` + `BOOTSTRAP_ADMIN_*` creates roles + one Super Admin on an empty
+      database (no 1,250-asset demo). `SEED_IF_EMPTY=true` still skips once any user exists.
+      Entrypoint fails the boot if bootstrap seed errors (so a missing first admin is not silent).
+- [x] GitHub Action `keep-alive.yml` pings `/api/health` every 10 minutes so Render Free does
+      not sleep the API (cron, IMAP, WebSockets) overnight.
+- [x] Live URLs (already provisioned): https://newvision-web.onrender.com (UI),
+      https://newvision-api.onrender.com (API). HTTPS is on. Public scan:
+      `https://newvision-web.onrender.com/scan/:code`.
+- [ ] **Outbound email to a real inbox** — Resend path is implemented and unit-tested; a
+      `RESEND_API_KEY` has not been placed on the Render service, so a ticket-created message
+      has **not** been confirmed in a real mailbox this pass.
+- [ ] **Email-in against a real mailbox** — IMAP/webhook code is unchanged and fixture-tested;
+      no production `IMAP_*` / mailbox credentials were available to prove a live ingest.
+
+### Tests (Prompt 27 pass, 2026-09-13)
+
+- Backend unit **101/101** (was 98; +3 Resend helper tests).
+- Backend e2e **136/136** (was 126; +8 procurement manual/notes, +1 employee self-edit, +1 requester ticket correction). An overnight full-suite run starved `phase2.e2e-spec.ts` `beforeAll` after 16h; re-running that file alone was **10/10** in 26s — not a product regression.
+- Frontend `lint` / `typecheck` / `vite build` clean. Playwright **80** (was 78; +2 self-service specs). First full run: 76 passed / 4 failed (stale selectors + Employee Profile bounced home). Those four were fixed and re-run green.

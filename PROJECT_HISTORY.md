@@ -209,6 +209,24 @@ Last verified against `main` at `f9582d2` (2026-09-11).
   - Dashboard: first `1f01c93` added paging + row chevrons (user rejected); `f9582d2` restored simple 420px scroll list; **only** My work header caret (`DashSection.tsx`, `nv.dash.collapse.my-work`); Status / location / tickets stay open.
 - **Outcome/status:** Fully done and pushed. Render: web live on `f9582d2`; API live on `5fe1189` (no backend files in `f9582d2`).
 
+### Post-Prompt-25 hardening pass (2026-09-12)
+
+- **What I asked for:** Full autonomous audit against this document's own Known Issues table, plus a fresh bug sweep — fix what's real, harden the app, add small sensible enhancements, keep tests green, commit and push.
+- **What you built/changed:** Fixed a real reseed-crashing bug (`prisma/seed.ts` never cleared Prompt 24's chat tables or `ticket_priority_targets` before re-deleting users), a broken employee search (`EMP-` prefix forced an exact-match miss instead of a contains search), an e2e test file that didn't compile (`assets.e2e-spec.ts`), `MailerService` throwing into mutations on SMTP failure instead of logging, a permanently-wrong `SEED_ON_START` dashboard warning, IT_ADMIN's permission-matrix drift, a red `npm run lint` CI gate, a WCAG contrast failure, and a real audit-log search remount bug found during final verification. Extended queue keyboard shortcuts to the procurement lists. Committed the real employee-feedback docx, dropped the junk one.
+- **Outcome/status:** Fully done. Backend unit 98/98, backend e2e 126/126, frontend Playwright 78/78. Pushed `f9582d2..03fa077`.
+
+### Prompt 26 — Simplification pass + chat completion verification (2026-09-12)
+
+- **What I asked for:** Two parts. Part 1: look at the app as a real user, reduce clicks/re-typing, and make sure manual editing/notes are available on every record type where they make sense. Part 2: verify — by actually using it live, not trusting prior docs — that the Teams-style chat is fully, completely built (channels, DMs, threads, rich text, real @mentions, reactions, attachments, edit/delete, record-link unfurling, presence, typing, real-time WebSocket delivery, notifications, color-coding) and finish anything found incomplete.
+- **What you built/changed:** Part 2 — ran a live, two-session verification (two concurrent Socket.IO connections) of every checklist item, cross-checked against `audit_logs` and `notifications` rows. Found it genuinely complete already; changed no chat feature code (a later pass only hardened presence writes). Part 1.2 — Vendors/Requisitions/POs/Contracts gained manual-correction and notes (narrow allowlist). Part 1.1 (finished in the Prompt 27 sitting) — prefills, Manager one-click approve, Employee device cards, employee self-edit, requester ticket typo-fix.
+- **Outcome/status:** Part 2 fully verified. Part 1.1 and 1.2 shipped with tests. See Prompt 27 for production deployment.
+
+### Prompt 27 — Finish Prompt 26 leftovers + production go-live (2026-09-12)
+
+- **What I asked for:** Finish anything still open from Prompt 26, then take the app from `main` to a real production deployment (Render), with real email, real email-in, WebSockets, HTTPS, and a live walkthrough.
+- **What you built/changed:** Finished Prompt 26 Part 1 leftovers. Added Resend HTTPS mail, `SEED_MODE=bootstrap`, fail-closed bootstrap seed, keep-alive GitHub Action, IMAP env slots on `render.yaml`. Did **not** invent Resend/IMAP credentials — live inbox and live mailbox ingest stay unproven until those secrets are pasted into Render.
+- **Outcome/status:** App is reachable at https://newvision-web.onrender.com / https://newvision-api.onrender.com on the existing Render Postgres. Existing DB still has demo logins (`SEED_IF_EMPTY` will not wipe them). Real transactional email and IMAP need operator secrets.
+
 ---
 
 ## 3. Individual / Ad-hoc Tasks (Outside the Numbered Prompt Series)
@@ -265,7 +283,8 @@ Status key: ✅ working in code (and covered by tests unless noted) · ⚠️ pa
 | HR/inventory reconciliation (manual CSV) | ✅ | `reconciliation/` |
 | QR + public `/scan/:code` (no assignee/serial) | ✅ | `public-assets/`, `pages/scan.tsx` |
 | Webhooks (`asset.created`, `asset.status_changed`, HMAC) | ✅ | Settings → Webhooks |
-| Append-only notes + manual correction (reason required) | ✅ | `notes/`, `records/` |
+| Append-only notes + manual correction (reason required) | ✅ | `notes/`, `records/` (includes Vendor/PR/PO/Contract) |
+| Employee self-edit (phone/title) + requester ticket typo-fix | ✅ | `PUT /employees/me`, `PATCH /support-tickets/:id` |
 
 ### Accessories Tracking
 
@@ -308,6 +327,7 @@ Status key: ✅ working in code (and covered by tests unless noted) · ⚠️ pa
 | PO convert/amend/cancel/short-close, GRN, 3-way match (~2%) | ✅ | `purchase-orders.*`, `match.ts` |
 | Contracts + 90/60/30/7 renewal alerts, renew/clone | ✅ | `contracts.*` |
 | Handoff to assets/accessories/consumables/licenses | ✅ | flags `needsReconciliation` instead of deleting |
+| Manual correction + free-text notes on Vendor/Requisition/PO/Contract | ✅ | Prompt 26; narrow field allowlist, `records.service.ts` |
 | E-sourcing / PunchOut / OCR / GL / payments | ❌ | `FUTURE_IDEAS.md` |
 
 ### Staff Chat (Teams-style)
@@ -319,7 +339,7 @@ Status key: ✅ working in code (and covered by tests unless noted) · ⚠️ pa
 | Threads, reactions, structured @mentions, attachments, document paste | ✅ | `ChatBody.tsx`, `clipboardChat.ts` |
 | Own right / others left (including `#it-ops`) | ✅ | leftovers / Prompt 25 look-and-feel |
 | Presence, typing, live updates (Socket.IO) | ✅ | `chat.gateway.ts`, `useChatSocket.ts` |
-| Search, seen-by on small DMs, record-code unfurl | ✅ | |
+| Search, seen-by on small DMs, record-code unfurl | ✅ | Prompt 26: live-verified end to end (two concurrent sessions), unfurl confirmed to resolve the real row via DB lookup, not a search fallback |
 | Pin / bookmark / forward; calls / meetings / guests / Teams federation | ❌ | By design |
 
 ### Dashboard & Reporting

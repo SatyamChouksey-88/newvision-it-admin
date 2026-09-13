@@ -41,8 +41,10 @@ The stack is a **React + Refine + Ant Design** frontend talking to a **NestJS + 
 | **Prompt 19** — Re-verified against reference | Re-read the mockup directly; reverted an interim "futuristic" visual pass that had drifted from it; kept the command palette and a WCAG contrast fix found while re-testing | **Done** |
 | **Help docs rebuild** | In-app MkDocs-Material-style documentation site (structure, not ING colors); accurate articles + real screenshots | **Done** |
 | **Prompt 24** — Teams-style staff chat | Channels, DMs, groups, threads, rich composer, reactions, mentions, presence, WebSockets | **Done** |
+| **Prompt 26** — Simplification + chat completion | Prefills, self-service edits, procurement notes/manual edit; Teams chat live-verified | **Done** |
+| **Prompt 27** — Go live | Render production, Resend mailer, bootstrap seed, keep-alive | **Deployed**; real inbox / IMAP need operator secrets |
 
-**Test counts (current, re-run 2026-09-11):** 96 backend unit + 122 backend integration = **218**; Playwright includes Team Chat + axe-core.
+**Test counts (Prompt 27 pass, 2026-09-12):** backend unit **101**; backend e2e and Playwright counts are recorded in `PROGRESS.md` after the full suite run. Live UI: https://newvision-web.onrender.com — API: https://newvision-api.onrender.com.
 
 **Design reference:** `design-reference/NewVision-standalone-src.html` (Prompt 12 source of truth, re-verified in Prompt 19) and `design-reference/DESIGN_TOKENS.md`. Earlier `NewVision_Asset_Manager.html` is historical.
 
@@ -74,7 +76,7 @@ Pulled from `backend/package.json`, `frontend/package.json`, and config files.
 | **Import/export** | ExcelJS, PapaParse | ^4.4.0 / ^5.7.0 |
 | **PDF reports** | PDFKit | ^0.20.2 |
 | **QR codes** | `qrcode` | ^1.5.4 |
-| **Email** | Nodemailer (SMTP when configured, console fallback) | ^10.0.1 |
+| **Email** | Resend HTTPS API when `RESEND_API_KEY` is set; else Nodemailer SMTP; else console | fetch / ^10.0.1 |
 | **API docs** | Swagger (`@nestjs/swagger`) at `/api/docs` | ^11.4.7 |
 | **Backend tests** | Jest 30 + `@swc/jest` + Supertest | ^30.0.0 / ^7.0.0 |
 | **E2E tests** | Playwright + `@axe-core/playwright` | ^1.63.0 / ^4.13.0 |
@@ -350,11 +352,11 @@ Separate from Maintenance (hardware repairs on one asset) and Asset Requests (as
 
 ### 5.5c Notes and manual correction
 
-**Notes:** `GET/POST /api/notes?entityType=&entityId=` — append-only freeform notes on Asset, Employee, Accessory, Consumable, AssetMaintenance, AssetRequest, SupportTicket, Location. Viewers can read; editors of that record type can add. Past `occurredAt` is tagged **Backfilled**.
+**Notes:** `GET/POST /api/notes?entityType=&entityId=` — append-only freeform notes on Asset, Employee, Accessory, Consumable, AssetMaintenance, AssetRequest, SupportTicket, Location, and (Post-Prompt-25 hardening pass) Vendor, PurchaseRequisition, PurchaseOrder, VendorContract. Viewers can read; editors of that record type can add — Vendor/PurchaseOrder/VendorContract are Super Admin/IT Admin only, PurchaseRequisition additionally allows the Manager who raised it (`requesterId === actor.id`). Past `occurredAt` is tagged **Backfilled**.
 
-**Manual edit:** `POST /api/records/:entityType/:id/manual` — Super Admin and IT Admin only. Mandatory `reason`, field whitelist, enum/FK validation still applies. Audit `action=manual_override`. Backfill assignment: `POST /api/records/Asset/:id/backfill-assignment`.
+**Manual edit:** `POST /api/records/:entityType/:id/manual` — Super Admin and IT Admin only. Mandatory `reason`, per-entity field whitelist, enum/FK validation still applies. Audit `action=manual_override`. Backfill assignment: `POST /api/records/Asset/:id/backfill-assignment`. Covers the same entity types as Notes above (procurement fields are deliberately narrow — no status/financial-total/relational-id fields, since those already have dedicated audited workflows).
 
-**Status:** Fully working. Covered in `tickets.e2e-spec.ts` and Help article `notes-manual-edit`.
+**Status:** Fully working. Covered in `tickets.e2e-spec.ts`, `procurement-manual-notes.e2e-spec.ts`, and Help article `notes-manual-edit`.
 
 ---
 

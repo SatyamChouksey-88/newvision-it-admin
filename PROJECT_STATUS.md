@@ -2,6 +2,10 @@
 
 This document is the current gap audit, cross-checked against the codebase after **Prompt 20** (visual rebuild, role-based shells, ticket depth, email-in). For the build log see `PROGRESS.md`; for judgment calls see `DECISIONS.md`.
 
+> **Stale from Prompt 20 onward.** Vendor/procurement (Prompt 23), Teams-style chat (Prompt 24),
+> and the post-Prompt-25 hardening + Prompt 26 chat-verification passes are not reflected below.
+> Use **`PROJECT_HISTORY.md`** for the current, verified feature inventory and open-issues list.
+
 ## 1. What’s covered (Phases 1–4 — core product)
 
 - Auth + 5-role RBAC (Super Admin, IT Admin, IT Support, Manager, Employee)
@@ -152,10 +156,20 @@ If any of these become a real, demonstrated need later, they should be scoped as
 - Presence, typing, and live message/reaction/unread updates over Socket.IO (`/chat` namespace); staff-only at the API and gateway
 - Distinct `chat_mention` / `chat_thread_reply` notifications with deep links
 
+## 7i. What’s covered (Prompts 26–27 — simplification, chat verification, go-live)
+
+- Manual correction + notes on Vendor / PR / PO / Contract (narrow field allowlist)
+- Employee self-edit (phone/title) and requester ticket subject/description correction
+- Prefills and fewer clicks on tickets, requests, requisitions, assign, add-employee; Employee "My devices" cards
+- Teams chat live-verified (WebSocket, not polling); gateway hardened against stale-user P2025
+- Production: Render HTTPS at `newvision-web` / `newvision-api`; Resend HTTPS mailer; `SEED_MODE=bootstrap`; keep-alive ping
+- **Not yet proven live:** a real inbox receive (needs `RESEND_API_KEY` on Render) and a real mailbox email-in (needs `IMAP_*`)
+
 ## 9. Remaining gaps (true leftovers, not silent undecided items)
 
-- **Seed resets demo data** when `SEED_ON_START=true` (compose default). Documented and warned in-app; set `false` after first boot to persist edits
-- **IMAP is optional** — local/dev without `IMAP_HOST` uses console outbound mail and can ingest via `/api/email-in/ingest`
+- **Seed resets demo data** when `SEED_ON_START=true` (compose default) **and** `SEED_IF_EMPTY` is not also true. Render sets both, so production does not wipe.
+- **IMAP / Resend secrets are operator-supplied** — without them, outbound mail logs to console and email-in is webhook-only
+- **Render Free API sleeps** after ~15 min idle unless the keep-alive workflow (or a paid instance) is running. Free Postgres expires after 30 days.
 - **Keyboard shortcuts** are strongest on assets/employees lists (`/` global search and `?` Help work everywhere)
 
 None of Prompt 6/8/9/12/13/14/15/16/17/18/19/20 product work is sitting as an undocumented gap.

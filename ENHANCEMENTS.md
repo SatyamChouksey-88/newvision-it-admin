@@ -218,3 +218,58 @@ employee via the API first).
 - **Email-in (IMAP)**: still unproven without a real mailbox, as documented; this is an
   operational/credentials gap, not something fixable from within this pass.
 
+## Prompt 26 — Simplification pass + chat completion verification (2026-09-12)
+
+### Part 2 — Teams-style chat: verified live, found genuinely complete
+
+Every checklist item was exercised with two real, concurrently logged-in sessions (separate
+Socket.IO connections), not read from code and assumed:
+
+| Feature | How verified |
+|---|---|
+| Channels create/rename/archive/join/leave/members | Live via API against a fresh channel |
+| DM / group creation | Live via `/chat/dm` |
+| Threaded replies + "N replies" indicator | Live UI: reply, send, thread panel shows "1 reply · <time>" |
+| Rich-text toolbar (bold/italic/strike/code/list/link) | Present and wired to `onWrap`/markdown rendering |
+| @mention autocomplete → real user id → typed, deep-linked notification | Live: inserted `[@Ishan IT Admin](mention:62)`, confirmed `chat_mention` notification with `link: /chat?c=12&m=27` |
+| Emoji reactions, "mine" indicator, live sync to the other viewer | Live: reacted from one session, saw the count update in the other with no refresh |
+| Edit → "edited" label; delete → tombstone; both audited | Live: `PATCH`/`DELETE /chat/messages/:id`, confirmed `audit_logs` rows `Edited message N` / `Deleted message N` |
+| Record-link unfurling resolves to the real row | Code-traced `chat-links.ts` → `chat.service.ts#enrichLinks`, which looks up the real Asset/Employee/PO/PR by code and returns its actual `id`/`href`/title/status — not a search-page fallback |
+| Presence color **and** shape (not color-only) | `PresenceDot.tsx` + CSS: solid circle (available), circle + tick (away), circle + bar (busy/dnd), hollow ring (offline) |
+| Live typing indicator | Live: "Sunil Support is typing…" appeared in the other session in real time |
+| Real-time delivery via WebSocket, not polling | Confirmed `ChatGateway`/`ChatRealtimeService` push `message:new`/`message:updated`/`message:deleted`/`unread:changed`/`presence`/`typing` over Socket.IO; live message send appeared in the second session with zero polling/refetch |
+| Migration of pre-existing chat data | The `#it-ops` seed messages from earlier prompts were still present and functioning throughout |
+
+No gaps were found and no chat code needed changing.
+
+### Part 1.2 — manual correction & notes extended to procurement
+
+| # | What | Why |
+|---|------|-----|
+| M1 | Manual correction (`ManualEditButton`) and free-text notes (`RecordNotes`) added to Vendors, Requisitions, Purchase Orders, and Contracts — previously only Assets/Employees/Accessories/Consumables/Maintenance/Tickets/Locations had them | Confirmed real gap: these four record types had no way to fix a typo or leave a note without the full formal workflow |
+| M2 | Procurement manual-edit fields deliberately exclude `status`, financial totals, and relational ids — only descriptive fields (legal name, terms, SLA text, dates that don't drive the approval matrix) are editable | Those fields already have dedicated, audited workflows (status change, PO amend, bank re-approval); a generic patch must not bypass them |
+| M3 | Requisition notes follow the existing Manager-scoping convention (`requesterId === actor.id`, the same check `requisitions.service.ts` already uses) — a Manager can view/add notes only on their own requisition | Consistency with existing RBAC, not a new pattern |
+
+New backend e2e coverage: `backend/test/procurement-manual-notes.e2e-spec.ts` (8 tests — manual
+correction, the field-allowlist rejection, notes on all four entity types, the Manager-scoping
+allow/deny cases, and IT Support being blocked).
+
+### Part 1.1 — friction reduction and self-service (finished in the Prompt 27 pass)
+
+| # | What | Why |
+|---|------|-----|
+| S1 | Add-employee remembers last location; assign-from-profile lists the employee's office first; ticket create remembers last category and auto-links a sole device; requests remember last kind/category; requisitions pre-fill the actor's office | Stop re-typing values the system already knows |
+| S2 | Manager one-click Approve on pending request rows (Review still used for reject) | Approving between meetings should not require a second modal unless there is a decision to write |
+| S3 | Employee `/assets` is a "My devices" card grid | The admin DataGrid is the wrong density for someone looking at their own laptop |
+| S4 | `PUT /api/employees/me` (phone/title) and requester `PATCH /api/support-tickets/:id` (subject/description) | Fix a typo without filing a ticket for IT |
+| S5 | Chat gateway `updateMany` for last-seen / presence | A stale socket after a seed wipe was crashing Nest with Prisma P2025 |
+
+### Prompt 27 — production go-live
+
+| # | What | Why |
+|---|------|-----|
+| P1 | Resend HTTPS transport in `MailerService` | Render Free blocks SMTP 587/465; API mail still works |
+| P2 | `SEED_MODE=bootstrap` + fail-the-boot if that seed errors | First Super Admin on an empty production DB, never the 1,250-asset demo wipe |
+| P3 | GitHub Action keep-alive ping every 10 minutes | Free API sleep would silently stop cron, IMAP, and WebSockets |
+| P4 | Documented live URLs; real inbox / real IMAP **not** claimed | No Resend or mailbox credentials were available to paste into Render |
+
