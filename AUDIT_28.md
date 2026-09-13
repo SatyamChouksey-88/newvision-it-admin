@@ -35,6 +35,7 @@ Honest leftovers carried in:
 | A9 | Procurement lists | UX | Vendor / PR / PO / Contract lists treated a failed fetch as “no rows yet”. | Distinct error state + Retry, same pattern as Accessories. | code (live verify still pending) |
 | A10 | Ticket comments | UX | Send had no loading/disabled guard — a double-click posted two replies. | `commentBusy` on the Send button. | code |
 | A11 | Indexes | Perf | Daily warranty/audit jobs and digest de-dupe filtered unindexed `warranty_end`, `next_audit_due_at`, and `notifications.type`. | Migration `20260913200000_prompt28_indexes`. | schema + migration |
+| A12 | Procurement show | UX | Vendor / PR / PO / Contract detail pages swallowed a failed GET and sat on a blank title. | Loading card + error EmptyState + Retry. | code |
 
 ## Still sweeping
 

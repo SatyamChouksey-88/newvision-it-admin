@@ -284,4 +284,5 @@ allow/deny cases, and IT Support being blocked).
 | A9 | Procurement lists show a real error + Retry | Failed fetches used to look like an empty catalog |
 | A10 | Ticket reply Send disables while in flight | Double-click posted two comments |
 | A11 | Indexes on `warranty_end`, `next_audit_due_at`, `notifications.type` | Daily jobs and dashboard filters were sequential-scanning those columns |
+| A12 | Procurement detail pages show loading / error / Retry | A failed GET used to leave a blank “Vendor” / “PO” title |
 
