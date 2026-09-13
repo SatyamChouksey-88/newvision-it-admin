@@ -523,6 +523,8 @@ model Asset {
   @@index([categoryId])
   @@index([assignedEmployeeId])
   @@index([lastAuditedAt])
+  @@index([warrantyEnd])
+  @@index([nextAuditDueAt])
   @@map("assets")
 }
 
@@ -629,6 +631,7 @@ model Notification {
 
   @@index([userId])
   @@index([isRead])
+  @@index([type])
   @@map("notifications")
 }
 

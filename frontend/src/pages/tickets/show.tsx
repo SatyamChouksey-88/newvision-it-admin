@@ -66,6 +66,7 @@ export function TicketShow() {
   const [editForm] = Form.useForm();
   const [editOpen, setEditOpen] = useState(false);
   const [editBusy, setEditBusy] = useState(false);
+  const [commentBusy, setCommentBusy] = useState(false);
   const [viewers, setViewers] = useState<{ userId: number; name: string }[]>([]);
 
   const reload = () => void query.refetch();
@@ -177,7 +178,8 @@ export function TicketShow() {
     isInternal?: boolean;
     cannedResponseId?: number;
   }) => {
-    if (!ticket) return;
+    if (!ticket || commentBusy) return;
+    setCommentBusy(true);
     try {
       await httpClient.post(`/support-tickets/${ticket.id}/comments`, {
         body: values.body,
@@ -189,6 +191,8 @@ export function TicketShow() {
       reload();
     } catch (e) {
       toast.error(apiErrorMessage(e, 'Could not comment'));
+    } finally {
+      setCommentBusy(false);
     }
   };
 
@@ -530,7 +534,7 @@ export function TicketShow() {
                 <Checkbox>Internal note (not visible to the requester)</Checkbox>
               </Form.Item>
             ) : null}
-            <Button type="primary" htmlType="submit">
+            <Button type="primary" htmlType="submit" loading={commentBusy} disabled={commentBusy}>
               Send
             </Button>
           </Form>

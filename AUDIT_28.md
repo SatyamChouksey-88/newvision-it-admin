@@ -33,6 +33,8 @@ Honest leftovers carried in:
 | A7 | Imports | Medium | Import / reconciliation `FileInterceptor` had no size cap (service checked some paths, not all). | 10 MB limit on import-export, import-jobs, and reconciliation interceptors. | code + existing import tests |
 | A8 | Ticket digest | Medium | `sendDailyDigests()` emailed every staff member on every run with no per-day marker. | De-dupe via a `general` notification titled `[digest YYYY-MM-DD]`. | e2e tickets — second `digest/run` in the same day returns `sent: 0` |
 | A9 | Procurement lists | UX | Vendor / PR / PO / Contract lists treated a failed fetch as “no rows yet”. | Distinct error state + Retry, same pattern as Accessories. | code (live verify still pending) |
+| A10 | Ticket comments | UX | Send had no loading/disabled guard — a double-click posted two replies. | `commentBusy` on the Send button. | code |
+| A11 | Indexes | Perf | Daily warranty/audit jobs and digest de-dupe filtered unindexed `warranty_end`, `next_audit_due_at`, and `notifications.type`. | Migration `20260913200000_prompt28_indexes`. | schema + migration |
 
 ## Still sweeping
 
