@@ -12,7 +12,9 @@ const DEMO_ACCOUNTS = [
   ['Employee', 'employee@newvision.local'],
 ];
 
-const SHOW_DEMO = import.meta.env.DEV;
+// Temporarily show demo accounts on live while bootstrap login is paused.
+const SHOW_DEMO = true;
+// const SHOW_DEMO = import.meta.env.DEV;
 
 type MfaState =
   | { mode: 'verify'; token: string }

@@ -305,9 +305,11 @@ export class AuthService {
 
   /** Production Super Admin must enroll TOTP. Tests/dev skip unless REQUIRE_SUPERADMIN_MFA=true. */
   static requireSuperAdminMfa(): boolean {
-    if (process.env.REQUIRE_SUPERADMIN_MFA === 'true') return true;
-    if (process.env.REQUIRE_SUPERADMIN_MFA === 'false') return false;
-    return process.env.NODE_ENV === 'production';
+    // Temporarily off so demo Super Admin can sign in on live without TOTP.
+    return false;
+    // if (process.env.REQUIRE_SUPERADMIN_MFA === 'true') return true;
+    // if (process.env.REQUIRE_SUPERADMIN_MFA === 'false') return false;
+    // return process.env.NODE_ENV === 'production';
   }
 
   private async mfaGate(user: AuthUser) {

@@ -8,9 +8,11 @@ export const DEMO_LOGIN_EMAILS = new Set([
 ]);
 
 export function demoLoginsAllowed(): boolean {
-  if (process.env.ALLOW_DEMO_LOGINS === 'true') return true;
-  if (process.env.ALLOW_DEMO_LOGINS === 'false') return false;
-  return process.env.NODE_ENV !== 'production';
+  // Temporarily allow seeded demo accounts on live while bootstrap seed is paused.
+  return true;
+  // if (process.env.ALLOW_DEMO_LOGINS === 'true') return true;
+  // if (process.env.ALLOW_DEMO_LOGINS === 'false') return false;
+  // return process.env.NODE_ENV !== 'production';
 }
 
 export function isDemoLoginEmail(email: string): boolean {

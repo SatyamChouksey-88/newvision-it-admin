@@ -1,7 +1,8 @@
 # NewVision on Render
 # Dashboard → New → Blueprint → connect this repo → apply.
 # First-boot: set BOOTSTRAP_ADMIN_EMAIL / BOOTSTRAP_ADMIN_PASSWORD (12+ chars).
-# Demo accounts (@newvision.local / Password123!) are blocked in production.
+# Temporarily: demo accounts (@newvision.local / Password123!) are allowed on live.
+# Bootstrap seed is paused in backend/prisma/seed.ts (function kept, not deleted).
 #
 # Hosting region: Singapore — demo only. India region (Mumbai/Hyderabad) on request.
 # Do not recreate the Postgres instance to "move" region; that drops data.
@@ -44,21 +45,22 @@ services:
       - key: JWT_EXPIRES_IN
         value: 30m
       - key: ALLOW_DEMO_LOGINS
-        value: 'false'
+        value: 'true'
       - key: SWAGGER_ENABLED
         value: 'false'
       - key: SEED_ON_START
         value: 'true'
       - key: SEED_IF_EMPTY
         value: 'true'
-      - key: SEED_MODE
-        value: bootstrap
-      - key: BOOTSTRAP_ADMIN_EMAIL
-        sync: false
-      - key: BOOTSTRAP_ADMIN_PASSWORD
-        sync: false
-      - key: BOOTSTRAP_ADMIN_NAME
-        sync: false
+      # Temporarily paused — keep bootstrap env keys for later, do not delete.
+      # - key: SEED_MODE
+      #   value: bootstrap
+      # - key: BOOTSTRAP_ADMIN_EMAIL
+      #   sync: false
+      # - key: BOOTSTRAP_ADMIN_PASSWORD
+      #   sync: false
+      # - key: BOOTSTRAP_ADMIN_NAME
+      #   sync: false
       - key: RESEND_API_KEY
         sync: false
       - key: CORS_ORIGIN
@@ -97,8 +99,11 @@ services:
         sync: false
       - key: HOSTING_REGION
         value: singapore
+      # Temporarily off so demo Super Admin can sign in without TOTP.
       - key: REQUIRE_SUPERADMIN_MFA
-        value: 'true'
+        value: 'false'
+      # - key: REQUIRE_SUPERADMIN_MFA
+      #   value: 'true'
       - key: PLATFORM_ADMIN_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET

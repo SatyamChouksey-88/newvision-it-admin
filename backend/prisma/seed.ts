@@ -366,11 +366,12 @@ async function main() {
     }
   }
 
-  if (process.env.SEED_MODE === 'bootstrap') {
-    console.log('Production bootstrap (roles + first Super Admin, no demo estate)...');
-    await bootstrapProductionAdmin();
-    return;
-  }
+  // Temporarily skip production bootstrap so demo accounts stay the login path.
+  // if (process.env.SEED_MODE === 'bootstrap') {
+  //   console.log('Production bootstrap (roles + first Super Admin, no demo estate)...');
+  //   await bootstrapProductionAdmin();
+  //   return;
+  // }
 
   console.log('Resetting demo data...');
   // Delete in dependency order (append-only audit is cleared only for seeding convenience).
