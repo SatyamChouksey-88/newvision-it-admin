@@ -1,3 +1,5 @@
+import { employeeHowtos } from './employeeHowtos';
+
 export interface HelpArticle {
   id: string;
   title: string;
@@ -12,6 +14,7 @@ export interface HelpArticle {
 }
 
 export const HELP_CATEGORIES = [
+  'For employees',
   'Getting Started',
   'Assets',
   'Employees',
@@ -31,6 +34,7 @@ export const HELP_CATEGORIES = [
 ] as const;
 
 export const helpArticles: HelpArticle[] = [
+  ...employeeHowtos,
   {
     id: 'getting-started',
     title: 'Getting Started',
@@ -238,18 +242,16 @@ The public scan URL is \`/scan/{assetCode}\`. Reprint the label after a code cha
     title: 'Bulk actions',
     category: 'Assets',
     group: 'Actions',
-    summary: 'Change status, transfer, or retire many selected assets at once.',
-    keywords: ['bulk', 'select', 'retire', 'transfer', 'status'],
+    summary: 'Change status, transfer, assign, or retire many selected assets at once.',
+    keywords: ['bulk', 'select', 'retire', 'transfer', 'status', 'assign'],
     screenshot: '/docs/screenshots/assets-list.png',
-    body: `On **Assets**, tick one or more rows. The toolbar then shows **Bulk status**, **Bulk transfer**, and **Bulk retire**.
+    body: `On **Assets**, tick one or more rows. The toolbar then shows **Bulk status**, **Bulk transfer**, **Bulk assign**, and **Bulk retire**.
 
 ### What is working today
 
 1. Select rows (header checkbox selects the current page).
-2. Pick the action. Transfer asks for a location (and optional assignee). Retire asks for a reason.
+2. Pick the action. Transfer asks for a location (and optional assignee). Assign asks for the employee. Retire asks for a reason.
 3. The API applies the change per id and returns succeeded/failed counts. A row that is not eligible (already retired, invalid transition) is reported, not silently skipped without a count.
-
-There is **no bulk assign** yet — assign is still one asset (plus optional accessories) at a time.
 
 > [!NOTE]
 > Bulk actions reuse the same lifecycle rules as the single-asset buttons. You cannot jump \`available → disposed\` in one step.`,
