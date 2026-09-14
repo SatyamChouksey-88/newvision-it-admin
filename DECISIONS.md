@@ -304,4 +304,49 @@ Every judgment call made while building NewVision, and why. Newest at the bottom
 - **AntD preset `gold` is banned for SLA chips.** Same WCAG lesson as other status tags: explicit `#92400e` on `#fffbeb` plus an icon.
 - **Do not mark production email or a 5-role production walk as pass** without secrets / a live Render session this sitting. Local Help + axe were actually run.
 
+## Prompt 34 — Chat chrome (2026-09-14)
+
+- **`/chat` leaves `ThemedLayout`**, same `Authenticated` escape Help already used. Two left rails was the replica-killer. The console Chat button and unread badge still route here; **Back to console** returns to the sider.
+- **Comfy stays the default** (own messages right). A **Compact** toggle (all left, tighter) is opt-in and stored in `localStorage` (`nv.chat.density`) so 2025 Compact users can stop saying “WhatsApp” without flipping everyone.
+- **Find lives in the rail**, not a Modal. `GET /chat/search` is unchanged.
+- **Mentions pill** uses `GET /chat/mentions` (existing `ChatMention` rows for the current user). Mention storage / Socket.IO / upload allow-lists were not touched.
+- **Mark all read** is `POST /chat/read-all` and updates **only** the actor’s memberships.
+- **Playwright pings** are deleted after each chat spec. `ensureDefaultChannels` also soft-deletes `Prompt24 ping` / `Bubble ping` rows older than one hour, then seeds a starter if a default channel has no live messages.
+- **Chat `tenantId` on writes** stays in the running local `dist` (the tenanted DB column is NOT NULL without a SQL default). Prompt 34 source omits those fields so it still typechecks on `main` before Prompt 37; Prisma `@default(1)` covers a rebuild against the tenant schema.
+- **Quote-reply, Favorites/pin, GIFs, calls, and purple theming stay out** — logged in `FUTURE_IDEAS.md`.
+
+## Prompt 36 — Vendor master & ticket depth (2026-09-14)
+
+- **A1 unique invoices:** `@@unique([vendorId, invoiceNumber])` plus a 409 before insert. Super Admin may set `correction: true` to store `INV-…-CORR` / `-CORR2` instead of colliding — IT Admin cannot. A same-vendor + amount + date hit within 7 days is a warning on the 201, not a block. Existing duplicate rows (if any) are renamed `…-DUP-{id}` in the migration so the unique index can apply.
+- **Sequential ship vs Render wait:** each Prompt 36 item is committed and pushed on its own. Live verification is against the API/UI after the deploy that contains that commit; we do not wait out every Hobby-plan build before starting the next item's code, because twenty serial deploys would dominate the sitting. Logged so later items are not accused of batching.
+- **Sibling Prompt 32 WIP** (password/session hardening) stays in the working tree until that prompt is finished; A1 does not take those auth files.
+
+## Prompt 32 — security first, then loops, then true docs (2026-09-14)
+
+- **Access token stays in sessionStorage** (needed for the existing Bearer client). **Refresh is an httpOnly cookie** (`nv_refresh`). XSS can still steal the access token until it expires (~30m); CSP + Helmet mitigate, they do not eliminate that residual. Documented rather than a full cookie-only rewrite (that would be a larger SPA auth change).
+- **Password set minimum is 12** everywhere; login DTO stays `MinLength(1)` so we don't leak “too short” vs “wrong password”.
+- **Demo accounts** may exist in a seed database; they **must not authenticate in production** (`ALLOW_DEMO_LOGINS`). Login UI prints them only in Vite `DEV`.
+- **Super Admin tickets:** lazily create/link an Employee row rather than making `raisedById` optional (tickets stay “a person in the directory”).
+- **IT Support can fulfill requests** (record issued asset/kit) instead of a dead Requests nav item.
+- **Vendor names for repairs** are `/vendors/options` (no bank fields). Full vendor CRUD stays Super Admin / IT Admin.
+- **axe `aria-hidden-focus`** is on again; Ant Design dropdown/modal portals are excluded because they are upstream focus-trap bugs, not our chrome.
+
+## Prompt 38 — joining date, hardware house, sticky chrome, nv-phone (2026-09-14)
+
+- **Joining date stays required** on create (default today). It is the offer/actual start, never `createdAt`. List/profile show Joined + tenure.
+- **Hardware house is three URLs** (`/assets`, `/accessories`, `/consumables`) plus in-page tabs. Sidebar keeps three items so existing e2e locators still work. Accessories stay quantity stock; serials live on Assets (MOU / HDS / KEY / CAM / DOCK). Checkout duplicate serials **warn, do not unique-constrain**.
+- **Employee My kit** (nav + home) shows assigned assets **and** accessory checkouts. Checkout serials are **IT-only**.
+- **Probation default is 90 days** from DOJ when left blank. Offboard requires `lastWorkingDate`.
+- **Sticky stack** uses existing card/page colors (`#f4f8fc` / `#fff`), not a new palette. No dark mode. ChipSelect / status tones unchanged.
+- **`nv-phone` is ≤639px Employee + lookup**, not a 20-module admin rewrite. Chat and procurement show a desktop-only banner. Phone-width Excel-on-390 stays in `FUTURE_IDEAS.md`.
+
+## Prompt 37 — multi-tenant SaaS (2026-09-14)
+
+- **Isolation model = shared Postgres + `tenantId` on every operational table (B), not database-per-tenant (A).** Render Blueprint has one Postgres; self-serve signup cannot provision a new database. Roles and Permissions stay global. `User.email` stays globally unique (one login per human). Business keys (`location.code`, `employeeCode`, `assetCode`, ticket numbers, vendor codes) are `@@unique([tenantId, field])`. Prisma `$extends` injects `tenantId` on every query; missing ALS context **fail-closed**. Raw SQL (`dashboard/trends`) adds `tenant_id` by hand. Adversarial e2e: two signups, A cannot `GET` B’s assets/employees/tickets/vendors.
+- **14-day trial = Team modules**, then fall back to **Starter** (Home, Assets, Employees, Tickets, Scan, Settings). No per-asset metering; IT **seat cap** (default 10) only. Payment is external (Zoho Books + `PATCH /api/platform/tenants/:id` with `PLATFORM_ADMIN_SECRET`).
+- **Legal/GST/DPA/MSA/SOC2 are not in the repo.** In-app hooks: `/trust` placeholders, `GET /api/tenant/export`, `DELETE /api/tenant`, `GET /api/tenant/billing`. Health check runs `SELECT 1` and advertises `HOSTING_REGION` (Singapore — demo only; India on request). Do not recreate Render Postgres to “move” region.
+- **Onboarding is a 5-step checklist**, not schema completeness. Trial tenants never get the 1,250-row internal seed; `POST /api/tenant/onboarding/sample` loads ~25 laptops.
+- **QR URLs** prefer `/scan/:slug/:code` (API `/api/public/assets/t/:slug/:code`). Bare `/scan/:code` still works when the code is unique in the whole database.
+
+
 

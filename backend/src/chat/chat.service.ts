@@ -24,11 +24,30 @@ import { type ChatLinkRef, parseChatLinks } from './chat-links';
 import { parseMentions } from './chat-mentions';
 
 const STAFF: RoleName[] = [RoleName.SUPER_ADMIN, RoleName.IT_ADMIN, RoleName.IT_SUPPORT];
-const DEFAULT_CHANNELS: { name: string; description: string }[] = [
-  { name: '#it-ops', description: 'Day-to-day IT operations' },
-  { name: '#helpdesk', description: 'Ticket triage and hand-offs' },
-  { name: '#procurement', description: 'Vendors, POs, and receiving' },
+const DEFAULT_CHANNELS: { name: string; description: string; topic: string; starter: string }[] = [
+  {
+    name: '#it-ops',
+    description: 'Day-to-day IT operations',
+    topic: 'Incidents, shift handoff, and “who is on this?”',
+    starter:
+      'How we use this room: post live incidents, shift notes, and quick “are you on TCK-…?” checks here. Tickets stay on the ticket — this channel is for staff coordination.',
+  },
+  {
+    name: '#helpdesk',
+    description: 'Ticket triage and hand-offs',
+    topic: 'Queue triage, ownership, and waiting-on-employee',
+    starter:
+      'How we use this room: call out unassigned or overdue tickets, hand a case to the next person, and park a note when you step away. Requesters never see this channel.',
+  },
+  {
+    name: '#procurement',
+    description: 'Vendors, POs, and receiving',
+    topic: 'POs, GRN, and vendor questions',
+    starter:
+      'How we use this room: flag a PO waiting on GRN, ask who owns a vendor reply, and drop PO-… / PR-… codes so they unfurl. Approvals still happen on the requisition.',
+  },
 ];
+const TEST_PING_PREFIXES = ['Prompt24 ping ', 'Bubble ping '] as const;
 const AUTHOR_SELECT = { id: true, fullName: true } as const;
 const USER_PRESENCE_SELECT = {
   id: true,
@@ -114,6 +133,13 @@ export class ChatService {
     });
     const ownerId =
       staff.find((u) => u.role.name === RoleName.SUPER_ADMIN)?.id ?? staff[0]?.id ?? null;
+    await this.prisma.chatMessage.updateMany({
+      where: {
+        deletedAt: null,
+        OR: TEST_PING_PREFIXES.map((prefix) => ({ body: { startsWith: prefix } })),
+      },
+      data: { deletedAt: new Date() },
+    });
     for (const def of DEFAULT_CHANNELS) {
       let channel = await this.prisma.chatChannel.findFirst({ where: { name: def.name } });
       if (!channel) {
@@ -122,19 +148,22 @@ export class ChatService {
             type: ChatChannelType.channel,
             name: def.name,
             description: def.description,
+            topic: def.topic,
             visibility: ChatVisibility.public,
             createdById: ownerId,
           },
         });
-      } else if (channel.type !== ChatChannelType.channel) {
-        channel = await this.prisma.chatChannel.update({
-          where: { id: channel.id },
-          data: {
-            type: ChatChannelType.channel,
-            description: channel.description ?? def.description,
-            visibility: ChatVisibility.public,
-          },
-        });
+      } else {
+        const patch: Prisma.ChatChannelUpdateInput = {};
+        if (channel.type !== ChatChannelType.channel) {
+          patch.type = ChatChannelType.channel;
+          patch.visibility = ChatVisibility.public;
+        }
+        if (!channel.description) patch.description = def.description;
+        if (!channel.topic) patch.topic = def.topic;
+        if (Object.keys(patch).length) {
+          channel = await this.prisma.chatChannel.update({ where: { id: channel.id }, data: patch });
+        }
       }
       for (const u of staff) {
         await this.prisma.chatChannelMember.upsert({
@@ -147,6 +176,18 @@ export class ChatService {
           update: {},
         });
       }
+      if (!ownerId) continue;
+      const liveCount = await this.prisma.chatMessage.count({
+        where: { channelId: channel.id, deletedAt: null },
+      });
+      if (liveCount > 0) continue;
+      const starter = await this.prisma.chatMessage.create({
+        data: { channelId: channel.id, authorId: ownerId, body: def.starter },
+      });
+      await this.prisma.chatChannelMember.updateMany({
+        where: { channelId: channel.id },
+        data: { lastReadAt: new Date(), lastReadMessageId: starter.id },
+      });
     }
   }
 
@@ -413,7 +454,10 @@ export class ChatService {
         members: {
           create: [
             { userId: actor.id, role: 'owner' },
-            ...extra.map((userId) => ({ userId, role: 'member' as const })),
+            ...extra.map((userId) => ({
+              userId,
+              role: 'member' as const,
+            })),
           ],
         },
       },
@@ -800,6 +844,60 @@ export class ChatService {
     return { ok: true };
   }
 
+  async markAllRead(actor: AuthUser) {
+    this.assertStaff(actor);
+    const memberships = await this.prisma.chatChannelMember.findMany({
+      where: { userId: actor.id },
+      select: { channelId: true },
+    });
+    for (const m of memberships) {
+      const last = await this.prisma.chatMessage.findFirst({
+        where: { channelId: m.channelId },
+        orderBy: { id: 'desc' },
+        select: { id: true },
+      });
+      await this.prisma.chatChannelMember.update({
+        where: { channelId_userId: { channelId: m.channelId, userId: actor.id } },
+        data: { lastReadAt: new Date(), lastReadMessageId: last?.id ?? null },
+      });
+    }
+    this.realtime.toUser(actor.id, 'unread:changed', { unread: 0 });
+    return { ok: true };
+  }
+
+  async listMentions(actor: AuthUser) {
+    this.assertStaff(actor);
+    const rows = await this.prisma.chatMention.findMany({
+      where: {
+        userId: actor.id,
+        kind: ChatMentionKind.user,
+        message: {
+          deletedAt: null,
+          channel: { members: { some: { userId: actor.id } } },
+        },
+      },
+      orderBy: { id: 'desc' },
+      take: 40,
+      include: {
+        message: {
+          include: {
+            author: { select: AUTHOR_SELECT },
+            channel: { select: { id: true, type: true, name: true } },
+          },
+        },
+      },
+    });
+    return rows.map((r) => ({
+      id: r.message.id,
+      body: r.message.body,
+      createdAt: r.message.createdAt,
+      channelId: r.message.channelId,
+      parentId: r.message.parentId,
+      author: r.message.author,
+      channel: r.message.channel,
+    }));
+  }
+
   async search(actor: AuthUser, q: string) {
     this.assertStaff(actor);
     const query = q.trim();
@@ -844,6 +942,8 @@ export class ChatService {
       id: number;
       type: ChatChannelType;
       name: string | null;
+      description?: string | null;
+      topic?: string | null;
       archived: boolean;
       visibility: ChatVisibility;
       members: { userId: number; user: { id: number; fullName: string } }[];
@@ -873,6 +973,8 @@ export class ChatService {
       id: channel.id,
       type: channel.type,
       name,
+      description: channel.description ?? null,
+      topic: channel.topic ?? null,
       archived: channel.archived,
       visibility: channel.visibility,
       joined: extra.joined,

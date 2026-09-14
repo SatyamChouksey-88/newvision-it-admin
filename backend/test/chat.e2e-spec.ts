@@ -262,4 +262,59 @@ describe('Prompt 24 — Teams-style staff chat (e2e)', () => {
     await received;
     sock.close();
   });
+
+  it('seeds channel starters and mark-all-read is per user', async () => {
+    const channels = await request(app.getHttpServer())
+      .get('/api/chat/channels')
+      .set(auth(admin))
+      .expect(200);
+    const helpdesk = (channels.body as { name: string; lastMessage?: { body: string } }[]).find(
+      (c) => c.name === '#helpdesk',
+    );
+    const procurement = (channels.body as { name: string; lastMessage?: { body: string } }[]).find(
+      (c) => c.name === '#procurement',
+    );
+    expect(helpdesk?.lastMessage?.body).toMatch(/How we use this room/);
+    expect(procurement?.lastMessage?.body).toMatch(/How we use this room/);
+
+    const itOps = (channels.body as { id: number; name: string }[]).find((c) => c.name === '#it-ops');
+    expect(itOps).toBeTruthy();
+    const mentioned = await request(app.getHttpServer())
+      .post(`/api/chat/channels/${itOps!.id}/messages`)
+      .set(auth(admin))
+      .send({ body: `[@Sunil Support](mention:${supportId}) mention-view check` })
+      .expect(201);
+    const hits = await request(app.getHttpServer())
+      .get('/api/chat/mentions')
+      .set(auth(support))
+      .expect(200);
+    expect((hits.body as { id: number }[]).some((h) => h.id === mentioned.body.id)).toBe(true);
+
+    const before = await request(app.getHttpServer())
+      .get('/api/chat/channels')
+      .set(auth(support))
+      .expect(200);
+    expect(
+      (before.body as { id: number; unread: number }[]).find((c) => c.id === itOps!.id)?.unread,
+    ).toBeGreaterThan(0);
+
+    await request(app.getHttpServer()).post('/api/chat/read-all').set(auth(admin)).expect(201);
+    const still = await request(app.getHttpServer())
+      .get('/api/chat/channels')
+      .set(auth(support))
+      .expect(200);
+    expect(
+      (still.body as { id: number; unread: number }[]).find((c) => c.id === itOps!.id)?.unread,
+    ).toBeGreaterThan(0);
+
+    await request(app.getHttpServer()).post('/api/chat/read-all').set(auth(support)).expect(201);
+    const cleared = await request(app.getHttpServer())
+      .get('/api/chat/channels')
+      .set(auth(support))
+      .expect(200);
+    expect(
+      (cleared.body as { id: number; unread: number }[]).every((c) => c.unread === 0),
+    ).toBe(true);
+  });
 });
+

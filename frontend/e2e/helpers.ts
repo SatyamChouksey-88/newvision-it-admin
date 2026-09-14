@@ -13,7 +13,9 @@ export const DEMO_USERS = {
 /** Clear an existing Refine session so the login form is reachable. */
 export async function logoutIfNeeded(page: Page) {
   await page.goto('/login');
-  const emailInput = page.locator('#email');
+  const overlay = page.locator('vite-error-overlay');
+  if ((await overlay.count()) > 0) await overlay.evaluate((el) => el.remove());
+  const emailInput = page.getByLabel('Work email');
   if (await emailInput.isVisible({ timeout: 10_000 }).catch(() => false)) return;
 
   await page.goto('/');
@@ -41,17 +43,53 @@ export async function openGlobalSearch(page: Page) {
   return input;
 }
 
+/** Log in by writing the API session into this tab (avoids the Sign-in form + MFA flake). */
+export async function loginViaApi(page: Page, email = DEMO_USERS.itAdmin) {
+  const res = await page.request.post('http://localhost:3000/api/auth/login', {
+    data: { email, password: DEMO_PASSWORD },
+  });
+  expect(res.ok(), `login ${email} ${res.status()}`).toBeTruthy();
+  const body = (await res.json()) as { access_token: string; user: unknown };
+  expect(body.access_token).toBeTruthy();
+  await page.addInitScript(
+    ({ token, user }) => {
+      sessionStorage.setItem('newvision:token', token);
+      sessionStorage.setItem('newvision:user', JSON.stringify(user));
+    },
+    { token: body.access_token, user: body.user },
+  );
+  await page.goto('/');
+  await expect(page).not.toHaveURL(/\/login/, { timeout: 20_000 });
+}
+
 /** Log in through the UI and wait for the dashboard to render. */
 export async function login(page: Page, email = DEMO_USERS.itAdmin) {
   await logoutIfNeeded(page);
-  // Refine's AntD AuthPage renders inputs with ids matching the field name.
-  await page.locator('#email').fill(email);
-  await page.locator('#password').fill(DEMO_PASSWORD);
-  await page.getByRole('button', { name: /sign in/i }).click();
+  const overlay = page.locator('vite-error-overlay');
+  if ((await overlay.count()) > 0) await overlay.evaluate((el) => el.remove());
+  const emailBox = page.getByLabel('Work email');
+  await emailBox.waitFor({ state: 'visible', timeout: 20_000 });
+  await emailBox.fill(email);
+  await page.getByLabel('Password').fill(DEMO_PASSWORD);
+  await page.getByRole('button', { name: /^sign in$/i }).click();
   await expect(
-    page.getByRole('heading', { name: /Dashboard|My IT|Your team|Queue/i, level: 3 }).first(),
+    page.getByRole('heading', { name: /Dashboard|My IT|Your team|Queue/i }).first(),
   ).toBeVisible({
     timeout: 30_000,
+  });
+}
+
+/** Soft-delete a chat message the test just posted so #it-ops stays demo-clean. */
+export async function deleteChatMessageByText(page: Page, text: string) {
+  const article = page.getByTestId('chat-message-list').locator('article').filter({ hasText: text });
+  const id = await article.getAttribute('data-message-id');
+  if (!id) return;
+  const token = await page.evaluate(
+    () => sessionStorage.getItem('newvision:token') || localStorage.getItem('newvision:token'),
+  );
+  if (!token) return;
+  await page.request.delete(`http://localhost:3000/api/chat/messages/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
   });
 }
 

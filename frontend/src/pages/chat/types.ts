@@ -72,3 +72,13 @@ export interface ChatStaff {
   presence: PresenceStatus;
   role: { name: string };
 }
+
+export interface ChatSearchHit {
+  id: number;
+  body: string;
+  channelId: number;
+  parentId: number | null;
+  createdAt?: string;
+  author?: { id: number; fullName: string };
+  channel?: { name: string | null };
+}

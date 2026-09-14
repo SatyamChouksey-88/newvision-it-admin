@@ -1,6 +1,6 @@
 import type { PresenceStatus } from './types';
 
-const LABEL: Record<PresenceStatus, string> = {
+export const PRESENCE_LABEL: Record<PresenceStatus, string> = {
   available: 'Available',
   away: 'Away',
   busy: 'Busy',
@@ -21,9 +21,9 @@ export function PresenceDot({
     <span
       className={`nv-presence nv-presence-${s}`}
       style={{ width: size, height: size }}
-      title={LABEL[s]}
+      title={PRESENCE_LABEL[s]}
       role="img"
-      aria-label={LABEL[s]}
+      aria-label={PRESENCE_LABEL[s]}
     />
   );
 }

@@ -28,6 +28,7 @@ import { AppSider } from './components/AppSider';
 import { Header } from './components/Header';
 import { RoleRouteGuard } from './components/RoleRouteGuard';
 import { RouteFallback } from './components/RouteFallback';
+import { EmployeeBottomNav } from './components/EmployeeBottomNav';
 import { TabletCollapse } from './components/TabletCollapse';
 import { Title } from './components/Title';
 import { accessControlProvider } from './providers/accessControlProvider';
@@ -79,6 +80,8 @@ const SettingsPage = lazyNamed(() => import('./pages/settings'), 'SettingsPage')
 const HelpSection = lazyNamed(() => import('./pages/help/HelpSection'), 'HelpSection');
 const ChatPage = lazyNamed(() => import('./pages/chat/ChatPage'), 'ChatPage');
 const LoginPage = lazyNamed(() => import('./pages/login'), 'LoginPage');
+const SignupPage = lazyNamed(() => import('./pages/signup'), 'SignupPage');
+const TrustPage = lazyNamed(() => import('./pages/trust'), 'TrustPage');
 const ResetPasswordPage = lazyNamed(() => import('./pages/reset-password'), 'ResetPasswordPage');
 const ScanPage = lazyNamed(() => import('./pages/scan'), 'ScanPage');
 
@@ -204,18 +207,27 @@ export default function App() {
           >
             <Suspense fallback={<RouteFallback />}>
               <Routes>
+                <Route path="/scan/:slug/:code" element={<ScanPage />} />
                 <Route path="/scan/:code" element={<ScanPage />} />
                 <Route path="/reset-password" element={<ResetPasswordPage />} />
+                <Route path="/signup" element={<SignupPage />} />
+                <Route path="/trust" element={<TrustPage />} />
                 <Route
                   element={
                     <Authenticated key="auth" fallback={<CatchAllNavigate to="/login" />}>
+                      <a href="#main-content" className="nv-skip-link">
+                        Skip to content
+                      </a>
                       <ThemedLayout Header={Header} Title={Title} Sider={AppSider}>
                         <TabletCollapse />
-                        <Suspense fallback={<RouteFallback />}>
-                          <RoleRouteGuard>
-                            <Outlet />
-                          </RoleRouteGuard>
-                        </Suspense>
+                        <EmployeeBottomNav />
+                        <main id="main-content" tabIndex={-1}>
+                          <Suspense fallback={<RouteFallback />}>
+                            <RoleRouteGuard>
+                              <Outlet />
+                            </RoleRouteGuard>
+                          </Suspense>
+                        </main>
                       </ThemedLayout>
                     </Authenticated>
                   }
@@ -251,7 +263,6 @@ export default function App() {
                     <Route path="reports" element={<TicketReports />} />
                     <Route path="show/:id" element={<TicketShow />} />
                   </Route>
-                  <Route path="/chat" element={<ChatPage />} />
                   <Route path="/procurement/vendors">
                     <Route index element={<VendorList />} />
                     <Route path="create" element={<VendorForm />} />
@@ -279,8 +290,9 @@ export default function App() {
                   <Route path="*" element={<ErrorComponent />} />
                 </Route>
 
-                {/* Help is a full-page documentation site with its own chrome (header, nav
-                    tree, table of contents) — deliberately not nested in the main app shell. */}
+                {/* Help and Chat own their chrome — deliberately not nested in the main
+                    app shell (216px AppSider + 52px Header). RoleRouteGuard still
+                    keeps Chat staff-only; Help stays open to every signed-in role. */}
                 <Route
                   element={
                     <Authenticated key="help-auth" fallback={<CatchAllNavigate to="/login" />}>
@@ -291,6 +303,19 @@ export default function App() {
                   }
                 >
                   <Route path="/help/*" element={<HelpSection />} />
+                </Route>
+                <Route
+                  element={
+                    <Authenticated key="chat-auth" fallback={<CatchAllNavigate to="/login" />}>
+                      <Suspense fallback={<RouteFallback />}>
+                        <RoleRouteGuard>
+                          <Outlet />
+                        </RoleRouteGuard>
+                      </Suspense>
+                    </Authenticated>
+                  }
+                >
+                  <Route path="/chat" element={<ChatPage />} />
                 </Route>
 
                 <Route
@@ -309,7 +334,7 @@ export default function App() {
             <DocumentTitleHandler
               handler={({ resource }) => {
                 const page = resource?.meta?.label ?? 'IT Asset Management';
-                return `${page} | NewVisionITIS`;
+                return `${page} | NewVision`;
               }}
             />
           </Refine>

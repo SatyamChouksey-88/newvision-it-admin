@@ -36,6 +36,11 @@ type Uploaded = { originalname: string; mimetype: string; size: number; buffer: 
 
 const STAFF = [RoleName.SUPER_ADMIN, RoleName.IT_ADMIN, RoleName.IT_SUPPORT] as const;
 
+function contentDisposition(filename: string, inline: boolean) {
+  const ascii = filename.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, '');
+  return `${inline ? 'inline' : 'attachment'}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
+}
+
 @ApiTags('chat')
 @Controller('chat')
 @Roles(...STAFF)
@@ -70,6 +75,16 @@ export class ChatController {
   @Get('search')
   search(@Query('q') q: string | undefined, @CurrentUser() actor: AuthUser) {
     return this.chat.search(actor, q ?? '');
+  }
+
+  @Get('mentions')
+  mentions(@CurrentUser() actor: AuthUser) {
+    return this.chat.listMentions(actor);
+  }
+
+  @Post('read-all')
+  readAll(@CurrentUser() actor: AuthUser) {
+    return this.chat.markAllRead(actor);
   }
 
   @Get('channels')
@@ -222,10 +237,7 @@ export class ChatController {
     const row = await this.chat.getAttachment(actor, id);
     const inline = row.mimeType.startsWith('image/');
     res.setHeader('Content-Type', row.mimeType);
-    res.setHeader(
-      'Content-Disposition',
-      `${inline ? 'inline' : 'attachment'}; filename="${row.filename.replace(/"/g, '')}"`,
-    );
+    res.setHeader('Content-Disposition', contentDisposition(row.filename, inline));
     res.send(Buffer.from(row.data));
   }
 }

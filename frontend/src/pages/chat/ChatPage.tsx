@@ -1,7 +1,13 @@
 import {
+  ArrowLeftOutlined,
   BoldOutlined,
   CodeOutlined,
+  CommentOutlined,
+  EllipsisOutlined,
+  FontSizeOutlined,
+  InfoCircleOutlined,
   ItalicOutlined,
+  LeftOutlined,
   NumberOutlined,
   PaperClipOutlined,
   PlusOutlined,
@@ -16,19 +22,18 @@ import {
   Avatar,
   Badge,
   Button,
-  Empty,
+  Dropdown,
   Input,
   Modal,
   Popconfirm,
   Popover,
   Select,
-  Skeleton,
   Space,
-  Typography,
 } from 'antd';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Link, useSearchParams } from 'react-router';
 import { useToast } from '../../components/Toast';
+import { DesktopOnlyBanner } from '../../components/DesktopOnlyBanner';
 import { useChatSocket } from '../../hooks/useChatSocket';
 import type { Identity } from '../../providers/authProvider';
 import { apiErrorMessage, httpClient } from '../../providers/axios';
@@ -36,10 +41,33 @@ import { CHAT_MAX_FILES, readChatPaste } from '../../utils/clipboardChat';
 import { avatarColor, avatarInitials } from './avatarColor';
 import { ChatBody, ChatFileChip, UnfurlCards } from './ChatBody';
 import { EMOJI_PICKER, QUICK_REACTIONS } from './emoji';
-import { PresenceDot } from './PresenceDot';
-import type { ChatConversation, ChatMessage, ChatStaff, PresenceStatus } from './types';
+import { PRESENCE_LABEL, PresenceDot } from './PresenceDot';
+import type {
+  ChatConversation,
+  ChatMessage,
+  ChatSearchHit,
+  ChatStaff,
+  PresenceStatus,
+} from './types';
 
 const GROUP_MS = 5 * 60 * 1000;
+const TABLET_MQ = '(max-width: 1023px)';
+const FILTER_KEY = 'nv.chat.listFilter';
+const DENSITY_KEY = 'nv.chat.density';
+
+type ListFilter = 'all' | 'unread' | 'mentions';
+type Density = 'comfy' | 'compact';
+type TabletPane = 'list' | 'conversation' | 'panel';
+
+function readStored<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw && (allowed as readonly string[]).includes(raw)) return raw as T;
+  } catch {
+    /* private mode */
+  }
+  return fallback;
+}
 
 function defaultConversationId(conversations: ChatConversation[]) {
   return (
@@ -93,9 +121,24 @@ function wrapSelection(value: string, start: number, end: number, left: string, 
   };
 }
 
+function useTablet() {
+  const [tablet, setTablet] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia(TABLET_MQ).matches : false,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(TABLET_MQ);
+    const onChange = () => setTablet(mq.matches);
+    onChange();
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return tablet;
+}
+
 export function ChatPage() {
   const { data: identity } = useGetIdentity<Identity>();
   const toast = useToast();
+  const isTablet = useTablet();
   const [params, setParams] = useSearchParams();
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [staff, setStaff] = useState<ChatStaff[]>([]);
@@ -104,18 +147,29 @@ export function ChatPage() {
     null,
   );
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const [filter, setFilter] = useState('');
+  const [find, setFind] = useState('');
+  const [listFilter, setListFilter] = useState<ListFilter>(() =>
+    readStored(FILTER_KEY, ['all', 'unread', 'mentions'] as const, 'all'),
+  );
+  const [density, setDensity] = useState<Density>(() =>
+    readStored(DENSITY_KEY, ['comfy', 'compact'] as const, 'comfy'),
+  );
+  const [tabletPane, setTabletPane] = useState<TabletPane>(() =>
+    typeof window !== 'undefined' &&
+    window.matchMedia(TABLET_MQ).matches &&
+    !new URLSearchParams(window.location.search).get('c')
+      ? 'list'
+      : 'conversation',
+  );
   const [draft, setDraft] = useState('');
   const [threadDraft, setThreadDraft] = useState('');
   const [pending, setPending] = useState<File[]>([]);
   const [threadPending, setThreadPending] = useState<File[]>([]);
   const [sending, setSending] = useState(false);
   const [railReady, setRailReady] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQ, setSearchQ] = useState('');
-  const [searchHits, setSearchHits] = useState<
-    { id: number; body: string; channelId: number; parentId: number | null; channel?: { name: string | null } }[]
-  >([]);
+  const [transcriptReady, setTranscriptReady] = useState(false);
+  const [searchHits, setSearchHits] = useState<ChatSearchHit[] | null>(null);
+  const [mentionHits, setMentionHits] = useState<ChatSearchHit[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [dropOver, setDropOver] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
@@ -124,8 +178,11 @@ export function ChatPage() {
   const [typing, setTyping] = useState<{ userId: number; at: number }[]>([]);
   const [presence, setPresence] = useState<Record<number, PresenceStatus>>({});
   const [pickedId, setPickedId] = useState<number | null>(null);
+  const [unseen, setUnseen] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<HTMLTextAreaElement>(null);
+  const stickToBottom = useRef(true);
+  const prevLen = useRef(0);
   const loadSeq = useRef(0);
   const urlConversationId = Number(params.get('c') || 0) || 0;
   const highlightId = Number(params.get('m') || 0) || 0;
@@ -154,6 +211,7 @@ export function ChatPage() {
       }
       return mergeTranscript(rows, prev, channelId);
     });
+    setTranscriptReady(true);
     void httpClient.post(`/chat/channels/${channelId}/read`);
   }, []);
 
@@ -229,22 +287,32 @@ export function ChatPage() {
 
   useEffect(() => {
     if (!activeId) return;
+    setTranscriptReady(false);
+    setUnseen(0);
+    stickToBottom.current = true;
+    prevLen.current = 0;
     setMessages((prev) => prev.filter((m) => m.channelId === activeId));
     void loadMessages(activeId);
     socket.join(activeId);
   }, [activeId, loadMessages, socket.join]);
 
   useEffect(() => {
-    if (activeId && threadId) void loadThread(activeId, threadId);
-    else setThread(null);
-  }, [activeId, threadId, loadThread]);
+    if (activeId && threadId) {
+      void loadThread(activeId, threadId);
+      if (isTablet) setTabletPane('panel');
+    } else setThread(null);
+  }, [activeId, threadId, loadThread, isTablet]);
 
-  // Scroll after render when the transcript changes; listRef is stable.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: length is the signal to pin to bottom
   useEffect(() => {
     if (highlightId) return;
     const el = listRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    if (stickToBottom.current) {
+      el.scrollTop = el.scrollHeight;
+    } else if (messages.length > prevLen.current) {
+      setUnseen((n) => n + (messages.length - prevLen.current));
+    }
+    prevLen.current = messages.length;
   }, [messages.length, highlightId]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: rerun after the transcript paints
@@ -252,6 +320,7 @@ export function ChatPage() {
     if (!highlightId) return;
     const node = document.querySelector(`[data-message-id="${highlightId}"]`);
     if (!node) return;
+    stickToBottom.current = false;
     node.scrollIntoView({ block: 'center' });
     node.classList.add('is-highlight');
     const t = window.setTimeout(() => {
@@ -263,7 +332,10 @@ export function ChatPage() {
     return () => window.clearTimeout(t);
   }, [highlightId, messages.length, params, setParams]);
 
-  const selectConv = (id: number, extra?: { thread?: number | null; message?: number }) => {
+  const selectConv = (
+    id: number,
+    extra?: { thread?: number | null; message?: number; pane?: TabletPane },
+  ) => {
     setPickedId(id);
     const next = new URLSearchParams(params);
     next.set('c', String(id));
@@ -272,15 +344,21 @@ export function ChatPage() {
     if (extra?.message) next.set('m', String(extra.message));
     else next.delete('m');
     setParams(next, { replace: true });
+    if (isTablet) {
+      setTabletPane(extra?.pane ?? (extra?.thread ? 'panel' : 'conversation'));
+    }
   };
 
-  // Opening /chat with no query should land on #it-ops, not whichever DM was last active.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: seed once when the conversation list first arrives
   useEffect(() => {
     if (urlConversationId || pickedId || conversations.length === 0) return;
     const id = defaultConversationId(conversations);
-    if (id) selectConv(id);
-  }, [conversations, urlConversationId, pickedId]);
+    if (id) {
+      setPickedId(id);
+      const next = new URLSearchParams(params);
+      next.set('c', String(id));
+      setParams(next, { replace: true });
+    }
+  }, [conversations, urlConversationId, pickedId, params, setParams]);
 
   useEffect(() => {
     const t = window.setInterval(() => {
@@ -289,13 +367,61 @@ export function ChatPage() {
     return () => window.clearInterval(t);
   }, []);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(FILTER_KEY, listFilter);
+    } catch {
+      /* ignore */
+    }
+  }, [listFilter]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(DENSITY_KEY, density);
+    } catch {
+      /* ignore */
+    }
+  }, [density]);
+
+  useEffect(() => {
+    const q = find.trim();
+    if (q.length < 2) {
+      setSearchHits(null);
+      return;
+    }
+    const t = window.setTimeout(() => {
+      void httpClient.get('/chat/search', { params: { q } }).then(({ data }) => {
+        setSearchHits(Array.isArray(data) ? data : []);
+      });
+    }, 250);
+    return () => window.clearTimeout(t);
+  }, [find]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: refresh after the rail reloads
+  useEffect(() => {
+    if (listFilter !== 'mentions') return;
+    void httpClient
+      .get('/chat/mentions')
+      .then(({ data }) => {
+        setMentionHits(Array.isArray(data) ? data : []);
+      })
+      .catch(() => setMentionHits([]));
+  }, [listFilter, conversations]);
+
   const active = conversations.find((c) => c.id === activeId) ?? null;
+  const mentionChannelIds = useMemo(
+    () => new Set(mentionHits.map((h) => h.channelId)),
+    [mentionHits],
+  );
   const filtered = conversations.filter((c) => {
-    if (!filter.trim()) return true;
-    return c.name.toLowerCase().includes(filter.trim().toLowerCase());
+    if (listFilter === 'unread' && c.unread <= 0) return false;
+    if (listFilter === 'mentions' && !mentionChannelIds.has(c.id)) return false;
+    if (!find.trim()) return true;
+    return c.name.toLowerCase().includes(find.trim().toLowerCase());
   });
   const channels = filtered.filter((c) => c.type === 'channel');
   const chats = filtered.filter((c) => c.type !== 'channel');
+  const unreadTotal = conversations.reduce((n, c) => n + (c.joined ? c.unread : 0), 0);
 
   const mentionChoices = useMemo(() => {
     const q = mentionQuery.toLowerCase();
@@ -305,7 +431,7 @@ export function ChatPage() {
   }, [staff, mentionQuery]);
 
   const send = async (channelId: number, body: string, parentId?: number, files = pending) => {
-    const text = body.trim();
+    const text = (body ?? '').trim();
     if (!text && files.length === 0) return;
     setSending(true);
     try {
@@ -326,6 +452,7 @@ export function ChatPage() {
       }
       if (parentId) setThreadDraft('');
       else setDraft('');
+      stickToBottom.current = true;
       if (created && parentId) {
         setThread((t) =>
           t && !t.replies.some((m) => m.id === created.id)
@@ -365,17 +492,30 @@ export function ChatPage() {
     composerRef.current?.focus();
   };
 
-  const applyWrap = (left: string, right?: string) => {
-    const el = composerRef.current;
+  const jumpToLatest = () => {
+    const el = listRef.current;
     if (!el) return;
-    const start = el.selectionStart;
-    const end = el.selectionEnd;
-    const { next, caret } = wrapSelection(draft, start, end, left, right);
-    setDraft(next);
-    requestAnimationFrame(() => {
-      el.focus();
-      el.setSelectionRange(caret, caret);
-    });
+    stickToBottom.current = true;
+    setUnseen(0);
+    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+  };
+
+  const markAllRead = () => {
+    void httpClient
+      .post('/chat/read-all')
+      .then(() => {
+        setConversations((prev) => prev.map((c) => ({ ...c, unread: 0 })));
+      })
+      .catch((e) => toast.error(apiErrorMessage(e, 'Could not mark conversations read')));
+  };
+
+  const setMute = (conv: ChatConversation, muted: boolean) => {
+    void httpClient
+      .patch(`/chat/channels/${conv.id}/prefs`, {
+        muted,
+        notifyPref: muted ? 'muted' : 'all',
+      })
+      .then(loadConversations);
   };
 
   const typingLabel = typing
@@ -386,353 +526,518 @@ export function ChatPage() {
   const statusOf = (userId: number, fallback?: PresenceStatus) =>
     presence[userId] ?? fallback ?? 'offline';
 
+  const dmOther = active?.type === 'dm' ? active.members.find((m) => m.userId !== identity?.id) : null;
+  const dmStatus = dmOther ? statusOf(dmOther.userId, dmOther.presence) : 'offline';
+  const panelOpen = Boolean(thread || detailsOpen);
+  const pane = isTablet ? tabletPane : 'desktop';
+
+  const backOnTablet = () => {
+    if (tabletPane === 'panel') {
+      if (thread) selectConv(activeId!, { thread: null, pane: 'conversation' });
+      else setDetailsOpen(false);
+      setTabletPane('conversation');
+      return;
+    }
+    setTabletPane('list');
+  };
+
+  const openDetails = () => {
+    setDetailsOpen((v) => !v);
+    if (isTablet) setTabletPane('panel');
+  };
+
   return (
-    <div className="nv-teams-chat" data-testid="chat-page">
-      <aside className="nv-teams-rail" data-testid="chat-rail">
-        <div className="nv-teams-rail-head">
-          <Typography.Title level={4} style={{ margin: 0 }}>
-            Chat
-          </Typography.Title>
-          <Space size={4}>
-            <Button
-              size="small"
-              icon={<SearchOutlined />}
-              aria-label="Search messages"
-              onClick={() => setSearchOpen(true)}
-            />
-            <Button
-              size="small"
-              type="primary"
-              icon={<PlusOutlined />}
+    <div
+      className={`nv-teams-shell is-${density}${isTablet ? ` is-tablet is-${tabletPane}` : ''}`}
+      data-testid="chat-page"
+      data-density={density}
+    >
+      <a href="#nv-teams-transcript" className="nv-skip-link">
+        Skip to messages
+      </a>
+      <DesktopOnlyBanner noun="Team Chat" />
+      <header className="nv-teams-appbar" data-testid="chat-appbar">
+        <Link to="/" className="nv-teams-brand" aria-label="NewVision home">
+          <img src="/brand/favicon.png" alt="" className="nv-brand-img" width={22} height={22} />
+          <span>NewVision</span>
+        </Link>
+        <div className="nv-teams-appbar__title">
+          {active ? active.name : 'Chat'}
+        </div>
+        <div className="nv-teams-appbar__actions">
+          {active ? (
+            <div className="nv-teams-stack" aria-hidden>
+              {active.members.slice(0, 3).map((m) => (
+                <span key={m.userId} className="nv-teams-av">
+                  <Avatar size={22} style={{ background: avatarColor(m.userId) }}>
+                    {initials(m.fullName)}
+                  </Avatar>
+                  <PresenceDot status={statusOf(m.userId, m.presence)} size={8} />
+                </span>
+              ))}
+            </div>
+          ) : null}
+          {active ? (
+            <button
+              type="button"
+              className="nv-teams-icon-btn"
+              aria-label="Conversation details"
+              aria-pressed={detailsOpen}
+              onClick={openDetails}
+            >
+              <InfoCircleOutlined />
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="nv-teams-icon-btn"
+            aria-label={`Message density, ${density}`}
+            aria-pressed={density === 'compact'}
+            title={density === 'comfy' ? 'Switch to Compact' : 'Switch to Comfy'}
+            onClick={() => setDensity((d) => (d === 'comfy' ? 'compact' : 'comfy'))}
+          >
+            {density === 'comfy' ? 'Comfy' : 'Compact'}
+          </button>
+          <Link to="/" className="nv-teams-back">
+            <ArrowLeftOutlined /> Back to console
+          </Link>
+        </div>
+      </header>
+
+      <div className="nv-teams-chat">
+        <aside className="nv-teams-rail" data-testid="chat-rail">
+          <div className="nv-teams-rail-head">
+            <h1 className="nv-teams-rail-title">Chat</h1>
+            <button
+              type="button"
+              className="nv-teams-icon-btn is-primary"
               aria-label="New chat or channel"
               onClick={() => setNewOpen(true)}
+            >
+              <PlusOutlined />
+            </button>
+          </div>
+          <div className="nv-teams-pills" role="toolbar" aria-label="Conversation filters" data-testid="chat-filters">
+            {(
+              [
+                ['all', 'All'],
+                ['unread', 'Unread'],
+                ['mentions', 'Mentions'],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                className={listFilter === id ? 'is-active' : ''}
+                aria-pressed={listFilter === id}
+                onClick={() => setListFilter(id)}
+              >
+                {label}
+              </button>
+            ))}
+            {unreadTotal > 0 ? (
+              <button type="button" className="nv-teams-markread" onClick={markAllRead}>
+                Mark all read
+              </button>
+            ) : null}
+          </div>
+          <div className="nv-teams-find">
+            <SearchOutlined aria-hidden />
+            <input
+              data-testid="chat-find"
+              aria-label="Find"
+              placeholder="Find"
+              value={find}
+              onChange={(e) => setFind(e.target.value)}
             />
-          </Space>
-        </div>
-        <Input
-          allowClear
-          size="small"
-          prefix={<SearchOutlined />}
-          placeholder="Filter conversations"
-          aria-label="Filter conversations"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        />
-        <div
-          className="nv-teams-rail-list"
-          role="listbox"
-          aria-label="Conversations"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (!filtered.length) return;
-            const idx = Math.max(
-              0,
-              filtered.findIndex((c) => c.id === activeId),
-            );
-            if (e.key === 'ArrowDown') {
-              e.preventDefault();
-              selectConv(filtered[Math.min(idx + 1, filtered.length - 1)].id);
-            }
-            if (e.key === 'ArrowUp') {
-              e.preventDefault();
-              selectConv(filtered[Math.max(idx - 1, 0)].id);
-            }
-          }}
-        >
-          {!railReady ? <Skeleton active paragraph={{ rows: 6 }} title={false} /> : null}
-          {railReady && filtered.length === 0 ? (
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description={
-                <Space direction="vertical">
-                  <span>No conversations match this filter.</span>
-                  <Button size="small" type="primary" onClick={() => setNewOpen(true)}>
-                    New conversation
-                  </Button>
-                </Space>
-              }
-            />
+          </div>
+          {searchHits && searchHits.length > 0 ? (
+            <div className="nv-teams-find-hits" role="listbox" aria-label="Find results">
+              {searchHits.map((h) => (
+                <button
+                  key={h.id}
+                  type="button"
+                  role="option"
+                  className="nv-teams-find-hit"
+                  title={h.body}
+                  onClick={() =>
+                    selectConv(h.channelId, {
+                      message: h.id,
+                      thread: h.parentId ?? undefined,
+                    })
+                  }
+                >
+                  <span className="nv-teams-find-hit__room">{h.channel?.name ?? 'Chat'}</span>
+                  <span className="nv-teams-find-hit__body">{previewText(h.body)}</span>
+                </button>
+              ))}
+            </div>
+          ) : searchHits && find.trim().length >= 2 ? (
+            <p className="nv-teams-find-empty">No messages match {find.trim()}.</p>
           ) : null}
-          <p className="nv-teams-section">Channels</p>
-          {channels.map((c) => (
-            <ConvRow
-              key={c.id}
-              conv={c}
-              active={c.id === activeId}
-              presence={
-                c.members[0] ? statusOf(c.members[0].userId, c.members[0].presence) : 'offline'
+          <div
+            className="nv-teams-rail-list"
+            role="listbox"
+            aria-label="Conversations"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (!filtered.length) return;
+              const idx = Math.max(
+                0,
+                filtered.findIndex((c) => c.id === activeId),
+              );
+              if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                selectConv(filtered[Math.min(idx + 1, filtered.length - 1)].id);
               }
-              onClick={() => selectConv(c.id)}
-            />
-          ))}
-          <p className="nv-teams-section">Chats</p>
-          {chats.map((c) => {
-            const other = c.members.find((m) => m.userId !== identity?.id);
-            return (
+              if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                selectConv(filtered[Math.max(idx - 1, 0)].id);
+              }
+            }}
+          >
+            {!railReady ? (
+              <div className="nv-teams-skel-list" aria-hidden>
+                {Array.from({ length: 6 }, (_, i) => (
+                  <div key={i} className="nv-teams-skel-row" />
+                ))}
+              </div>
+            ) : null}
+            {railReady && filtered.length === 0 ? (
+              <div className="nv-teams-rail-empty">
+                <p>
+                  {listFilter === 'unread'
+                    ? 'Nothing unread.'
+                    : listFilter === 'mentions'
+                      ? 'No mentions yet.'
+                      : 'No conversations match this filter.'}
+                </p>
+                <button type="button" className="nv-teams-text-btn" onClick={() => setNewOpen(true)}>
+                  New conversation
+                </button>
+              </div>
+            ) : null}
+            {channels.length ? <p className="nv-teams-section">Channels</p> : null}
+            {channels.map((c) => (
               <ConvRow
                 key={c.id}
                 conv={c}
-                active={c.id === activeId}
-                presence={other ? statusOf(other.userId, other.presence) : 'offline'}
-                onClick={() => selectConv(c.id)}
-              />
-            );
-          })}
-        </div>
-      </aside>
-
-      <section className="nv-teams-main">
-        {active ? (
-          <>
-            <header className="nv-teams-header">
-              <div className="nv-teams-header__titles">
-                <Typography.Text strong className="nv-cell-line" title={active.name}>
-                  {active.type === 'channel' ? active.name : active.name}
-                </Typography.Text>
-                <div
-                  className="nv-teams-sub nv-cell-line"
-                  title={active.topic || active.description || `${active.members.length} people`}
-                >
-                  {active.topic || active.description || `${active.members.length} people`}
-                </div>
-              </div>
-              <Space>
-                {active.members.slice(0, 4).map((m) => (
-                  <span key={m.userId} className="nv-teams-av">
-                    <Avatar size={22} style={{ background: avatarColor(m.userId) }}>
-                      {initials(m.fullName)}
-                    </Avatar>
-                    <PresenceDot status={statusOf(m.userId, m.presence)} size={8} />
-                  </span>
-                ))}
-                <Button
-                  size="small"
-                  icon={<TeamOutlined />}
-                  onClick={() => setDetailsOpen((v) => !v)}
-                >
-                  Details
-                </Button>
-              </Space>
-            </header>
-            <section
-              className="nv-teams-messages"
-              ref={listRef}
-              data-testid="chat-message-list"
-              aria-label="Message transcript"
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDropOver(true);
-              }}
-              onDragLeave={() => setDropOver(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setDropOver(false);
-                const files = Array.from(e.dataTransfer.files ?? []);
-                if (files.length) setPending((p) => [...p, ...files].slice(0, CHAT_MAX_FILES));
-              }}
-            >
-              {dropOver ? <div className="nv-chat-drop">Drop files to attach</div> : null}
-              {messages.length === 0 ? (
-                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No messages yet. Say hello." />
-              ) : (
-                messages.map((m, i) => {
-                  const prev = messages[i - 1];
-                  const showDay = !prev || !sameDay(prev.createdAt, m.createdAt);
-                  const grouped =
-                    prev &&
-                    !showDay &&
-                    prev.author.id === m.author.id &&
-                    !prev.deleted &&
-                    !m.deleted &&
-                    new Date(m.createdAt).getTime() - new Date(prev.createdAt).getTime() < GROUP_MS;
-                  return (
-                    <div key={m.id}>
-                      {showDay ? <div className="nv-chat-day">{dayLabel(m.createdAt)}</div> : null}
-                      <MessageRow
-                        msg={m}
-                        grouped={Boolean(grouped)}
-                        mine={m.author.id === identity?.id}
-                        mentionedYou={m.mentions.some((x) => x.userId === identity?.id)}
-                        editing={editingId === m.id}
-                        seenBy={
-                          i === messages.length - 1 && m.author.id === identity?.id
-                            ? active.seenBy
-                            : undefined
-                        }
-                        presence={statusOf(m.author.id)}
-                        onReact={(emoji) =>
-                          void httpClient.post(`/chat/messages/${m.id}/reactions`, { emoji })
-                        }
-                        onThread={() => selectConv(active.id, { thread: m.id })}
-                        onStartEdit={() => setEditingId(m.id)}
-                        onCancelEdit={() => setEditingId(null)}
-                        onSaveEdit={async (next) => {
-                          await httpClient.patch(`/chat/messages/${m.id}`, { body: next });
-                          setEditingId(null);
-                        }}
-                        onDelete={async () => {
-                          await httpClient.delete(`/chat/messages/${m.id}`);
-                        }}
-                        canModerate={
-                          identity?.role === 'SUPER_ADMIN' || identity?.role === 'IT_ADMIN'
-                        }
-                      />
-                    </div>
-                  );
-                })
-              )}
-            </section>
-            <div className="nv-teams-typing" aria-live="polite">
-              {typingLabel ? `${typingLabel} is typing…` : ' '}
-            </div>
-            {active.joined && !active.archived ? (
-              <Composer
-                value={draft}
-                textareaRef={composerRef}
-                sending={sending}
-                pending={pending}
-                mentionOpen={mentionOpen}
-                mentionChoices={mentionChoices}
-                onMention={insertMention}
-                onChange={(v) => onComposerChange(v, false)}
-                onSend={() => void send(active.id, draft)}
-                onFiles={(files) => setPending((p) => [...p, ...files])}
-                onRemoveFile={(i) => setPending((p) => p.filter((_, idx) => idx !== i))}
-                onWrap={applyWrap}
-                onInsert={(s) => setDraft((d) => d + s)}
-              />
-            ) : active.joined ? (
-              <Typography.Text type="secondary">This conversation is archived.</Typography.Text>
-            ) : (
-              <Button
-                type="primary"
-                onClick={() =>
-                  void httpClient.post(`/chat/channels/${active.id}/join`).then(loadConversations)
+                active={c.id === activeId && (!isTablet || tabletPane !== 'list')}
+                presence={
+                  c.members[0] ? statusOf(c.members[0].userId, c.members[0].presence) : 'offline'
                 }
-              >
-                Join {active.name}
-              </Button>
-            )}
-          </>
-        ) : (
-          <Empty description="Select a conversation" />
-        )}
-      </section>
+                onClick={() => selectConv(c.id)}
+                onMute={() => setMute(c, !c.muted)}
+              />
+            ))}
+            {chats.length ? <p className="nv-teams-section">Chats</p> : null}
+            {chats.map((c) => {
+              const other = c.members.find((m) => m.userId !== identity?.id);
+              return (
+                <ConvRow
+                  key={c.id}
+                  conv={c}
+                  active={c.id === activeId && (!isTablet || tabletPane !== 'list')}
+                  presence={other ? statusOf(other.userId, other.presence) : 'offline'}
+                  onClick={() => selectConv(c.id)}
+                  onMute={() => setMute(c, !c.muted)}
+                />
+              );
+            })}
+          </div>
+        </aside>
 
-      {thread || detailsOpen ? (
-        <aside className="nv-teams-panel" aria-label={thread ? 'Thread' : 'Conversation details'}>
-          {thread ? (
+        <section className="nv-teams-main">
+          {active ? (
             <>
               <header className="nv-teams-header">
-                <Typography.Text strong>Thread</Typography.Text>
-                <Button
-                  size="small"
-                  type="text"
-                  onClick={() => selectConv(activeId!, { thread: null })}
-                >
-                  Close
-                </Button>
+                <div className="nv-teams-header__titles">
+                  {isTablet && pane !== 'list' ? (
+                    <button
+                      type="button"
+                      className="nv-teams-icon-btn"
+                      aria-label="Back to conversations"
+                      onClick={backOnTablet}
+                    >
+                      <LeftOutlined />
+                    </button>
+                  ) : null}
+                  <div className="nv-teams-header__text">
+                    <div className="nv-teams-title nv-cell-line" title={active.name}>
+                      {active.name}
+                    </div>
+                    {active.type === 'dm' ? (
+                      <div className={`nv-teams-sub nv-presence-word is-${dmStatus}`}>
+                        <PresenceDot status={dmStatus} size={8} />
+                        {PRESENCE_LABEL[dmStatus]}
+                      </div>
+                    ) : (
+                      <div
+                        className="nv-teams-sub nv-cell-line"
+                        title={active.topic || active.description || `${active.members.length} people`}
+                      >
+                        {active.topic || active.description || `${active.members.length} people`}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="nv-teams-header__right">
+                  <div className="nv-teams-stack">
+                    {active.members.slice(0, 4).map((m) => (
+                      <span key={m.userId} className="nv-teams-av">
+                        <Avatar size={24} style={{ background: avatarColor(m.userId) }}>
+                          {initials(m.fullName)}
+                        </Avatar>
+                        <PresenceDot status={statusOf(m.userId, m.presence)} size={8} />
+                      </span>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    className="nv-teams-icon-btn"
+                    aria-label="Conversation details"
+                    aria-pressed={detailsOpen}
+                    onClick={openDetails}
+                  >
+                    <InfoCircleOutlined />
+                  </button>
+                </div>
               </header>
-              <div className="nv-teams-messages">
-                <MessageRow
-                  msg={thread.parent}
-                  grouped={false}
-                  mine={thread.parent.author.id === identity?.id}
-                  mentionedYou={thread.parent.mentions.some((x) => x.userId === identity?.id)}
-                  presence={statusOf(thread.parent.author.id)}
-                  onReact={(emoji) =>
-                    void httpClient.post(`/chat/messages/${thread.parent.id}/reactions`, { emoji })
-                  }
-                  onThread={() => undefined}
-                  hideThread
+              <div className="nv-teams-transcript-wrap">
+                <section
+                  id="nv-teams-transcript"
+                  className="nv-teams-messages"
+                  ref={listRef}
+                  data-testid="chat-message-list"
+                  role="log"
+                  aria-label="Message transcript"
+                  aria-live="polite"
+                  aria-relevant="additions"
+                  aria-atomic="false"
+                  onScroll={() => {
+                    const el = listRef.current;
+                    if (!el) return;
+                    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 64;
+                    stickToBottom.current = atBottom;
+                    if (atBottom) setUnseen(0);
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDropOver(true);
+                  }}
+                  onDragLeave={() => setDropOver(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDropOver(false);
+                    const files = Array.from(e.dataTransfer.files ?? []);
+                    if (files.length) setPending((p) => [...p, ...files].slice(0, CHAT_MAX_FILES));
+                  }}
+                >
+                  {dropOver ? <div className="nv-chat-drop">Drop files to attach</div> : null}
+                  {!transcriptReady ? (
+                    <div className="nv-teams-skel-msgs" aria-hidden>
+                      {Array.from({ length: 4 }, (_, i) => (
+                        <div key={i} className="nv-teams-skel-msg" />
+                      ))}
+                    </div>
+                  ) : messages.length === 0 ? (
+                    <ChannelStartCard conv={active} onWrite={() => composerRef.current?.focus()} />
+                  ) : (
+                    messages.map((m, i) => {
+                      const prev = messages[i - 1];
+                      const showDay = !prev || !sameDay(prev.createdAt, m.createdAt);
+                      const grouped =
+                        prev &&
+                        !showDay &&
+                        prev.author.id === m.author.id &&
+                        !prev.deleted &&
+                        !m.deleted &&
+                        new Date(m.createdAt).getTime() - new Date(prev.createdAt).getTime() <
+                          GROUP_MS;
+                      return (
+                        <div key={m.id}>
+                          {showDay ? <div className="nv-chat-day">{dayLabel(m.createdAt)}</div> : null}
+                          <MessageRow
+                            msg={m}
+                            grouped={Boolean(grouped)}
+                            mine={m.author.id === identity?.id}
+                            mentionedYou={m.mentions.some((x) => x.userId === identity?.id)}
+                            editing={editingId === m.id}
+                            seenBy={
+                              i === messages.length - 1 && m.author.id === identity?.id
+                                ? active.seenBy
+                                : undefined
+                            }
+                            presence={statusOf(m.author.id)}
+                            onReact={(emoji) =>
+                              void httpClient.post(`/chat/messages/${m.id}/reactions`, { emoji })
+                            }
+                            onThread={() => selectConv(active.id, { thread: m.id, pane: 'panel' })}
+                            onStartEdit={() => setEditingId(m.id)}
+                            onCancelEdit={() => setEditingId(null)}
+                            onSaveEdit={async (next) => {
+                              await httpClient.patch(`/chat/messages/${m.id}`, { body: next });
+                              setEditingId(null);
+                            }}
+                            onDelete={async () => {
+                              await httpClient.delete(`/chat/messages/${m.id}`);
+                            }}
+                            canModerate={
+                              identity?.role === 'SUPER_ADMIN' || identity?.role === 'IT_ADMIN'
+                            }
+                          />
+                        </div>
+                      );
+                    })
+                  )}
+                </section>
+                {unseen > 0 ? (
+                  <button type="button" className="nv-teams-jump" onClick={jumpToLatest}>
+                    {unseen} new {unseen === 1 ? 'message' : 'messages'} · Jump to latest
+                  </button>
+                ) : null}
+              </div>
+              <div className="nv-teams-typing" aria-live="polite">
+                {typingLabel ? `${typingLabel} is typing…` : ' '}
+              </div>
+              {active.joined && !active.archived ? (
+                <Composer
+                  value={draft}
+                  textareaRef={composerRef}
+                  sending={sending}
+                  pending={pending}
+                  mentionOpen={mentionOpen && !thread}
+                  mentionChoices={mentionChoices}
+                  onMention={insertMention}
+                  onChange={(v) => onComposerChange(v, false)}
+                  onSend={(body) => void send(active.id, body)}
+                  onFiles={(files) => setPending((p) => [...p, ...files])}
+                  onRemoveFile={(i) => setPending((p) => p.filter((_, idx) => idx !== i))}
+                  onInsert={(s) => setDraft((d) => d + s)}
                 />
-                {thread.replies.map((m) => (
+              ) : active.joined ? (
+                <p className="nv-teams-archived">This conversation is archived.</p>
+              ) : (
+                <div className="nv-teams-join">
+                  <Button
+                    type="primary"
+                    onClick={() =>
+                      void httpClient.post(`/chat/channels/${active.id}/join`).then(loadConversations)
+                    }
+                  >
+                    Join {active.name}
+                  </Button>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="nv-teams-start">
+              <h2>Select a conversation</h2>
+              <p>Pick a channel or chat from the list.</p>
+            </div>
+          )}
+        </section>
+
+        {panelOpen ? (
+          <aside
+            className="nv-teams-panel"
+            aria-label={thread ? 'Thread' : 'Conversation details'}
+          >
+            {thread ? (
+              <>
+                <header className="nv-teams-thread-head">
+                  {isTablet ? (
+                    <button
+                      type="button"
+                      className="nv-teams-icon-btn"
+                      aria-label="Back to conversation"
+                      onClick={backOnTablet}
+                    >
+                      <LeftOutlined />
+                    </button>
+                  ) : null}
+                  <div className="nv-teams-thread-head__text">
+                    <div className="nv-teams-title">Thread</div>
+                    <p className="nv-teams-thread-quote" title={thread.parent.body}>
+                      {previewText(thread.parent.body)}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="nv-teams-icon-btn"
+                    aria-label="Close thread"
+                    onClick={() => selectConv(activeId!, { thread: null, pane: 'conversation' })}
+                  >
+                    ×
+                  </button>
+                </header>
+                <div className="nv-teams-messages">
                   <MessageRow
-                    key={m.id}
-                    msg={m}
+                    msg={thread.parent}
                     grouped={false}
-                    mine={m.author.id === identity?.id}
-                    mentionedYou={m.mentions.some((x) => x.userId === identity?.id)}
-                    presence={statusOf(m.author.id)}
+                    mine={thread.parent.author.id === identity?.id}
+                    mentionedYou={thread.parent.mentions.some((x) => x.userId === identity?.id)}
+                    presence={statusOf(thread.parent.author.id)}
                     onReact={(emoji) =>
-                      void httpClient.post(`/chat/messages/${m.id}/reactions`, { emoji })
+                      void httpClient.post(`/chat/messages/${thread.parent.id}/reactions`, {
+                        emoji,
+                      })
                     }
                     onThread={() => undefined}
                     hideThread
                   />
-                ))}
-              </div>
-              {active && !active.archived ? (
-                <Composer
-                  value={threadDraft}
-                  sending={sending}
-                  pending={threadPending}
-                  mentionOpen={false}
-                  mentionChoices={[]}
-                  onMention={() => undefined}
-                  onChange={(v) => onComposerChange(v, true)}
-                  onSend={() => void send(active.id, threadDraft, thread.parent.id, threadPending)}
-                  onFiles={(files) => setThreadPending((p) => [...p, ...files].slice(0, CHAT_MAX_FILES))}
-                  onRemoveFile={(i) => setThreadPending((p) => p.filter((_, idx) => idx !== i))}
-                  onWrap={() => undefined}
-                  onInsert={(s) => setThreadDraft((d) => d + s)}
-                  compact
-                />
-              ) : null}
-            </>
-          ) : active ? (
-            <DetailsPanel
-              conv={active}
-              identityId={identity?.id}
-              statusOf={statusOf}
-              staff={staff}
-              onClose={() => setDetailsOpen(false)}
-              onChanged={loadConversations}
-            />
-          ) : null}
-        </aside>
-      ) : null}
+                  {thread.replies.map((m) => (
+                    <MessageRow
+                      key={m.id}
+                      msg={m}
+                      grouped={false}
+                      mine={m.author.id === identity?.id}
+                      mentionedYou={m.mentions.some((x) => x.userId === identity?.id)}
+                      presence={statusOf(m.author.id)}
+                      onReact={(emoji) =>
+                        void httpClient.post(`/chat/messages/${m.id}/reactions`, { emoji })
+                      }
+                      onThread={() => undefined}
+                      hideThread
+                    />
+                  ))}
+                </div>
+                {active && !active.archived ? (
+                  <Composer
+                    value={threadDraft}
+                    sending={sending}
+                    pending={threadPending}
+                    mentionOpen={mentionOpen && Boolean(thread)}
+                    mentionChoices={mentionChoices}
+                    onMention={insertMention}
+                    onChange={(v) => onComposerChange(v, true)}
+                    onSend={(body) => void send(active.id, body, thread.parent.id, threadPending)}
+                    onFiles={(files) =>
+                      setThreadPending((p) => [...p, ...files].slice(0, CHAT_MAX_FILES))
+                    }
+                    onRemoveFile={(i) => setThreadPending((p) => p.filter((_, idx) => idx !== i))}
+                    onInsert={(s) => setThreadDraft((d) => d + s)}
+                    compact
+                  />
+                ) : null}
+              </>
+            ) : active ? (
+              <DetailsPanel
+                conv={active}
+                identityId={identity?.id}
+                statusOf={statusOf}
+                staff={staff}
+                onClose={() => {
+                  setDetailsOpen(false);
+                  if (isTablet) setTabletPane('conversation');
+                }}
+                onChanged={loadConversations}
+              />
+            ) : null}
+          </aside>
+        ) : null}
+      </div>
 
-      <Modal
-        title="Search messages"
-        open={searchOpen}
-        onCancel={() => setSearchOpen(false)}
-        footer={null}
-      >
-        <Input.Search
-          autoFocus
-          placeholder="Search in chat"
-          value={searchQ}
-          onChange={(e) => setSearchQ(e.target.value)}
-          onSearch={(q) => {
-            if (q.trim().length < 2) return;
-            void httpClient.get('/chat/search', { params: { q: q.trim() } }).then(({ data }) => {
-              setSearchHits(Array.isArray(data) ? data : []);
-            });
-          }}
-        />
-        <div style={{ marginTop: 12, maxHeight: 320, overflow: 'auto' }}>
-          {searchHits.map((h) => (
-            <button
-              key={h.id}
-              type="button"
-              className="nv-palette-result"
-              title={h.body}
-              onClick={() => {
-                setSearchOpen(false);
-                selectConv(h.channelId, {
-                  message: h.id,
-                  thread: h.parentId ?? undefined,
-                });
-              }}
-            >
-              <span className="nv-cell-line">
-                {h.channel?.name ?? 'Chat'} — {h.body.slice(0, 80)}
-              </span>
-            </button>
-          ))}
-        </div>
-      </Modal>
       <NewChatModal
         open={newOpen}
         staff={staff.filter((s) => s.id !== identity?.id)}
@@ -746,34 +1051,60 @@ export function ChatPage() {
   );
 }
 
+function ChannelStartCard({
+  conv,
+  onWrite,
+}: {
+  conv: ChatConversation;
+  onWrite: () => void;
+}) {
+  return (
+    <div className="nv-teams-start">
+      {conv.type === 'channel' ? (
+        <span className="nv-teams-hash-tile nv-teams-hash-tile--lg" aria-hidden>
+          #
+        </span>
+      ) : null}
+      <h2>This is the beginning of {conv.name}</h2>
+      {conv.topic ? <p className="nv-teams-start__topic">{conv.topic}</p> : null}
+      <p>{conv.description || 'This is the start of this conversation.'}</p>
+      <button type="button" className="nv-teams-start__cta" onClick={onWrite}>
+        Write a message
+      </button>
+    </div>
+  );
+}
+
 function ConvRow({
   conv,
   active,
   presence,
   onClick,
+  onMute,
 }: {
   conv: ChatConversation;
   active: boolean;
   presence: PresenceStatus;
   onClick: () => void;
+  onMute: () => void;
 }) {
   return (
-    <button
-      type="button"
+    <div
       role="option"
+      tabIndex={-1}
       aria-selected={active}
-      className={`nv-teams-conv${active ? ' is-active' : ''}${conv.unread ? ' is-unread' : ''}`}
+      className={`nv-teams-conv${active ? ' is-active' : ''}${conv.unread ? ' is-unread' : ''}${conv.muted ? ' is-muted' : ''}`}
       onClick={onClick}
     >
       <span className="nv-teams-av">
         {conv.type === 'channel' ? (
-          <Avatar size={28} style={{ background: '#475569' }}>
+          <span className="nv-teams-hash-tile" aria-hidden>
             #
-          </Avatar>
+          </span>
         ) : conv.type === 'group' ? (
-          <Avatar size={28} style={{ background: '#0F766E' }} icon={<TeamOutlined />} />
+          <Avatar size={36} style={{ background: '#0F766E' }} icon={<TeamOutlined />} />
         ) : (
-          <Avatar size={28} style={{ background: avatarColor(conv.otherUserId ?? conv.id) }}>
+          <Avatar size={36} style={{ background: avatarColor(conv.otherUserId ?? conv.id) }}>
             {initials(conv.name)}
           </Avatar>
         )}
@@ -798,8 +1129,32 @@ function ConvRow({
             })
           : ''}
         {conv.unread > 0 ? <Badge count={conv.unread} size="small" /> : null}
+        <Dropdown
+          trigger={['click']}
+          menu={{
+            items: [
+              {
+                key: 'mute',
+                label: conv.muted ? 'Unmute' : 'Mute',
+                onClick: ({ domEvent }) => {
+                  domEvent.stopPropagation();
+                  onMute();
+                },
+              },
+            ],
+          }}
+        >
+          <button
+            type="button"
+            className="nv-teams-conv-more"
+            aria-label="Conversation menu"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <EllipsisOutlined />
+          </button>
+        </Dropdown>
       </span>
-    </button>
+    </div>
   );
 }
 
@@ -841,6 +1196,28 @@ function MessageRow({
     hour: '2-digit',
     minute: '2-digit',
   });
+  const overflowItems = [
+    mine && onStartEdit
+      ? { key: 'edit', label: 'Edit', onClick: () => onStartEdit() }
+      : null,
+    mine || canModerate
+      ? {
+          key: 'delete',
+          danger: true,
+          label: (
+            <Popconfirm
+              title="Delete this message? This cannot be undone."
+              okText="Delete"
+              okButtonProps={{ danger: true }}
+              onConfirm={() => void onDelete?.()}
+            >
+              <span>Delete</span>
+            </Popconfirm>
+          ),
+        }
+      : null,
+  ].filter(Boolean) as { key: string; label: ReactNode; danger?: boolean; onClick?: () => void }[];
+
   return (
     <article
       data-message-id={msg.id}
@@ -863,13 +1240,15 @@ function MessageRow({
         </div>
       )}
       <div className="nv-teams-msg-cluster">
-        {grouped ? null : (
+        {grouped ? (
+          <span className="nv-teams-msg-time nv-teams-msg-time--cluster">{time}</span>
+        ) : (
           <header className="nv-teams-msg-head">
-            <Typography.Text strong>{mine ? 'You' : msg.author.fullName}</Typography.Text>
-            <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+            <span className="nv-teams-msg-author">{mine ? 'You' : msg.author.fullName}</span>
+            {msg.editedAt ? <span className="nv-teams-msg-edited">edited</span> : null}
+            <time className="nv-teams-msg-time" dateTime={msg.createdAt}>
               {time}
-              {msg.editedAt ? ' · edited' : ''}
-            </Typography.Text>
+            </time>
           </header>
         )}
         <div className="nv-teams-bubble">
@@ -887,29 +1266,21 @@ function MessageRow({
                 }
                 trigger="hover"
               >
-                <Button size="small" type="text" icon={<SmileOutlined />} aria-label="Add reaction" />
+                <button type="button" className="nv-teams-icon-btn" aria-label="Add reaction">
+                  <SmileOutlined />
+                </button>
               </Popover>
               {hideThread ? null : (
-                <Button size="small" type="text" onClick={onThread}>
-                  Reply
-                </Button>
+                <button type="button" className="nv-teams-icon-btn" aria-label="Reply" onClick={onThread}>
+                  <CommentOutlined />
+                </button>
               )}
-              {mine && onStartEdit ? (
-                <Button size="small" type="text" onClick={onStartEdit}>
-                  Edit
-                </Button>
-              ) : null}
-              {mine || canModerate ? (
-                <Popconfirm
-                  title="Delete this message? This cannot be undone."
-                  okText="Delete"
-                  okButtonProps={{ danger: true }}
-                  onConfirm={() => void onDelete?.()}
-                >
-                  <Button size="small" type="text" danger>
-                    Delete
-                  </Button>
-                </Popconfirm>
+              {overflowItems.length ? (
+                <Dropdown menu={{ items: overflowItems }} trigger={['click']}>
+                  <button type="button" className="nv-teams-icon-btn" aria-label="More actions">
+                    <EllipsisOutlined />
+                  </button>
+                </Dropdown>
               ) : null}
             </div>
           ) : null}
@@ -950,6 +1321,7 @@ function MessageRow({
             </>
           )}
         </div>
+        {mentionedYou ? <span className="nv-teams-mentioned">Mentioned you</span> : null}
         {msg.reactions.length > 0 ? (
           <div className="nv-chat-reactions">
             {msg.reactions.map((r) => (
@@ -966,16 +1338,18 @@ function MessageRow({
           </div>
         ) : null}
         {msg.replyCount > 0 && !hideThread ? (
-          <Button size="small" type="link" onClick={onThread}>
+          <button type="button" className="nv-teams-replies" onClick={onThread}>
             {msg.replyCount} {msg.replyCount === 1 ? 'reply' : 'replies'}
             {msg.lastReplyAt
               ? ` · ${new Date(msg.lastReplyAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
               : ''}
-          </Button>
+          </button>
         ) : null}
         {seenBy && seenBy.length > 0 ? (
           <div className="nv-teams-seen">
-            {seenBy.length === 1 ? `Seen by ${seenBy[0].fullName}` : `Seen by ${seenBy.map((s) => s.fullName).join(', ')}`}
+            {seenBy.length === 1
+              ? `Seen by ${seenBy[0].fullName}`
+              : `Seen by ${seenBy.map((s) => s.fullName).join(', ')}`}
           </div>
         ) : seenBy ? (
           <div className="nv-teams-seen">Seen</div>
@@ -996,7 +1370,6 @@ function Composer({
   onSend,
   onFiles,
   onRemoveFile,
-  onWrap,
   onInsert,
   textareaRef,
   compact,
@@ -1008,22 +1381,54 @@ function Composer({
   mentionChoices: ChatStaff[];
   onMention: (u: ChatStaff, threadMode: boolean) => void;
   onChange: (v: string) => void;
-  onSend: () => void;
+  onSend: (body: string) => void;
   onFiles: (files: File[]) => void;
   onRemoveFile: (i: number) => void;
-  onWrap: (left: string, right?: string) => void;
   onInsert: (s: string) => void;
   textareaRef?: React.RefObject<HTMLTextAreaElement | null>;
   compact?: boolean;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const localRef = useRef<HTMLTextAreaElement>(null);
   const toast = useToast();
+  const [formatOpen, setFormatOpen] = useState(false);
   const canSend = Boolean(value.trim() || pending.length);
+
+  const attachRef = (node: HTMLTextAreaElement | null) => {
+    localRef.current = node;
+    if (textareaRef) textareaRef.current = node;
+  };
+
+  const fireSend = () => {
+    const body = localRef.current?.value ?? value;
+    if (body !== value) onChange(body);
+    onSend(body);
+  };
+
+  const applyWrap = (left: string, right?: string) => {
+    const el = localRef.current;
+    if (!el) {
+      onChange(`${left}${value}${right ?? left}`);
+      return;
+    }
+    const { next, caret } = wrapSelection(value, el.selectionStart, el.selectionEnd, left, right);
+    onChange(next);
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(caret, caret);
+    });
+  };
+
+  const resize = (el: HTMLTextAreaElement) => {
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, compact ? 96 : 120)}px`;
+  };
+
   return (
     <fieldset
-      className="nv-teams-composer"
+      className={`nv-teams-composer${compact ? ' is-compact' : ''}${formatOpen ? ' is-format' : ''}`}
       data-testid={compact ? undefined : 'chat-composer'}
-      aria-label="Message composer"
+      aria-label="Composer"
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
         e.preventDefault();
@@ -1031,20 +1436,11 @@ function Composer({
         if (files.length) onFiles(files.slice(0, CHAT_MAX_FILES));
       }}
     >
-      {pending.length > 0 ? (
-        <div className="nv-chat-pending">
-          {pending.map((f, i) => (
-            <Button key={`${f.name}-${i}`} size="small" onClick={() => onRemoveFile(i)}>
-              {f.name} ×
-            </Button>
-          ))}
-        </div>
-      ) : null}
       {mentionOpen && mentionChoices.length > 0 ? (
         <ul className="nv-chat-mentions" aria-label="Mention someone">
           {mentionChoices.slice(0, 8).map((s) => (
             <li key={s.id}>
-              <button type="button" onClick={() => onMention(s, false)}>
+              <button type="button" onClick={() => onMention(s, Boolean(compact))}>
                 {s.fullName}
               </button>
             </li>
@@ -1056,84 +1452,32 @@ function Composer({
           </li>
         </ul>
       ) : null}
-      {!compact ? (
-        <div className="nv-teams-toolbar">
-          <Button
-            size="small"
-            type="text"
-            icon={<BoldOutlined />}
-            aria-label="Bold"
-            onClick={() => onWrap('**')}
-          />
-          <Button
-            size="small"
-            type="text"
-            icon={<ItalicOutlined />}
-            aria-label="Italic"
-            onClick={() => onWrap('*')}
-          />
-          <Button
-            size="small"
-            type="text"
-            icon={<StrikethroughOutlined />}
-            aria-label="Strikethrough"
-            onClick={() => onWrap('~~')}
-          />
-          <Button
-            size="small"
-            type="text"
-            icon={<CodeOutlined />}
-            aria-label="Inline code"
-            onClick={() => onWrap('`')}
-          />
-          <Button
-            size="small"
-            type="text"
-            icon={<NumberOutlined />}
-            aria-label="Bulleted list"
-            onClick={() => onInsert('\n- ')}
-          />
-          <Popover
-            content={
-              <div className="nv-emoji-grid">
-                {EMOJI_PICKER.map((e) => (
-                  <button key={e} type="button" onClick={() => onInsert(e)}>
-                    {e}
-                  </button>
-                ))}
-              </div>
-            }
-            trigger="click"
-          >
-            <Button size="small" type="text" icon={<SmileOutlined />} aria-label="Emoji" />
-          </Popover>
-          <Button
-            size="small"
-            type="text"
-            icon={<PaperClipOutlined />}
-            aria-label="Attach file"
-            onClick={() => fileRef.current?.click()}
-          />
-          <input
-            ref={fileRef}
-            type="file"
-            hidden
-            multiple
-            accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.txt,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,image/*"
-            onChange={(e) => {
-              onFiles(Array.from(e.target.files ?? []).slice(0, CHAT_MAX_FILES));
-              e.target.value = '';
-            }}
-          />
+      {pending.length > 0 ? (
+        <div className="nv-chat-pending">
+          {pending.map((f, i) => (
+            <button
+              key={`${f.name}-${i}`}
+              type="button"
+              className="nv-chat-pending-chip"
+              onClick={() => onRemoveFile(i)}
+            >
+              {f.name} ×
+            </button>
+          ))}
         </div>
       ) : null}
-      <Input.TextArea
-        ref={textareaRef as never}
-        rows={compact ? 2 : 3}
+      <textarea
+        ref={attachRef}
+        className="nv-teams-composer-input"
+        rows={compact ? 1 : 2}
         value={value}
         aria-label="Message"
         placeholder="Write a message — @ to mention, Ctrl+V to paste a file or screenshot, Enter to send"
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          onChange(e.target.value);
+          resize(e.target);
+        }}
+        onInput={(e) => onChange((e.target as HTMLTextAreaElement).value)}
         onPaste={(e) => {
           if ((e.nativeEvent as unknown as { shiftKey?: boolean }).shiftKey) return;
           const result = readChatPaste(e.clipboardData);
@@ -1151,20 +1495,97 @@ function Composer({
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            onSend();
+            fireSend();
           }
         }}
       />
-      <Button
-        type="primary"
-        icon={<SendOutlined />}
-        loading={sending}
-        disabled={!canSend}
-        onClick={onSend}
-        aria-label="Send"
-      >
-        Send
-      </Button>
+      <div className="nv-teams-composer-bar">
+        <div className="nv-teams-composer-tools">
+          <button
+            type="button"
+            className={`nv-teams-icon-btn${formatOpen ? ' is-on' : ''}`}
+            aria-label="Format"
+            aria-pressed={formatOpen}
+            onClick={() => setFormatOpen((v) => !v)}
+          >
+            <FontSizeOutlined />
+          </button>
+          {formatOpen ? (
+            <>
+              <button type="button" className="nv-teams-icon-btn" aria-label="Bold" onClick={() => applyWrap('**')}>
+                <BoldOutlined />
+              </button>
+              <button type="button" className="nv-teams-icon-btn" aria-label="Italic" onClick={() => applyWrap('*')}>
+                <ItalicOutlined />
+              </button>
+              <button
+                type="button"
+                className="nv-teams-icon-btn"
+                aria-label="Strikethrough"
+                onClick={() => applyWrap('~~')}
+              >
+                <StrikethroughOutlined />
+              </button>
+              <button type="button" className="nv-teams-icon-btn" aria-label="Inline code" onClick={() => applyWrap('`')}>
+                <CodeOutlined />
+              </button>
+              <button
+                type="button"
+                className="nv-teams-icon-btn"
+                aria-label="Bulleted list"
+                onClick={() => onInsert('\n- ')}
+              >
+                <NumberOutlined />
+              </button>
+            </>
+          ) : null}
+          <Popover
+            content={
+              <div className="nv-emoji-grid">
+                {EMOJI_PICKER.map((e) => (
+                  <button key={e} type="button" onClick={() => onInsert(e)}>
+                    {e}
+                  </button>
+                ))}
+              </div>
+            }
+            trigger="click"
+          >
+            <button type="button" className="nv-teams-icon-btn" aria-label="Emoji">
+              <SmileOutlined />
+            </button>
+          </Popover>
+          <button
+            type="button"
+            className="nv-teams-icon-btn"
+            aria-label="Attach file"
+            onClick={() => fileRef.current?.click()}
+          >
+            <PaperClipOutlined />
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            hidden
+            multiple
+            accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.txt,.csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,image/*"
+            onChange={(e) => {
+              onFiles(Array.from(e.target.files ?? []).slice(0, CHAT_MAX_FILES));
+              e.target.value = '';
+            }}
+          />
+        </div>
+        <button
+          type="button"
+          className={`nv-teams-send${canSend ? '' : ' is-quiet'}`}
+          disabled={sending}
+          onClick={fireSend}
+          aria-label="Send"
+          data-testid={compact ? undefined : 'chat-send'}
+        >
+          <SendOutlined /> Send
+        </button>
+      </div>
     </fieldset>
   );
 }
@@ -1186,11 +1607,11 @@ function DetailsPanel({
   const [addId, setAddId] = useState<number | null>(null);
   return (
     <>
-      <header className="nv-teams-header">
-        <Typography.Text strong>Details</Typography.Text>
-        <Button size="small" type="text" onClick={onClose}>
-          Close
-        </Button>
+      <header className="nv-teams-thread-head">
+        <div className="nv-teams-title">Details</div>
+        <button type="button" className="nv-teams-icon-btn" aria-label="Close details" onClick={onClose}>
+          ×
+        </button>
       </header>
       <div className="nv-teams-details">
         {conv.topic ? <p>{conv.topic}</p> : null}
@@ -1204,7 +1625,7 @@ function DetailsPanel({
               <PresenceDot status={statusOf(m.userId, m.presence)} size={8} />
             </span>
             <span>{m.fullName}</span>
-            {m.role === 'owner' ? <Typography.Text type="secondary">owner</Typography.Text> : null}
+            {m.role === 'owner' ? <span className="nv-teams-sub">owner</span> : null}
           </div>
         ))}
         {conv.type !== 'dm' ? (

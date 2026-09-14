@@ -302,3 +302,22 @@ allow/deny cases, and IT Support being blocked).
 | Q1 | `SlaChip` replaces AntD `gold`/`red` SLA tags | Axe serious contrast on “Due in Xm” |
 | Q2 | Help inline links underlined | Axe `link-in-text-block` on Getting Started |
 
+## Prompt 34 — Chat visual replica (2026-09-14)
+
+| # | What | Why |
+|---|------|-----|
+| C1 | Chat owns its chrome (Help-style route escape) | Nested `AppSider` made `/chat` look like a table with bubbles |
+| C2 | Bordered compose well; thread well keeps Format / emoji / attach | The screenshot people take is the bottom of the pane |
+| C3 | `#` tiles, in-rail Find, All / Unread / Mentions, Mute, Mark all read | 2025 Teams list habits without rebuilding chat |
+| C4 | `role="log"`, jump-to-latest, channel-start cards, tablet list-or-conversation | A11y + demo content + usable tablet |
+| C5 | Compact / Comfy toggle (Comfy default) | Reviewers on new Teams Compact stop calling it WhatsApp |
+
+## Prompt 37 — multi-tenant SaaS (2026-09-14)
+
+| # | What | Why |
+|---|------|-----|
+| T1 | Prisma tenant extension fail-closed | UI filters are not isolation |
+| T2 | Signup + 14-day trial + Starter/Team module guard | Product is sellable without a new module |
+| T3 | First-hour checklist + sample company | Activation ≠ schema completeness |
+| T4 | Export/delete/billing/trust/health region | Hooks trust questionnaires need; legal PDFs stay external |
+

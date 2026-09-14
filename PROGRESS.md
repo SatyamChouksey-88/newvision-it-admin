@@ -468,3 +468,53 @@ See `ENHANCEMENTS.md` for the full item-by-item list with file references. Summa
 - Backend unit **101/101** (was 98; +3 Resend helper tests).
 - Backend e2e **136/136** (was 126; +8 procurement manual/notes, +1 employee self-edit, +1 requester ticket correction). An overnight full-suite run starved `phase2.e2e-spec.ts` `beforeAll` after 16h; re-running that file alone was **10/10** in 26s — not a product regression.
 - Frontend `lint` / `typecheck` / `vite build` clean. Playwright **80** (was 78; +2 self-service specs). First full run: 76 passed / 4 failed (stale selectors + Employee Profile bounced home). Those four were fixed and re-run green.
+
+## Prompt 34 — Chat visual / chrome upgrade (2026-09-14)
+
+- [x] `/chat` escaped `ThemedLayout` (Help pattern): own 48px app bar, no Assets/Tickets sider
+- [x] Compose well (Format / emoji / attach / Send inside the card); thread composer uses the same well
+- [x] 2025 rail: `#` channel tiles, in-rail Find, All / Unread / Mentions pills, Mark all read, Mute in `⋯`
+- [x] Conversation header, Fluent-inspired Comfy chrome, hover icon actions, jump-to-latest, `role="log"`
+- [x] Thread pane header (parent quote + close); conversation-first tablet at ≤1023px
+- [x] Channel starters for `#it-ops` / `#helpdesk` / `#procurement`; Playwright pings cleaned after tests
+- [x] Compact vs Comfy density toggle (Comfy default, persisted)
+- [x] Help `staff-chat` copy + screenshot selectors updated; no purple re-theme; Socket.IO / mentions storage untouched
+- [x] Playwright chat specs (send, bubble alignment, paste chip, tablet 1024/900, employee 403, two-staff live send/thread/mention/unread) plus axe on `/chat` after Send contrast fix (`is-quiet` is outline blue, not faded white-on-blue)
+
+
+## Prompt 38 — joining, hardware kit, sticky chrome, nv-phone (2026-09-14)
+
+- [x] Joining date required on Add employee (default today); list/profile Joined + tenure; DOJ ≠ `createdAt`
+- [x] Hardware tabs Serialized | Accessories | Consumables; three nav URLs kept; category count pills; MOU/HDS/KEY/CAM/DOCK
+- [x] Employee **My kit** = assigned assets + accessory checkouts (no catalog, no serials)
+- [x] Accessory catalog: brand/model/location/threshold; checkout qty/serial/parent asset/due; duplicate serial warning
+- [x] Sticky title + filters + thead under the 52px header (existing `#f4f8fc` / `#fff`)
+- [x] `nv-phone` ≤639px: Employee bottom nav, IT list cards, Chat/procurement desktop banner — **no dark mode, no admin rewrite**
+- [x] Joiner extras: manager on create, intern/consultant, last working day, probation 90d, My work joining/probation
+- [ ] Live 390px walk + sticky thead on a seeded browser (Playwright `e2e/prompt38-join-kit.spec.ts`)
+
+## Prompt 37 — sellable multi-tenant SaaS (2026-09-14)
+
+- [x] Phase 0 trust baseline verified (Helmet/CSP, rate-limit, Swagger off in prod, Super Admin TOTP, auth audit)
+- [x] Shared-DB `tenantId` isolation (Prisma extension, fail-closed) + migration backfill tenant 1
+- [x] Self-serve `POST /api/auth/signup` provisions tenant + Super Admin + starter catalog
+- [x] Per-tenant branding, 14-day Team trial → Starter, module guard on nav/API
+- [x] First-hour checklist, CSV templates, ~25-row sample company (never the 1,250-row seed)
+- [x] Export / delete / billing snapshot / `/trust` placeholders / `GET /api/health` with DB + residency
+- [x] Adversarial isolation e2e (`backend/test/prompt37-tenancy.e2e-spec.ts`)
+- [ ] Live 15-minute demo on a fresh trial tenant after Render deploy
+
+## Prompt 32 — remediate gaps (security → loops → docs) (2026-09-14)
+
+- [x] Demo credentials gated to DEV; production demo logins blocked unless `ALLOW_DEMO_LOGINS`
+- [x] RBAC: setup dashboard, locations, vendors/bank, related over-broad reads
+- [x] Auth baseline: login rate-limit, Helmet/CSP, password min 12, refresh cookie + revoke, timing-safe ingest
+- [x] Swagger off in production; docker-compose JWT 30m + `SEED_IF_EMPTY`
+- [x] Shared upload allow-list (tickets/email-in/chat)
+- [x] Inbound MIME attachments → `TicketAttachment`; overdue requester email; weekly warranty digest
+- [x] Manager team devices/people nav + KPI; Super Admin can raise tickets; maintenance `vendorId`; request `fulfilledAssetId`; scan-to-audit
+- [x] Seed make/model pairing; chat test pings deleted immediately
+- [x] Skip link on app chrome; axe across roles; Manager report copy; full audit CSV export
+- [x] Help bulk-assign article; README/PROGRESS Playwright count = **101** `test(` cases in `frontend/e2e/` (not a pass claim)
+- [ ] Rotate production JWT/refresh secrets + Super Admin password; prove Resend + IMAP on the live URL
+

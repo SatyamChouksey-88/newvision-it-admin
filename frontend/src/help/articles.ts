@@ -1,17 +1,9 @@
-export interface HelpArticle {
-  id: string;
-  title: string;
-  category: string;
-  /** Optional second nav level within a category (e.g. "Lifecycle", "For IT staff"). */
-  group?: string;
-  summary: string;
-  keywords: string[];
-  screenshot?: string;
-  callouts?: { n: number; label: string }[];
-  body: string;
-}
+import { employeeHowtos } from './employeeHowtos';
+import type { HelpArticle } from './types';
+export type { HelpArticle } from './types';
 
 export const HELP_CATEGORIES = [
+  'For employees',
   'Getting Started',
   'Assets',
   'Employees',
@@ -31,6 +23,7 @@ export const HELP_CATEGORIES = [
 ] as const;
 
 export const helpArticles: HelpArticle[] = [
+  ...employeeHowtos,
   {
     id: 'getting-started',
     title: 'Getting Started',
@@ -57,7 +50,7 @@ All seeded demo accounts use password **Password123!**:
 | IT Admin | itadmin@newvision.local | Day-to-day estate, helpdesk, procurement |
 | IT Support | support@newvision.local | Tickets, repairs, staff chat |
 | Manager | manager@newvision.local | Team requests, tickets, and requisitions |
-| Employee | employee@newvision.local | **My IT** — own devices, tickets, requests |
+| Employee | employee@newvision.local | **My IT** — own kit, tickets, requests |
 
 ### Roles at a glance
 
@@ -106,7 +99,7 @@ It only shows on a truly empty estate (no locations, employees, or assets).`,
     id: 'my-it',
     title: 'My IT (employees)',
     category: 'Getting Started',
-    summary: 'What employees see on Home, My devices, tickets, and requests.',
+    summary: 'What employees see on Home, My kit, tickets, and requests.',
     keywords: ['my it', 'employee', 'self service', 'home', 'devices'],
     screenshot: '/docs/screenshots/my-it.png',
     callouts: [
@@ -119,8 +112,8 @@ It only shows on a truly empty estate (no locations, employees, or assets).`,
 
 ### What you can do
 
-1. **Home** — your assigned devices (with a copy chip on the asset code), **Raise a ticket**, **Request a device**, and your open tickets.
-2. **My devices** — the same assigned kit as a list. You cannot assign, transfer, or retire anything.
+1. **Home** — your assigned kit (serialized assets plus accessories checked out to you), **Raise a ticket**, **Request a device**, **Fix it yourself** how-tos (Wi-Fi, VPN, MFA, phishing), and your open tickets.
+2. **My kit** — the same assigned laptop/monitor plus mice, chargers, and headsets. You cannot assign, transfer, or retire anything. Serial numbers on accessories stay IT-only.
 3. **My tickets** — raise and follow tickets you opened. You see public comments only, never internal IT notes.
 4. **Raise a request** — ask for a laptop, monitor, or accessory. Your manager approves; IT fulfills.
 5. **Profile** — your directory record. You can update **phone** and **job title**; name, email, location, and department stay with IT.
@@ -161,13 +154,13 @@ Software / access / VPN = ticket. "I need a new laptop" = request. "This specifi
 - **Status table** — one coloured row per status (tag, count, share). Click a row to filter Assets.
 - **Assets by location** — one row per office (from live Location records, never hardcoded city names). Each status is its own coloured column. Click a count to filter.
 - There is **no Growth chart**. Estate size is the Total KPI. **Trends** (\`/api/dashboard/trends\`) is IT-staff only.
-- **My work** — an ordered list: your overdue tickets, unassigned tickets, tickets waiting on the employee for 3+ days, stale repairs, incomplete checklists, contracts ending within 14 days, then warranties expiring within 14 days. Unassigned rows have **Assign to me**. The card caret collapses just this list (remembered in this browser). Status distribution, assets by location, and support tickets stay open.
+- **My work** — an ordered list: your overdue tickets, unassigned tickets, tickets waiting on the employee for 3+ days, stale repairs, incomplete checklists, contracts ending within 14 days, people joining this week, probation ending within 14 days, then warranties expiring within 14 days. Unassigned rows have **Assign to me**. The card caret collapses just this list (remembered in this browser). Status distribution, assets by location, and support tickets stay open.
 
 ### Other homes
 
 - **IT Support** — the same **My work** list is the home page (KPI tiles are hidden). Shortcuts still jump to unassigned tickets, your tickets, and stale repairs.
 - **Manager** — requests waiting on you, team tickets, team devices.
-- **Employee (My IT)** — your assigned devices, Raise a ticket / Request a device, and your open tickets. See [My IT](/help/my-it).
+- **Employee (My IT)** — your assigned kit (devices + accessories), Raise a ticket / Request a device, and your open tickets. See [My IT](/help/my-it).
 
 ### Troubleshooting
 
@@ -181,9 +174,13 @@ Already-expired kit is a separate Assets filter (**Already expired**). The dashb
     summary: 'List, filter, export, and lifecycle actions for serialized assets.',
     keywords: ['assets', 'list', 'filter', 'export', 'assign'],
     screenshot: '/docs/screenshots/assets-list.png',
-    body: `**Assets** is the core inventory. Each asset has a unique **asset number** (\`assetCode\`) — either typed in on create (sticker codes like \`NV-LAP-1042\`) or left blank so the system assigns \`AST-{location}-{category}-{seq}\` (e.g. AST-PUN-LAP-0001). You can rename a code later from **Edit**; confirm first, because old QR stickers and scan links for the previous number stop working. Duplicate codes are rejected.
+    body: `**Assets** is the serialized drawer. Each asset has a unique **asset number** (\`assetCode\`) — either typed in on create (sticker codes like \`NV-LAP-1042\`) or left blank so the system assigns \`AST-{location}-{category}-{seq}\` (e.g. AST-PUN-LAP-0001). You can rename a code later from **Edit**; confirm first, because old QR stickers and scan links for the previous number stop working. Duplicate codes are rejected.
 
-Each asset also has an optional serial number.
+Hardware lives in three URLs with shared tabs: **Serialized** (this page), **Accessories** (quantity stock you get back), **Consumables** (toner you use up). The three sidebar items stay so existing bookmarks and tests keep working.
+
+**Monitors are Assets** (category Monitor). A cheap mouse or charger is an Accessory unless IT must know *which physical unit* it is — then create a serialized Mouse / Headset / Keyboard / Webcam / Dock asset (MOU / HDS / KEY / CAM / DOCK). Do not merge the Accessory table into Asset.
+
+Each asset also has an optional serial number. Category count pills (Laptop N, Monitor N) sit on the list. Title, search/filters, and the column header stay under the 52px app header while you scroll.
 
 ### List features (Excel-grade grid)
 
@@ -249,7 +246,7 @@ The public scan URL is \`/scan/{assetCode}\`. Reprint the label after a code cha
 2. Pick the action. Transfer asks for a location (and optional assignee). Retire asks for a reason.
 3. The API applies the change per id and returns succeeded/failed counts. A row that is not eligible (already retired, invalid transition) is reported, not silently skipped without a count.
 
-There is **no bulk assign** yet — assign is still one asset (plus optional accessories) at a time.
+There is a **Bulk assign** action on the Assets toolbar once you select rows — it assigns every selected available asset to one employee (plus optional accessories).
 
 > [!NOTE]
 > Bulk actions reuse the same lifecycle rules as the single-asset buttons. You cannot jump \`available → disposed\` in one step.`,
@@ -277,6 +274,14 @@ There is **no bulk assign** yet — assign is still one asset (plus optional acc
     keywords: ['accessories', 'consumables', 'checkout', 'issue', 'stock', 'low-stock'],
     screenshot: '/docs/screenshots/accessories.png',
     body: `These are two different stock models. Do not mix them.
+
+### Assets vs Accessories vs Consumables
+
+- **Asset** — IT must know which physical unit this is in six months (serial, warranty, theft, AMC). Laptops, monitors, and serialized mice/headsets.
+- **Accessory** — any spare from the drawer is fine. Quantity in / quantity out. Optional checkout serial is a *warning* if duplicated, not a unique constraint.
+- **Consumable** — used up (toner). Quantity only.
+
+On create, the form asks that question. **Date of joining** on an employee is the offer/actual start — not when the row was typed (\`createdAt\`).
 
 ### Accessories (you expect them back)
 
@@ -328,7 +333,9 @@ Stock levels are IT-only. Managers see kit on an employee's profile when it is c
 
 - List uses the same Excel-grade grid as Assets (sort, columns, density, export).
 - **Follow-up** filter: contracts ending within 14 days, or incomplete onboard/offboard checklists. Those rows also show a tag, appear on the dashboard **My work** list, and the profile warns when a contract is due soon.
-- Click a row for the **profile**: identity, location/department, contract end date, assigned assets, accessories checked out, consumables issued, notes, and the **History** tab.
+- Click a row for the **profile**: identity, location/department, **date of joining** (offer/actual start — not \`createdAt\`), tenure, contract end date, assigned assets, accessories checked out, consumables issued, notes, and the **History** tab.
+- **Add employee** requires a joining date (defaults to today). The list shows Joined + Tenure and sorts newest joiners first. Optional: reports-to manager, intern/consultant type, desk, expected start, probation (blank = DOJ + **90 days**), start onboard checklist.
+- **Offboard** requires a **last working day**. Recover-kit-by defaults to that date.
 - **Create login** — Super Admin and IT Admin can tick this on Add employee. Super Admin can also create users from Settings → Users (the only path that can create an IT Admin).
 - **Onboard / offboard checklists** start from the profile. Templates are edited in Settings → Onboard / Offboard.
 - Managers viewing the list or profiles see **direct reports only** (API-enforced).
@@ -567,7 +574,7 @@ Correct. Managers only see **their team's requisitions**. Super Admin / IT Admin
 
 ### Onboarding
 
-1. **New vendor** — legal name, category, contacts, GST/PAN as used internally.
+1. **New vendor** — legal name, category, contacts, GST/PAN as used internally. The form searches existing vendors as you type (name or tax ID). Saving a duplicate GSTIN/PAN or bank account number returns **409** with a link to the existing \`VND-…\`.
 2. Submit for approval if you are not allowed to activate it yourself.
 3. **Bank details** on an already-active vendor do **not** apply instantly. They sit pending until Super Admin / IT Admin confirms (highest fraud-risk field).
 
@@ -682,9 +689,11 @@ Someone made a material edit (total, vendor, qty, lines, category, procurement t
 
 Recording a vendor invoice against a PO compares amount and received quantities to the PO within a **2%** tolerance (\`PROCUREMENT_MATCH_TOLERANCE_PCT\`). **Exception** invoices need a resolution note before they can be approved for payment.
 
+**Invoice numbers are unique per vendor.** Recording the same number twice returns **409**. Super Admin can tick **Record as correction** to store it as \`INV-100-CORR\` (then \`-CORR2\`) — that is the only override. If a *different* number matches the same vendor, amount, and date within 7 days, the save still succeeds and the UI warns.
+
 If the PO/GRN is amended or voided after assets were auto-created, those assets get a **Procurement mismatch** flag. Reconcile them; they are never silently deleted.
 
-Payment tracking is a **status** on the invoice (unpaid / partial / paid / overdue). NewVision does not push a bank file.
+Payment tracking is a **status** on the invoice (pending / approved / paid / overdue / disputed / cancelled). NewVision does not push a bank file.
 
 ### Troubleshooting
 
@@ -772,6 +781,8 @@ You can also email the shared helpdesk mailbox — a new message opens a ticket,
 
 Employees see a short form (category, priority, description, optional asset). IT staff can still start from a template and add watchers.
 
+The **Account lockout / password / MFA** template is the daily L1 playbook: it is Access & Account / High, and its body is an identity-verification checklist (employee code, manager or photo ID, which system, last login). Do not reset until that is done.
+
 IT Support is auto-assigned when someone is available; otherwise the ticket stays Open for the queue.
 
 Staff can **@mention** colleagues on the ticket, copy a ready **email draft** (mail icon) to paste into Outlook, and — for Super Admin / IT Admin / IT Support only — use the header **Chat** launcher (#it-ops plus 1:1 DMs). Pasting a ticket number like \`TCK-000123\` in chat becomes a clickable preview.`,
@@ -842,13 +853,22 @@ Anyone who can view the ticket can read public comments. Internal notes never ap
 1. **Filter** with status chips or built-in quick views: My tickets, Unassigned, Overdue, Awaiting my reply.
 2. The list shows **Requester** (Name · EMP-code), **Assignee**, and an **Age / SLA** badge matching the ticket header — you do not need to open a ticket to see who owns it.
 3. **Assign** from the ticket or in bulk from the list.
-4. **Insert a canned response** before sending a reply (Settings → Helpdesk). A snippet can also **wait on the employee** or **resolve** the ticket when you send it.
+4. **Insert a canned response** before sending a reply (Settings → Helpdesk). A snippet can also **wait on the employee** or **resolve** the ticket when you send it. Use **Reset completed — verify & close** after a password / MFA reset.
 5. **Log time** in minutes; the running total appears on the ticket and in reports.
 6. **Reports** show volume by status/category/priority, average resolution time, overdue open tickets, closed counts per staff member, and average satisfaction.
 
 Managers see their own tickets plus direct reports. They cannot assign, add internal notes, or log time.
 
 Quick views include **Email-in** for tickets that arrived by mail. The ticket shows a Portal vs Email channel chip.
+
+### Account lockout / password / MFA
+
+Password resets are the highest-volume L1 work. NewVision does **not** talk to Active Directory. On the ticket:
+
+1. Apply the **Account lockout / password / MFA** template if the body is not already the checklist.
+2. **Verify identity** (employee code + manager or photo ID). That stamps who verified and when.
+3. If the requester has a NewVision login, **Send NewVision reset link**. For M365 / VPN / biometric, do the reset in Entra/AD and **Record IdP reset** on the ticket.
+4. Send the canned reply **Reset completed — verify & close** (public + resolved).
 
 ### Assign to me
 
@@ -1372,21 +1392,21 @@ Only Super Admin can, and only from Settings → Users.`,
     title: 'Team Chat',
     category: 'Team Chat',
     summary:
-      'Teams-style channels, DMs, threads, mentions, reactions, and live presence for Super Admin, IT Admin, and IT Support.',
+      'Staff chat workspace: own chrome (no admin sider), channels, DMs, threads, mentions, reactions, and live presence for Super Admin, IT Admin, and IT Support.',
     keywords: ['chat', 'dm', 'it-ops', 'unfurl', 'teams', 'thread', 'mention', 'reaction'],
     screenshot: '/docs/screenshots/chat.png',
     callouts: [
-      { n: 1, label: 'Conversation list' },
-      { n: 2, label: 'Message pane' },
-      { n: 3, label: 'Thread / details' },
+      { n: 1, label: 'Rail (Find + filters)' },
+      { n: 2, label: 'Transcript + compose well' },
+      { n: 3, label: 'Chat chrome (no admin sider)' },
     ],
-    body: `The header **Chat** button (and the sidebar **Chat** item) open a full-page, Microsoft Teams-style workspace at \`/chat\`. It is staff-only: **Super Admin, IT Admin, and IT Support**. Managers and Employees never see it, and the API rejects them with 403.
+    body: `The header **Chat** button (and the sidebar **Chat** item, from the console) open a **staff chat workspace** at \`/chat\`. Chat owns its own top bar — NewVision mark, conversation title, Details, and **Back to console**. The Assets / Tickets sider is not on this page. It is staff-only: **Super Admin, IT Admin, and IT Support**. Managers and Employees never see it, and the API rejects them with 403.
 
 ### Layout
 
-1. **Left rail** — channels (\`#it-ops\`, \`#helpdesk\`, \`#procurement\`, plus any you create) and direct/group chats. Each row shows a preview, time, unread badge, and presence on people.
-2. **Main pane** — Teams Comfy bubbles: **your messages on the right**, everyone else’s on the left (channels, DMs, groups, and threads). Long URLs and codes wrap inside the bubble. Day dividers stay centered. A composer is pinned at the bottom.
-3. **Right panel** — a thread when you reply to a specific message, or members/details when you open **Details**.
+1. **Left rail** — **All / Unread / Mentions** pills, an always-visible **Find** box (message search, not a modal), then channels (\`#it-ops\`, \`#helpdesk\`, \`#procurement\`, plus any you create) and chats. Channel rows use a \`#\` tile. Each row shows a preview, time, unread badge, and a **⋯** menu (Mute). People rows show initials and presence.
+2. **Main pane** — a conversation header (\`# name\`, or a DM name plus **Available / Away / Busy / Offline** in colour and words), then the transcript, then a **bordered compose well**. Format, emoji, attach, and Send sit **inside** the well. Default density is Teams **Comfy** (your messages on the right). **Compact** (everything left, tighter) is a toggle on the chat bar and is remembered in this browser.
+3. **Right panel** — a thread with the parent quote and close, or members/details from the **info** button. On a tablet (about 900px), the rail and the conversation are never stacked: you see the list **or** the transcript, and a thread replaces the transcript. Use the back chevron to return.
 
 ### What you can do
 
@@ -1400,9 +1420,9 @@ Only Super Admin can, and only from Settings → Users.`,
 - **Files & screenshots** — paperclip, drag-and-drop, or Ctrl+V. Explorer / Word copies that include a real Word/Excel/PowerPoint file attach the document, not the thumbnail. A Snipping Tool image still becomes a screenshot. Word text paste is cleaned. Executables are blocked. Images preview inline; other files show a card with type, name, and size.
 - **Edit / delete** — edit in the bubble (Save / Cancel). Delete and Leave ask for confirmation. **Super Admin and IT Admin** may delete anyone’s message; both actions are audited.
 - **Record cards** — drop \`TCK-…\`, \`AST-…\`, \`EMP-…\`, \`PO-…\`, or \`PR-…\` and Chat resolves it to a labelled card that opens the record. Unresolved codes fall back to search.
-- **Unread** — per-conversation badges and the header Chat badge. Opening a conversation marks it read. Each membership has All / Mentions only / Muted.
+- **Unread** — per-conversation badges and the header Chat badge (from the console). Opening a conversation marks it read for **you** only. **Mark all read** does the same across your memberships. Each membership has All / Mentions only / Muted.
 - **Presence & typing** — available (green circle), away (amber + clock), busy/DND (red + minus), offline (hollow). Colour is never the only signal. “X is typing…” while someone is composing. Updates go over a WebSocket, with HTTP as fallback if the socket drops (it reconnects and resyncs).
-- **Search & deep links** — magnifier searches messages. Notification links to a conversation and message scroll there and flash the row.
+- **Search & deep links** — **Find** in the rail searches messages (\`GET /chat/search\`). Notification links to a conversation and message scroll there and flash the row. If you are reading older history, new traffic shows a **Jump to latest** pill instead of stealing the scroll.
 
 ### Notifications
 

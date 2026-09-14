@@ -297,7 +297,7 @@ const shots = [
       await page.goto(`${base}/chat`);
       await page.getByTestId('chat-page').waitFor({ timeout: 15_000 }).catch(() => undefined);
       await page.getByText(/#it-ops|#helpdesk|Chat/i).first().waitFor({ timeout: 10_000 }).catch(() => undefined);
-      await annotate(page, ['[data-testid="chat-page"] nav, .nv-chat-rail', '[data-testid="chat-page"]']);
+      await annotate(page, ['.nv-teams-rail', '.nv-teams-composer', '.nv-teams-appbar']);
     },
   },
   {

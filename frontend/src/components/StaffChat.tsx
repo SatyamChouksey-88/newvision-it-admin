@@ -9,13 +9,14 @@ import { httpClient } from '../providers/axios';
 
 const STAFF = ['SUPER_ADMIN', 'IT_ADMIN', 'IT_SUPPORT'];
 
-/** Header launcher — opens the full-page Teams-style chat at /chat. */
+/** Header launcher — opens the chat workspace at /chat (own chrome, not the admin shell). */
 export function StaffChatLauncher() {
   const { data: identity } = useGetIdentity<Identity>();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [unread, setUnread] = useState(0);
-  const allowed = STAFF.includes(identity?.role ?? '');
+  const chatOn = identity?.tenant?.modules?.chat !== false;
+  const allowed = STAFF.includes(identity?.role ?? '') && chatOn;
 
   const refresh = useCallback(() => {
     httpClient
