@@ -95,6 +95,39 @@ export function TicketPriorityTag({ priority }: { priority: TicketPriority }) {
   );
 }
 
+/** First-response SLA chip — explicit colors so AntD `gold`/`red` presets cannot fail WCAG AA. */
+const SLA_META: Record<string, { icon: ReactNode; style: CSSProperties }> = {
+  overdue: {
+    icon: <ExclamationCircleOutlined />,
+    style: { color: '#9b1c1c', background: '#fef2f2', borderColor: '#fecaca' },
+  },
+  soon: {
+    icon: <ClockCircleOutlined />,
+    style: { color: '#92400e', background: '#fffbeb', borderColor: '#fde68a' },
+  },
+  paused: {
+    icon: <ClockCircleOutlined />,
+    style: { color: '#92400e', background: '#fffbeb', borderColor: '#fde68a' },
+  },
+  ok: {
+    icon: <ClockCircleOutlined />,
+    style: { color: '#1d4ed8', background: '#eff6ff', borderColor: '#bfdbfe' },
+  },
+  met: {
+    icon: <CheckCircleOutlined />,
+    style: { color: '#15803d', background: '#f0fdf4', borderColor: '#bbf7d0' },
+  },
+};
+
+export function SlaChip({ label, state }: { label: string; state?: string | null }) {
+  const meta = SLA_META[state ?? ''] ?? SLA_META.ok;
+  return (
+    <Tag icon={meta.icon} style={{ marginInlineEnd: 0, ...meta.style }}>
+      {label}
+    </Tag>
+  );
+}
+
 export const TICKET_STATUS_OPTIONS = (Object.keys(STATUS_META) as TicketStatus[]).map((s) => ({
   label: STATUS_META[s].label,
   value: s,

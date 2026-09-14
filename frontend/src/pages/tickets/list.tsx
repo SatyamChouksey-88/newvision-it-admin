@@ -15,6 +15,7 @@ import {
   TICKET_STATUS_OPTIONS,
   TicketPriorityTag,
   TicketStatusTag,
+  SlaChip,
 } from '../../components/TicketStatusTag';
 import { useToast } from '../../components/Toast';
 import { useRefinePagination } from '../../hooks/useRefinePagination';
@@ -52,17 +53,9 @@ function ageLabel(iso?: string) {
 
 function SlaTag({ ticket }: { ticket: SupportTicket }) {
   if (ticket.slaLabel) {
-    return (
-      <Tag
-        color={
-          ticket.slaState === 'overdue' ? 'red' : ticket.slaState === 'soon' ? 'gold' : undefined
-        }
-      >
-        {ticket.slaLabel}
-      </Tag>
-    );
+    return <SlaChip label={ticket.slaLabel} state={ticket.slaState} />;
   }
-  if (ticket.overdue) return <Tag color="red">Overdue</Tag>;
+  if (ticket.overdue) return <SlaChip label="Overdue" state="overdue" />;
   return null;
 }
 

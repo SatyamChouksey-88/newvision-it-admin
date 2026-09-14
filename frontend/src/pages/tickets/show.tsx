@@ -29,6 +29,7 @@ import { ManualEditButton } from '../../components/ManualEdit';
 import { RecordNotes } from '../../components/RecordNotes';
 import { ScreenshotPasteZone } from '../../components/ScreenshotPasteZone';
 import {
+  SlaChip,
   TicketPriorityTag,
   TicketStatusSelect,
   TicketStatusTag,
@@ -234,19 +235,9 @@ export function TicketShow() {
               </Tag>
             ) : null}
             {ticket?.slaLabel ? (
-              <Tag
-                color={
-                  ticket.slaState === 'overdue'
-                    ? 'red'
-                    : ticket.slaState === 'soon'
-                      ? 'gold'
-                      : undefined
-                }
-              >
-                {ticket.slaLabel}
-              </Tag>
+              <SlaChip label={ticket.slaLabel} state={ticket.slaState} />
             ) : ticket?.overdue ? (
-              <Tag color="red">Overdue</Tag>
+              <SlaChip label="Overdue" state="overdue" />
             ) : null}
             {ticket?.duplicateOf ? (
               <Tag>
