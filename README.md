@@ -158,7 +158,7 @@ npm run test:e2e                  # Playwright (103 test() cases in frontend/e2e
 npm run test:e2e:report           # open the last HTML report
 ```
 
-Current status: **101 Playwright `test()` cases** in `frontend/e2e/` (axe-core now covers login, scan, procurement, settings, and Employee/Manager/IT Support homes as well as the IT Admin shell). Older README figures (22 / 55 / 68) were snapshot counts from earlier prompts — do not mix them. A green local run is recorded in CI, not by this paragraph.
+Current status: **103 Playwright `test()` cases** in `frontend/e2e/` (axe-core now covers login, scan, procurement, settings, and Employee/Manager/IT Support homes as well as the IT Admin shell). Older README figures (22 / 55 / 68) were snapshot counts from earlier prompts — do not mix them. A green local run is recorded in CI, not by this paragraph.
 
 ---
 

@@ -81,8 +81,10 @@ export async function seedCore(prisma: PrismaService): Promise<TestContext['ids'
         modules: { procurement: true, chat: true, maintenance: true },
       },
     });
-    await prisma.pool.query(
-      `SELECT setval(pg_get_serial_sequence('tenants', 'id'), GREATEST(1, (SELECT MAX(id) FROM tenants)))`,
+    await withAdminClient((client) =>
+      client.query(
+        `SELECT setval(pg_get_serial_sequence('tenants', 'id'), GREATEST(1, (SELECT MAX(id) FROM tenants)))`,
+      ),
     );
   });
 
