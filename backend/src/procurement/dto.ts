@@ -105,6 +105,18 @@ export class CreateVendorDto {
 
   @IsOptional()
   @IsString()
+  gstin?: string;
+
+  @IsOptional()
+  @IsString()
+  pan?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  gstUnregistered?: boolean;
+
+  @IsOptional()
+  @IsString()
   country?: string;
 
   @IsOptional()
@@ -173,6 +185,18 @@ export class UpdateVendorDto {
   @IsOptional()
   @IsString()
   taxId?: string;
+
+  @IsOptional()
+  @IsString()
+  gstin?: string;
+
+  @IsOptional()
+  @IsString()
+  pan?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  gstUnregistered?: boolean;
 
   @IsOptional()
   @IsString()

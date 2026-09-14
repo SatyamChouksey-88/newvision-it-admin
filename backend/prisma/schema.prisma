@@ -1222,6 +1222,9 @@ model Vendor {
   legalName                  String       @map("legal_name")
   tradingName                String?      @map("trading_name")
   taxId                      String?      @map("tax_id")
+  gstin                      String?
+  pan                        String?
+  gstUnregistered            Boolean      @default(false) @map("gst_unregistered")
   country                    String       @default("IN")
   registeredAddress          String?      @map("registered_address")
   remitToAddress             String?      @map("remit_to_address")
@@ -1259,6 +1262,8 @@ model Vendor {
 
   @@index([status])
   @@index([legalName])
+  @@index([gstin])
+  @@index([pan])
   @@map("vendors")
 }
 
@@ -1548,6 +1553,7 @@ model VendorInvoice {
   createdAt        DateTime              @default(now()) @map("created_at")
   updatedAt        DateTime              @updatedAt @map("updated_at")
 
+  @@unique([vendorId, invoiceNumber])
   @@index([vendorId])
   @@index([purchaseOrderId])
   @@index([paymentStatus])

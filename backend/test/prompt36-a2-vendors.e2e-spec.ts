@@ -39,7 +39,7 @@ describe('Prompt 36 A2 — duplicate vendor guard', () => {
       .expect(409);
     expect(dupGstin.body.vendorCode).toBe(first.body.vendorCode);
     expect(dupGstin.body.existingVendorId).toBe(first.body.id);
-    expect(String(dupGstin.body.message)).toMatch(/GSTIN\/PAN/i);
+    expect(String(dupGstin.body.message)).toMatch(/GSTIN/i);
 
     const dupBank = await request(app.getHttpServer())
       .post('/api/vendors')

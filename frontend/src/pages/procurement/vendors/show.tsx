@@ -148,7 +148,9 @@ export function VendorShow() {
                 fields={[
                   { name: 'legalName', label: 'Legal name', value: row.legalName },
                   { name: 'tradingName', label: 'Trading name', value: row.tradingName },
-                  { name: 'taxId', label: 'Tax ID', value: row.taxId },
+                  { name: 'gstin', label: 'GSTIN', value: row.gstin },
+                  { name: 'pan', label: 'PAN', value: row.pan },
+                  { name: 'taxId', label: 'Tax ID (legacy copy)', value: row.taxId },
                   { name: 'registeredAddress', label: 'Registered address', value: row.registeredAddress },
                   { name: 'remitToAddress', label: 'Remit-to address', value: row.remitToAddress },
                   { name: 'paymentTerms', label: 'Payment terms', value: row.paymentTerms },
@@ -163,7 +165,17 @@ export function VendorShow() {
       >
         <Descriptions column={2} size="small">
           <Descriptions.Item label="Code">{String(row?.vendorCode ?? '—')}</Descriptions.Item>
-          <Descriptions.Item label="Tax ID">{String(row?.taxId ?? '—')}</Descriptions.Item>
+          <Descriptions.Item label="GSTIN">
+            {String(row?.gstin ?? '—')}{' '}
+            {row?.gstin ? (
+              <Typography.Link href="https://services.gst.gov.in/services/searchtp" target="_blank" rel="noreferrer">
+                Search Taxpayer
+              </Typography.Link>
+            ) : row?.gstUnregistered ? (
+              '(unregistered / foreign)'
+            ) : null}
+          </Descriptions.Item>
+          <Descriptions.Item label="PAN">{String(row?.pan ?? '—')}</Descriptions.Item>
           <Descriptions.Item label="Terms">{String(row?.paymentTerms ?? '—')}</Descriptions.Item>
           <Descriptions.Item label="Bank">
             {String(row?.bankAccountMasked ?? row?.bankAccountNumber ?? '—')}

@@ -12,6 +12,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateVendorDto, ScorecardDto, UpdateVendorDto, VendorStatusDto } from './dto';
 import { ProcurementLogService } from './log.service';
 import { overallScore } from './match';
+import { classifyTaxId, gstinPanError, normalizeGstin, normalizePan } from './gstin-pan';
 import { maskBank, paddedCode } from './numbers';
 import { bankAccountsMatch, normalizeTaxId, taxIdsMatch } from './vendor-identity';
 
@@ -55,6 +56,8 @@ export class VendorsService {
               { tradingName: { contains: query.q, mode: 'insensitive' } },
               { vendorCode: { contains: query.q, mode: 'insensitive' } },
               { taxId: { contains: query.q, mode: 'insensitive' } },
+              { gstin: { contains: query.q, mode: 'insensitive' } },
+              { pan: { contains: query.q, mode: 'insensitive' } },
             ],
           }
         : {}),
@@ -72,6 +75,15 @@ export class VendorsService {
     return { data: rows.map((v) => this.publicVendor(v, this.canSeeBank(actor))), total };
   }
 
+  nameOptions() {
+    return this.prisma.vendor.findMany({
+      where: { status: { notIn: ['suspended', 'blacklisted'] } },
+      select: { id: true, vendorCode: true, legalName: true, tradingName: true },
+      orderBy: { legalName: 'asc' },
+      take: 500,
+    });
+  }
+
   async get(id: number, actor: AuthUser) {
     this.assertRead(actor);
     const vendor = await this.prisma.vendor.findUnique({ where: { id }, include: vendorInclude });
@@ -81,8 +93,11 @@ export class VendorsService {
 
   async create(dto: CreateVendorDto, actor: AuthUser) {
     this.assertManage(actor);
+    const ids = this.resolveGstinPan(dto);
     await this.assertNoDuplicateVendor({
-      taxId: dto.taxId,
+      taxId: ids.taxId,
+      gstin: ids.gstin,
+      pan: ids.pan,
       bankAccountNumber: dto.bankAccountNumber,
     });
     const vendor = await this.prisma.vendor.create({
@@ -90,7 +105,10 @@ export class VendorsService {
         vendorCode: await this.nextCode(),
         legalName: dto.legalName.trim(),
         tradingName: dto.tradingName?.trim(),
-        taxId: dto.taxId?.trim(),
+        taxId: ids.taxId,
+        gstin: ids.gstin,
+        pan: ids.pan,
+        gstUnregistered: dto.gstUnregistered ?? false,
         country: dto.country?.trim() || 'IN',
         registeredAddress: dto.registeredAddress,
         remitToAddress: dto.remitToAddress,
@@ -130,9 +148,19 @@ export class VendorsService {
     });
     if (!existing) throw new NotFoundException(`Vendor ${id} not found`);
 
+    const ids = this.resolveGstinPan({
+      gstin: dto.gstin !== undefined ? dto.gstin : existing.gstin,
+      pan: dto.pan !== undefined ? dto.pan : existing.pan,
+      taxId: dto.taxId !== undefined ? dto.taxId : existing.taxId,
+      gstUnregistered:
+        dto.gstUnregistered !== undefined ? dto.gstUnregistered : existing.gstUnregistered,
+      country: dto.country !== undefined ? dto.country : existing.country,
+    });
     await this.assertNoDuplicateVendor(
       {
-        taxId: dto.taxId !== undefined ? dto.taxId : existing.taxId,
+        taxId: ids.taxId,
+        gstin: ids.gstin,
+        pan: ids.pan,
         bankAccountNumber:
           dto.bankAccountNumber !== undefined ? dto.bankAccountNumber : existing.bankAccountNumber,
       },
@@ -147,7 +175,10 @@ export class VendorsService {
     const data: Prisma.VendorUpdateInput = {
       legalName: dto.legalName?.trim(),
       tradingName: dto.tradingName?.trim(),
-      taxId: dto.taxId?.trim(),
+      taxId: ids.taxId,
+      gstin: ids.gstin,
+      pan: ids.pan,
+      gstUnregistered: dto.gstUnregistered,
       country: dto.country,
       registeredAddress: dto.registeredAddress,
       remitToAddress: dto.remitToAddress,
@@ -210,6 +241,8 @@ export class VendorsService {
       await this.assertNoDuplicateVendor(
         {
           taxId: existing.taxId,
+          gstin: existing.gstin,
+          pan: existing.pan,
           bankAccountNumber: existing.bankAccountNumber,
         },
         id,
@@ -377,10 +410,14 @@ export class VendorsService {
   }
 
   private async assertNoDuplicateVendor(
-    fields: { taxId?: string | null; bankAccountNumber?: string | null },
+    fields: {
+      taxId?: string | null;
+      gstin?: string | null;
+      pan?: string | null;
+      bankAccountNumber?: string | null;
+    },
     excludeId?: number,
   ) {
-    const taxId = normalizeTaxId(fields.taxId);
     const others = await this.prisma.vendor.findMany({
       where: excludeId ? { id: { not: excludeId } } : undefined,
       select: {
@@ -388,9 +425,38 @@ export class VendorsService {
         vendorCode: true,
         legalName: true,
         taxId: true,
+        gstin: true,
+        pan: true,
         bankAccountNumber: true,
       },
     });
+    const gstin = normalizeGstin(fields.gstin) ?? normalizeGstin(fields.taxId);
+    const pan = normalizePan(fields.pan);
+    const gstinHit = gstin
+      ? others.find((v) => normalizeGstin(v.gstin) === gstin || taxIdsMatch(v.taxId, gstin))
+      : undefined;
+    if (gstinHit) {
+      throw new ConflictException({
+        message: `A vendor with this GSTIN already exists (${gstinHit.vendorCode})`,
+        existingVendorId: gstinHit.id,
+        vendorCode: gstinHit.vendorCode,
+        legalName: gstinHit.legalName,
+        match: 'gstin',
+      });
+    }
+    const panHit = pan
+      ? others.find((v) => normalizePan(v.pan) === pan || taxIdsMatch(v.taxId, pan))
+      : undefined;
+    if (panHit) {
+      throw new ConflictException({
+        message: `A vendor with this PAN already exists (${panHit.vendorCode})`,
+        existingVendorId: panHit.id,
+        vendorCode: panHit.vendorCode,
+        legalName: panHit.legalName,
+        match: 'pan',
+      });
+    }
+    const taxId = normalizeTaxId(fields.taxId);
     const taxHit = taxId
       ? others.find((v) => taxIdsMatch(v.taxId, fields.taxId))
       : undefined;
@@ -415,6 +481,27 @@ export class VendorsService {
         match: 'bankAccount',
       });
     }
+  }
+
+  private resolveGstinPan(dto: {
+    gstin?: string | null;
+    pan?: string | null;
+    taxId?: string | null;
+    gstUnregistered?: boolean;
+    country?: string | null;
+  }) {
+    const classified = classifyTaxId(dto.taxId);
+    const gstin = normalizeGstin(dto.gstin) ?? classified.gstin;
+    const pan = normalizePan(dto.pan) ?? classified.pan;
+    const err = gstinPanError({
+      gstin,
+      pan,
+      gstUnregistered: dto.gstUnregistered,
+      country: dto.country,
+    });
+    if (err) throw new BadRequestException(err);
+    const taxId = gstin ?? pan ?? dto.taxId?.trim() ?? null;
+    return { gstin, pan, taxId };
   }
 
   private canSeeBank(actor: AuthUser) {

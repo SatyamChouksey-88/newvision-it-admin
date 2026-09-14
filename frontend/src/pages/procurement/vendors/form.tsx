@@ -100,8 +100,24 @@ export function VendorForm() {
         <Form.Item name="tradingName" label="Trading name">
           <Input />
         </Form.Item>
-        <Form.Item name="taxId" label="Tax ID (GST / VAT / registration)">
-          <Input onChange={(e) => searchExisting(e.target.value)} />
+        <Form.Item name="gstin" label="GSTIN (15 characters)">
+          <Input
+            maxLength={15}
+            onChange={(e) => searchExisting(e.target.value)}
+            placeholder="27ABCDE1234F1Z5"
+          />
+        </Form.Item>
+        <Typography.Paragraph style={{ marginTop: -12 }}>
+          <Typography.Link href="https://services.gst.gov.in/services/searchtp" target="_blank" rel="noreferrer">
+            Verify on the GST portal (Search Taxpayer)
+          </Typography.Link>
+          {' — we do not scrape the portal.'}
+        </Typography.Paragraph>
+        <Form.Item name="pan" label="PAN (10 characters)">
+          <Input maxLength={10} onChange={(e) => searchExisting(e.target.value)} placeholder="ABCDE1234F" />
+        </Form.Item>
+        <Form.Item name="gstUnregistered" label="Unregistered / foreign (no GSTIN)" valuePropName="checked">
+          <Switch />
         </Form.Item>
         <Form.Item name="country" label="Country" initialValue="IN">
           <Input />
