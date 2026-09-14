@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router';
 
 export type Block =
   | { type: 'heading'; level: 2 | 3; text: string; slug: string }
@@ -155,9 +156,9 @@ export function blocksToPlainText(blocks: Block[]): string {
     .replace(/[*`]/g, '');
 }
 
-/** Renders **bold** and `code` inline spans within a plain-text run. */
+/** Renders **bold**, `code`, and [label](/path) links within a plain-text run. */
 export function renderInline(text: string): ReactNode {
-  const parts = text.split(/(\*\*.+?\*\*|`.+?`)/g).filter(Boolean);
+  const parts = text.split(/(\*\*.+?\*\*|`.+?`|\[[^\]]+\]\([^)]+\))/g).filter(Boolean);
   return parts.map((part, idx) => {
     if (part.startsWith('**') && part.endsWith('**')) {
       return <strong key={idx}>{part.slice(2, -2)}</strong>;
@@ -167,6 +168,22 @@ export function renderInline(text: string): ReactNode {
         <code key={idx} className="nv-mono" style={{ background: '#F1F4F8', padding: '1px 5px', borderRadius: 4 }}>
           {part.slice(1, -1)}
         </code>
+      );
+    }
+    const link = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(part);
+    if (link) {
+      const href = link[2];
+      if (href.startsWith('/')) {
+        return (
+          <Link key={idx} to={href} style={{ textDecoration: 'underline', fontWeight: 600 }}>
+            {link[1]}
+          </Link>
+        );
+      }
+      return (
+        <a key={idx} href={href} style={{ textDecoration: 'underline', fontWeight: 600 }}>
+          {link[1]}
+        </a>
       );
     }
     return <span key={idx}>{part}</span>;

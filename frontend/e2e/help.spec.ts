@@ -12,6 +12,8 @@ test.describe('Help documentation site', () => {
     await expect(page.getByRole('heading', { name: 'NewVision documentation' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'At a glance' })).toBeVisible();
     await expect(page.getByRole('link', { name: /Support Tickets/ }).first()).toBeVisible();
+    await expect(page.getByRole('link', { name: /Team Chat/ }).first()).toBeVisible();
+    await expect(page.getByRole('link', { name: /Vendor & Procurement/ }).first()).toBeVisible();
     await expect(page.getByRole('link', { name: /Roles & Permissions/ }).first()).toBeVisible();
     await expect(page.getByRole('link', { name: /Settings/ }).first()).toBeVisible();
     await expect(page.getByRole('link', { name: /Tips & Troubleshooting/ }).first()).toBeVisible();
@@ -106,5 +108,34 @@ test.describe('Help documentation site', () => {
     const dialog = page.getByRole('dialog');
     await dialog.getByPlaceholder('Search the docs…').fill('hidden gems');
     await expect(dialog.getByText(/Tips & Troubleshooting/).first()).toBeVisible();
+  });
+
+  test('search finds Team Chat and procurement handoff', async ({ page }) => {
+    await page.goto('/help');
+    await page.getByRole('button', { name: /Search the docs/ }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByPlaceholder('Search the docs…').fill('presence legend');
+    await expect(dialog.getByText(/Team Chat/).first()).toBeVisible();
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: /Search the docs/ }).click();
+    await page.getByPlaceholder('Search the docs…').fill('3-way match');
+    await expect(page.getByText(/Purchase orders/).first()).toBeVisible();
+  });
+
+  test('the Team Chat nav section lists the chat article', async ({ page }) => {
+    await page.goto('/help/staff-chat');
+    const nav = page.getByRole('navigation', { name: 'Documentation sections' });
+    await expect(nav.getByRole('link', { name: 'Team Chat' }).first()).toBeVisible();
+  });
+
+  test('article screenshots that are declared actually render', async ({ page }) => {
+    const withShots = helpArticles.filter((a) => a.screenshot);
+    for (const article of withShots) {
+      await page.goto(`/help/${article.id}`);
+      const img = page.locator('article img').first();
+      await expect(img, article.screenshot).toBeVisible();
+      const ok = await img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0);
+      expect(ok, `${article.id} ${article.screenshot}`).toBeTruthy();
+    }
   });
 });

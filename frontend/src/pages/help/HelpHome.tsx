@@ -3,6 +3,7 @@ import {
   AppstoreOutlined,
   AuditOutlined,
   BulbOutlined,
+  CommentOutlined,
   CustomerServiceOutlined,
   EnvironmentOutlined,
   FileTextOutlined,
@@ -53,8 +54,14 @@ const GLANCE = [
   {
     icon: <CustomerServiceOutlined />,
     title: 'Support Tickets',
-    desc: 'The general IT helpdesk — statuses, comments, watchers, CSAT, chat, and email-in.',
+    desc: 'The general IT helpdesk — raise in the portal or by email, statuses, comments, watchers, macros, CSAT, and SLA.',
     to: 'tickets-raise',
+  },
+  {
+    icon: <CommentOutlined />,
+    title: 'Team Chat',
+    desc: 'Staff-only Teams-style channels, DMs, threads, mentions, reactions, and live presence.',
+    to: 'staff-chat',
   },
   {
     icon: <FormOutlined />,
@@ -64,8 +71,8 @@ const GLANCE = [
   },
   {
     icon: <FileTextOutlined />,
-    title: 'Procurement',
-    desc: 'Vendors, requisitions, purchase orders, GRNs, invoices, and contract renewals.',
+    title: 'Vendor & Procurement',
+    desc: 'Vendors, requisitions, approvals, POs, GRN, 3-way match, invoices, contracts, and asset handoff.',
     to: 'procurement-overview',
   },
   {

@@ -19,6 +19,7 @@ export const HELP_CATEGORIES = [
   'Accessories & Consumables',
   'Maintenance',
   'Support tickets',
+  'Team Chat',
   'Requests',
   'Procurement',
   'Reports & Analytics',
@@ -38,40 +39,106 @@ export const helpArticles: HelpArticle[] = [
     keywords: ['login', 'roles', 'setup', 'password', 'onboarding'],
     screenshot: '/docs/screenshots/login.png',
     callouts: [
-      { n: 1, label: 'Email field' },
-      { n: 2, label: 'Sign in button' },
+      { n: 1, label: 'Work email' },
+      { n: 2, label: 'Password' },
+      { n: 3, label: 'Sign in' },
     ],
     body: `## Welcome to NewVision
 
-NewVision replaces spreadsheet-based IT inventory tracking for ~1,250 assets across Pune, Hyderabad, and Bhopal.
+NewVision is the internal IT inventory, helpdesk, staff chat, and procurement system for ~1,250 assets across Pune, Hyderabad, and Bhopal. Sign in with your work email. There is no public self-service signup.
 
 ### Demo logins
 
-All seeded accounts use password **Password123!**:
+All seeded demo accounts use password **Password123!**:
 
 | Role | Email | Typical use |
 |------|-------|-------------|
-| Super Admin | superadmin@newvision.local | Full access including user management |
-| IT Admin | itadmin@newvision.local | Day-to-day asset operations |
-| IT Support | support@newvision.local | Maintenance queue |
-| Manager | manager@newvision.local | Approve employee requests |
-| Employee | employee@newvision.local | View own assets, submit requests |
+| Super Admin | superadmin@newvision.local | Full access including **Settings → Users** |
+| IT Admin | itadmin@newvision.local | Day-to-day estate, helpdesk, procurement |
+| IT Support | support@newvision.local | Tickets, repairs, staff chat |
+| Manager | manager@newvision.local | Team requests, tickets, and requisitions |
+| Employee | employee@newvision.local | **My IT** — own devices, tickets, requests |
+
+### Roles at a glance
+
+Five roles. The API enforces every permission; hiding a button is not the security boundary.
+
+- **Super Admin** — everything, including creating logins and other Super Admins.
+- **IT Admin** — everything except **Users** and hard-deleting assets.
+- **IT Support** — tickets, maintenance, read-only estate, reports (not vendor spend), staff chat. No procurement, import, or user admin.
+- **Manager** — own + direct-report people, assets, tickets, requests, and requisitions. Approves team requests.
+- **Employee** — own assigned kit, raise a ticket or a device request, report a repair on an assigned asset.
+
+See [Roles & Permissions](/help/roles) for the full table.
 
 ### First steps for a new admin
 
-**Empty database (migrate only, no seed):** the Dashboard shows a **Welcome to NewVision** card with four setup steps — locations, categories, employees, then assets. That card is hidden when the demo seed has already populated the estate.
+**Empty database (migrate only, no demo seed):** the Dashboard shows a **Welcome to NewVision** card with four setup steps — locations, categories, employees, then assets. That card is hidden once any of those exist.
+
+**First Super Admin on a blank production database:** set \`SEED_MODE=bootstrap\` with \`BOOTSTRAP_ADMIN_EMAIL\`, \`BOOTSTRAP_ADMIN_PASSWORD\` (12+ characters), and optional \`BOOTSTRAP_ADMIN_NAME\`. That creates the five roles plus one Super Admin and **does not** load the 1,250-asset demo. \`SEED_IF_EMPTY=true\` still skips once any user exists.
 
 **Seeded demo:**
 
-1. **Locations** — confirm Pune (PUN), Hyderabad (HYD), Bhopal (BHO) exist under **Locations**.
-2. **Categories** — **Settings → Categories** to add LAP, MON, DES, etc. Seeded databases already have these.
-3. **Import** — **Settings → Import jobs** upload a CSV/XLSX of assets or employees.
-4. **Assign** — open **Assets**, pick an available asset, click **Assign**.
+1. **Locations** — confirm Pune (\`PUN\`), Hyderabad (\`HYD\`), Bhopal (\`BHO\`) under **Locations**.
+2. **Categories** — **Settings → Categories** (LAP, MON, DES, …). Seeded databases already have these.
+3. **Employees** — add people, or **Settings → Import jobs**. Tick **Create login** when you add someone who should sign in.
+4. **Assets** — create one, or import. Then **Assign** from an available row.
+5. **Helpdesk** — **Settings → Helpdesk** for canned replies. Outbound mail needs \`SMTP_HOST\` or \`RESEND_API_KEY\`; inbound mail needs IMAP env vars.
+6. **Issue kits** — **Settings → Issue kits** if you hand a standard laptop + charger bundle to new hires.
 
-Press **/** anywhere to focus global search.
+Press **/** on a list to focus that grid's filter. Press **⌘K** / **Ctrl+K** anywhere to jump.
 
 > [!TIP]
-> Press **⌘K** / **Ctrl+K** to open the command palette from anywhere in the app — it jumps straight to a screen or a record by typing its code (e.g. \`TCK-000123\`).`,
+> Press **⌘K** / **Ctrl+K** to open the command palette from anywhere in the app — it jumps straight to a screen or a record by typing its code (e.g. \`TCK-000123\`). **?** opens this Help. **Ctrl+/** opens the shortcuts overlay.
+
+### Troubleshooting
+
+**I cannot see Dashboard / Settings / Chat.**
+Your role decides the home and the sidebar. Employees land on **My IT**. Managers land on team work. IT Support lands on an operational queue. Chat is Super Admin / IT Admin / IT Support only.
+
+**Forgot password does nothing.**
+The reset flow exists. Without SMTP / Resend, the reset token is written to the **backend console**, not an inbox.
+
+**The Welcome card is gone.**
+It only shows on a truly empty estate (no locations, employees, or assets).`,
+  },
+  {
+    id: 'my-it',
+    title: 'My IT (employees)',
+    category: 'Getting Started',
+    summary: 'What employees see on Home, My devices, tickets, and requests.',
+    keywords: ['my it', 'employee', 'self service', 'home', 'devices'],
+    screenshot: '/docs/screenshots/my-it.png',
+    callouts: [
+      { n: 1, label: 'Assigned devices' },
+      { n: 2, label: 'Raise a ticket' },
+      { n: 3, label: 'Request a device' },
+      { n: 4, label: 'Open tickets' },
+    ],
+    body: `Employees do not see the estate console. After sign-in you land on **My IT**.
+
+### What you can do
+
+1. **Home** — your assigned devices (with a copy chip on the asset code), **Raise a ticket**, **Request a device**, and your open tickets.
+2. **My devices** — the same assigned kit as a list. You cannot assign, transfer, or retire anything.
+3. **My tickets** — raise and follow tickets you opened. You see public comments only, never internal IT notes.
+4. **Raise a request** — ask for a laptop, monitor, or accessory. Your manager approves; IT fulfills.
+5. **Profile** — your directory record. You can update **phone** and **job title**; name, email, location, and department stay with IT.
+
+### What you cannot do
+
+Inventory lists (Accessories / Consumables stock), Reports, Audit Log, Settings, Vendors, Chat, and other people's tickets or assets.
+
+> [!NOTE]
+> If a laptop still shows as assigned after you handed it in, IT has not run **Return** / **Transfer** yet. Offboarding a person does **not** automatically free their kit.
+
+### Troubleshooting
+
+**I do not see a device that is on my desk.**
+It is not assigned to your employee record yet. Ask IT to Assign it — scanning the QR sticker will not claim it for you.
+
+**Raise a ticket vs Request a device vs Maintenance.**
+Software / access / VPN = ticket. "I need a new laptop" = request. "This specific laptop is broken" = report a repair on that asset (Maintenance).`,
   },
   {
     id: 'dashboard',
@@ -82,10 +149,8 @@ Press **/** anywhere to focus global search.
     keywords: ['dashboard', 'status', 'metrics', 'warranty', 'attention', 'my work', 'tables'],
     screenshot: '/docs/screenshots/dashboard.png',
     callouts: [
-      { n: 1, label: 'Metric cards' },
-      { n: 2, label: 'My work' },
-      { n: 3, label: 'Status table' },
-      { n: 4, label: 'Ticket summary' },
+      { n: 1, label: 'KPI tiles' },
+      { n: 2, label: 'My work list' },
     ],
     body: `Home depends on your role — Super Admin and IT Admin see the estate console; IT Support sees an operational queue; Managers see team work; Employees see **My IT**.
 
@@ -95,14 +160,19 @@ Press **/** anywhere to focus global search.
 - **Support tickets** — Today / Yesterday / Tomorrow / date range counts.
 - **Status table** — one coloured row per status (tag, count, share). Click a row to filter Assets.
 - **Assets by location** — one row per office (from live Location records, never hardcoded city names). Each status is its own coloured column. Click a count to filter.
-- There is **no Growth chart**. Estate size is the Total KPI.
+- There is **no Growth chart**. Estate size is the Total KPI. **Trends** (\`/api/dashboard/trends\`) is IT-staff only.
 - **My work** — an ordered list: your overdue tickets, unassigned tickets, tickets waiting on the employee for 3+ days, stale repairs, incomplete checklists, contracts ending within 14 days, then warranties expiring within 14 days. Unassigned rows have **Assign to me**. The card caret collapses just this list (remembered in this browser). Status distribution, assets by location, and support tickets stay open.
 
 ### Other homes
 
 - **IT Support** — the same **My work** list is the home page (KPI tiles are hidden). Shortcuts still jump to unassigned tickets, your tickets, and stale repairs.
 - **Manager** — requests waiting on you, team tickets, team devices.
-- **Employee (My IT)** — your assigned devices, a Raise a ticket / Request a device action, and your open tickets.`,
+- **Employee (My IT)** — your assigned devices, Raise a ticket / Request a device, and your open tickets. See [My IT](/help/my-it).
+
+### Troubleshooting
+
+**Why is Expiring (14d) empty but I know of dead laptops?**
+Already-expired kit is a separate Assets filter (**Already expired**). The dashboard list is upcoming work, not a dump of thousand-day-lapsed rows.`,
   },
   {
     id: 'assets-overview',
@@ -126,7 +196,15 @@ Each asset also has an optional serial number.
 - Select rows for bulk status change, transfer, or retire (IT Admin+)
 - **/** focuses the grid filter; **↑↓** moves row focus; **Ctrl+C** copies the selected row as tab-separated text for Excel (hint is also on the table toolbar)
 
-A quiet **⧉** chip copies a single field (asset code, ticket number). That is not the same as **Duplicate** on the asset detail page, which creates a new record with a fresh code.`,
+A quiet **⧉** chip copies a single field (asset code, ticket number). That is not the same as **Duplicate** on the asset detail page, which creates a new record with a fresh code.
+
+### Troubleshooting
+
+**Why is this asset showing as still assigned?**
+Assign is only cleared by **Return** / **Transfer** / **Retire**. Offboarding the person does not move the asset to Available.
+
+**I renamed the asset code and the QR sticker 404s.**
+The public scan URL is \`/scan/{assetCode}\`. Reprint the label after a code change.`,
   },
   {
     id: 'assets-assign-transfer',
@@ -202,7 +280,7 @@ There is **no bulk assign** yet — assign is still one asset (plus optional acc
 
 ### Accessories (you expect them back)
 
-Mice, chargers, docks, headsets. Each SKU has \`quantity_total\` vs \`quantity_checked_out\`.
+Mice, chargers, docks, headsets. Each SKU has \`quantity_total\` vs \`quantity_checked_out\`. The Accessories home defaults to **Cards** (stock meters + Issue). Switch to **Table** for the Excel-grade grid (sort, columns, export).
 
 1. Open **Accessories**.
 2. **Checkout** to an employee (quantity can be more than 1).
@@ -219,8 +297,18 @@ Toner, cables, batteries. Each SKU has \`quantity_available\`.
 
 Both lists use the same Excel-grade grid as Assets.
 
+Only **Super Admin, IT Admin, and IT Support** can list stock. Managers and Employees get 403 if they call the API.
+
 > [!TIP]
-> If IT is handing a laptop *and* a charger together, use Assign on the laptop and tick the charger in the same modal. That is one history event, not two screens.`,
+> If IT is handing a laptop *and* a charger together, use Assign on the laptop and tick the charger in the same modal — or use an **Issue kit** from Settings. That is one history event, not two screens.
+
+### Troubleshooting
+
+**Low-stock alert for something we just restocked.**
+Edit the SKU and raise \`quantity_available\` / \`quantity_total\`. The alert is a threshold on those fields, not a purchase order.
+
+**Why can't a Manager see Accessories?**
+Stock levels are IT-only. Managers see kit on an employee's profile when it is checked out to their report.`,
   },
   {
     id: 'employees',
@@ -241,18 +329,26 @@ Both lists use the same Excel-grade grid as Assets.
 - List uses the same Excel-grade grid as Assets (sort, columns, density, export).
 - **Follow-up** filter: contracts ending within 14 days, or incomplete onboard/offboard checklists. Those rows also show a tag, appear on the dashboard **My work** list, and the profile warns when a contract is due soon.
 - Click a row for the **profile**: identity, location/department, contract end date, assigned assets, accessories checked out, consumables issued, notes, and the **History** tab.
-- **Add employee** (IT Admin+) can optionally **create a login** in the same save — pick a role (usually Employee). Super Admin can also create users from Settings → Users.
+- **Create login** — Super Admin and IT Admin can tick this on Add employee. Super Admin can also create users from Settings → Users (the only path that can create an IT Admin).
 - **Onboard / offboard checklists** start from the profile. Templates are edited in Settings → Onboard / Offboard.
 - Managers viewing the list or profiles see **direct reports only** (API-enforced).
 
 ### Creating a login for an employee
 
 1. Open **Employees → Add employee** (or edit an existing person who has no user).
-2. Tick **Create login** and choose a role.
+2. Tick **Create login** and choose a role (usually Employee or Manager).
 3. They sign in with their work email. Super Admin can reset or disable the account later under Settings → Users.
 
 > [!NOTE]
-> There is no self-service “first Super Admin” wizard. The first admin comes from seed or a Super Admin creating the user.`,
+> The very first Super Admin on a blank production database comes from \`SEED_MODE=bootstrap\` (see [Getting Started](/help/getting-started)), not from a wizard in the UI.
+
+### Troubleshooting
+
+**Search for EMP-1234 finds nothing.**
+Type the code with or without the prefix; both work. Managers only see their reports.
+
+**The person still appears in Assign pickers after they left.**
+Offboard them. Inactive employees are hidden from assignment pickers; their history stays.`,
   },
   {
     id: 'maintenance',
@@ -310,7 +406,21 @@ Both lists use the same Excel-grade grid as Assets.
 - Assets, Employees, Locations, Warranty
 - **Supplies** — accessories and consumables summary
 
-Requires \`report:run\` permission (IT Admin, IT Support, Manager, Super Admin).`,
+Requires \`report:run\` (Super Admin, IT Admin, IT Support, Manager). Employees have no Reports page.
+
+### Who sees which export
+
+- **Super Admin / IT Admin** — full estate, including supplies and vendor spend / renewals / overdue / scorecards.
+- **IT Support** — estate reports plus supplies. Vendor spend, renewals, overdue payments, and scorecards are hidden (API returns 403).
+- **Manager** — assets, employees, locations, warranty, and open requisitions, **scoped to their team**. Supplies and vendor reports are 403.
+
+> [!NOTE]
+> A Manager CSV of assets will not include another team's serials or cost. That is enforced on the API, not only by hiding cards.
+
+### Troubleshooting
+
+**The download is empty / errors.**
+An export that matches zero rows returns an error instead of silently dumping the whole estate. Check filters and your role scope.`,
   },
   {
     id: 'import-export',
@@ -332,7 +442,46 @@ Requires \`report:run\` permission (IT Admin, IT Support, Manager, Super Admin).
 **Assets** list **Export** respects active filters.
 
 > [!NOTE]
-> An export with zero matching rows returns an error instead of a silent full-estate dump — this guards against accidentally exporting everyone's data when a filter typo matched nothing.`,
+> An export with zero matching rows returns an error instead of a silent full-estate dump — this guards against accidentally exporting everyone's data when a filter typo matched nothing.
+
+Uploads are capped at **10 MB**. Structured error codes on failed rows tell you whether the location, category, or duplicate serial was the problem. Run history stays on the Import jobs tab.
+
+### Troubleshooting
+
+**Dry-run looked fine, commit failed some rows.**
+Someone else created the same serial between preview and commit, or a location code does not exist. Open the job's error list; it is per-row.
+
+**Rollback did not restore edits.**
+Rollback deletes rows **this job created**. Updates to pre-existing rows are not undone.`,
+  },
+  {
+    id: 'reconciliation',
+    title: 'HR / inventory reconciliation',
+    category: 'Import & Reconciliation',
+    summary: 'Upload an HR or inventory CSV and see what is only in the file, only in NewVision, or matched.',
+    keywords: ['reconciliation', 'hr', 'diff', 'csv', 'match'],
+    screenshot: '/docs/screenshots/reconciliation.png',
+    callouts: [
+      { n: 1, label: 'Kind (employees or assets)' },
+      { n: 2, label: 'Match field' },
+      { n: 3, label: 'Run history' },
+    ],
+    body: `**Settings → Reconciliation** (IT Admin / Super Admin). This is a **set-diff**, not a live directory sync.
+
+1. Choose **Employees** or **Assets**.
+2. Choose the match field — employee code or email; asset code or serial.
+3. Upload a CSV (max 10 MB).
+4. The run reports **matched**, **only in file**, and **only in system**.
+
+Use “only in file” as joiners to import. Use “only in system” as leavers / missing stickers to investigate. Nothing is auto-deleted.
+
+> [!NOTE]
+> There is no live AD / HR connector on purpose. Upload when HR sends a roster.
+
+### Troubleshooting
+
+**Counts look wrong.**
+Confirm the match field. Matching on email will miss people who only have an employee code in the file.`,
   },
   {
     id: 'requests',
@@ -347,7 +496,17 @@ Requires \`report:run\` permission (IT Admin, IT Support, Manager, Super Admin).
 2. **Manager** approves (optional comment) or rejects (reason required).
 3. **IT Admin** marks **Fulfilled** after manual assignment/checkout.
 
-Statuses: \`pending → approved|rejected → fulfilled\`.`,
+Statuses: \`pending → approved|rejected → fulfilled\`.
+
+Managers see a **one-click Approve** on the request (and on My work). Reject still needs a reason. IT marks Fulfilled only after the physical assign/checkout — the button does not move the asset by itself.
+
+### Troubleshooting
+
+**The manager cannot see the request.**
+They must be the requester's **manager** on the employee record. Update the profile if the reporting line is wrong.
+
+**Fulfilled but the laptop is still Available.**
+Fulfill is a request status. You still have to **Assign** the asset (or check out the accessory).`,
   },
   {
     id: 'procurement-overview',
@@ -355,6 +514,11 @@ Statuses: \`pending → approved|rejected → fulfilled\`.`,
     category: 'Procurement',
     summary: 'Vendors, requisitions, purchase orders, receiving, invoices, and contracts.',
     keywords: ['procurement', 'vendor', 'po', 'requisition', 'grn'],
+    screenshot: '/docs/screenshots/vendors.png',
+    callouts: [
+      { n: 1, label: 'Procurement sidebar' },
+      { n: 2, label: 'Vendors list' },
+    ],
     body: `The **Procurement** sidebar (Super Admin and IT Admin) covers the buying cycle after a need is known. Managers see **their team's requisitions** only. IT Support and Employees do not have this module.
 
 ### What is in scope
@@ -367,7 +531,97 @@ Statuses: \`pending → approved|rejected → fulfilled\`.`,
 - Auto-create assets, accessories, consumables, or license entitlements from a GRN — later PO/GRN changes **flag** those records instead of deleting them
 
 > [!WARNING]
-> NewVision tracks payment **status**. It does not move money, run reverse auctions, or OCR invoices.`,
+> NewVision tracks payment **status**. It does not move money, run reverse auctions, or OCR invoices.
+
+Read next: [Vendors](/help/procurement-vendors) → [Requisitions](/help/procurement-requisition) → [Approvals](/help/procurement-approvals) → [PO / GRN / invoices](/help/procurement-po-grn) → [Handoff](/help/procurement-handoff) → [Contracts](/help/procurement-contracts).
+
+### Troubleshooting
+
+**I am a Manager and Vendors is missing.**
+Correct. Managers only see **their team's requisitions**. Super Admin / IT Admin own vendors, POs, and contracts.`,
+  },
+  {
+    id: 'procurement-vendors',
+    title: 'Managing vendors',
+    category: 'Procurement',
+    group: 'Vendors',
+    summary: 'Onboard a supplier, preferred flag, bank-detail re-approval, suspend, and blacklist.',
+    keywords: ['vendor', 'blacklist', 'suspend', 'preferred', 'bank'],
+    screenshot: '/docs/screenshots/vendors.png',
+    callouts: [
+      { n: 1, label: 'Status filter' },
+      { n: 2, label: 'Preferred flag' },
+      { n: 3, label: 'Open vendor' },
+    ],
+    body: `Open **Vendors** (Super Admin / IT Admin). Statuses:
+
+| Status | Meaning |
+|--------|---------|
+| Draft | Started, not submitted |
+| Pending approval | Waiting for IT Admin / Super Admin |
+| Active | Can be picked on a requisition or PO |
+| Suspended | Temporarily blocked from new buying |
+| Blacklisted | Permanently blocked from new buying |
+
+**Preferred** is a separate star/flag on an **active** vendor (not its own status). Preferred names sort first in the requisition vendor picker.
+
+### Onboarding
+
+1. **New vendor** — legal name, category, contacts, GST/PAN as used internally.
+2. Submit for approval if you are not allowed to activate it yourself.
+3. **Bank details** on an already-active vendor do **not** apply instantly. They sit pending until Super Admin / IT Admin confirms (highest fraud-risk field).
+
+### Suspend / blacklist
+
+Use the status action on the vendor. Suspended or blacklisted vendors **cannot** be selected on a new requisition or PO. Existing open POs stay visible so you can close them out.
+
+### Troubleshooting
+
+**I typed a new vendor name on a requisition.**
+That creates a **pending-approval** vendor, not an active one. Someone with procurement admin must activate it before Convert to PO will use it cleanly.
+
+**Bank change vanished.**
+It is waiting for re-approval, not discarded. Open the vendor — pending bank details are listed until confirmed.`,
+  },
+  {
+    id: 'procurement-approvals',
+    title: 'Approval chain',
+    category: 'Procurement',
+    group: 'Requisitions',
+    summary: 'Required To vs Cc watchers, and the green / amber / red status icons.',
+    keywords: ['approval', 'approver', 'to', 'cc', 'icon'],
+    screenshot: '/docs/screenshots/requisition-detail.png',
+    callouts: [
+      { n: 1, label: 'Required To approvers (green = approved)' },
+      { n: 2, label: 'Convert to PO' },
+      { n: 3, label: 'Manual correction' },
+    ],
+    body: `Each requisition has an **approval chain**. Approvers are chosen on the form — there is no global approval-matrix settings page.
+
+- **To** (required) — every required approver must **Approve** before **Convert to PO** lights up.
+- **Cc** (watcher) — notified, not blocking.
+
+Icons (colour **and** shape):
+
+| Icon | Meaning |
+|------|---------|
+| Green check | Approved |
+| Amber clock | Pending |
+| Red X | Rejected |
+
+Hover a chip for To/Cc, status, and any comment.
+
+Approvals are **parallel** — required people can approve in any order. A **material** edit resets every required approver to pending.
+
+Convert to PO is Super Admin / IT Admin after the chain is green. Managers approve their team's PRs; they do not convert.
+
+### Troubleshooting
+
+**Convert is disabled.**
+A required To is still pending or rejected, or you are not procurement admin.
+
+**My approval disappeared.**
+Someone made a material edit (total, vendor, qty, lines, category, procurement type). That starts a new revision on purpose.`,
   },
   {
     id: 'procurement-requisition',
@@ -375,6 +629,12 @@ Statuses: \`pending → approved|rejected → fulfilled\`.`,
     category: 'Procurement',
     summary: 'The real template fields, material vs trivial edits, and resubmit after reject.',
     keywords: ['requisition', 'approval', 'revision', 'line item'],
+    screenshot: '/docs/screenshots/requisition-form.png',
+    callouts: [
+      { n: 1, label: 'Template fields' },
+      { n: 2, label: 'Line items' },
+      { n: 3, label: 'Submit for approval' },
+    ],
     body: `Open **Requisitions → New requisition**. Required fields match the internal approval email:
 
 1. **Request Title**, **Requesting Department** (picker or free text), **Date**
@@ -403,6 +663,12 @@ Statuses: \`pending → approved|rejected → fulfilled\`.`,
     category: 'Procurement',
     summary: 'Amend a sent PO, void a wrong GRN, and 3-way match invoices.',
     keywords: ['purchase order', 'grn', 'invoice', 'three way', 'amend'],
+    screenshot: '/docs/screenshots/po-detail.png',
+    callouts: [
+      { n: 1, label: 'PO status + Mark sent' },
+      { n: 2, label: 'Record GRN / Amend / Cancel' },
+      { n: 3, label: 'Notes (append-only)' },
+    ],
     body: `After all required approvers approve, **Convert to PO**. Then:
 
 1. **Mark sent** when the PO is issued to the vendor.
@@ -416,7 +682,50 @@ Statuses: \`pending → approved|rejected → fulfilled\`.`,
 
 Recording a vendor invoice against a PO compares amount and received quantities to the PO within a **2%** tolerance (\`PROCUREMENT_MATCH_TOLERANCE_PCT\`). **Exception** invoices need a resolution note before they can be approved for payment.
 
-If the PO/GRN is amended or voided after assets were auto-created, those assets get a **Procurement mismatch** flag. Reconcile them; they are never silently deleted.`,
+If the PO/GRN is amended or voided after assets were auto-created, those assets get a **Procurement mismatch** flag. Reconcile them; they are never silently deleted.
+
+Payment tracking is a **status** on the invoice (unpaid / partial / paid / overdue). NewVision does not push a bank file.
+
+### Troubleshooting
+
+**Partial delivery — can I GRN twice?**
+Yes. Each GRN adds received quantity. Short-close when the remainder will never arrive.
+
+**3-way match exception.**
+Open the invoice, add a **resolution note**, then approve for payment. You cannot skip the note.`,
+  },
+  {
+    id: 'procurement-handoff',
+    title: 'Procurement → asset handoff',
+    category: 'Procurement',
+    group: 'Receiving',
+    summary: 'How a GRN creates asset / accessory / consumable records, and mismatch flags.',
+    keywords: ['handoff', 'grn', 'auto create', 'mismatch', 'serialized'],
+    screenshot: '/docs/screenshots/po-detail.png',
+    callouts: [
+      { n: 1, label: 'GRN / receive' },
+      { n: 2, label: 'Handoff records' },
+      { n: 3, label: 'Mismatch flag' },
+    ],
+    body: `When you record a GRN, NewVision can **hand off** received lines into inventory:
+
+- **Serialized** hardware → Asset records (new \`AST-…\` codes) at the deployment location / category on the line.
+- Accessories / consumables → stock quantity increases.
+- License lines → entitlement counts on the contract.
+
+Those new rows appear on the PO as **handoffs**. Open an asset from there to Assign it to someone.
+
+### After the fact
+
+If you **amend** the PO or **void** a GRN after handoff, the inventory rows are **not deleted**. They are flagged **Procurement mismatch** so you can reconcile (edit, retire, or note) instead of silently losing serial history.
+
+> [!WARNING]
+> Handoff is not Assign. A newly created laptop sits **available** until you Assign it to the employee.
+
+### Troubleshooting
+
+**GRN succeeded but I see no asset.**
+Check the line **kind** (serialized vs accessory vs license) and that category + location were set. Non-serialized lines never create \`AST-\` codes.`,
   },
   {
     id: 'procurement-contracts',
@@ -424,6 +733,11 @@ If the PO/GRN is amended or voided after assets were auto-created, those assets 
     category: 'Procurement',
     summary: 'SLA coverage on assets, renew/clone a term, and weighted vendor scores.',
     keywords: ['contract', 'amc', 'sla', 'renewal', 'scorecard'],
+    screenshot: '/docs/screenshots/contracts.png',
+    callouts: [
+      { n: 1, label: 'Contracts list' },
+      { n: 2, label: 'Renewal window' },
+    ],
     body: `**Contracts** stores warranty / AMC / SLA / license subscriptions, linked assets, entitlement vs usage, and an internal owner.
 
 - Renewal alerts fire at **90 / 60 / 30 / 7** days (same de-dupe idea as warranty alerts).
@@ -479,7 +793,16 @@ Staff can **@mention** colleagues on the ticket, copy a ready **email draft** (m
 - **Waiting on employee** pauses the first-response overdue clock. When the requester replies, the ticket returns to in progress (or assigned) and the clock resumes.
 - **Overdue** is a visual label from Settings first-response targets (Urgent 2h, High 8h, Normal 1 day, Low 3 days) plus any due date. There is no escalation engine or business-hours calendar.
 - **Resolved** is when IT believes the work is done — that is when you are asked to rate the resolution.
-- **Closed** is the final state. A requester comment on a resolved/closed ticket reopens it.`,
+- **Closed** is the final state. A requester comment on a resolved/closed ticket reopens it.
+
+### First-response targets
+
+Urgent **2 hours**, High **8 hours**, Normal **1 day**, Low **3 days**. There is no business-hours calendar and no escalation engine — overdue is a visual + My work item only.
+
+### Troubleshooting
+
+**The ticket says overdue while we are waiting on the employee.**
+Waiting on employee **pauses** the first-response clock. If it is still overdue, the first response was already late before you paused it.`,
   },
   {
     id: 'tickets-comments-watchers',
@@ -490,8 +813,9 @@ Staff can **@mention** colleagues on the ticket, copy a ready **email draft** (m
     keywords: ['comment', 'internal', 'watcher', 'cc'],
     screenshot: '/docs/screenshots/ticket-detail.png',
     callouts: [
-      { n: 1, label: 'Public vs internal' },
-      { n: 2, label: 'Watchers' },
+      { n: 1, label: 'Ticket header (number, SLA, channel)' },
+      { n: 2, label: 'Assign to me / Copy email' },
+      { n: 3, label: 'Canned reply + public vs internal' },
     ],
     body: `1. **Public replies** are visible to the requester and watchers.
 2. **Internal notes** (IT staff only) stay on the staff thread.
@@ -524,7 +848,24 @@ Anyone who can view the ticket can read public comments. Internal notes never ap
 
 Managers see their own tickets plus direct reports. They cannot assign, add internal notes, or log time.
 
-Quick views include **Email-in** for tickets that arrived by mail. The ticket shows a Portal vs Email channel chip.`,
+Quick views include **Email-in** for tickets that arrived by mail. The ticket shows a Portal vs Email channel chip.
+
+### Assign to me
+
+On an unassigned ticket (or from **My work**), **Assign to me** takes ownership in one click. On the ticket list, focus a row and press **I**.
+
+### Requester's assets
+
+IT staff see a side panel of devices currently assigned to the requester so you can tell a VPN ticket from a broken laptop without leaving the page.
+
+### Duplicate-linking
+
+**Duplicate of** closes an open ticket with a pointer to the original. Comments stay on each ticket; nothing is merged.
+
+### Troubleshooting
+
+**I cannot assign.**
+Managers and employees cannot assign. IT Support / IT Admin / Super Admin can. If the ticket is already closed, reopen it first.`,
   },
   {
     id: 'tickets-email-in',
@@ -544,7 +885,49 @@ Quick views include **Email-in** for tickets that arrived by mail. The ticket sh
 > [!TIP]
 > Reply to any ticket notification to add a public comment. Just don't remove the \`[TCK-000123]\` ticket number from the subject line.
 
-Settings → Helpdesk shows mailbox status and a connection check. Local development without IMAP simply does not poll.`,
+Settings → Helpdesk shows mailbox status and a connection check. Local development without IMAP simply does not poll.
+
+### Troubleshooting
+
+**Email-in did nothing.**
+IMAP is only polled when mailbox env vars are set. Settings → Helpdesk shows connection status. Local default is “not polling”. Out-of-office and bulk mail are discarded on purpose.
+
+**The sender is unknown.**
+The ticket is still created and flagged so IT can link the employee manually. NewVision never auto-creates a person from a random address.`,
+  },
+  {
+    id: 'tickets-emails',
+    title: 'Who gets ticket emails',
+    category: 'Support tickets',
+    group: 'For IT staff',
+    summary: 'Which events email the requester, watchers, assignee, and the IT queue.',
+    keywords: ['email', 'notify', 'digest', 'watcher', 'assignee'],
+    screenshot: '/docs/screenshots/ticket-detail.png',
+    callouts: [{ n: 1, label: 'Mail / copy-draft icon' }],
+    body: `All ticket mail uses branded HTML, includes \`[TCK-000123]\` in the subject, and sets Reply-To to the helpdesk mailbox so a reply can email-in as a public comment.
+
+| Event | Requester | Watchers | Assignee | Other IT staff |
+|-------|-----------|----------|----------|----------------|
+| Ticket created (portal or email-in) | Confirmation | — | Assigned-to mail if auto-assigned | Unassigned-queue mail if nobody is assigned |
+| Assigned / reassigned | Status update | Status update | Assigned-to mail | — |
+| Public comment | Comment mail (not the author) | Comment mail | Comment mail | @mentioned users |
+| Internal note | No | No | Comment mail to staff | @mentioned staff |
+| Status change (waiting / resolved / closed / reopened) | Status update | Status update | Status update | — |
+| CSAT prompt | On resolve (in-app; email if mail is on) | — | — | — |
+| Daily digest | Never | Never | If they chose digest | Staff who chose digest |
+
+IT staff who set **Daily digest** skip per-event mail (\`honorDigest\`) and receive one summary instead. Requesters and watchers are **never** digested.
+
+> [!WARNING]
+> Internal notes never email the employee. If you meant the requester to see it, send a **public** reply.
+
+### Troubleshooting
+
+**Staff got nothing, the employee did.**
+That staff member is likely on digest, or they are not assignee/watcher.
+
+**Two digest emails the same day.**
+Should not happen — the job writes a \`[digest YYYY-MM-DD]\` notification marker and skips a second run.`,
   },
   {
     id: 'tickets-rating',
@@ -620,7 +1003,19 @@ Requesters and watchers always get immediate email for events on their tickets.`
 3. Review **Audit Log → Manual overrides** to see every flagged correction.
 
 > [!WARNING]
-> Manual correction does not bypass field validation — an unknown status or a missing employee is still rejected. There is no bulk manual-edit tool, and no way to edit or delete an audit row once written.`,
+> Manual correction does not bypass field validation — an unknown status or a missing employee is still rejected. There is no bulk manual-edit tool, and no way to edit or delete an audit row once written.
+
+### Where you will see it
+
+Asset, employee, accessory, consumable, maintenance, request, ticket, location, vendor, requisition, PO, and contract show pages. Procurement corrections use a **narrow field allowlist** (you cannot free-type a new status machine).
+
+### Troubleshooting
+
+**The save button stays disabled.**
+A reason is required, and old → new must actually differ.
+
+**Employees cannot correct a ticket subject.**
+Requesters can edit **their own** ticket subject/description while the ticket is open. Other records need IT Admin / Super Admin manual correction.`,
   },
   {
     id: 'notifications',
@@ -631,27 +1026,42 @@ Requesters and watchers always get immediate email for events on their tickets.`
     screenshot: '/docs/screenshots/notifications.png',
     body: `## In-app bell
 
-The header **bell** shows unread notifications for the signed-in user:
+The header **bell** shows unread notifications for the signed-in user. Click a row to open the related record. Types include:
 
 - Warranty threshold days (90 / 60 / 30)
 - Asset assigned / transferred
 - Repair reported and status changes
 - Low stock
-- Asset requests
+- Asset requests (submitted / approved / rejected / fulfilled)
 - Support-ticket events (create, assign, comment, status, @mention)
 - Staff chat messages (\`chat_message\`) when someone posts in a conversation you belong to
 - Chat @mentions (\`chat_mention\`) and thread replies (\`chat_thread_reply\`), each with a deep link to \`/chat?c=…&m=…\`
 
 ## Email
 
-Ticket mail is branded HTML with \`[TCK-000123]\` in the subject and a Reply-To of the helpdesk mailbox. Without \`SMTP_HOST\`, the backend **logs the message to the console** — it does not fail the API.
+Ticket mail is branded HTML with \`[TCK-000123]\` in the subject and a Reply-To of the helpdesk mailbox. Without \`SMTP_HOST\` or \`RESEND_API_KEY\`, the backend **logs the message to the console** — it does not fail the API.
 
-IT staff can pick **Immediate** vs **Daily digest** under Settings → Account (IT Support currently has no Settings nav — use the Account path once it is exposed on Queue, or ask a Super Admin).
+IT staff pick **Immediate** vs **Daily digest** under **Settings → Account**. Digest is one email covering new tickets, tickets assigned to you, and tickets still open on your queue. A second digest run the same calendar day is skipped (idempotent).
 
-Requesters and watchers always get immediate ticket email when SMTP is configured.
+IT Support opens that radio from the **avatar menu → Settings** (Account tab).
+
+Requesters and watchers always get **immediate** ticket email when mail is configured. Digest only applies to ticket staff.
+
+See [Who gets ticket emails](/help/tickets-emails) for the event-by-event table.
 
 > [!TIP]
-> Use the mail icon on a ticket to **copy a ready Outlook draft**. That does not send mail; it is a paste helper.`,
+> Use the mail icon on a ticket to **copy a ready Outlook draft**. That does not send mail; it is a paste helper.
+
+### Troubleshooting
+
+**Why didn't my ticket email arrive?**
+1. Mail transport: Settings does not send until \`RESEND_API_KEY\` or \`SMTP_HOST\` is set. Locally, look at the Nest console.
+2. Staff digest: if you chose Daily digest you will not get per-event mail.
+3. Spam / shared mailbox filters.
+4. You are not the requester, assignee, or a watcher.
+
+**Bell badge never clears.**
+Opening the panel marks rows read as you click them. Refresh if a WebSocket drop left a stale count — the next poll corrects it.`,
   },
   {
     id: 'audit',
@@ -674,25 +1084,37 @@ Expand a row for full before/after payloads. Copy entry IDs via the copy icon.`,
 
 | Capability | Super Admin | IT Admin | IT Support | Manager | Employee |
 |---|---|---|---|---|---|
-| Estate dashboard / metrics | Yes | Yes | Queue home | Team home | My IT |
-| Assets create / assign / transfer / retire | Yes | Yes | Read | Read (scoped) | Own assigned |
-| Locations / categories / departments | Yes | Yes | Read | Read | No |
-| Employees create / offboard / login | Yes | Yes | Read | Direct reports | Own profile |
+| Estate dashboard / metrics | Yes | Yes | Queue home (no KPI tiles) | Team home | My IT |
+| Dashboard trends | Yes | Yes | Yes | No | No |
+| Assets create / assign / transfer / retire | Yes | Yes | Read | Read (team) | Own assigned |
+| Hard-delete retired/disposed assets | Yes | No | No | No | No |
+| Locations / categories / departments | Yes | Yes | Read (locations) | Read (locations) | No |
+| Accessories / consumables list | Yes | Yes | Yes | No (403) | No (403) |
+| Employees create / offboard / login | Yes | Yes | Read | Direct reports | Own profile (phone/title) |
 | Maintenance queue | Yes | Yes | Yes | Report only | Report own asset |
 | Support tickets (all) | Yes | Yes | Yes | Own + reports | Own only |
-| Internal notes / assign tickets | Yes | Yes | Yes | No | No |
+| Internal notes / assign / canned / time | Yes | Yes | Yes | No | No |
 | Requests approve | Yes | Yes | No | Yes (team) | Submit only |
 | Fulfill requests | Yes | Yes | No | No | No |
-| Reports | Yes | Yes | Yes | Yes | No |
-| Import / reconcile / webhooks | Yes | Yes | No | No | No |
+| Procurement (vendors, PO, contracts) | Yes | Yes | No | Requisitions (team) | No |
+| Reports | Full | Full | No vendor spend | Team-scoped subset | No |
+| Import / reconcile / webhooks / kits | Yes | Yes | No | No | No |
 | Settings → Users | Yes | No | No | No | No |
 | Audit log | Yes | Yes | No | No | No |
 | Team chat | Yes | Yes | Yes | No | No |
+| Notes on records | Same as parent record | Same | Same | Team-scoped | Own assets / tickets |
 
 View **your** permission tags under **Settings → Account**.
 
+IT Support, IT Admin, and Super Admin open Settings from the **account menu** (avatar, bottom of the sidebar) as well as the Settings nav item (IT Admin / Super Admin). IT Support's Settings tabs are **Account** and **Helpdesk** only.
+
 > [!NOTE]
-> IT Support has no Settings item in the sidebar today, so they cannot reach the Account digest radio unless a Super Admin opens Settings for them or a later change adds an Account entry on Queue.`,
+> Managers can still **search** people and requisitions, but the search is composed with the same visibility filter as the list — a name match cannot leak another team's PR or employee.
+
+### Troubleshooting
+
+**Why can't I see this menu item?**
+Almost always role. Compare the table above. If the item is visible but the API returns 403, you are signed in as the wrong role or the session expired — sign out and back in.`,
   },
   {
     id: 'qr-webhooks',
@@ -731,30 +1153,42 @@ X-NewVision-Signature: sha256=…
     category: 'Reference',
     summary: 'Every shortcut, ⌘K jump, and the ? Help key.',
     keywords: ['keyboard', 'shortcuts', 'hotkeys', 'command palette', 'ctrl+k'],
+    screenshot: '/docs/screenshots/command-palette.png',
+    callouts: [
+      { n: 1, label: 'Search box' },
+      { n: 2, label: 'Role-filtered destinations' },
+    ],
     body: `### Command palette
 
-Press **⌘K** / **Ctrl+K** anywhere in the signed-in app. Type a screen name or a record code (\`AST-…\`, \`EMP-…\`, \`TCK-…\`). Arrow keys move the highlight; Enter opens it.
+Press **⌘K** / **Ctrl+K** anywhere in the signed-in app (header search chip, or the keys). Type a screen name or a record code (\`AST-…\`, \`EMP-…\`, \`TCK-…\`, \`PO-…\`, \`PR-…\`). Arrow keys move the highlight; Enter opens it.
 
-The command palette is role-filtered. Employees see their screens and “Raise a ticket”, not New asset or Audit Log. IT Support sees Account (digest) instead of the full Settings set. Hidden destinations no longer appear in ⌘K.
+The command palette is **role-filtered**. Employees see their screens and “Raise a ticket”, not New asset or Audit Log. IT Support sees Account (digest) instead of the full Settings set. Hidden destinations do not appear in ⌘K.
+
+Inside Help, the same chord opens **docs search** instead of the app palette.
 
 ### App shortcuts
 
 | Shortcut | Action |
 |----------|--------|
-| \`⌘K\` / \`Ctrl+K\` | Open the command palette (or docs search when you are already in Help) |
+| \`⌘K\` / \`Ctrl+K\` | Command palette (or docs search when you are already in Help) |
 | \`?\` | Open Help (ignored while typing in an input) |
+| \`Ctrl+/\` | Keyboard shortcuts overlay (this is **not** Help) |
 | \`/\` | Focus the grid filter on a table page |
-| \`Esc\` | Clear row focus / close expanded rows |
+| \`Esc\` | Clear row focus / close expanded rows / close overlays |
 | \`↑\` \`↓\` | Move row focus on data tables |
-| \`Ctrl+C\` / \`Cmd+C\` | Copy the focused row as tab-separated values (for Excel) |
+| \`J\` / \`K\` | Next / previous **ticket** row (ticket list only) |
+| \`Enter\` | Open the focused ticket |
+| \`I\` | Assign the focused ticket to me (IT staff, ticket list) |
+| \`Ctrl+[\` | Collapse or open the sidebar |
+| \`Ctrl+C\` / \`Cmd+C\` | Copy the focused grid row as tab-separated values (for Excel) |
 | ⧉ chip | Copy one code, ticket number, email, or URL, with a toast |
 
 ### Staff Chat
 
-There is no keyboard shortcut for Chat. Super Admin, IT Admin, and IT Support use the **Chat** button in the header (#it-ops plus 1:1 DMs). Ticket numbers pasted in a message become clickable previews.
+There is no dedicated keyboard shortcut for Chat. Super Admin, IT Admin, and IT Support use the **Chat** button in the header (or ⌘K → Chat). In the composer: **Enter** sends, **Shift+Enter** new line, **Ctrl+V** pastes a file or screenshot, \`@\` opens mentions.
 
 > [!TIP]
-> \`?\` opens Help. Do not reuse \`?\` for a shortcuts overlay — that key is already taken.`,
+> \`?\` always opens Help. The shortcuts overlay is **Ctrl+/** so those two jobs never share a key.`,
   },
   {
     id: 'employees-history',
@@ -835,36 +1269,37 @@ The timeline is built from assignment, transfer, maintenance, and employment eve
     keywords: ['settings', 'account', 'users', 'mailbox', 'categories', 'digest'],
     screenshot: '/docs/screenshots/settings.png',
     callouts: [
-      { n: 1, label: 'Account (every signed-in user who can open Settings)' },
-      { n: 2, label: 'Helpdesk mailbox status' },
-      { n: 3, label: 'Users (Super Admin only)' },
+      { n: 1, label: 'Account tab' },
+      { n: 2, label: 'Immediate vs Daily digest' },
+      { n: 3, label: 'Your account card' },
     ],
-    body: `Settings is a tabbed page. Which tabs you see depends on role.
+    body: `Settings is a tabbed page. Which tabs you see depends on role. Open it from the sidebar (IT Admin / Super Admin) or the **account menu** (avatar) — Super Admin, IT Admin, **and IT Support**.
 
-### Account (IT Admin, Super Admin, and IT Support if they can open the page)
+### Account (every role that can open Settings)
 
 - Your name, email, role, and the raw permission tags the API granted you.
-- **Ticket email notifications**: Immediate vs Daily digest (ticket staff only).
+- **Ticket email notifications** (ticket staff only): Immediate vs Daily digest. In-app bell is always immediate.
 - **Change password**.
 
-IT Support currently has **no Settings item in the sidebar**, so they cannot reach this tab from navigation. That is a known gap.
+### Helpdesk (Super Admin, IT Admin, IT Support)
 
-### Helpdesk (ticket staff)
-
-Mailbox address, IMAP connection check, canned responses. Local development without \`IMAP_HOST\` simply does not poll. Inbound mail is not “proven” until a real mailbox is configured.
+Mailbox address, IMAP connection check, **canned responses / macros**. A canned reply can also set the ticket to **waiting on employee** or **resolved** when you send it. Local development without \`IMAP_HOST\` simply does not poll.
 
 ### IT Admin / Super Admin tabs
 
 - **Categories** — LAP, MON, DES, … Delete is blocked while assets still use the category.
 - **Departments** — org units used on employees and assets.
-- **Import jobs** — upload, map columns, dry-run, commit, rollback.
-- **Reconciliation** — upload an HR/inventory CSV and see set-diff vs live records.
+- **Import jobs** — upload, map columns, dry-run, commit, rollback. Files are capped at **10 MB**.
+- **Reconciliation** — upload an HR/inventory CSV and see set-diff vs live records (manual upload only; no live AD/HR sync).
 - **Webhooks** — \`asset.created\` / \`asset.status_changed\`, HMAC secret shown once.
 - **Onboard / Offboard** — checklist templates used on employee profiles.
+- **Issue kits** — named bundles (e.g. “New laptop kit”) of accessories to check out together when assigning.
+
+There is **no separate “approval matrix” settings page**. Required approvers (To) and watchers (Cc) are chosen on each requisition.
 
 ### Users (Super Admin only)
 
-Create and disable logins, assign roles. This is the only place that can create an IT Admin. There is no public self-service signup.
+Create and disable logins, assign roles, reset passwords, link a user to an employee. This is the only place that can create an IT Admin or another Super Admin. There is no public self-service signup. See [Users & accounts](/help/users-accounts).
 
 \`\`\`
 # Typical local mailbox (does nothing until IMAP_HOST is set)
@@ -873,13 +1308,69 @@ SMTP_HOST=
 \`\`\`
 
 > [!NOTE]
-> Forgot-password and JWT refresh are implemented. Without SMTP, reset tokens are logged to the backend console.`,
+> Forgot-password and JWT refresh are implemented. Without SMTP / Resend, reset tokens are logged to the backend console.
+
+### Troubleshooting
+
+**IT Support cannot find Settings in the sidebar.**
+Use the avatar menu → **Settings**. You will see Account + Helpdesk only.
+
+**I changed a canned response and nothing happened on old tickets.**
+Macros apply when you insert them on a reply. They do not rewrite history.`,
+  },
+  {
+    id: 'users-accounts',
+    title: 'Users & accounts',
+    category: 'Settings',
+    summary: 'Creating logins, the Users screen, password changes, and first-admin bootstrap.',
+    keywords: ['users', 'login', 'password', 'bootstrap', 'reset'],
+    screenshot: '/docs/screenshots/users.png',
+    callouts: [
+      { n: 1, label: 'Create user' },
+      { n: 2, label: 'Role' },
+      { n: 3, label: 'Active switch' },
+    ],
+    body: `A **user** is a login. An **employee** is a directory person. Most people have both, linked together. You can have a Super Admin with no employee row (bootstrap), and you can have employees with no login yet.
+
+### Create a login (IT Admin)
+
+On **Employees → Add / Edit**, tick **Create login** and pick Employee or Manager (IT Admin cannot create IT Admin / Super Admin logins).
+
+### Users screen (Super Admin only)
+
+**Settings → Users**:
+
+1. **Create a login** — email, name, role, optional link to an employee. New logins are emailed a link to set their own password (or the token is logged to the console if mail is not configured).
+2. **Active** switch — disable a login without deleting history.
+3. **Reset password** — sets a new temporary password. Without mail transport, tell the person out of band (or read the console in local/dev).
+
+This is the only UI that can create an **IT Admin** or another **Super Admin**.
+
+### Change your own password
+
+**Settings → Account → Change password** (IT Support: avatar → Settings).
+
+### First admin on a blank database
+
+Set \`SEED_MODE=bootstrap\` with \`BOOTSTRAP_ADMIN_EMAIL\` and \`BOOTSTRAP_ADMIN_PASSWORD\` (12+ characters). That creates roles + one Super Admin and does **not** load demo assets. After that, use Users / Employees as usual.
+
+Forgot-password exists on the login page. JWT access tokens expire; the app refreshes the session while you stay signed in. If a mutation suddenly 401s, sign in again.
+
+> [!WARNING]
+> Disabling a login does not offboard the employee or return assets. Do both: Offboard + disable login + return kit.
+
+### Troubleshooting
+
+**Create login is missing.**
+You are not IT Admin / Super Admin, or the person already has a user.
+
+**I cannot create an IT Admin.**
+Only Super Admin can, and only from Settings → Users.`,
   },
   {
     id: 'staff-chat',
     title: 'Team Chat',
-    category: 'Support tickets',
-    group: 'For IT staff',
+    category: 'Team Chat',
     summary:
       'Teams-style channels, DMs, threads, mentions, reactions, and live presence for Super Admin, IT Admin, and IT Support.',
     keywords: ['chat', 'dm', 'it-ops', 'unfurl', 'teams', 'thread', 'mention', 'reaction'],
@@ -929,7 +1420,29 @@ Muted conversations stay quiet. Mentions-only still delivers @mentions and threa
 > Chat is **not** a ticket comment. Requesters never see it. Use it to ask “are you on TCK-000035?” before two people reply on the same ticket.
 
 > [!NOTE]
-> There are no calls, meetings, screen sharing, or guest (non-staff) accounts. Pin, bookmark, and forward are not built yet.`,
+> There are no calls, meetings, screen sharing, or guest (non-staff) accounts. Pin, bookmark, and forward are not built yet.
+
+### Presence legend
+
+Colour is never the only signal:
+
+| Appearance | Meaning |
+|------------|---------|
+| Green circle | Available |
+| Amber + clock | Away |
+| Red + minus | Busy / do not disturb |
+| Hollow | Offline |
+
+### Troubleshooting
+
+**I cannot see Chat.**
+Only Super Admin, IT Admin, and IT Support. Managers and Employees are 403 at the API.
+
+**Paste attached a thumbnail instead of the Word file.**
+If Explorer / Word included a real document in the clipboard, Chat prefers the document. A Snipping Tool image still becomes a screenshot. \`.html\`, \`.svg\`, \`.jar\`, and executables are blocked.
+
+**Presence stuck offline.**
+The socket reconnects automatically. A hard refresh resyncs. Free-tier hosts that sleep will drop the socket until the API wakes.`,
   },
   {
     id: 'tips-troubleshooting',
@@ -946,11 +1459,21 @@ Muted conversations stay quiet. Mentions-only still delivers @mentions and threa
 - Duplicate an asset from the show page when you unbox a second identical laptop — you get a new code, not a clone of history.
 - Print **20-up QR labels** from the Assets list instead of downloading one PNG at a time.
 - Copy-email on a ticket builds an Outlook-ready draft. It does **not** send mail and does **not** add a public comment unless you paste/send yourself.
+- **I** on the ticket list assigns the focused row to you.
+- Paste \`TCK-…\` / \`AST-…\` into Chat for a clickable record card.
+- **Issue kits** (Settings) checkout a charger + bag with the laptop in one Assign.
+- Public scan never shows the assignee — photograph a sticker safely.
 
 ### Common problems
 
 **I signed in as Employee and I do not see Dashboard / Settings.**
 That is correct. Employees land on **My IT**. They can raise a ticket, request a device, and see their own assets.
+
+**Why can't I see this menu item?**
+Role. See [Roles & Permissions](/help/roles). Chat, Vendors, Import, Users, and Audit are the usual surprises.
+
+**Why is this asset still assigned?**
+Return / Transfer was not run. Offboarding a person does not auto-free kit.
 
 **Warranty attention used to mix thousand-day-expired laptops with upcoming ones.**
 The warranty API and Assets **Warranty** chip now split **expiring soon** (14/30/90 days) from **already expired**. The dashboard **Expiring (14d)** link opens the near-term work list.
@@ -959,7 +1482,7 @@ The warranty API and Assets **Warranty** chip now split **expiring soon** (14/30
 The timeline now treats \`assigned\` / \`in_progress\` / \`waiting_on_employee\` (and later states) as evidence work has started, and backfills a “Work started” point from \`updatedAt\` when no assign/status audit exists.
 
 **Email never arrived.**
-Without \`SMTP_HOST\` the backend logs the message to the console and the API still succeeds. Check the Nest terminal, not the user’s inbox.
+Without \`SMTP_HOST\` / \`RESEND_API_KEY\` the backend logs the message to the console and the API still succeeds. Check the Nest terminal, not the user’s inbox. Staff on Daily digest will not get per-event mail.
 
 **Email-in did nothing.**
 IMAP is only polled when mailbox env vars are set. Settings → Helpdesk shows connection status. Local default is “not polling”.
@@ -970,8 +1493,8 @@ Compose defaults to \`SEED_ON_START=true\`. Set it to \`false\` after the first 
 **Two scrollbars on a list.**
 The page and the grid each have a scrollbar. Use the grid’s thicker bar to move columns; the page bar moves the chrome.
 
-**IT Support cannot change digest preference.**
-They have no Settings nav item. Ask a Super Admin, or wait for an Account entry on Queue.
+**IT Support cannot find digest preference.**
+Avatar menu → **Settings** → Account. There is no Settings item in their sidebar.
 
 > [!WARNING]
 > Do not put real employee names or serial numbers on a printed QR sticker. The public scan URL is reachable by anyone with the photo.`,
