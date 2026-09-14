@@ -321,7 +321,8 @@ async function seedRolesAndPermissions() {
   return roleIds;
 }
 
-/** Empty production database: one Super Admin, no demo estate. */
+/** Empty production database: one Super Admin, no demo estate. Re-enable when SEED_MODE=bootstrap is restored. */
+// biome-ignore lint/correctness/noUnusedVariables: kept for production bootstrap path (currently commented in main).
 async function bootstrapProductionAdmin() {
   await prisma.tenant.upsert({
     where: { id: 1 },

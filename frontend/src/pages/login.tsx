@@ -253,7 +253,7 @@ export function LoginPage() {
         >
           First hour
         </div>
-        <Typography.Title level={3} style={{ color: '#fff', marginTop: 12 }}>
+        <Typography.Title level={3} style={{ marginTop: 12, color: '#0f172a' }}>
           Your Excel → who has what → a closed ticket
         </Typography.Title>
         <div style={{ fontSize: 13, color: COLOR_TEXT_MUTED, maxWidth: 420, lineHeight: 1.55 }}>
