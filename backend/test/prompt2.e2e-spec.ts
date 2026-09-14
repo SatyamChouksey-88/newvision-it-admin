@@ -11,12 +11,14 @@ describe('Prompt 2 — requests, accessories & consumables (e2e)', () => {
   let managerToken: string;
   let categoryId: number;
   let employeeId: number;
+  let locationId: number;
 
   beforeAll(async () => {
     app = await createTestApp();
     const ids = await seedCore(app.get(PrismaService));
     categoryId = ids.categoryLap;
     employeeId = ids.employeeA;
+    locationId = ids.locationPune;
     adminToken = await login(app, 'itadmin@newvision.local');
     employeeToken = await login(app, 'employee@newvision.local');
     managerToken = await login(app, 'manager@newvision.local');
@@ -41,9 +43,22 @@ describe('Prompt 2 — requests, accessories & consumables (e2e)', () => {
       .expect(200);
     expect(reviewed.body.status).toBe('approved');
 
+    const issued = await request(app.getHttpServer())
+      .post('/api/assets')
+      .set(auth(adminToken))
+      .send({
+        categoryId,
+        locationId,
+        brand: 'Dell',
+        model: 'Latitude 5440',
+        serialNumber: `SN-REQ-${Date.now()}`,
+      })
+      .expect(201);
+
     const fulfilled = await request(app.getHttpServer())
       .patch(`/api/asset-requests/${created.body.id}/fulfill`)
       .set(auth(adminToken))
+      .send({ assetId: issued.body.id })
       .expect(200);
     expect(fulfilled.body.status).toBe('fulfilled');
 

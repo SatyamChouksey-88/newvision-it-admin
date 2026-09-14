@@ -1,9 +1,9 @@
-import { Button, Card, Descriptions, Form, Input, Space, Typography } from 'antd';
+import { Button, Card, Descriptions, Form, Input, Select, Space, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router';
 import { StatusTag } from '../components/StatusTag';
 import { API_URL } from '../providers/axios';
-import { readSession, TOKEN_KEY } from '../providers/session';
+import { readSession, TOKEN_KEY, USER_KEY } from '../providers/session';
 import { COLOR_TEXT_MUTED } from '../theme';
 import type { AssetStatus } from '../types';
 
@@ -14,9 +14,21 @@ interface ScanCard {
   status: AssetStatus;
   location?: string;
   locationCode?: string;
+  locationId?: number;
   category?: string;
   assigned?: boolean;
   tenantSlug?: string;
+}
+
+function staffFromSession(): boolean {
+  const raw = readSession(USER_KEY);
+  if (!raw) return false;
+  try {
+    const role = (JSON.parse(raw) as { role?: string }).role;
+    return role === 'SUPER_ADMIN' || role === 'IT_ADMIN' || role === 'IT_SUPPORT';
+  } catch {
+    return false;
+  }
 }
 
 /** Public, mobile-first asset card opened by scanning a sticker QR. Audit now requires a staff login. */
@@ -26,7 +38,9 @@ export function ScanPage() {
   const [error, setError] = useState<string | null>(null);
   const [audited, setAudited] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [locations, setLocations] = useState<{ id: number; name: string; code?: string }[]>([]);
   const token = readSession(TOKEN_KEY);
+  const staff = Boolean(token) && staffFromSession();
 
   useEffect(() => {
     if (!code) return;
@@ -42,18 +56,35 @@ export function ScanPage() {
       .catch((e) => setError((e as Error).message));
   }, [code, slug]);
 
-  const auditNow = async (values: { notes?: string }) => {
+  useEffect(() => {
+    if (!staff || !token) return;
+    fetch(`${API_URL}/locations?_start=0&_end=100`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (res) => (res.ok ? res.json() : { data: [] }))
+      .then((body: { data?: { id: number; name: string; code?: string }[] }) =>
+        setLocations(body.data ?? []),
+      )
+      .catch(() => setLocations([]));
+  }, [staff, token]);
+
+  const auditNow = async (values: { notes?: string; locationId?: number }) => {
     if (!token || !card) return;
     setBusy(true);
     setAudited(null);
     try {
+      const locationId = values.locationId ? Number(values.locationId) : undefined;
       const res = await fetch(`${API_URL}/assets/audit-by-code`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ code: card.assetCode, notes: values.notes?.trim() || undefined }),
+        body: JSON.stringify({
+          code: card.assetCode,
+          notes: values.notes?.trim() || undefined,
+          locationId,
+        }),
       });
       if (res.status === 401 || res.status === 403) {
         throw new Error('Sign in as IT staff to stamp an audit from this phone.');
@@ -99,9 +130,27 @@ export function ScanPage() {
             </Descriptions>
           </Card>
         )}
-        {card && token ? (
-          <Card size="small" title="Audit now">
-            <Form layout="vertical" onFinish={(v) => void auditNow(v)}>
+        {card && staff ? (
+          <Card size="small" title="Audit now" data-testid="scan-audit">
+            <Form
+              layout="vertical"
+              onFinish={(v) => void auditNow(v)}
+              initialValues={{ locationId: card.locationId }}
+            >
+              <Form.Item
+                name="locationId"
+                label="Confirm location"
+                extra="Change this if the sticker is on a desk in a different office."
+              >
+                <Select
+                  data-testid="scan-location"
+                  placeholder="This office"
+                  options={locations.map((l) => ({
+                    value: l.id,
+                    label: l.code ? `${l.name} (${l.code})` : l.name,
+                  }))}
+                />
+              </Form.Item>
               <Form.Item name="notes" label="Condition note (optional)">
                 <Input.TextArea rows={2} maxLength={240} />
               </Form.Item>
@@ -109,7 +158,11 @@ export function ScanPage() {
                 Stamp last audited today
               </Button>
               {audited ? (
-                <Typography.Text type="success" style={{ display: 'block', marginTop: 8 }}>
+                <Typography.Text
+                  type="success"
+                  data-testid="scan-audited"
+                  style={{ display: 'block', marginTop: 8 }}
+                >
                   {audited}
                 </Typography.Text>
               ) : null}

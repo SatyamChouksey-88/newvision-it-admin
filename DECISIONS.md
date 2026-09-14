@@ -348,5 +348,13 @@ Every judgment call made while building NewVision, and why. Newest at the bottom
 - **Onboarding is a 5-step checklist**, not schema completeness. Trial tenants never get the 1,250-row internal seed; `POST /api/tenant/onboarding/sample` loads ~25 laptops.
 - **QR URLs** prefer `/scan/:slug/:code` (API `/api/public/assets/t/:slug/:code`). Bare `/scan/:code` still works when the code is unique in the whole database.
 
+## Prompt 35 — daily ITIS practice (2026-09-14)
+
+- **Item 1 playbook** is NewVision + a ticket record of M365/VPN/biometric resets — no Entra API. Identity verify is a timestamp; reset/IdP buttons stay gated on it.
+- **Item 2 how-tos** are 12 static `/help` articles (`For employees`), not a KB engine. Office SSIDs (`NV-Pune` / `NV-Hyd` / `NV-Bhopal`) are invented labels until IT publishes the real ones. My IT waits for identity before rendering so employees are not dumped on the estate dashboard.
+- **Item 3 scan-to-audit** already had `audit-by-code` + 12-month unaudited attention. Added **confirm location** on the sticker page (staff only). Public card exposes `locationId` (office, not PII) so the select can default.
+- **Item 4 OEM claim** lives on `AssetMaintenance` (`coverage`, `oemCaseId`, `rmaNumber`, `claimInvoiceNo`, `incidentKind`). Filing copies serial + invoice into notes, sends `reported → under_repair`, and sets `loanerNeeded` when the assignee has no other assigned device. Linked AMC/warranty contracts are read from `VendorContractAsset`, not duplicated.
+
+
 
 

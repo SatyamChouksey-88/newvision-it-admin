@@ -26,6 +26,7 @@ describe('Prompt 36 A2 — duplicate vendor guard', () => {
         legalName: 'Dell India Pvt Ltd',
         taxId: '29AABCD1234E1Z5',
         bankAccountNumber: '1234 5678 9012',
+        accountHolderName: 'Dell India Pvt Ltd',
       })
       .expect(201);
 
@@ -47,6 +48,7 @@ describe('Prompt 36 A2 — duplicate vendor guard', () => {
       .send({
         legalName: 'Ghost Dell',
         bankAccountNumber: '123456789012',
+        accountHolderName: 'Ghost Dell',
       })
       .expect(409);
     expect(dupBank.body.vendorCode).toBe(first.body.vendorCode);

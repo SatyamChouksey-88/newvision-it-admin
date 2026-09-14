@@ -71,6 +71,7 @@ export function MaintenancePage() {
   const [reportOpen, setReportOpen] = useState(false);
   const [completeTarget, setCompleteTarget] = useState<Maintenance | null>(null);
   const [reassignTarget, setReassignTarget] = useState<Maintenance | null>(null);
+  const [oemTarget, setOemTarget] = useState<Maintenance | null>(null);
   const [expanded, setExpanded] = useState<number[]>([]);
   const [density, setDensity] = useState<TableDensity>('Compact');
   const { page, pageSize, total, onPageChange } = useRefinePagination(tableProps);
@@ -260,12 +261,25 @@ export function MaintenancePage() {
               expandable={{
                 expandedRowKeys: expanded,
                 onExpandedRowsChange: (keys) => setExpanded(keys as number[]),
-                expandedRowRender: (r) => (
+                  expandedRowRender: (r) => (
                   <Space direction="vertical" size={12} style={{ width: '100%' }}>
                     <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                       Notes: {r.notes ?? '—'} · Completed: {formatDate(r.completedAt)} · Reported
                       by: {r.reportedBy?.fullName ?? '—'}
                     </Typography.Text>
+                    {r.oemCaseId ? (
+                      <Typography.Text data-testid="oem-claim-summary" style={{ fontSize: 12 }}>
+                        Claim: {r.coverage?.replace('_', ' ') ?? 'unknown'}
+                        {` · case ${r.oemCaseId}`}
+                        {r.rmaNumber ? ` · RMA ${r.rmaNumber}` : ''}
+                        {r.claimInvoiceNo ? ` · invoice ${r.claimInvoiceNo}` : ''}
+                      </Typography.Text>
+                    ) : null}
+                    {(r.status === 'reported' || r.status === 'under_repair') && canView && (
+                      <Button size="small" data-testid="oem-claim-open" onClick={() => setOemTarget(r)}>
+                        Create OEM claim
+                      </Button>
+                    )}
                     {canManual ? (
                       <ManualEditButton
                         entityType="AssetMaintenance"
@@ -463,6 +477,15 @@ export function MaintenancePage() {
           if (t) transition(t, 'reassigned', toEmployeeId ? { toEmployeeId } : {});
         }}
       />
+      <OemClaimModal
+        ticket={oemTarget}
+        onClose={() => setOemTarget(null)}
+        onDone={() => {
+          setOemTarget(null);
+          refetch();
+          void loadCounts();
+        }}
+      />
     </Card>
   );
 }
@@ -625,6 +648,144 @@ function ReassignModal({
             onChange={setEmployeeId}
             placeholder="Previous holder"
           />
+        </Form.Item>
+      </Form>
+    </Modal>
+  );
+}
+
+function OemClaimModal({
+  ticket,
+  onClose,
+  onDone,
+}: {
+  ticket: Maintenance | null;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const { message } = AntdApp.useApp();
+  const [form] = Form.useForm();
+  const [loading, setLoading] = useState(false);
+  const [detail, setDetail] = useState<Maintenance | null>(null);
+
+  useEffect(() => {
+    if (!ticket) {
+      setDetail(null);
+      form.resetFields();
+      return;
+    }
+    httpClient
+      .get(`/maintenance/${ticket.id}`)
+      .then(({ data }) => {
+        setDetail(data);
+        form.setFieldsValue({
+          coverage: data.coverage && data.coverage !== 'unknown' ? data.coverage : 'oem_warranty',
+          oemCaseId: data.oemCaseId ?? '',
+          rmaNumber: data.rmaNumber ?? '',
+          claimInvoiceNo: data.claimInvoiceNo || data.asset?.invoiceNo || '',
+          incidentKind: data.incidentKind ?? 'defect',
+        });
+      })
+      .catch(() => setDetail(ticket));
+  }, [ticket, form]);
+
+  const submit = async () => {
+    if (!ticket) return;
+    try {
+      const v = await form.validateFields();
+      setLoading(true);
+      const { data } = await httpClient.post(`/maintenance/${ticket.id}/oem-claim`, {
+        oemCaseId: v.oemCaseId,
+        coverage: v.coverage,
+        incidentKind: v.incidentKind || undefined,
+        rmaNumber: v.rmaNumber || undefined,
+        claimInvoiceNo: v.claimInvoiceNo || undefined,
+      });
+      if (data.loanerNeeded) {
+        message.warning('This person has no second device — issue a loaner before the courier leaves.');
+      } else {
+        message.success('OEM claim filed');
+      }
+      onDone();
+    } catch (e) {
+      if ((e as { errorFields?: unknown }).errorFields) return;
+      message.error(apiErrorMessage(e, 'Could not file the OEM claim'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const contracts = detail?.coveringContracts ?? [];
+
+  return (
+    <Modal
+      open={!!ticket}
+      title={`OEM / AMC claim — #${ticket?.id ?? ''}`}
+      okText="File claim"
+      onCancel={onClose}
+      onOk={() => void submit()}
+      confirmLoading={loading}
+    >
+      {detail?.loanerNeeded ? (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message="No second device on this person. Offer a loaner before the laptop leaves the building."
+        />
+      ) : null}
+      {contracts.length > 0 ? (
+        <Typography.Paragraph type="secondary" style={{ fontSize: 12 }}>
+          Linked coverage:{' '}
+          {contracts
+            .map((c) => `${c.vendor?.legalName ?? 'Vendor'} ${c.type} (to ${formatDate(c.endDate)})`)
+            .join(' · ')}
+        </Typography.Paragraph>
+      ) : (
+        <Typography.Paragraph type="secondary" style={{ fontSize: 12 }}>
+          No live AMC/warranty contract is linked to this asset. File the case anyway and attach the
+          invoice below.
+        </Typography.Paragraph>
+      )}
+      <Typography.Paragraph type="secondary" style={{ fontSize: 12 }}>
+        Serial {detail?.asset?.serialNumber || '—'} · Invoice {detail?.asset?.invoiceNo || '—'}
+      </Typography.Paragraph>
+      <Form form={form} layout="vertical">
+        <Form.Item name="coverage" label="Coverage" rules={[{ required: true }]}>
+          <Select
+            options={[
+              { value: 'oem_warranty', label: 'OEM warranty' },
+              { value: 'amc', label: 'AMC' },
+              { value: 'adp', label: 'ADP (accidental)' },
+              { value: 'chargeable', label: 'Chargeable' },
+              { value: 'unknown', label: 'Unknown' },
+            ]}
+          />
+        </Form.Item>
+        <Form.Item name="incidentKind" label="Incident">
+          <Select
+            allowClear
+            options={[
+              { value: 'defect', label: 'Defect' },
+              { value: 'accidental', label: 'Accidental' },
+              { value: 'liquid', label: 'Liquid' },
+              { value: 'lost', label: 'Lost' },
+              { value: 'other', label: 'Other' },
+            ]}
+          />
+        </Form.Item>
+        <Form.Item
+          name="oemCaseId"
+          label="OEM / AMC case number"
+          rules={[{ required: true, min: 2, message: 'HP/Dell/Lenovo SR or AMC case id' }]}
+        >
+          <Input placeholder="e.g. SR12345678" data-testid="oem-case-id" />
+        </Form.Item>
+        <Form.Item name="rmaNumber" label="RMA / courier number">
+          <Input />
+        </Form.Item>
+        <Form.Item name="claimInvoiceNo" label="Invoice number (from the asset, editable)">
+          <Input />
         </Form.Item>
       </Form>
     </Modal>

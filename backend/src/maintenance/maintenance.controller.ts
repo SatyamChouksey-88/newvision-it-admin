@@ -3,7 +3,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { RoleName } from '@prisma/client';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
-import { CreateMaintenanceDto, TransitionMaintenanceDto, UpdateMaintenanceDto } from './dto';
+import { CreateMaintenanceDto, FileOemClaimDto, TransitionMaintenanceDto, UpdateMaintenanceDto } from './dto';
 import { MaintenanceListQuery, MaintenanceService } from './maintenance.service';
 
 @ApiTags('maintenance')
@@ -36,6 +36,16 @@ export class MaintenanceController {
   @Post()
   create(@Body() dto: CreateMaintenanceDto, @CurrentUser() user: AuthUser) {
     return this.maintenance.create(dto, user);
+  }
+
+  @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN, RoleName.IT_SUPPORT)
+  @Post(':id/oem-claim')
+  fileOemClaim(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: FileOemClaimDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.maintenance.fileOemClaim(id, dto, user);
   }
 
   @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN, RoleName.IT_SUPPORT)

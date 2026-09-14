@@ -1,4 +1,4 @@
-import { MaintenanceStatus } from '@prisma/client';
+import { MaintenanceCoverage, MaintenanceIncidentKind, MaintenanceStatus } from '@prisma/client';
 import { IsEnum, IsInt, IsNumber, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class CreateMaintenanceDto {
@@ -20,6 +20,19 @@ export class UpdateMaintenanceDto {
   @IsOptional() @IsNumber() actualCost?: number;
   @IsOptional() @IsString() expectedCompletionDate?: string;
   @IsOptional() @IsString() notes?: string;
+  @IsOptional() @IsEnum(MaintenanceCoverage) coverage?: MaintenanceCoverage;
+  @IsOptional() @IsString() oemCaseId?: string;
+  @IsOptional() @IsString() rmaNumber?: string;
+  @IsOptional() @IsString() claimInvoiceNo?: string;
+  @IsOptional() @IsEnum(MaintenanceIncidentKind) incidentKind?: MaintenanceIncidentKind;
+}
+
+export class FileOemClaimDto {
+  @IsString() @MinLength(2) oemCaseId!: string;
+  @IsEnum(MaintenanceCoverage) coverage!: MaintenanceCoverage;
+  @IsOptional() @IsEnum(MaintenanceIncidentKind) incidentKind?: MaintenanceIncidentKind;
+  @IsOptional() @IsString() rmaNumber?: string;
+  @IsOptional() @IsString() claimInvoiceNo?: string;
 }
 
 export class TransitionMaintenanceDto {

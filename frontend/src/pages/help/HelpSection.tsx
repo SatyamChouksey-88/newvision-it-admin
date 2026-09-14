@@ -1,7 +1,7 @@
 import { ArrowLeftOutlined, MenuOutlined, SearchOutlined } from '@ant-design/icons';
 import { Button, Drawer } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
-import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router';
+import { Link, Navigate, useLocation, useParams } from 'react-router';
 import { findArticle } from '../../help/articles';
 import { extractHeadings, parseMarkdown } from '../../help/markdown';
 import { COLOR_BORDER, COLOR_TEXT_MUTED, FONT_MONO } from '../../theme';
@@ -16,9 +16,16 @@ function readMinutes(body: string) {
   return Math.max(1, Math.round(words / 180));
 }
 
+function articleIdFromPath(pathname: string, paramId?: string) {
+  if (paramId) return paramId;
+  if (pathname.startsWith('/help/')) return pathname.slice('/help/'.length).split('/')[0];
+  return undefined;
+}
+
 function ArticleRoute() {
-  const { id } = useParams();
-  const { hash, key: locationKey } = useLocation();
+  const { id: paramId } = useParams();
+  const { pathname, hash, key: locationKey } = useLocation();
+  const id = articleIdFromPath(pathname, paramId);
   const article = id ? findArticle(id) : undefined;
 
   // All hooks run unconditionally (React's rules of hooks) — the "not found" redirect happens
@@ -185,10 +192,7 @@ export function HelpSection() {
         </Drawer>
 
         <main id="nv-doc-main" className="nv-doc-main" tabIndex={-1}>
-          <Routes>
-            <Route index element={<HelpHomeRoute />} />
-            <Route path=":id" element={<ArticleRoute />} />
-          </Routes>
+          {activeId ? <ArticleRoute /> : <HelpHomeRoute />}
         </main>
       </div>
 

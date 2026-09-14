@@ -108,7 +108,22 @@ export interface Maintenance {
   expectedCompletionDate?: string | null;
   completedAt?: string | null;
   notes?: string | null;
-  asset?: Pick<Asset, 'id' | 'assetCode' | 'brand' | 'model' | 'status' | 'assignedEmployeeId'>;
+  coverage?: 'oem_warranty' | 'amc' | 'adp' | 'chargeable' | 'unknown';
+  oemCaseId?: string | null;
+  rmaNumber?: string | null;
+  claimInvoiceNo?: string | null;
+  incidentKind?: 'defect' | 'accidental' | 'liquid' | 'lost' | 'other' | null;
+  loanerNeeded?: boolean;
+  coveringContracts?: {
+    id: number;
+    type: string;
+    endDate: string;
+    vendor?: { legalName: string } | null;
+  }[];
+  asset?: Pick<Asset, 'id' | 'assetCode' | 'brand' | 'model' | 'status' | 'assignedEmployeeId'> & {
+    serialNumber?: string | null;
+    invoiceNo?: string | null;
+  };
   reportedBy?: { id: number; fullName: string; email: string };
 }
 

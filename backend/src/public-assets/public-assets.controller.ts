@@ -64,6 +64,7 @@ export class PublicAssetsController {
       status: asset.status,
       location: asset.location?.name,
       locationCode: asset.location?.code,
+      locationId: asset.locationId,
       category: asset.category?.name,
       assigned: asset.status === 'assigned',
       tenantSlug: asset.tenant.slug,

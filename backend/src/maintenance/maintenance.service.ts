@@ -7,7 +7,7 @@ import { ListQuery, parseListQuery } from '../common/query';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { WebhooksService } from '../webhooks/webhooks.service';
-import { CreateMaintenanceDto, TransitionMaintenanceDto, UpdateMaintenanceDto } from './dto';
+import { CreateMaintenanceDto, FileOemClaimDto, TransitionMaintenanceDto, UpdateMaintenanceDto } from './dto';
 import {
   assertMaintenanceTransition,
   InvalidMaintenanceTransitionError,
@@ -23,6 +23,9 @@ const maintenanceInclude = {
       status: true,
       assignedEmployeeId: true,
       locationId: true,
+      serialNumber: true,
+      invoiceNo: true,
+      warrantyEnd: true,
     },
   },
   reportedBy: { select: { id: true, fullName: true, email: true } },
@@ -74,6 +77,8 @@ export class MaintenanceService {
             OR: [
               { issue: { contains: query.q, mode: 'insensitive' } },
               { vendor: { contains: query.q, mode: 'insensitive' } },
+              { oemCaseId: { contains: query.q, mode: 'insensitive' } },
+              { rmaNumber: { contains: query.q, mode: 'insensitive' } },
               { asset: { assetCode: { contains: query.q, mode: 'insensitive' } } },
               ...(/^\d+$/.test(query.q) ? [{ id: Number(query.q) }] : []),
             ],
@@ -101,7 +106,7 @@ export class MaintenanceService {
     if (!record) {
       throw new NotFoundException(`Maintenance record ${id} not found`);
     }
-    return record;
+    return this.withClaimContext(record);
   }
 
   // -------------------------------------------------------------------------
@@ -179,6 +184,11 @@ export class MaintenanceService {
             ? new Date(dto.expectedCompletionDate)
             : undefined,
           notes: dto.notes,
+          coverage: dto.coverage,
+          oemCaseId: dto.oemCaseId,
+          rmaNumber: dto.rmaNumber,
+          claimInvoiceNo: dto.claimInvoiceNo,
+          incidentKind: dto.incidentKind,
         },
         include: maintenanceInclude,
       });
@@ -197,6 +207,83 @@ export class MaintenanceService {
       return record;
     });
     return updated;
+  }
+
+  /** Copy serial + invoice onto the ticket, store the OEM/AMC case id, send to under_repair. */
+  async fileOemClaim(id: number, dto: FileOemClaimDto, actor: AuthUser) {
+    const before = await this.prisma.assetMaintenance.findUnique({
+      where: { id },
+      include: maintenanceInclude,
+    });
+    if (!before) throw new NotFoundException(`Maintenance record ${id} not found`);
+    if (before.status === 'repaired' || before.status === 'reassigned' || before.status === 'cancelled') {
+      throw new BadRequestException('Cannot file an OEM claim on a closed repair');
+    }
+    const invoice = (dto.claimInvoiceNo || before.asset.invoiceNo || '').trim() || null;
+    const claimBlock = [
+      'OEM claim filed',
+      `Serial: ${before.asset.serialNumber || '—'}`,
+      `Invoice: ${invoice || '—'}`,
+      `Case: ${dto.oemCaseId.trim()}`,
+      `Coverage: ${dto.coverage}`,
+      dto.incidentKind ? `Incident: ${dto.incidentKind}` : null,
+      dto.rmaNumber ? `RMA: ${dto.rmaNumber.trim()}` : null,
+    ]
+      .filter(Boolean)
+      .join('\n');
+    const notes = [before.notes, claimBlock].filter(Boolean).join('\n\n');
+
+    await this.prisma.assetMaintenance.update({
+      where: { id },
+      data: {
+        coverage: dto.coverage,
+        oemCaseId: dto.oemCaseId.trim(),
+        rmaNumber: dto.rmaNumber?.trim() || null,
+        claimInvoiceNo: invoice,
+        incidentKind: dto.incidentKind ?? null,
+        notes,
+      },
+    });
+    if (before.status === 'reported') {
+      await this.transition(id, { status: 'under_repair' }, actor);
+    }
+    const updated = await this.get(id);
+    await this.audit.record({
+      entityType: 'AssetMaintenance',
+      entityId: id,
+      action: 'update',
+      summary: `OEM claim ${dto.oemCaseId.trim()} on ${before.asset.assetCode}`,
+      changedById: actor.id,
+      newValue: { oemCaseId: dto.oemCaseId.trim(), coverage: dto.coverage },
+    });
+    return updated;
+  }
+
+  private async withClaimContext<
+    T extends { assetId: number; asset: { assignedEmployeeId: number | null } },
+  >(record: T) {
+    const coveringContracts = await this.prisma.vendorContract.findMany({
+      where: {
+        type: { in: ['amc', 'warranty'] },
+        endDate: { gte: new Date() },
+        assets: { some: { assetId: record.assetId } },
+      },
+      select: {
+        id: true,
+        type: true,
+        endDate: true,
+        vendor: { select: { legalName: true } },
+      },
+    });
+    let loanerNeeded = false;
+    const empId = record.asset.assignedEmployeeId;
+    if (empId) {
+      const other = await this.prisma.asset.count({
+        where: { assignedEmployeeId: empId, status: 'assigned', id: { not: record.assetId } },
+      });
+      loanerNeeded = other === 0;
+    }
+    return { ...record, coveringContracts, loanerNeeded };
   }
 
   // -------------------------------------------------------------------------

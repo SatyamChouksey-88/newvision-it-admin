@@ -95,6 +95,22 @@ enum MaintenanceStatus {
   cancelled
 }
 
+enum MaintenanceCoverage {
+  oem_warranty
+  amc
+  adp
+  chargeable
+  unknown
+}
+
+enum MaintenanceIncidentKind {
+  defect
+  accidental
+  liquid
+  lost
+  other
+}
+
 enum AuditAction {
   create
   update
@@ -765,11 +781,17 @@ model AssetMaintenance {
   notes                  String?
   supportTicketId        Int?              @map("support_ticket_id")
   supportTicket          SupportTicket?    @relation(fields: [supportTicketId], references: [id])
+  coverage               MaintenanceCoverage @default(unknown)
+  oemCaseId              String?           @map("oem_case_id")
+  rmaNumber              String?           @map("rma_number")
+  claimInvoiceNo         String?           @map("claim_invoice_no")
+  incidentKind           MaintenanceIncidentKind? @map("incident_kind")
 
   @@index([assetId])
   @@index([status])
   @@index([supportTicketId])
   @@index([vendorId])
+  @@index([oemCaseId])
   @@index([tenantId])
   @@map("asset_maintenance")
 }

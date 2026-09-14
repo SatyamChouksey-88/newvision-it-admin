@@ -1,4 +1,5 @@
 import { PartialType } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import { AssetCondition, AssetStatus } from '@prisma/client';
 import {
   ArrayNotEmpty,
@@ -47,7 +48,7 @@ export class AuditAssetDto {
   @IsOptional() @IsString() notes?: string;
   @IsOptional() @IsDateString() nextAuditDueAt?: string;
   @IsOptional() @IsEnum(AssetCondition) condition?: AssetCondition;
-  @IsOptional() @IsInt() locationId?: number;
+  @IsOptional() @Type(() => Number) @IsInt() locationId?: number;
 }
 
 export class AuditByCodeDto extends AuditAssetDto {
