@@ -2,6 +2,8 @@ import { useGetIdentity } from '@refinedev/core';
 import {
   Button,
   Card,
+  Checkbox,
+  DatePicker,
   Descriptions,
   Form,
   Input,
@@ -12,6 +14,7 @@ import {
   Tooltip,
   Typography,
 } from 'antd';
+import dayjs from 'dayjs';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
 import { EmptyState } from '../../../components/EmptyState';
@@ -39,6 +42,9 @@ export function PurchaseOrderShow() {
   const [grnId, setGrnId] = useState<number | null>(null);
   const [recvOpen, setRecvOpen] = useState(false);
   const [recvQty, setRecvQty] = useState(1);
+  const [invOpen, setInvOpen] = useState(false);
+  const [invForm] = Form.useForm();
+  const isSuperAdmin = identity?.role === 'SUPER_ADMIN';
 
   const load = useCallback(() => {
     if (!id) return;
@@ -85,6 +91,16 @@ export function PurchaseOrderShow() {
       isReversed: boolean;
       receivedAt: string;
     }[]) ?? [];
+  const invoices =
+    (row?.invoices as {
+      id: number;
+      invoiceNumber: string;
+      amount: number;
+      matchStatus: string;
+      paymentStatus: string;
+      invoiceDate: string;
+    }[]) ?? [];
+  const vendorId = (row?.vendor as { id?: number } | undefined)?.id;
 
   if (loading && !row) return <Card loading />;
   if (loadError && !row) {
@@ -150,6 +166,28 @@ export function PurchaseOrderShow() {
                 onClick={() => setRecvOpen(true)}
               >
                 Record GRN
+              </Button>
+            </Tooltip>
+            <Tooltip
+              title={
+                ['sent', 'partially_received', 'received', 'closed'].includes(status)
+                  ? ''
+                  : 'Record an invoice against a sent or received PO'
+              }
+            >
+              <Button
+                disabled={!['sent', 'partially_received', 'received', 'closed'].includes(status)}
+                onClick={() => {
+                  invForm.setFieldsValue({
+                    invoiceDate: dayjs(),
+                    amount: Number(row?.total ?? 0),
+                    taxAmount: 0,
+                    correction: false,
+                  });
+                  setInvOpen(true);
+                }}
+              >
+                Record invoice
               </Button>
             </Tooltip>
             <Tooltip
@@ -262,6 +300,28 @@ export function PurchaseOrderShow() {
           </div>
         ))}
       </Card>
+      <Card title="Invoices">
+        {invoices.length === 0 ? (
+          <Typography.Text type="secondary">No invoices recorded yet.</Typography.Text>
+        ) : (
+          <Table
+            size="small"
+            pagination={false}
+            rowKey="id"
+            dataSource={invoices}
+            columns={[
+              { title: 'Number', dataIndex: 'invoiceNumber' },
+              {
+                title: 'Amount',
+                dataIndex: 'amount',
+                render: (v: number) => `₹${Number(v).toLocaleString('en-IN')}`,
+              },
+              { title: 'Match', dataIndex: 'matchStatus' },
+              { title: 'Payment', dataIndex: 'paymentStatus' },
+            ]}
+          />
+        )}
+      </Card>
       <Card title="Edit history">
         <EventTimeline events={history} />
       </Card>
@@ -320,6 +380,77 @@ export function PurchaseOrderShow() {
           <Form.Item label={`Quantity received (${lines[0]?.product ?? 'line 1'})`}>
             <InputNumber min={0} value={recvQty} onChange={(v) => setRecvQty(Number(v ?? 0))} />
           </Form.Item>
+        </Form>
+      </Modal>
+      <Modal
+        title="Record vendor invoice"
+        open={invOpen}
+        onCancel={() => setInvOpen(false)}
+        onOk={async () => {
+          if (!vendorId) {
+            toast.error('This PO has no vendor');
+            return;
+          }
+          try {
+            const v = await invForm.validateFields();
+            const { data } = await httpClient.post('/purchase-orders/invoices', {
+              vendorId,
+              purchaseOrderId: Number(id),
+              invoiceNumber: v.invoiceNumber,
+              invoiceDate: dayjs(v.invoiceDate).toISOString(),
+              amount: v.amount,
+              taxAmount: v.taxAmount ?? 0,
+              exceptionNote: v.exceptionNote,
+              correction: v.correction === true,
+            });
+            if (Array.isArray(data.similarInvoices) && data.similarInvoices.length > 0) {
+              toast.success(
+                `Invoice ${data.invoiceNumber} recorded. Warning: another invoice for this vendor has the same amount within 7 days.`,
+              );
+            } else {
+              toast.success(`Invoice ${data.invoiceNumber} recorded`);
+            }
+            setInvOpen(false);
+            invForm.resetFields();
+            load();
+          } catch (e) {
+            const status = (e as { response?: { status?: number } })?.response?.status;
+            if (status === 409 && isSuperAdmin) {
+              toast.error(
+                `${apiErrorMessage(e, 'That invoice number already exists')}. Tick “Record as correction” to save it as ${String(invForm.getFieldValue('invoiceNumber') ?? 'INV')}-CORR.`,
+              );
+              invForm.setFieldsValue({ correction: true });
+              return;
+            }
+            toast.error(apiErrorMessage(e, 'Could not record invoice'));
+          }
+        }}
+      >
+        <Form form={invForm} layout="vertical">
+          <Form.Item
+            name="invoiceNumber"
+            label="Invoice number"
+            rules={[{ required: true, message: 'Vendor invoice number is required' }]}
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item name="invoiceDate" label="Invoice date" rules={[{ required: true }]}>
+            <DatePicker style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="amount" label="Amount (₹)" rules={[{ required: true }]}>
+            <InputNumber min={0} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="taxAmount" label="Tax">
+            <InputNumber min={0} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="exceptionNote" label="Exception note (required if 3-way match fails)">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          {isSuperAdmin ? (
+            <Form.Item name="correction" valuePropName="checked">
+              <Checkbox>Record as correction (-CORR suffix) if this number already exists</Checkbox>
+            </Form.Item>
+          ) : null}
         </Form>
       </Modal>
     </Space>

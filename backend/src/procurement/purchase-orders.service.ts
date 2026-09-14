@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -11,6 +12,7 @@ import { AuthUser } from '../common/decorators/current-user.decorator';
 import { ListQuery, parseListQuery } from '../common/query';
 import { PrismaService } from '../prisma/prisma.service';
 import { AmendPoDto, CreateInvoiceDto, InvoicePaymentDto, ReasonDto, ReceiveDto } from './dto';
+import { nextCorrectionNumber, similarInvoiceWindow } from './invoice-number';
 import { ProcurementLogService } from './log.service';
 import { threeWayMatch } from './match';
 import { addDays, money, netDays, paddedCode, sumLines } from './numbers';
@@ -458,22 +460,53 @@ export class PurchaseOrdersService {
         `Invoice does not match PO/GRN (${matchNotes}). Add an exception note before recording it.`,
       );
     }
-    const invoice = await this.prisma.vendorInvoice.create({
-      data: {
+    const invoiceNumber = await this.allocateInvoiceNumber(
+      dto.vendorId,
+      vendor.vendorCode,
+      dto.invoiceNumber.trim(),
+      dto.correction === true,
+      actor,
+    );
+    const invoiceDate = new Date(dto.invoiceDate);
+    const { from: similarFrom, to: similarTo } = similarInvoiceWindow(invoiceDate);
+    const similarInvoices = await this.prisma.vendorInvoice.findMany({
+      where: {
         vendorId: dto.vendorId,
-        purchaseOrderId: dto.purchaseOrderId,
-        contractId: dto.contractId,
-        invoiceNumber: dto.invoiceNumber.trim(),
-        invoiceDate: new Date(dto.invoiceDate),
         amount: dto.amount,
-        taxAmount: dto.taxAmount ?? 0,
-        dueDate: due,
-        matchStatus,
-        matchNotes,
-        exceptionNote: dto.exceptionNote,
-        recordedById: actor.id,
+        invoiceDate: { gte: similarFrom, lte: similarTo },
+        NOT: { invoiceNumber },
       },
+      select: { id: true, invoiceNumber: true, invoiceDate: true, amount: true },
+      take: 5,
     });
+    let invoice;
+    try {
+      invoice = await this.prisma.vendorInvoice.create({
+        data: {
+          vendorId: dto.vendorId,
+          purchaseOrderId: dto.purchaseOrderId,
+          contractId: dto.contractId,
+          invoiceNumber,
+          invoiceDate,
+          amount: dto.amount,
+          taxAmount: dto.taxAmount ?? 0,
+          dueDate: due,
+          matchStatus,
+          matchNotes,
+          exceptionNote: dto.exceptionNote,
+          recordedById: actor.id,
+        },
+      });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        throw new ConflictException({
+          message: `Invoice ${invoiceNumber} already exists for ${vendor.vendorCode}`,
+          vendorCode: vendor.vendorCode,
+          vendorId: vendor.id,
+        });
+      }
+      throw e;
+    }
     await this.log.write({
       recordType: 'invoice',
       recordId: invoice.id,
@@ -484,7 +517,39 @@ export class PurchaseOrdersService {
       auditAction: 'create',
       entityType: 'VendorInvoice',
     });
-    return invoice;
+    return { ...invoice, similarInvoices };
+  }
+
+  private async allocateInvoiceNumber(
+    vendorId: number,
+    vendorCode: string,
+    requested: string,
+    correction: boolean,
+    actor: AuthUser,
+  ): Promise<string> {
+    const existing = await this.prisma.vendorInvoice.findFirst({
+      where: { vendorId, invoiceNumber: requested },
+    });
+    if (!existing) return requested;
+    if (correction) {
+      if (actor.role !== RoleName.SUPER_ADMIN) {
+        throw new ForbiddenException('Only Super Admin can record a -CORR correction invoice');
+      }
+      const siblings = await this.prisma.vendorInvoice.findMany({
+        where: { vendorId, invoiceNumber: { startsWith: requested.replace(/-CORR(\d+)?$/i, '') } },
+        select: { invoiceNumber: true },
+      });
+      return nextCorrectionNumber(
+        requested,
+        siblings.map((r) => r.invoiceNumber),
+      );
+    }
+    throw new ConflictException({
+      message: `Invoice ${requested} already exists for ${vendorCode}`,
+      existingInvoiceId: existing.id,
+      vendorCode,
+      vendorId,
+    });
   }
 
   async setPayment(id: number, dto: InvoicePaymentDto, actor: AuthUser) {

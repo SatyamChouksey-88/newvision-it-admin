@@ -553,6 +553,11 @@ export class CreateInvoiceDto {
   @IsOptional()
   @IsString()
   exceptionNote?: string;
+
+  /** Super Admin only: store as INV-…-CORR instead of 409 when the number already exists. */
+  @IsOptional()
+  @IsBoolean()
+  correction?: boolean;
 }
 
 export class InvoicePaymentDto {
