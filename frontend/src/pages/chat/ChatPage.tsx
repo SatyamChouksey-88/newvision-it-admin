@@ -33,7 +33,6 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useToast } from '../../components/Toast';
-import { DesktopOnlyBanner } from '../../components/DesktopOnlyBanner';
 import { useChatSocket } from '../../hooks/useChatSocket';
 import type { Identity } from '../../providers/authProvider';
 import { apiErrorMessage, httpClient } from '../../providers/axios';
@@ -555,7 +554,6 @@ export function ChatPage() {
       <a href="#nv-teams-transcript" className="nv-skip-link">
         Skip to messages
       </a>
-      <DesktopOnlyBanner noun="Team Chat" />
       <header className="nv-teams-appbar" data-testid="chat-appbar">
         <Link to="/" className="nv-teams-brand" aria-label="NewVision home">
           <img src="/brand/favicon.png" alt="" className="nv-brand-img" width={22} height={22} />
