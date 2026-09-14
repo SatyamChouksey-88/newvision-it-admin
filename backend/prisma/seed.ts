@@ -13,7 +13,56 @@ import { ROLE_PERMISSIONS } from '../src/common/rbac/permissions';
 import { ACCOUNT_LOCKOUT_TEMPLATE, RESET_COMPLETED_MACRO } from '../src/tickets/account-playbook';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
-const prisma = new PrismaClient({ adapter });
+const DEMO_TENANT_ID = 1;
+
+function injectTenantId(data: unknown, tenantId: number): unknown {
+  if (Array.isArray(data)) return data.map((row) => injectTenantId(row, tenantId));
+  if (data && typeof data === 'object') {
+    const row = { ...(data as Record<string, unknown>) };
+    const isRelationOp = 'connect' in row || 'connectOrCreate' in row || 'disconnect' in row;
+    if (!isRelationOp && row.tenantId == null) row.tenantId = tenantId;
+    for (const key of Object.keys(row)) {
+      const value = row[key];
+      if (!value || typeof value !== 'object') continue;
+      const nested = value as Record<string, unknown>;
+      if ('create' in nested) {
+        row[key] = { ...nested, create: injectTenantId(nested.create, tenantId) };
+      }
+      if ('createMany' in nested && nested.createMany && typeof nested.createMany === 'object') {
+        const createMany = nested.createMany as { data?: unknown };
+        row[key] = {
+          ...nested,
+          createMany: { ...createMany, data: injectTenantId(createMany.data, tenantId) },
+        };
+      }
+    }
+    return row;
+  }
+  return data;
+}
+
+const GLOBAL_MODELS = new Set(['Role', 'Permission', 'Tenant']);
+const prisma = new PrismaClient({ adapter }).$extends({
+  name: 'seed-tenant-default',
+  query: {
+    $allModels: {
+      async $allOperations({ model, operation, args, query }) {
+        if (GLOBAL_MODELS.has(model)) return query(args);
+        if (operation === 'create' || operation === 'createMany') {
+          const next = { ...(args as Record<string, unknown>) };
+          next.data = injectTenantId(next.data, DEMO_TENANT_ID);
+          return query(next);
+        }
+        if (operation === 'upsert') {
+          const next = { ...(args as Record<string, unknown>) };
+          next.create = injectTenantId(next.create, DEMO_TENANT_ID);
+          return query(next);
+        }
+        return query(args);
+      },
+    },
+  },
+}) as PrismaClient;
 
 const DEMO_PASSWORD = 'Password123!';
 
