@@ -45,14 +45,14 @@ test.describe('Prompt 38 — join date, My kit, phone, sticky', () => {
     await login(page, DEMO_USERS.employee);
     await page.goto('/');
     await expect(page.getByTestId('my-it-home')).toBeVisible();
-    const homeCard = page.getByTestId('my-kit-accessory').filter({ hasText: mouse!.name });
+    const homeCard = page.getByTestId('my-kit-accessory').filter({ hasText: mouse!.name }).first();
     await expect(homeCard).toBeVisible();
     await expect(homeCard.getByText('Return to IT')).toBeVisible();
     await expect(page.getByText(hiddenSerial)).toHaveCount(0);
 
     await page.goto('/assets');
     await expect(page.getByText('My kit').first()).toBeVisible();
-    const kitCard = page.getByTestId('my-kit-accessory').filter({ hasText: mouse!.name });
+    const kitCard = page.getByTestId('my-kit-accessory').filter({ hasText: mouse!.name }).first();
     await expect(kitCard).toBeVisible();
     await expect(page.locator('.nv-grid')).toHaveCount(0);
 
@@ -72,7 +72,7 @@ test.describe('Prompt 38 — join date, My kit, phone, sticky', () => {
       () => document.documentElement.scrollWidth - window.innerWidth,
     );
     expect(overflow).toBeLessThanOrEqual(12);
-    await page.getByRole('link', { name: 'Raise a ticket' }).click();
+    await page.getByRole('link', { name: 'Raise a ticket', exact: true }).click();
     await expect(page).toHaveURL(/\/tickets\/create/);
   });
 
