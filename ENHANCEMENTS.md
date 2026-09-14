@@ -286,3 +286,19 @@ allow/deny cases, and IT Support being blocked).
 | A11 | Indexes on `warranty_end`, `next_audit_due_at`, `notifications.type` | Daily jobs and dashboard filters were sequential-scanning those columns |
 | A12 | Procurement detail pages show loading / error / Retry | A failed GET used to leave a blank “Vendor” / “PO” title |
 
+## Prompt 29 — Help documentation (2026-09-14)
+
+| # | What | Why |
+|---|------|-----|
+| H1 | Help articles rewritten against the live app (tickets, chat, procurement, users, import, RBAC, shortcuts) | Old copy still said IT Support could not open Settings and omitted Chat / handoff / digest idempotency |
+| H2 | `npm run screenshots` recaptures light-theme PNGs (optional numbered badges) | Screenshots were stale vs current sider/header/chat |
+| H3 | At a glance cards for Team Chat and Vendor & Procurement | Landing grid lagged the product |
+| H4 | Markdown `[label](/help/…)` links | Cross-article navigation |
+
+## Prompt 30 — QA cycle (2026-09-14)
+
+| # | What | Why |
+|---|------|-----|
+| Q1 | `SlaChip` replaces AntD `gold`/`red` SLA tags | Axe serious contrast on “Due in Xm” |
+| Q2 | Help inline links underlined | Axe `link-in-text-block` on Getting Started |
+

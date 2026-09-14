@@ -445,6 +445,24 @@ See `ENHANCEMENTS.md` for the full item-by-item list with file references. Summa
 - [ ] **Email-in against a real mailbox** — IMAP/webhook code is unchanged and fixture-tested;
       no production `IMAP_*` / mailbox credentials were available to prove a live ingest.
 
+## Prompt 29 — Help documentation (2026-09-14)
+
+- [x] Help articles brought in line with the running app: tickets (email-in, SLA, macros, CSAT,
+      assign-to-me, requester assets, duplicates, who-gets-mail), Team Chat as its own nav section,
+      procurement (vendors, approvals, PO/GRN, handoff, contracts), users/bootstrap, import 10 MB
+      + reconciliation, roles table after Prompt 28, shortcuts (`?` vs `Ctrl+/`), Settings tabs
+      including Issue kits. IT Support **does** reach Settings via the avatar menu (old Help was wrong).
+- [x] Repeatable captures: `cd frontend && npm run screenshots` → `frontend/public/docs/screenshots/`.
+- [x] Glance grid: Team Chat + Vendor & Procurement. Search index is still built from article bodies.
+- [x] Playwright `e2e/help.spec.ts` green (nav, TOC, search, every route, screenshots load).
+
+## Prompt 30 — QA cycle (2026-09-14)
+
+- [x] `QA_TEST_PLAN.md` / `QA_RESULTS.md` / `QA_DEFECTS.md`.
+- [x] D1 SLA gold contrast and D2 Help link-in-text-block fixed and axe-retested.
+- [ ] Real production mailbox / IMAP (still no secrets on Render).
+- [ ] Full 80-spec Playwright job as a single CI-shaped run (Help + axe executed this pass).
+
 ### Tests (Prompt 27 pass, 2026-09-13)
 
 - Backend unit **101/101** (was 98; +3 Resend helper tests).

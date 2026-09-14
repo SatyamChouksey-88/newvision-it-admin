@@ -289,4 +289,19 @@ Every judgment call made while building NewVision, and why. Newest at the bottom
 - **Do not invent a production mailbox or Resend account.** Email-in and live outbound mail stay unproven until an operator pastes real `RESEND_API_KEY` / `IMAP_*` values into the Render dashboard. The code path is ready; claiming a real inbox test without those secrets would be false.
 - **Chat was not rebuilt.** Prompt 26 already verified every Teams checklist item live. This pass only changed Prisma `update` → `updateMany` on presence writes so a missing user row cannot crash the gateway.
 
+## Prompt 29 — Help (2026-09-14)
+
+- **Team Chat is its own Help category**, not a child of Support tickets. The product already treats Chat as a top-level staff app; burying it under tickets hid it on the glance grid.
+- **Screenshots are regenerated, not hand-edited.** `frontend/scripts/capture-screenshots.mjs` (`npm run screenshots`) logs in as the role that owns the screen, 1280×800 light theme. Optional CSS badges are painted onto the PNG; captions under the figure stay the numbered list.
+- **Help markdown links are underlined.** Color-only `#0958D9` in body copy failed axe `link-in-text-block`.
+- **Accessories Help describes Cards as the default**, because that is what the running app shows; Table is the Excel-grade toggle.
+- **IT Support Settings path is the avatar menu.** The previous article claimed they could not reach digest preferences; the account popover already links to `/settings`.
+- **No approval-matrix Settings tab** — To/Cc live on each requisition. Documented rather than inventing a screen.
+- **First Super Admin is bootstrap seed**, not an in-app wizard (`SEED_MODE=bootstrap`).
+
+## Prompt 30 — QA (2026-09-14)
+
+- **AntD preset `gold` is banned for SLA chips.** Same WCAG lesson as other status tags: explicit `#92400e` on `#fffbeb` plus an icon.
+- **Do not mark production email or a 5-role production walk as pass** without secrets / a live Render session this sitting. Local Help + axe were actually run.
+
 

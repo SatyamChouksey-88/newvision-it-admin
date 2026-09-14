@@ -1,9 +1,11 @@
 # NewVision — Project Status & Gap Audit
 
+**2026-09-14 (Prompts 29–30):** In-app Help is current (articles + regenerated screenshots; `cd frontend && npm run screenshots`). QA plan/results/defects live in `QA_TEST_PLAN.md`, `QA_RESULTS.md`, `QA_DEFECTS.md`. SLA chip contrast and Help link underlines were fixed this pass. Production mailbox / full 80-spec Playwright job are still open (see those files). Feature inventory: `PROJECT_HISTORY.md` + `PROGRESS.md`.
+
 This document is the current gap audit, cross-checked against the codebase after **Prompt 20** (visual rebuild, role-based shells, ticket depth, email-in). For the build log see `PROGRESS.md`; for judgment calls see `DECISIONS.md`.
 
-> **Stale from Prompt 20 onward.** Vendor/procurement (Prompt 23), Teams-style chat (Prompt 24),
-> and the post-Prompt-25 hardening + Prompt 26 chat-verification passes are not reflected below.
+> **Stale from Prompt 20 onward for the numbered sections below.** Vendor/procurement (Prompt 23), Teams-style chat (Prompt 24),
+> and later hardening are not fully reflected in sections 1–n.
 > Use **`PROJECT_HISTORY.md`** for the current, verified feature inventory and open-issues list.
 
 ## 1. What’s covered (Phases 1–4 — core product)
