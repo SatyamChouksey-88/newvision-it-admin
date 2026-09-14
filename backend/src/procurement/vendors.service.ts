@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -12,6 +13,7 @@ import { CreateVendorDto, ScorecardDto, UpdateVendorDto, VendorStatusDto } from 
 import { ProcurementLogService } from './log.service';
 import { overallScore } from './match';
 import { maskBank, paddedCode } from './numbers';
+import { bankAccountsMatch, normalizeTaxId, taxIdsMatch } from './vendor-identity';
 
 const BLOCKED: VendorStatus[] = ['suspended', 'blacklisted'];
 
@@ -67,18 +69,22 @@ export class VendorsService {
       }),
       this.prisma.vendor.count({ where }),
     ]);
-    return { data: rows.map((v) => this.publicVendor(v)), total };
+    return { data: rows.map((v) => this.publicVendor(v, this.canSeeBank(actor))), total };
   }
 
   async get(id: number, actor: AuthUser) {
     this.assertRead(actor);
     const vendor = await this.prisma.vendor.findUnique({ where: { id }, include: vendorInclude });
     if (!vendor) throw new NotFoundException(`Vendor ${id} not found`);
-    return this.publicVendor(vendor, false);
+    return this.publicVendor(vendor, this.canSeeBank(actor));
   }
 
   async create(dto: CreateVendorDto, actor: AuthUser) {
     this.assertManage(actor);
+    await this.assertNoDuplicateVendor({
+      taxId: dto.taxId,
+      bankAccountNumber: dto.bankAccountNumber,
+    });
     const vendor = await this.prisma.vendor.create({
       data: {
         vendorCode: await this.nextCode(),
@@ -113,7 +119,7 @@ export class VendorsService {
       auditAction: 'create',
       entityType: 'Vendor',
     });
-    return this.publicVendor(vendor, false);
+    return this.publicVendor(vendor, !this.canSeeBank(actor));
   }
 
   async update(id: number, dto: UpdateVendorDto, actor: AuthUser) {
@@ -123,6 +129,15 @@ export class VendorsService {
       include: { contacts: true },
     });
     if (!existing) throw new NotFoundException(`Vendor ${id} not found`);
+
+    await this.assertNoDuplicateVendor(
+      {
+        taxId: dto.taxId !== undefined ? dto.taxId : existing.taxId,
+        bankAccountNumber:
+          dto.bankAccountNumber !== undefined ? dto.bankAccountNumber : existing.bankAccountNumber,
+      },
+      id,
+    );
 
     const bankChanged =
       (dto.bankAccountNumber !== undefined &&
@@ -191,6 +206,15 @@ export class VendorsService {
     if (!existing) throw new NotFoundException(`Vendor ${id} not found`);
     const to = dto.status as VendorStatus;
     if (existing.status === to) throw new BadRequestException(`Vendor is already ${to}`);
+    if (to === 'active') {
+      await this.assertNoDuplicateVendor(
+        {
+          taxId: existing.taxId,
+          bankAccountNumber: existing.bankAccountNumber,
+        },
+        id,
+      );
+    }
 
     const updated = await this.prisma.$transaction(async (tx) => {
       const row = await tx.vendor.update({
@@ -352,10 +376,59 @@ export class VendorsService {
     return paddedCode('VND', (last?.id ?? 0) + 1);
   }
 
+  private async assertNoDuplicateVendor(
+    fields: { taxId?: string | null; bankAccountNumber?: string | null },
+    excludeId?: number,
+  ) {
+    const taxId = normalizeTaxId(fields.taxId);
+    const others = await this.prisma.vendor.findMany({
+      where: excludeId ? { id: { not: excludeId } } : undefined,
+      select: {
+        id: true,
+        vendorCode: true,
+        legalName: true,
+        taxId: true,
+        bankAccountNumber: true,
+      },
+    });
+    const taxHit = taxId
+      ? others.find((v) => taxIdsMatch(v.taxId, fields.taxId))
+      : undefined;
+    if (taxHit) {
+      throw new ConflictException({
+        message: `A vendor with this GSTIN/PAN already exists (${taxHit.vendorCode})`,
+        existingVendorId: taxHit.id,
+        vendorCode: taxHit.vendorCode,
+        legalName: taxHit.legalName,
+        match: 'taxId',
+      });
+    }
+    const bankHit = others.find((v) =>
+      bankAccountsMatch(v.bankAccountNumber, fields.bankAccountNumber),
+    );
+    if (bankHit) {
+      throw new ConflictException({
+        message: `A vendor with this bank account already exists (${bankHit.vendorCode})`,
+        existingVendorId: bankHit.id,
+        vendorCode: bankHit.vendorCode,
+        legalName: bankHit.legalName,
+        match: 'bankAccount',
+      });
+    }
+  }
+
+  private canSeeBank(actor: AuthUser) {
+    return actor.role === RoleName.SUPER_ADMIN || actor.role === RoleName.IT_ADMIN;
+  }
+
   private publicVendor<
-    T extends { bankAccountNumber?: string | null; bankIfscSwift?: string | null },
-  >(vendor: T, mask = true) {
-    if (!mask) {
+    T extends {
+      bankAccountNumber?: string | null;
+      bankIfscSwift?: string | null;
+      pendingBankAccountNumber?: string | null;
+    },
+  >(vendor: T, unmask = false) {
+    if (unmask) {
       return {
         ...vendor,
         bankAccountMasked: maskBank(vendor.bankAccountNumber),
@@ -365,15 +438,16 @@ export class VendorsService {
       ...vendor,
       bankAccountNumber: maskBank(vendor.bankAccountNumber),
       bankIfscSwift: vendor.bankIfscSwift ? maskBank(vendor.bankIfscSwift) : null,
+      pendingBankAccountNumber: vendor.pendingBankAccountNumber
+        ? maskBank(vendor.pendingBankAccountNumber)
+        : vendor.pendingBankAccountNumber,
       bankAccountMasked: maskBank(vendor.bankAccountNumber),
     };
   }
 
   private assertRead(actor: AuthUser) {
-    if (!['SUPER_ADMIN', 'IT_ADMIN', 'MANAGER'].includes(actor.role)) {
-      throw new ForbiddenException(
-        'Procurement is limited to Super Admin, IT Admin, and managers of their team',
-      );
+    if (actor.role !== RoleName.SUPER_ADMIN && actor.role !== RoleName.IT_ADMIN) {
+      throw new ForbiddenException('Vendors are limited to Super Admin and IT Admin');
     }
   }
 

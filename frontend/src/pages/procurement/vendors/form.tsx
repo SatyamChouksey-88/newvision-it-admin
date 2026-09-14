@@ -1,9 +1,11 @@
-import { Button, Card, Form, Input, Select, Space, Switch } from 'antd';
-import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { Alert, Button, Card, Form, Input, Select, Space, Switch, Typography } from 'antd';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router';
 import { useToast } from '../../../components/Toast';
 import { apiErrorMessage, httpClient } from '../../../providers/axios';
 import { PROC_CATEGORIES } from '../constants';
+
+type VendorHit = { id: number; vendorCode: string; legalName: string; taxId?: string | null };
 
 export function VendorForm() {
   const { id } = useParams();
@@ -11,6 +13,8 @@ export function VendorForm() {
   const toast = useToast();
   const [form] = Form.useForm();
   const [busy, setBusy] = useState(false);
+  const [matches, setMatches] = useState<VendorHit[]>([]);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -18,6 +22,24 @@ export function VendorForm() {
       .get(`/vendors/${id}`)
       .then(({ data }) => form.setFieldsValue({ ...data, categories: data.categories ?? [] }));
   }, [id, form]);
+
+  const searchExisting = (q: string) => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    const term = q.trim();
+    if (!term || term.length < 3) {
+      setMatches([]);
+      return;
+    }
+    searchTimer.current = setTimeout(() => {
+      httpClient
+        .get('/vendors', { params: { q: term, _start: 0, _end: 8 } })
+        .then(({ data }) => {
+          const rows = (data.data ?? []) as VendorHit[];
+          setMatches(id ? rows.filter((r) => String(r.id) !== id) : rows);
+        })
+        .catch(() => setMatches([]));
+    }, 280);
+  };
 
   return (
     <Card title={id ? 'Edit vendor' : 'New vendor'}>
@@ -37,20 +59,49 @@ export function VendorForm() {
               navigate(`/procurement/vendors/show/${data.id}`);
             }
           } catch (e) {
-            toast.error(apiErrorMessage(e, 'Could not save vendor'));
+            const body = (e as { response?: { data?: { existingVendorId?: number; vendorCode?: string } } })
+              ?.response?.data;
+            if (body?.existingVendorId) {
+              toast.error(
+                `${apiErrorMessage(e, 'This vendor already exists')} — open ${body.vendorCode ?? 'the existing vendor'}.`,
+              );
+            } else {
+              toast.error(apiErrorMessage(e, 'Could not save vendor'));
+            }
           } finally {
             setBusy(false);
           }
         }}
       >
+        {!id && matches.length > 0 ? (
+          <Alert
+            type="warning"
+            showIcon
+            style={{ marginBottom: 16 }}
+            message="Possible existing vendor"
+            description={
+              <Space direction="vertical" size={4}>
+                <Typography.Text>
+                  Search-before-create found a match. Open it instead of creating a duplicate.
+                </Typography.Text>
+                {matches.map((m) => (
+                  <Link key={m.id} to={`/procurement/vendors/show/${m.id}`}>
+                    {m.vendorCode} · {m.legalName}
+                    {m.taxId ? ` · ${m.taxId}` : ''}
+                  </Link>
+                ))}
+              </Space>
+            }
+          />
+        ) : null}
         <Form.Item name="legalName" label="Legal name" rules={[{ required: true, min: 2 }]}>
-          <Input />
+          <Input onChange={(e) => searchExisting(e.target.value)} />
         </Form.Item>
         <Form.Item name="tradingName" label="Trading name">
           <Input />
         </Form.Item>
         <Form.Item name="taxId" label="Tax ID (GST / VAT / registration)">
-          <Input />
+          <Input onChange={(e) => searchExisting(e.target.value)} />
         </Form.Item>
         <Form.Item name="country" label="Country" initialValue="IN">
           <Input />
@@ -68,7 +119,7 @@ export function VendorForm() {
           <Input />
         </Form.Item>
         <Form.Item name="bankAccountNumber" label="Bank account">
-          <Input />
+          <Input onChange={(e) => searchExisting(e.target.value.replace(/\D/g, ''))} />
         </Form.Item>
         <Form.Item name="bankIfscSwift" label="IFSC / SWIFT">
           <Input />
