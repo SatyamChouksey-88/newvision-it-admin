@@ -29,6 +29,23 @@ export function formatDate(value: string | null | undefined): string {
   return d.toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: '2-digit' });
 }
 
+/** Compact tenure from joining date (`2y 3m`, `12d`). Future DOJ → `in Nd`. */
+export function formatTenure(dateJoined: string | null | undefined, now = new Date()): string {
+  if (!dateJoined) return '—';
+  const start = new Date(dateJoined);
+  if (Number.isNaN(start.getTime())) return '—';
+  const a = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate());
+  const b = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const days = Math.round((b - a) / 86_400_000);
+  if (days < 0) return `in ${Math.abs(days)}d`;
+  if (days < 30) return `${days}d`;
+  const years = Math.floor(days / 365);
+  const months = Math.floor((days % 365) / 30);
+  if (years > 0 && months > 0) return `${years}y ${months}m`;
+  if (years > 0) return `${years}y`;
+  return `${months}m`;
+}
+
 /** Plain "N days" text for warranty urgency (sortable, scannable). */
 export function warrantyDaysLabel(warrantyEnd: string | null | undefined): {
   text: string;

@@ -3,6 +3,7 @@ import { useGetIdentity } from '@refinedev/core';
 import {
   Button,
   Card,
+  Checkbox,
   Col,
   Form,
   Input,
@@ -11,6 +12,7 @@ import {
   Popconfirm,
   Row,
   Segmented,
+  Select,
   Space,
   Typography,
 } from 'antd';
@@ -28,7 +30,12 @@ import { useToast } from '../../components/Toast';
 import type { Identity } from '../../providers/authProvider';
 import { apiErrorMessage, httpClient } from '../../providers/axios';
 import { tabularNums } from '../../theme';
-import type { Accessory } from '../../types';
+import { HardwareTabs } from '../../components/HardwareTabs';
+import { InventoryDecision } from '../../components/InventoryDecision';
+import { AssetSelect } from '../../components/AssetSelect';
+import { NV_TABLE_STICKY } from '../../chrome';
+import { useNvPhone } from '../../hooks/useNvPhone';
+import type { Accessory, Location } from '../../types';
 
 const IT_ROLES = ['SUPER_ADMIN', 'IT_ADMIN', 'IT_SUPPORT'];
 
@@ -48,7 +55,13 @@ export function AccessoriesPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [checkoutTarget, setCheckoutTarget] = useState<Accessory | null>(null);
   const [employeeId, setEmployeeId] = useState<number>();
+  const [checkoutQty, setCheckoutQty] = useState(1);
+  const [checkoutSerial, setCheckoutSerial] = useState('');
+  const [issuedWithAssetId, setIssuedWithAssetId] = useState<number>();
+  const [dueBack, setDueBack] = useState('');
+  const [locations, setLocations] = useState<Location[]>([]);
   const [form] = Form.useForm();
+  const phone = useNvPhone();
 
   const [loadError, setLoadError] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -73,10 +86,34 @@ export function AccessoriesPage() {
     void load();
   }, [load]);
 
-  const create = async (values: { name: string; category: string; quantityTotal: number }) => {
+  useEffect(() => {
+    httpClient
+      .get('/locations', { params: { _start: 0, _end: 100 } })
+      .then(({ data }) => setLocations(data.data ?? []))
+      .catch(() => undefined);
+  }, []);
+
+  const create = async (values: {
+    name: string;
+    category: string;
+    quantityTotal: number;
+    brand?: string;
+    model?: string;
+    locationId?: number;
+    lowStockThreshold?: number;
+    estateWide?: boolean;
+  }) => {
     setBusy(true);
     try {
-      await httpClient.post('/accessories', values);
+      await httpClient.post('/accessories', {
+        name: values.name,
+        category: values.category,
+        quantityTotal: values.quantityTotal,
+        brand: values.brand || undefined,
+        model: values.model || undefined,
+        locationId: values.estateWide ? null : values.locationId,
+        lowStockThreshold: values.lowStockThreshold ?? 5,
+      });
       toast.success(`Added ${values.name}`);
       setCreateOpen(false);
       form.resetFields();
@@ -95,10 +132,20 @@ export function AccessoriesPage() {
     }
     setBusy(true);
     try {
-      await httpClient.post(`/accessories/${checkoutTarget.id}/checkout`, { employeeId });
+      await httpClient.post(`/accessories/${checkoutTarget.id}/checkout`, {
+        employeeId,
+        quantity: checkoutQty,
+        serialNumber: checkoutSerial.trim() || undefined,
+        issuedWithAssetId,
+        expectedReturnAt: dueBack || undefined,
+      });
       toast.success(`Checked out ${checkoutTarget.name}`);
       setCheckoutTarget(null);
       setEmployeeId(undefined);
+      setCheckoutQty(1);
+      setCheckoutSerial('');
+      setIssuedWithAssetId(undefined);
+      setDueBack('');
       void load();
     } catch (e) {
       toast.error(apiErrorMessage(e, 'Check-out failed'));
@@ -119,7 +166,13 @@ export function AccessoriesPage() {
 
   return (
     <Card
-      title="Accessories"
+      className="nv-list-page"
+      title={
+        <span>
+          Accessories
+          <HardwareTabs />
+        </span>
+      }
       extra={
         canManage ? (
           <Button
@@ -133,16 +186,18 @@ export function AccessoriesPage() {
         ) : null
       }
     >
+      <div className="nv-page-pin">
       <div className="nv-filter-row">
         <Segmented
           size="small"
-          value={view}
+          value={phone ? 'cards' : view}
           onChange={(v) => setView(v as 'cards' | 'table')}
           options={[
             { label: 'Cards', value: 'cards' },
             { label: 'Table', value: 'table' },
           ]}
         />
+      </div>
       </div>
       {loading && rows.length === 0 ? (
         <TableSkeleton />
@@ -160,12 +215,13 @@ export function AccessoriesPage() {
         />
       ) : (
         <>
-          {view === 'cards' && (
+          {(phone || view === 'cards') ? (
             <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
               {rows.map((r) => {
                 const avail = r.quantityAvailable;
                 const pct = r.quantityTotal > 0 ? Math.round((avail / r.quantityTotal) * 100) : 0;
-                const low = avail <= Math.max(1, Math.round(r.quantityTotal * 0.15));
+                const low =
+                  avail <= (r.lowStockThreshold ?? Math.max(1, Math.round(r.quantityTotal * 0.15)));
                 return (
                   <Col xs={24} sm={12} lg={8} xl={6} key={r.id}>
                     <div className="nv-stock-card">
@@ -173,7 +229,7 @@ export function AccessoriesPage() {
                         {r.name}
                       </Typography.Text>
                       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                        {r.category}
+                        {[r.brand, r.model].filter(Boolean).join(' ') || r.category}
                       </Typography.Text>
                       <div
                         style={{
@@ -208,8 +264,8 @@ export function AccessoriesPage() {
                 );
               })}
             </Row>
-          )}
-          {view === 'table' && (
+          ) : null}
+          {!phone && view === 'table' && (
             <DataGrid<Accessory>
               tableKey="accessories"
               searchInputId="accessories-grid-search"
@@ -218,6 +274,7 @@ export function AccessoriesPage() {
               loading={loading}
               density={density}
               onDensityChange={setDensity}
+              sticky={NV_TABLE_STICKY}
               quickFilter
               quickFilterPlaceholder="Search accessories"
               toolbarExtra={<StatusLegend kind="asset" />}
@@ -281,7 +338,10 @@ export function AccessoriesPage() {
                   gridKey: 'item',
                   render: (_, r) => (
                     <Space size={4}>
-                      <PrimaryWithSub primary={r.name} sub={r.category} />
+                      <PrimaryWithSub
+                        primary={r.name}
+                        sub={[r.brand, r.model, r.category].filter(Boolean).join(' · ')}
+                      />
                       <CopyButton value={r.name} label="accessory name" />
                     </Space>
                   ),
@@ -373,20 +433,60 @@ export function AccessoriesPage() {
       <Modal
         open={createOpen}
         title="Add accessory"
-        onCancel={() => setCreateOpen(false)}
+        onCancel={() => {
+          setCreateOpen(false);
+          form.resetFields();
+        }}
         onOk={() => form.submit()}
         confirmLoading={busy}
       >
-        <Form form={form} layout="vertical" onFinish={create}>
+        <InventoryDecision variant="accessory" />
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={create}
+          initialValues={{ category: 'Peripherals', lowStockThreshold: 5 }}
+        >
           <Form.Item name="name" label="Name" rules={[{ required: true, whitespace: true }]}>
             <Input />
           </Form.Item>
-          <Form.Item
-            name="category"
-            label="Category"
-            rules={[{ required: true, whitespace: true }]}
-          >
-            <Input placeholder="Peripherals, Bags, …" />
+          <Form.Item name="brand" label="Brand">
+            <Input />
+          </Form.Item>
+          <Form.Item name="model" label="Model">
+            <Input />
+          </Form.Item>
+          <Form.Item name="category" label="Category" rules={[{ required: true, whitespace: true }]}>
+            <Select
+              options={[
+                { label: 'Peripherals', value: 'Peripherals' },
+                { label: 'Audio', value: 'Audio' },
+                { label: 'Power', value: 'Power' },
+                { label: 'Cables', value: 'Cables' },
+                { label: 'Bags', value: 'Bags' },
+                { label: 'Other', value: 'Other' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="estateWide" valuePropName="checked">
+            <Checkbox>Estate-wide (no site)</Checkbox>
+          </Form.Item>
+          <Form.Item noStyle shouldUpdate={(a, b) => a.estateWide !== b.estateWide}>
+            {({ getFieldValue }) =>
+              getFieldValue('estateWide') ? null : (
+                <Form.Item
+                  name="locationId"
+                  label="Location"
+                  rules={[{ required: true, message: 'Pick a location or mark estate-wide' }]}
+                >
+                  <Select
+                    options={locations.map((l) => ({ label: `${l.name} (${l.code})`, value: l.id }))}
+                    showSearch
+                    optionFilterProp="label"
+                  />
+                </Form.Item>
+              )
+            }
           </Form.Item>
           <Form.Item
             name="quantityTotal"
@@ -395,6 +495,9 @@ export function AccessoriesPage() {
               { required: true, type: 'integer', min: 0, message: 'Enter a whole number ≥ 0' },
             ]}
           >
+            <InputNumber min={0} precision={0} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="lowStockThreshold" label="Low-stock threshold">
             <InputNumber min={0} precision={0} style={{ width: '100%' }} />
           </Form.Item>
         </Form>
@@ -406,6 +509,10 @@ export function AccessoriesPage() {
         onCancel={() => {
           setCheckoutTarget(null);
           setEmployeeId(undefined);
+          setCheckoutQty(1);
+          setCheckoutSerial('');
+          setIssuedWithAssetId(undefined);
+          setDueBack('');
         }}
         onOk={() => void checkout()}
         okText="Check out"
@@ -413,9 +520,26 @@ export function AccessoriesPage() {
         confirmLoading={busy}
       >
         <Typography.Paragraph type="secondary" style={{ fontSize: 12 }}>
-          {checkoutTarget?.quantityAvailable ?? 0} available. One unit is checked out per action.
+          {checkoutTarget?.quantityAvailable ?? 0} available.
         </Typography.Paragraph>
-        <EmployeeSelect value={employeeId} onChange={setEmployeeId} />
+        <Space direction="vertical" style={{ width: '100%' }} size={12}>
+          <EmployeeSelect value={employeeId} onChange={setEmployeeId} />
+          <InputNumber
+            min={1}
+            max={checkoutTarget?.quantityAvailable ?? 1}
+            value={checkoutQty}
+            onChange={(v) => setCheckoutQty(Number(v ?? 1))}
+            addonBefore="Qty"
+            style={{ width: '100%' }}
+          />
+          <Input
+            placeholder="Optional serial / sticker"
+            value={checkoutSerial}
+            onChange={(e) => setCheckoutSerial(e.target.value)}
+          />
+          <AssetSelect value={issuedWithAssetId} onChange={setIssuedWithAssetId} />
+          <Input type="date" value={dueBack} onChange={(e) => setDueBack(e.target.value)} aria-label="Due back" />
+        </Space>
       </Modal>
     </Card>
   );

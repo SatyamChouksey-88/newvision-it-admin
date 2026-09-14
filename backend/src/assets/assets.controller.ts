@@ -15,10 +15,12 @@ import { RoleName } from '@prisma/client';
 import type { Response } from 'express';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
+import { contentDisposition } from '../common/uploads';
 import { AssetListQuery, AssetsService } from './assets.service';
 import {
   AssignAssetDto,
   AuditAssetDto,
+  AuditByCodeDto,
   BulkAssetsDto,
   ChangeStatusDto,
   CreateAssetDto,
@@ -35,6 +37,11 @@ export class AssetsController {
   @Get()
   list(@Query() query: AssetListQuery, @CurrentUser() user: AuthUser) {
     return this.assets.list(query, user);
+  }
+
+  @Get('category-counts')
+  categoryCounts(@Query() query: AssetListQuery, @CurrentUser() user: AuthUser) {
+    return this.assets.categoryCounts(query, user);
   }
 
   @Get(':id')
@@ -62,7 +69,7 @@ export class AssetsController {
   ) {
     const pdf = await this.assets.labelsPdf(body?.ids, user);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename="asset-labels.pdf"');
+    res.setHeader('Content-Disposition', contentDisposition('asset-labels.pdf'));
     res.send(pdf);
   }
 
@@ -82,6 +89,12 @@ export class AssetsController {
   @Post('bulk')
   bulk(@Body() dto: BulkAssetsDto, @CurrentUser() user: AuthUser) {
     return this.assets.bulk(dto, user);
+  }
+
+  @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN, RoleName.IT_SUPPORT)
+  @Post('audit-by-code')
+  auditByCode(@Body() dto: AuditByCodeDto, @CurrentUser() user: AuthUser) {
+    return this.assets.stampAuditByCode(dto, user);
   }
 
   @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
@@ -104,7 +117,7 @@ export class AssetsController {
     return this.assets.assign(id, dto, user);
   }
 
-  @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
+  @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN, RoleName.IT_SUPPORT)
   @Post(':id/audit')
   audit(
     @Param('id', ParseIntPipe) id: number,

@@ -102,7 +102,11 @@ export function VendorShow() {
           <Space wrap>
             <Button onClick={() => navigate(`/procurement/vendors/edit/${id}`)}>Edit</Button>
             <Tooltip
-              title={canActivate ? '' : 'Already active, blacklisted, or not awaiting approval'}
+              title={
+                canActivate
+                  ? 'A second Super Admin or IT Admin must confirm the first activation (the creator cannot). Super Admin may self-confirm only if they are the only admin.'
+                  : 'Already active, blacklisted, or not awaiting approval'
+              }
             >
               <Button disabled={!canActivate} onClick={() => setReasonOpen('active')}>
                 Approve / activate
@@ -128,12 +132,18 @@ export function VendorShow() {
                 onClick={() =>
                   void confirmAction({
                     title: 'Approve the pending bank details for this vendor?',
-                    content: 'The new bank details become the official record.',
+                    content:
+                      'The new bank details become the official record. A second admin must confirm — the person who submitted the change cannot. Super Admin may self-confirm only if they are the only admin.',
                     okText: 'Approve bank details',
                     onOk: async () => {
-                      await httpClient.post(`/vendors/${id}/approve-bank`);
-                      toast.success('Bank details approved');
-                      load();
+                      try {
+                        await httpClient.post(`/vendors/${id}/approve-bank`);
+                        toast.success('Bank details approved');
+                        load();
+                      } catch (e) {
+                        toast.error(apiErrorMessage(e, 'Could not approve bank details'));
+                        throw e;
+                      }
                     },
                   })
                 }
@@ -179,6 +189,12 @@ export function VendorShow() {
           <Descriptions.Item label="Terms">{String(row?.paymentTerms ?? '—')}</Descriptions.Item>
           <Descriptions.Item label="Bank">
             {String(row?.bankAccountMasked ?? row?.bankAccountNumber ?? '—')}
+          </Descriptions.Item>
+          <Descriptions.Item label="Account holder">
+            {String(row?.accountHolderName ?? '—')}
+            {row?.accountHolderOverrideReason
+              ? ` (override: ${String(row.accountHolderOverrideReason)})`
+              : ''}
           </Descriptions.Item>
           <Descriptions.Item label="Categories">
             {((row?.categories as string[]) ?? []).join(', ') || '—'}

@@ -1,6 +1,15 @@
 import { PartialType } from '@nestjs/swagger';
 import { EmploymentType, RoleName } from '@prisma/client';
-import { IsBoolean, IsEmail, IsEnum, IsInt, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsDateString,
+  IsEmail,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  MinLength,
+} from 'class-validator';
 
 export class CreateEmployeeDto {
   @IsString() @MinLength(2) employeeCode!: string;
@@ -12,10 +21,16 @@ export class CreateEmployeeDto {
   @IsInt() locationId!: number;
   @IsOptional() @IsInt() departmentId?: number;
   @IsOptional() @IsInt() managerId?: number;
-  @IsOptional() @IsString() dateJoined?: string;
+  /** Offer / actual DOJ — not `createdAt` (when IT typed the row). */
+  @IsDateString() dateJoined!: string;
+  @IsOptional() @IsDateString() expectedStartDate?: string;
+  @IsOptional() @IsDateString() probationEndDate?: string;
+  @IsOptional() @IsString() deskOrSeat?: string;
   @IsOptional() @IsBoolean() isActive?: boolean;
   @IsOptional() @IsEnum(EmploymentType) employmentType?: EmploymentType;
   @IsOptional() @IsString() contractEndDate?: string;
+  /** Default on when DOJ is today or in the past. */
+  @IsOptional() @IsBoolean() startOnboardChecklist?: boolean;
 
   /** B2: optionally create a login (a "set your own password" email link) in the same action. */
   @IsOptional() @IsBoolean() createLogin?: boolean;
@@ -31,6 +46,13 @@ export class UpdateOwnProfileDto {
 }
 
 export class OffboardEmployeeDto {
+  @IsDateString()
+  lastWorkingDate!: string;
+
+  @IsOptional()
+  @IsDateString()
+  recoverByDate?: string;
+
   @IsOptional()
   @IsString()
   notes?: string;

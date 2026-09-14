@@ -18,10 +18,12 @@ import { CopyButton } from '../../components/CopyButton';
 import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid';
 import { EmployeeSelect } from '../../components/EmployeeSelect';
 import { EmptyState } from '../../components/EmptyState';
+import { HardwareTabs } from '../../components/HardwareTabs';
 import { RecordNotes } from '../../components/RecordNotes';
 import { TablePagination } from '../../components/TablePagination';
 import { TableSkeleton } from '../../components/TableSkeleton';
 import { useToast } from '../../components/Toast';
+import { NV_TABLE_STICKY } from '../../chrome';
 import type { Identity } from '../../providers/authProvider';
 import { apiErrorMessage, httpClient } from '../../providers/axios';
 import { tabularNums } from '../../theme';
@@ -120,7 +122,13 @@ export function ConsumablesPage() {
 
   return (
     <Card
-      title={<Typography.Text strong>Consumables</Typography.Text>}
+      className="nv-list-page"
+      title={
+        <span>
+          <Typography.Text strong>Consumables</Typography.Text>
+          <HardwareTabs />
+        </span>
+      }
       extra={
         canManage ? (
           <Button
@@ -134,6 +142,7 @@ export function ConsumablesPage() {
         ) : null
       }
     >
+      <div className="nv-page-pin">
       {rows.length === 0 ? (
         <div className="nv-filter-row">
           <Checkbox
@@ -147,6 +156,7 @@ export function ConsumablesPage() {
           </Checkbox>
         </div>
       ) : null}
+      </div>
       {loading && rows.length === 0 ? (
         <TableSkeleton />
       ) : loadError ? (
@@ -175,6 +185,7 @@ export function ConsumablesPage() {
             loading={loading}
             density={density}
             onDensityChange={setDensity}
+            sticky={NV_TABLE_STICKY}
             quickFilter
             quickFilterPlaceholder="Search consumables"
             toolbarLead={

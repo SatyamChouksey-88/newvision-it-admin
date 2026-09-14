@@ -49,17 +49,30 @@ export async function loginViaApi(page: Page, email = DEMO_USERS.itAdmin) {
     data: { email, password: DEMO_PASSWORD },
   });
   expect(res.ok(), `login ${email} ${res.status()}`).toBeTruthy();
-  const body = (await res.json()) as { access_token: string; user: unknown };
-  expect(body.access_token).toBeTruthy();
+  const body = (await res.json()) as { access_token: string; user?: { role?: string } };
+  expect(body.access_token, `login ${email} missing access_token`).toBeTruthy();
+  expect(body.user?.role, `login ${email} missing user.role`).toBeTruthy();
+  // Stringify in Node so Playwright's clone cannot drop `role` on a nested user object.
+  const userJson = JSON.stringify(body.user);
   await page.addInitScript(
-    ({ token, user }) => {
+    ({ token, userJson: json }) => {
       sessionStorage.setItem('newvision:token', token);
-      sessionStorage.setItem('newvision:user', JSON.stringify(user));
+      sessionStorage.setItem('newvision:user', json);
     },
-    { token: body.access_token, user: body.user },
+    { token: body.access_token, userJson },
   );
   await page.goto('/');
   await expect(page).not.toHaveURL(/\/login/, { timeout: 20_000 });
+  const role = body.user!.role;
+  if (role === 'EMPLOYEE') {
+    await expect(page.getByRole('heading', { name: 'My IT' })).toBeVisible({ timeout: 20_000 });
+  } else if (role === 'MANAGER') {
+    await expect(page.getByRole('heading', { name: 'Your team' })).toBeVisible({ timeout: 20_000 });
+  } else if (role === 'IT_SUPPORT') {
+    await expect(page.getByRole('heading', { name: 'Queue' })).toBeVisible({ timeout: 20_000 });
+  } else {
+    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 20_000 });
+  }
 }
 
 /** Log in through the UI and wait for the dashboard to render. */

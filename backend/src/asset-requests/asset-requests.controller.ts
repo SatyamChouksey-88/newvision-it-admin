@@ -5,7 +5,7 @@ import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorat
 import { Roles } from '../common/decorators/roles.decorator';
 import { ListQuery } from '../common/query';
 import { AssetRequestsService } from './asset-requests.service';
-import { CreateAssetRequestDto, ReviewAssetRequestDto, UpdateAssetRequestDto } from './dto';
+import { CreateAssetRequestDto, FulfillAssetRequestDto, ReviewAssetRequestDto, UpdateAssetRequestDto } from './dto';
 
 @ApiTags('asset-requests')
 @Controller('asset-requests')
@@ -20,7 +20,7 @@ export class AssetRequestsController {
     return this.svc.list(query, user);
   }
 
-  @Roles(RoleName.EMPLOYEE)
+  @Roles(RoleName.EMPLOYEE, RoleName.SUPER_ADMIN, RoleName.IT_ADMIN, RoleName.IT_SUPPORT, RoleName.MANAGER)
   @Post()
   create(@Body() dto: CreateAssetRequestDto, @CurrentUser() user: AuthUser) {
     return this.svc.create(dto, user);
@@ -36,10 +36,14 @@ export class AssetRequestsController {
     return this.svc.review(id, dto, user);
   }
 
-  @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
+  @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN, RoleName.IT_SUPPORT)
   @Patch(':id/fulfill')
-  fulfill(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
-    return this.svc.fulfill(id, user);
+  fulfill(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: FulfillAssetRequestDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.svc.fulfill(id, user, dto);
   }
 
   @Get(':id/history')

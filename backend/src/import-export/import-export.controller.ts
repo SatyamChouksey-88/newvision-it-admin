@@ -15,6 +15,7 @@ import type { Response } from 'express';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { ImportExportService } from './import-export.service';
+import { contentDisposition } from '../common/uploads';
 
 type UploadedCsv = { originalname: string; buffer: Buffer };
 
@@ -29,6 +30,7 @@ export class ImportExportController {
   @Get('export/assets')
   async exportAssets(
     @Res() res: Response,
+    @CurrentUser() user: AuthUser,
     @Query('format') format = 'csv',
     @Query('status') status?: string,
     @Query('locationId') locationId?: string,
@@ -39,15 +41,19 @@ export class ImportExportController {
     @Query('assignedEmployeeId') assignedEmployeeId?: string,
   ) {
     const fmt = format === 'xlsx' ? 'xlsx' : 'csv';
-    const { buffer, rowCount, filename } = await this.svc.exportAssets(fmt, {
-      status,
-      locationId: locationId ? Number(locationId) : undefined,
-      categoryId: categoryId ? Number(categoryId) : undefined,
-      departmentId: departmentId ? Number(departmentId) : undefined,
-      assignedEmployeeId: assignedEmployeeId ? Number(assignedEmployeeId) : undefined,
-      warrantyExpiringInDays: warrantyExpiringInDays ? Number(warrantyExpiringInDays) : undefined,
-      q,
-    });
+    const { buffer, rowCount, filename } = await this.svc.exportAssets(
+      fmt,
+      {
+        status,
+        locationId: locationId ? Number(locationId) : undefined,
+        categoryId: categoryId ? Number(categoryId) : undefined,
+        departmentId: departmentId ? Number(departmentId) : undefined,
+        assignedEmployeeId: assignedEmployeeId ? Number(assignedEmployeeId) : undefined,
+        warrantyExpiringInDays: warrantyExpiringInDays ? Number(warrantyExpiringInDays) : undefined,
+        q,
+      },
+      user,
+    );
     if (rowCount === 0) {
       throw new BadRequestException(
         'No rows match the current filters — adjust filters and try again',
@@ -89,7 +95,7 @@ export class ImportExportController {
         ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         : 'text/csv';
     res.setHeader('Content-Type', contentType);
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Disposition', contentDisposition(filename));
     res.send(buf);
   }
 }

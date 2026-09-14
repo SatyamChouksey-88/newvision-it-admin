@@ -1,8 +1,10 @@
 import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
 import { useThemedLayoutContext } from '@refinedev/antd';
+import { useGetIdentity } from '@refinedev/core';
 import { Tooltip } from 'antd';
 import { Link } from 'react-router';
 import { writeSiderPref } from './siderPref';
+import type { Identity } from '../providers/authProvider';
 
 function isMobileNav() {
   return window.matchMedia('(max-width: 991px)').matches;
@@ -10,6 +12,7 @@ function isMobileNav() {
 
 /** Brand mark from `frontend/public/brand/` — expanded uses the header logo, collapsed the favicon. */
 export function Title({ collapsed }: { collapsed: boolean }) {
+  const { data: identity } = useGetIdentity<Identity>();
   const { siderCollapsed, setSiderCollapsed, mobileSiderOpen, setMobileSiderOpen } =
     useThemedLayoutContext();
 
@@ -34,12 +37,20 @@ export function Title({ collapsed }: { collapsed: boolean }) {
 
   return (
     <div className="nv-sider-brand">
-      <Link to="/" aria-label="NewVision home">
-        <img
-          src={collapsed ? '/brand/favicon.png' : '/brand/header-logo.png'}
-          alt=""
-          className={collapsed ? 'nv-brand-img nv-brand-img--collapsed' : 'nv-brand-img'}
-        />
+      <Link to="/" aria-label={`${identity?.tenant?.name ?? 'NewVision'} home`}>
+        {identity?.tenant?.logoUrl ? (
+          <img
+            src={identity.tenant.logoUrl}
+            alt=""
+            className={collapsed ? 'nv-brand-img nv-brand-img--collapsed' : 'nv-brand-img'}
+          />
+        ) : (
+          <img
+            src={collapsed ? '/brand/favicon.png' : '/brand/header-logo.png'}
+            alt=""
+            className={collapsed ? 'nv-brand-img nv-brand-img--collapsed' : 'nv-brand-img'}
+          />
+        )}
       </Link>
       <Tooltip title={`${label} (Ctrl+[)`}>
         <button

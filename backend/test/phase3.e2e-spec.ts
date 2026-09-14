@@ -53,21 +53,24 @@ describe('Phase 3 — import jobs, saved views, bulk actions, reconciliation (e2
 
     // Process synchronously so the test does not race the in-process queue.
     const jobs = app.get(ImportJobsService);
-    const admin = { id: (await prisma.user.findFirstOrThrow({ where: { email: 'itadmin@newvision.local' } })).id } as never;
+    const adminRow = await prisma.user.findFirstOrThrow({
+      where: { email: 'itadmin@newvision.local' },
+    });
+    const admin = { id: adminRow.id, tenantId: adminRow.tenantId } as never;
     const done = await jobs.process(created.body.id, admin);
     expect(done.status).toBe('completed');
     // First occurrence of SN-JOB-DUP is kept; the repeat in the file is skipped.
     expect(done.createdCount).toBe(2);
     expect(done.failedCount).toBe(1);
 
-    const imported = await prisma.asset.findUnique({ where: { serialNumber: 'SN-JOB-1' } });
+    const imported = await prisma.asset.findFirst({ where: { serialNumber: 'SN-JOB-1' } });
     expect(imported).not.toBeNull();
 
     await request(server())
       .post(`/api/import-jobs/${created.body.id}/rollback`)
       .set(auth(adminToken))
       .expect(201);
-    expect(await prisma.asset.findUnique({ where: { serialNumber: 'SN-JOB-1' } })).toBeNull();
+    expect(await prisma.asset.findFirst({ where: { serialNumber: 'SN-JOB-1' } })).toBeNull();
   });
 
   it('forbids an Employee from creating an import job (RBAC)', async () => {

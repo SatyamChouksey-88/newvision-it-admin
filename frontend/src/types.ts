@@ -42,13 +42,22 @@ export interface Employee {
   phone?: string;
   designation?: string;
   isActive?: boolean;
-  employmentType?: 'permanent' | 'contract';
+  employmentType?: 'permanent' | 'contract' | 'intern' | 'consultant';
   contractEndDate?: string;
+  dateJoined?: string | null;
+  expectedStartDate?: string | null;
+  probationEndDate?: string | null;
+  lastWorkingDate?: string | null;
+  recoverByDate?: string | null;
+  deskOrSeat?: string | null;
+  kitIncomplete?: boolean;
   incompleteChecklistKind?: 'onboard' | 'offboard' | null;
   locationId: number;
   departmentId?: number;
   location?: Location;
   department?: Department;
+  manager?: { id: number; firstName: string; lastName: string; employeeCode: string } | null;
+  user?: { id: number; email: string; isActive: boolean } | null;
 }
 
 export interface Asset {
@@ -91,6 +100,8 @@ export interface Maintenance {
   issue: string;
   status: MaintenanceStatus;
   vendor?: string | null;
+  vendorId?: number | null;
+  vendorRecord?: { id: number; legalName: string; vendorCode: string } | null;
   estimatedCost?: string | number | null;
   actualCost?: string | number | null;
   reportedAt: string;
@@ -176,20 +187,37 @@ export interface AssetRequest {
   category?: AssetCategory;
   reviewedAt?: string | null;
   fulfilledAt?: string | null;
+  fulfilledAsset?: { id: number; assetCode: string; brand?: string | null; model?: string | null } | null;
+}
+
+/** Open accessory checkout on Employee My IT / My kit (no catalog qty, no serial). */
+export interface MyKitAccessory {
+  id: number;
+  name: string;
+  category: string;
+  quantity: number;
+  checkedOutAt?: string | null;
+  expectedReturnAt?: string | null;
 }
 
 export interface Accessory {
   id: number;
   name: string;
   category: string;
+  brand?: string | null;
+  model?: string | null;
   quantityTotal: number;
   quantityCheckedOut: number;
   quantityAvailable: number;
+  lowStockThreshold?: number;
   locationId?: number | null;
   location?: Location | null;
   checkouts?: {
     id: number;
     quantity: number;
+    serialNumber?: string | null;
+    expectedReturnAt?: string | null;
+    issuedWithAsset?: { id: number; assetCode: string } | null;
     employee?: Employee;
   }[];
 }
@@ -212,7 +240,16 @@ export interface Consumable {
 }
 
 export interface AttentionItem {
-  type: 'warranty' | 'repair' | 'low_stock' | 'request' | 'ticket' | 'checklist' | 'contract';
+  type:
+    | 'warranty'
+    | 'repair'
+    | 'low_stock'
+    | 'request'
+    | 'ticket'
+    | 'checklist'
+    | 'contract'
+    | 'joiner'
+    | 'probation';
   id: number;
   label: string;
   detail: string;
@@ -330,6 +367,9 @@ export interface SupportTicket {
   updatedAt: string;
   resolvedAt?: string | null;
   closedAt?: string | null;
+  identityVerifiedAt?: string | null;
+  verifiedById?: number | null;
+  verifiedBy?: { id: number; fullName: string } | null;
   openRepairs?: { id: number; issue: string; status: string; reportedAt: string }[];
 }
 

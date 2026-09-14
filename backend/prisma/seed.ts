@@ -10,6 +10,7 @@ import {
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { ROLE_PERMISSIONS } from '../src/common/rbac/permissions';
+import { ACCOUNT_LOCKOUT_TEMPLATE, RESET_COMPLETED_MACRO } from '../src/tickets/account-playbook';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -159,7 +160,62 @@ const CATEGORIES = [
     cost: [8000, 150000],
   },
   { code: 'SRV', name: 'Server', weight: 4, brands: ['Dell', 'HP'], cost: [200000, 800000] },
+  { code: 'MOU', name: 'Mouse', weight: 0, brands: ['Logitech'], cost: [800, 4500] },
+  { code: 'KEY', name: 'Keyboard', weight: 0, brands: ['Logitech', 'Dell'], cost: [800, 6000] },
+  { code: 'HDS', name: 'Headset', weight: 0, brands: ['Jabra', 'Logitech'], cost: [2000, 12000] },
+  { code: 'CAM', name: 'Webcam', weight: 0, brands: ['Logitech'], cost: [1500, 8000] },
+  { code: 'DOCK', name: 'Dock', weight: 0, brands: ['Dell', 'Lenovo'], cost: [4000, 18000] },
 ];
+
+const MODELS_BY_CATEGORY: Record<string, Record<string, string[]>> = {
+  LAP: {
+    Dell: ['Latitude 5440', 'Latitude 5540', 'XPS 13 9315'],
+    HP: ['EliteBook 840 G10', 'ProBook 450 G10'],
+    Lenovo: ['ThinkPad T14 Gen 4', 'ThinkPad X1 Carbon'],
+    Apple: ['MacBook Air 13 M3', 'MacBook Pro 14 M3'],
+  },
+  DES: {
+    Dell: ['OptiPlex 7010', 'OptiPlex 5090'],
+    HP: ['EliteDesk 800 G9', 'ProDesk 400 G9'],
+    Lenovo: ['ThinkCentre M70q', 'ThinkCentre M90a'],
+  },
+  MON: {
+    Dell: ['P2422H', 'U2723QE'],
+    LG: ['24MK430H', '27UP850'],
+    Samsung: ['S27C390', 'Odyssey G5'],
+    BenQ: ['GW2480', 'PD2705U'],
+  },
+  PRN: {
+    HP: ['LaserJet Pro M404', 'OfficeJet Pro 9015'],
+    Canon: ['imageCLASS MF445dw', 'PIXMA G3270'],
+    Epson: ['EcoTank L3250', 'WorkForce Pro'],
+  },
+  PHN: {
+    Apple: ['iPhone 15', 'iPhone 14'],
+    Samsung: ['Galaxy S24', 'Galaxy A55'],
+    OnePlus: ['12R', 'Nord 4'],
+  },
+  TAB: {
+    Apple: ['iPad 10th gen', 'iPad Air'],
+    Samsung: ['Galaxy Tab S9', 'Galaxy Tab A9'],
+    Lenovo: ['Tab P12', 'Tab M10'],
+  },
+  NET: {
+    Cisco: ['Catalyst 9200', 'Meraki MX68'],
+    Netgear: ['GS308', 'Orbi RBK752'],
+    'TP-Link': ['TL-SG108', 'Archer AX55'],
+  },
+  SRV: {
+    Dell: ['PowerEdge R660', 'PowerEdge T350'],
+    HP: ['ProLiant DL360', 'ProLiant ML350'],
+  },
+};
+
+function brandAndModel(cat: (typeof CATEGORIES)[number]) {
+  const brand = pick(cat.brands);
+  const models = MODELS_BY_CATEGORY[cat.code]?.[brand];
+  return { brand, model: models?.length ? pick(models) : `${brand} ${cat.name}` };
+}
 
 const VENDORS = [
   'Computech Solutions',
@@ -182,7 +238,7 @@ function weightedCategory(): (typeof CATEGORIES)[number] {
 function weightedStatus(): AssetStatus {
   const roll = Math.random();
   if (roll < 0.6) return AssetStatus.assigned;
-  if (roll < 0.8) return AssetStatus.available;
+  if (roll < 0.82) return AssetStatus.available;
   if (roll < 0.88) return AssetStatus.under_repair;
   if (roll < 0.93) return AssetStatus.pending_assignment;
   if (roll < 0.97) return AssetStatus.retired;
@@ -218,6 +274,18 @@ async function seedRolesAndPermissions() {
 
 /** Empty production database: one Super Admin, no demo estate. */
 async function bootstrapProductionAdmin() {
+  await prisma.tenant.upsert({
+    where: { id: 1 },
+    create: {
+      id: 1,
+      slug: 'newvision',
+      name: 'NewVision Softcom',
+      plan: 'team',
+      status: 'active',
+      modules: { procurement: true, chat: true, maintenance: true },
+    },
+    update: {},
+  });
   const email = process.env.BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase();
   const password = process.env.BOOTSTRAP_ADMIN_PASSWORD;
   const name = process.env.BOOTSTRAP_ADMIN_NAME?.trim() || 'Super Admin';
@@ -321,6 +389,19 @@ async function main() {
   await prisma.location.deleteMany();
   await prisma.permission.deleteMany();
   await prisma.role.deleteMany();
+
+  await prisma.tenant.upsert({
+    where: { id: 1 },
+    create: {
+      id: 1,
+      slug: 'newvision',
+      name: 'NewVision Softcom',
+      plan: 'team',
+      status: 'active',
+      modules: { procurement: true, chat: true, maintenance: true },
+    },
+    update: {},
+  });
 
   // ---- roles + permissions ----
   console.log('Seeding roles & permissions...');
@@ -439,10 +520,11 @@ async function main() {
         status: 'in_progress',
         items: {
           create: [
-            { label: 'Issue laptop', sortOrder: 0, done: true, doneAt: new Date() },
+            { label: 'Issue kit (laptop + charger + mouse)', sortOrder: 0, done: true, doneAt: new Date() },
             { label: 'Create login', sortOrder: 1, done: false },
             { label: 'VPN / MFA', sortOrder: 2, done: false },
             { label: 'ID badge', sortOrder: 3, done: false },
+            { label: 'Signed handover', sortOrder: 4, done: false },
           ],
         },
       },
@@ -472,6 +554,17 @@ async function main() {
   }
 
   const itDept = departments.find((d) => d.name === 'Information Technology') ?? departments[0];
+  const saraEmployee = await prisma.employee.create({
+    data: {
+      employeeCode: 'EMP-SARA',
+      firstName: 'Sara',
+      lastName: 'Admin',
+      email: 'superadmin@newvision.local',
+      locationId: locationIds.get('PUN')!,
+      departmentId: itDept.id,
+      designation: 'Head of IT',
+    },
+  });
   const itAdminEmployee = await prisma.employee.create({
     data: {
       employeeCode: 'EMP-ITADM',
@@ -500,11 +593,32 @@ async function main() {
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
   const managerEmployee = await prisma.employee.findFirst({ where: { id: managerIds[0] } });
   const plainEmployee = employees[employees.length - 1];
-  // Demo employee must report to demo manager so request-approval e2e works.
   if (managerEmployee) {
     await prisma.employee.update({
+      where: { id: managerEmployee.id },
+      data: {
+        firstName: 'Manish',
+        lastName: 'Manager',
+        email: 'manager@newvision.local',
+        employeeCode: 'EMP-MGR01',
+        designation: 'Engineering Manager',
+        departmentId: itDept.id,
+      },
+    });
+  }
+  if (plainEmployee && managerEmployee) {
+    await prisma.employee.update({
       where: { id: plainEmployee.id },
-      data: { managerId: managerEmployee.id },
+      data: {
+        firstName: 'Esha',
+        lastName: 'Employee',
+        email: 'employee@newvision.local',
+        employeeCode: 'EMP-ESHA',
+        designation: 'Engineer',
+        managerId: managerEmployee.id,
+        locationId: locationIds.get('PUN')!,
+        dateJoined: daysFromNow(-90),
+      },
     });
   }
   const users = [
@@ -512,7 +626,7 @@ async function main() {
       email: 'superadmin@newvision.local',
       fullName: 'Sara Admin',
       role: RoleName.SUPER_ADMIN,
-      employeeId: null,
+      employeeId: saraEmployee.id,
     },
     {
       email: 'itadmin@newvision.local',
@@ -571,6 +685,20 @@ async function main() {
           isShared: true,
           createdById: itAdminId,
         },
+        {
+          name: 'Monitors',
+          resource: 'assets',
+          filters: { categoryId: categoryIds.get('MON') },
+          isShared: true,
+          createdById: itAdminId,
+        },
+        {
+          name: 'Phones',
+          resource: 'assets',
+          filters: { categoryId: categoryIds.get('PHN') },
+          isShared: true,
+          createdById: itAdminId,
+        },
       ],
     });
   }
@@ -621,13 +749,14 @@ async function main() {
         status = AssetStatus.available;
       }
 
+      const { brand, model } = brandAndModel(cat);
       assetRows.push({
         assetCode: `AST-${l.code}-${cat.code}-${String(seq).padStart(4, '0')}`,
         categoryId: categoryIds.get(cat.code)!,
         locationId: locId,
         departmentId: pick(departments).id,
-        brand: pick(cat.brands),
-        model: `${pick(cat.brands)} ${pick(['Pro', 'Air', 'Plus', 'X', 'S', 'Elite', 'G5', 'ThinkPad'])} ${randInt(10, 99)}`,
+        brand,
+        model,
         serialNumber: `SN${l.code}${String(serialSeq).padStart(6, '0')}`,
         purchaseDate: purchase,
         purchaseCost: randInt(cat.cost[0], cat.cost[1]),
@@ -688,15 +817,42 @@ async function main() {
     'Port damage',
   ];
   for (const a of repairAssets) {
+    const roll = Math.random();
+    let status: MaintenanceStatus = MaintenanceStatus.under_repair;
+    let completedAt: Date | null = null;
+    let actualCost: number | null = null;
+    if (roll < 0.2) {
+      status = MaintenanceStatus.reported;
+    } else if (roll < 0.55) {
+      status = MaintenanceStatus.under_repair;
+    } else if (roll < 0.85) {
+      status = MaintenanceStatus.repaired;
+      completedAt = daysFromNow(-randInt(1, 20));
+      actualCost = randInt(800, 18000);
+      await prisma.asset.update({
+        where: { id: a.id },
+        data: { status: AssetStatus.available },
+      });
+    } else {
+      status = MaintenanceStatus.reassigned;
+      completedAt = daysFromNow(-randInt(1, 15));
+      actualCost = randInt(800, 18000);
+      await prisma.asset.update({
+        where: { id: a.id },
+        data: { status: AssetStatus.assigned },
+      });
+    }
     await prisma.assetMaintenance.create({
       data: {
         assetId: a.id,
         issue: pick(issues),
-        status: MaintenanceStatus.under_repair,
+        status,
         vendor: pick(VENDORS),
         estimatedCost: randInt(1500, 20000),
+        actualCost,
         reportedAt: daysFromNow(-randInt(1, 40)),
-        expectedCompletionDate: daysFromNow(randInt(2, 20)),
+        expectedCompletionDate: daysFromNow(status === MaintenanceStatus.under_repair ? randInt(2, 20) : -randInt(1, 10)),
+        completedAt,
       },
     });
   }
@@ -727,13 +883,15 @@ async function main() {
     select: { id: true, assetCode: true },
   });
   await prisma.notification.createMany({
-    data: soonExpiring.map((a) => ({
-      type: 'warranty_expiry' as const,
-      title: 'Warranty expiring soon',
-      message: `Asset ${a.assetCode} warranty expires within 30 days`,
-      assetId: a.id,
-      userId: superAdmin?.id ?? null,
-    })),
+    data: soonExpiring.flatMap((a) =>
+      [superAdmin?.id, itAdminId].filter((id): id is number => Boolean(id)).map((userId) => ({
+        type: 'warranty_expiry' as const,
+        title: 'Warranty expiring soon',
+        message: `Asset ${a.assetCode} warranty expires within 30 days`,
+        assetId: a.id,
+        userId,
+      })),
+    ),
   });
 
   // ---- accessories & consumables (Prompt 6; per-location stock added Prompt 20) ----
@@ -745,18 +903,24 @@ async function main() {
     data: {
       name: 'Wireless Mouse',
       category: 'Peripherals',
+      brand: 'Logitech',
+      model: 'M185',
       quantityTotal: 120,
       quantityCheckedOut: 45,
       locationId: punId,
+      lowStockThreshold: 15,
     },
   });
   const accCharger = await prisma.accessory.create({
     data: {
       name: 'USB-C Charger 65W',
       category: 'Power',
+      brand: 'Dell',
+      model: '65W',
       quantityTotal: 80,
       quantityCheckedOut: 32,
       locationId: punId,
+      lowStockThreshold: 10,
     },
   });
   await prisma.accessory.createMany({
@@ -766,18 +930,34 @@ async function main() {
       { name: 'HDMI Cable 2m', category: 'Cables', quantityTotal: 200, quantityCheckedOut: 90, locationId: bhoId },
     ],
   });
-  const sampleEmp = await prisma.employee.findFirst({ where: { employeeCode: 'EMP-PUN-0001' } });
-  if (sampleEmp) {
+  const demoEmp = plainEmployee;
+  if (demoEmp) {
     await prisma.accessoryCheckout.create({
       data: {
         accessoryId: accMouse.id,
-        employeeId: sampleEmp.id,
+        employeeId: demoEmp.id,
         quantity: 1,
         processedById: superAdmin?.id ?? null,
       },
     });
+    const kitLap = await prisma.asset.findFirst({
+      where: { category: { code: 'LAP' }, status: AssetStatus.available },
+    });
+    const kitMon = await prisma.asset.findFirst({
+      where: { category: { code: 'MON' }, status: AssetStatus.available },
+    });
+    for (const a of [kitLap, kitMon]) {
+      if (!a) continue;
+      await prisma.asset.update({
+        where: { id: a.id },
+        data: { status: AssetStatus.assigned, assignedEmployeeId: demoEmp.id },
+      });
+      await prisma.assetAssignment.create({
+        data: { assetId: a.id, employeeId: demoEmp.id, assignedAt: new Date() },
+      });
+    }
   }
-  const laptopCat = await prisma.assetCategory.findUnique({ where: { code: 'LAP' } });
+  const laptopCat = await prisma.assetCategory.findFirst({ where: { code: 'LAP' } });
   if (laptopCat && punId) {
     await prisma.issueKit.create({
       data: {
@@ -840,6 +1020,12 @@ async function main() {
           body: 'Please raise this with the network team using this ticket number so they have the full history.',
           createdById: itAdminUser.id,
         },
+        {
+          title: RESET_COMPLETED_MACRO.title,
+          body: RESET_COMPLETED_MACRO.body,
+          createdById: itAdminUser.id,
+          statusOnSend: RESET_COMPLETED_MACRO.statusOnSend,
+        },
       ],
     });
     await prisma.ticketTemplate.createMany({
@@ -860,9 +1046,9 @@ async function main() {
           createdById: itAdminUser.id,
         },
         {
-          title: 'Password reset',
-          subject: 'Password reset needed',
-          description: 'I am locked out of my account and need a password reset.',
+          title: ACCOUNT_LOCKOUT_TEMPLATE.title,
+          subject: ACCOUNT_LOCKOUT_TEMPLATE.subject,
+          description: ACCOUNT_LOCKOUT_TEMPLATE.description,
           categoryId: catByCode.get('access_account')!.id,
           createdById: itAdminUser.id,
         },
@@ -920,6 +1106,22 @@ async function main() {
       where: { id: t3.id },
       data: { ticketNumber: `TCK-${String(t3.id).padStart(6, '0')}` },
     });
+    const t4 = await prisma.supportTicket.create({
+      data: {
+        ticketNumber: 'TCK-TMP-4',
+        subject: 'Locked out — password reset',
+        description: 'I am locked out of my account and need a password reset.',
+        categoryId: catByCode.get('access_account')!.id,
+        priority: 'high',
+        status: 'open',
+        raisedById: requester.id,
+        locationId: requester.locationId,
+      },
+    });
+    await prisma.supportTicket.update({
+      where: { id: t4.id },
+      data: { ticketNumber: `TCK-${String(t4.id).padStart(6, '0')}` },
+    });
   }
 
   await prisma.approvalMatrixRule.createMany({
@@ -942,7 +1144,7 @@ async function main() {
       contacts: { create: [{ name: 'Licensing desk', email: 'licensing@microsoft.example', isPrimary: true }] },
     },
   });
-  await prisma.vendor.create({
+  const dell = await prisma.vendor.create({
     data: {
       vendorCode: 'VND-000002',
       legalName: 'Dell Technologies',
@@ -955,6 +1157,14 @@ async function main() {
       isPreferred: true,
     },
   });
+  const repairVendors = [msft.id, dell.id];
+  const jobs = await prisma.assetMaintenance.findMany({ select: { id: true } });
+  for (let i = 0; i < jobs.length; i++) {
+    await prisma.assetMaintenance.update({
+      where: { id: jobs[i].id },
+      data: { vendorId: repairVendors[i % repairVendors.length] },
+    });
+  }
   const end = daysFromNow(45);
   await prisma.vendorContract.create({
     data: {

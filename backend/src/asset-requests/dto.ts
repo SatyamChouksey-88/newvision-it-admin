@@ -42,6 +42,16 @@ export class UpdateAssetRequestDto {
   status?: 'pending' | 'approved' | 'rejected' | 'fulfilled';
 }
 
+export class FulfillAssetRequestDto {
+  @IsOptional()
+  @IsInt()
+  assetId?: number;
+
+  @IsOptional()
+  @IsInt()
+  kitId?: number;
+}
+
 export class ReviewAssetRequestDto {
   @IsIn(['approved', 'rejected'])
   decision!: 'approved' | 'rejected';

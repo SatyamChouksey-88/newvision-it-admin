@@ -1,5 +1,6 @@
 import { Create, useForm } from '@refinedev/antd';
 import { Form } from 'antd';
+import { InventoryDecision } from '../../components/InventoryDecision';
 import { apiErrorMessage } from '../../providers/axios';
 import type { Asset } from '../../types';
 import { assetCodeError, normalizeAssetCode } from '../../utils/assetCode';
@@ -20,6 +21,7 @@ export function AssetCreate() {
 
   return (
     <Create saveButtonProps={saveButtonProps} title="New Asset">
+      <InventoryDecision variant="asset" />
       <Form
         {...formProps}
         layout="vertical"

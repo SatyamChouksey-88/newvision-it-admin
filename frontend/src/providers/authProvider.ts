@@ -1,14 +1,6 @@
 import type { AuthProvider } from '@refinedev/core';
 import { httpClient } from './axios';
-import {
-  clearSession,
-  hasSession,
-  readSession,
-  REFRESH_TOKEN_KEY,
-  TOKEN_KEY,
-  USER_KEY,
-  writeSession,
-} from './session';
+import { clearSession, hasSession, readSession, TOKEN_KEY, USER_KEY, writeSession } from './session';
 
 export interface Identity {
   id: number;
@@ -19,26 +11,50 @@ export interface Identity {
   locationId?: number | null;
   permissions?: string[];
   emailNotifyPref?: 'immediate' | 'daily_digest';
+  totpEnabled?: boolean;
+  tenantId?: number;
+  tenantSlug?: string;
+  tenant?: {
+    id: number;
+    slug: string;
+    name: string;
+    logoUrl?: string | null;
+    plan: 'starter' | 'team';
+    status: 'trial' | 'active' | 'expired' | 'cancelled';
+    trialDaysRemaining?: number | null;
+    modules: { procurement: boolean; chat: boolean; maintenance: boolean };
+    onboardingComplete?: boolean;
+    onboarding?: Record<string, boolean> | null;
+  };
 }
 
 export const authProvider: AuthProvider = {
   login: async ({ email, password, remember }) => {
     try {
-      const { data } = await httpClient.post('/auth/login', { email, password });
-      const persist = remember !== false;
-      writeSession(TOKEN_KEY, data.access_token, persist);
-      writeSession(REFRESH_TOKEN_KEY, data.refresh_token, persist);
-      writeSession(USER_KEY, JSON.stringify(data.user), persist);
-      // Return the user to the page they were on when their session expired (same-origin paths only).
+      const { data } = await httpClient.post('/auth/login', {
+        email,
+        password,
+        remember: remember !== false,
+      });
+      if (!data?.access_token || !data?.user) {
+        return {
+          success: false,
+          error: { name: 'LoginError', message: 'Invalid email or password' },
+        };
+      }
+      writeSession(TOKEN_KEY, data.access_token);
+      writeSession(USER_KEY, JSON.stringify(data.user));
       const to = new URLSearchParams(window.location.search).get('to');
       const redirectTo = to?.startsWith('/') && !to.startsWith('//') ? to : '/';
       return { success: true, redirectTo };
     } catch (error) {
       const status = (error as { response?: { status?: number } })?.response?.status;
       const message =
-        status === 401 || status === 400
-          ? 'Invalid email or password'
-          : 'Could not reach the server. Check your connection and try again.';
+        status === 429
+          ? 'Too many attempts. Try again in 15 minutes.'
+          : status === 401 || status === 400
+            ? 'Invalid email or password'
+            : 'Could not reach the server. Check your connection and try again.';
       return {
         success: false,
         error: { name: 'LoginError', message },

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Tooltip } from 'antd';
+import { Skeleton, Tooltip } from 'antd';
 import { Link } from 'react-router';
 import {
   COLOR_BORDER,
@@ -20,6 +20,7 @@ export interface KpiCardProps {
   href?: string;
   sparkline?: ReactNode;
   subtitle?: string;
+  loading?: boolean;
 }
 
 /**
@@ -35,6 +36,7 @@ export function KpiCard({
   href,
   sparkline,
   subtitle,
+  loading = false,
 }: KpiCardProps) {
   const inner = (
     <div
@@ -77,7 +79,11 @@ export function KpiCard({
             ...tabularNums,
           }}
         >
-          {value.toLocaleString()}
+          {loading ? (
+            <Skeleton.Button active size="small" style={{ width: 72, height: 28, marginTop: 6 }} />
+          ) : (
+            value.toLocaleString()
+          )}
         </div>
         {subtitle ? (
           <div style={{ fontSize: 11, color: COLOR_TEXT_MUTED, marginTop: 3 }}>{subtitle}</div>
@@ -91,7 +97,7 @@ export function KpiCard({
     return (
       <Link
         to={href}
-        aria-label={`${title}: ${value}. View filtered list`}
+        aria-label={`${title}: ${loading ? 'loading' : value}. View filtered list`}
         style={{ display: 'block', textDecoration: 'none', color: 'inherit' }}
         className="nv-kpi-link"
       >

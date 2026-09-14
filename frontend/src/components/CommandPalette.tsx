@@ -199,11 +199,13 @@ export function CommandPalette({ open, onClose }: Props) {
         });
       }
       for (const e of (data.employees ?? []).slice(0, 5)) {
+        const kit = e.kit as { assetCodes?: string[]; accessoryNames?: string[] } | undefined;
+        const kitBits = [...(kit?.assetCodes ?? []), ...(kit?.accessoryNames ?? [])].slice(0, 3);
         items.push({
           key: `emp-${e.id}`,
           section: 'Employees',
           icon: <Tag style={TAG_GREEN}>Employee</Tag>,
-          label: `${e.firstName} ${e.lastName} (${e.employeeCode})`,
+          label: `${e.firstName} ${e.lastName} (${e.employeeCode})${kitBits.length ? ` · ${kitBits.join(', ')}` : ''}`,
           run: () => go(`/employees/show/${e.id}`),
         });
       }

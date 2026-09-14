@@ -144,14 +144,15 @@ describe('Phase 2 — maintenance, warranty alerts & reports (e2e)', () => {
     const notes = await prisma.notification.findMany({
       where: { type: 'warranty_expiry', assetId: created.body.id },
     });
-    expect(notes.length).toBe(1);
+    expect(notes.length).toBeGreaterThanOrEqual(1);
+    expect(notes.every((n) => n.userId != null)).toBe(true);
 
-    // Re-running is de-duplicated (no second notification for the same asset+threshold).
+    // Re-running is de-duplicated (no second fan-out for the same asset+threshold).
     await request(server()).post('/api/warranty/run-check').set(auth(adminToken)).expect(201);
     const after = await prisma.notification.count({
       where: { type: 'warranty_expiry', assetId: created.body.id },
     });
-    expect(after).toBe(1);
+    expect(after).toBe(notes.length);
   });
 
   it('exposes notifications to the current user', async () => {

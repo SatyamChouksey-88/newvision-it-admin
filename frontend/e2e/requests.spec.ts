@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { DEMO_USERS, login, selectFirstOption } from './helpers';
+import { DEMO_USERS, login, selectByPlaceholder, selectFirstOption } from './helpers';
 
 test('employee submits request; manager approves; IT marks fulfilled', async ({ page, browser }) => {
   test.setTimeout(90_000);
@@ -29,5 +29,9 @@ test('employee submits request; manager approves; IT marks fulfilled', async ({ 
   await login(page, DEMO_USERS.itAdmin);
   await page.goto('/requests');
   await page.getByRole('button', { name: 'Mark fulfilled' }).first().click();
+  const fulfill = page.getByRole('dialog');
+  await expect(fulfill).toBeVisible();
+  await selectByPlaceholder(page, 'Pick an available matching asset');
+  await fulfill.getByRole('button', { name: 'Record and fulfill' }).click();
   await expect(page.getByText('fulfilled').first()).toBeVisible({ timeout: 15_000 });
 });

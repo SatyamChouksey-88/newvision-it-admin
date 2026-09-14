@@ -2,7 +2,16 @@ import { Controller, Get, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Prisma, RoleName } from '@prisma/client';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
+import { Roles } from '../common/decorators/roles.decorator';
 import { PrismaService } from '../prisma/prisma.service';
+
+const ANY_STAFF: RoleName[] = [
+  RoleName.SUPER_ADMIN,
+  RoleName.IT_ADMIN,
+  RoleName.IT_SUPPORT,
+  RoleName.MANAGER,
+  RoleName.EMPLOYEE,
+];
 
 const IT_ROLES: RoleName[] = [RoleName.SUPER_ADMIN, RoleName.IT_ADMIN, RoleName.IT_SUPPORT];
 
@@ -16,6 +25,7 @@ const IT_ROLES: RoleName[] = [RoleName.SUPER_ADMIN, RoleName.IT_ADMIN, RoleName.
 export class SearchController {
   constructor(private readonly prisma: PrismaService) {}
 
+  @Roles(...ANY_STAFF)
   @Get()
   async search(@Query('q') q: string | undefined, @CurrentUser() user: AuthUser) {
     const term = (q ?? '').trim();
@@ -77,10 +87,17 @@ export class SearchController {
         include: { location: true, department: true },
         take: 20,
       }),
-      this.prisma.location.findMany({
-        where: { OR: [{ name: like }, { code: like }, { city: like }] },
-        take: 10,
-      }),
+      isIt
+        ? this.prisma.location.findMany({
+            where: { OR: [{ name: like }, { code: like }, { city: like }] },
+            take: 10,
+          })
+        : user.role === RoleName.MANAGER
+          ? this.prisma.location.findMany({
+              where: { OR: [{ name: like }, { code: like }, { city: like }] },
+              take: 10,
+            })
+          : Promise.resolve([]),
       isIt
         ? this.prisma.assetMaintenance.findMany({
             where: {
@@ -132,7 +149,9 @@ export class SearchController {
       }),
       isIt
         ? this.prisma.accessory.findMany({
-            where: { OR: [{ name: like }, { category: like }] },
+            where: {
+              OR: [{ name: like }, { category: like }, { brand: like }, { model: like }],
+            },
             select: {
               id: true,
               name: true,
@@ -187,10 +206,46 @@ export class SearchController {
         : Promise.resolve([]),
     ]);
 
+    const empIds = employees.map((e) => e.id);
+    const showKit = IT_ROLES.includes(user.role) || user.role === RoleName.MANAGER;
+    const [kitAssets, kitCheckouts] = showKit && empIds.length
+      ? await Promise.all([
+          this.prisma.asset.findMany({
+            where: { assignedEmployeeId: { in: empIds } },
+            select: { assignedEmployeeId: true, assetCode: true },
+          }),
+          this.prisma.accessoryCheckout.findMany({
+            where: { employeeId: { in: empIds }, checkedInAt: null },
+            select: { employeeId: true, accessory: { select: { name: true } } },
+          }),
+        ])
+      : [[], []];
+    const assetsByEmp = new Map<number, string[]>();
+    for (const a of kitAssets) {
+      if (!a.assignedEmployeeId) continue;
+      const list = assetsByEmp.get(a.assignedEmployeeId) ?? [];
+      list.push(a.assetCode);
+      assetsByEmp.set(a.assignedEmployeeId, list);
+    }
+    const accByEmp = new Map<number, string[]>();
+    for (const c of kitCheckouts) {
+      const list = accByEmp.get(c.employeeId) ?? [];
+      list.push(c.accessory.name);
+      accByEmp.set(c.employeeId, list);
+    }
+
     return {
       query: term,
-      assets,
-      employees,
+      assets: assets.map((row) => this.redactFinance(row, user)),
+      employees: employees.map((e) => ({
+        ...e,
+        kit: showKit
+          ? {
+              assetCodes: assetsByEmp.get(e.id) ?? [],
+              accessoryNames: accByEmp.get(e.id) ?? [],
+            }
+          : undefined,
+      })),
       locations,
       tickets,
       helpdesk,
@@ -229,6 +284,14 @@ export class SearchController {
       return { requester: { managerId: actor.employeeId } };
     }
     return { id: -1 };
+  }
+
+  private redactFinance<T extends { purchaseCost?: unknown; invoiceNo?: string | null }>(
+    row: T,
+    actor: AuthUser,
+  ): T {
+    if (actor.role === RoleName.SUPER_ADMIN || actor.role === RoleName.IT_ADMIN) return row;
+    return { ...row, purchaseCost: null, invoiceNo: null };
   }
 
   /** Same visibility as RequisitionsService.scope — managers only see their own / team / assigned. */

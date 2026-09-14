@@ -22,6 +22,19 @@ async function assertToolbarAboveThead(page: Page) {
   expect(tbox.y + tbox.height, 'toolbar must sit above the column header').toBeLessThanOrEqual(
     hbox.y + 2,
   );
+  expect(
+    hbox.y - (tbox.y + tbox.height),
+    'column header must sit directly under the toolbar, not in the middle of the rows',
+  ).toBeLessThan(16);
+  const firstRow = page.locator('.nv-grid .ant-table-tbody > tr.ant-table-row').first();
+  if (await firstRow.isVisible()) {
+    const rbox = await firstRow.boundingBox();
+    if (rbox) {
+      expect(rbox.y, 'first data row must be below the column header').toBeGreaterThanOrEqual(
+        hbox.y + hbox.height - 2,
+      );
+    }
+  }
 }
 
 test.describe('List-page chrome', () => {
@@ -59,6 +72,22 @@ test.describe('List-page chrome', () => {
 
       await assertToolbarAboveThead(page);
     }
+
+    await page.goto('/assets');
+    await expect(page.getByRole('button', { name: 'Compact' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Comfortable' })).toHaveCount(0);
+    await expect(page.locator('.nv-grid-toolbar').getByRole('button', { name: 'Columns' })).toBeVisible();
+    await expect(page.locator('.nv-grid-toolbar').getByRole('button', { name: 'Export CSV' })).toBeVisible();
+    const assetHead = page.getByRole('columnheader', { name: 'Asset' }).first();
+    await expect(assetHead).toBeVisible();
+    const assetBox = await assetHead.boundingBox();
+    expect(assetBox?.width ?? 999, 'Asset column must stay near its 220px width').toBeLessThan(280);
+
+    await page.goto('/locations');
+    const codeHead = page.getByRole('columnheader', { name: 'Code' }).first();
+    await expect(codeHead).toBeVisible();
+    const codeBox = await codeHead.boundingBox();
+    expect(codeBox?.width ?? 999, 'Code column must not stretch into the middle of the table').toBeLessThan(200);
 
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.goto('/tickets');

@@ -4,9 +4,11 @@ import { useNavigate } from 'react-router';
 import { Figure, PrimaryWithSub } from '../../../components/Cells';
 import { CopyButton } from '../../../components/CopyButton';
 import { DataGrid, type TableDensity } from '../../../components/DataGrid/DataGrid';
+import { DesktopOnlyBanner } from '../../../components/DesktopOnlyBanner';
 import { EmptyState } from '../../../components/EmptyState';
 import { TablePagination } from '../../../components/TablePagination';
 import { TableSkeleton } from '../../../components/TableSkeleton';
+import { NV_TABLE_STICKY } from '../../../chrome';
 import { httpClient } from '../../../providers/axios';
 import { PoStatusTag } from '../status';
 
@@ -31,6 +33,7 @@ export function PurchaseOrderList() {
   const [density, setDensity] = useState<TableDensity>('Compact');
 
   useEffect(() => {
+    void reload;
     let cancelled = false;
     setLoading(true);
     setLoadError(false);
@@ -56,6 +59,7 @@ export function PurchaseOrderList() {
 
   return (
     <Card title="Purchase orders">
+      <DesktopOnlyBanner noun="Purchase orders" />
       <div className="nv-filter-row">
         <Input.Search
           allowClear
@@ -82,6 +86,7 @@ export function PurchaseOrderList() {
             rowKey="id"
             density={density}
             onDensityChange={setDensity}
+            sticky={NV_TABLE_STICKY}
             enableQueueKeys
             onOpenRow={(r) => navigate(`/procurement/orders/show/${r.id}`)}
             onRow={(r) => ({ onClick: () => navigate(`/procurement/orders/show/${r.id}`) })}

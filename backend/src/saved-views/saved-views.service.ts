@@ -14,7 +14,9 @@ export class SavedViewsService {
     const resource = query.resource || 'assets';
     const where: Prisma.SavedViewWhereInput = {
       resource,
-      OR: [{ createdById: actor.id }, { isShared: true }],
+      ...(this.canShare(actor)
+        ? { OR: [{ createdById: actor.id }, { isShared: true }] }
+        : { createdById: actor.id }),
     };
     const [data, total] = await Promise.all([
       this.prisma.savedView.findMany({
@@ -35,7 +37,7 @@ export class SavedViewsService {
         name: dto.name,
         resource: dto.resource || 'assets',
         filters: dto.filters as Prisma.InputJsonValue,
-        isShared: dto.isShared ?? false,
+        isShared: this.canShare(actor) ? (dto.isShared ?? false) : false,
         createdById: actor.id,
       },
     });
@@ -50,7 +52,7 @@ export class SavedViewsService {
       data: {
         name: dto.name,
         filters: dto.filters as Prisma.InputJsonValue | undefined,
-        isShared: dto.isShared,
+        isShared: dto.isShared === undefined ? undefined : this.canShare(actor) ? dto.isShared : false,
       },
     });
   }
@@ -62,9 +64,13 @@ export class SavedViewsService {
     return this.prisma.savedView.delete({ where: { id } });
   }
 
+  private canShare(actor: AuthUser) {
+    return actor.role === RoleName.SUPER_ADMIN || actor.role === RoleName.IT_ADMIN;
+  }
+
   private assertOwnerOrAdmin(ownerId: number, actor: AuthUser) {
     if (ownerId === actor.id) return;
-    if (actor.role === RoleName.SUPER_ADMIN || actor.role === RoleName.IT_ADMIN) return;
+    if (this.canShare(actor)) return;
     throw new ForbiddenException('You can only change your own saved views');
   }
 }

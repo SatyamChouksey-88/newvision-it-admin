@@ -31,33 +31,37 @@ async function download(type: string, format: 'csv' | 'pdf') {
 
 function buildReports(
   locationCodes: string[],
+  { teamScoped }: { teamScoped?: boolean } = {},
 ): { type: string; title: string; desc: string; meta: string }[] {
+  const scope = teamScoped ? 'CSV · PDF · your team' : 'CSV · PDF · estate-wide';
   return [
     {
       type: 'assets',
       title: 'Asset Report',
       desc: 'Full inventory with status, location, assignee and cost.',
-      meta: 'CSV · PDF · estate-wide',
+      meta: scope,
     },
     {
       type: 'employees',
       title: 'Employee Report',
       desc: 'Everyone, with their location, department and asset count.',
-      meta: 'CSV · PDF · includes inactive',
+      meta: teamScoped ? 'CSV · PDF · your team' : 'CSV · PDF · includes inactive',
     },
     {
       type: 'locations',
       title: 'Location Report',
       desc: 'Per-site asset totals broken down by status.',
-      meta: locationCodes.length
-        ? `CSV · PDF · ${locationCodes.join(' · ')}`
-        : 'CSV · PDF · per site',
+      meta: teamScoped
+        ? 'CSV · PDF · your team’s sites'
+        : locationCodes.length
+          ? `CSV · PDF · ${locationCodes.join(' · ')}`
+          : 'CSV · PDF · per site',
     },
     {
       type: 'warranty',
       title: 'Warranty Report',
       desc: 'Upcoming warranties only, sorted soonest first. Use Assets → Already expired for lapsed kit.',
-      meta: 'CSV · PDF · ≤90 days first',
+      meta: teamScoped ? 'CSV · PDF · your team · ≤90 days' : 'CSV · PDF · ≤90 days first',
     },
     {
       type: 'supplies',
@@ -126,8 +130,8 @@ export function ReportsPage() {
   }, []);
 
   const REPORTS = useMemo(() => {
-    const all = buildReports(locationCodes);
     const role = identity?.role;
+    const all = buildReports(locationCodes, { teamScoped: role === 'MANAGER' });
     if (role === 'MANAGER') return all.filter((r) => MANAGER_REPORTS.has(r.type));
     if (role === 'IT_SUPPORT') return all.filter((r) => !SUPPORT_HIDDEN.has(r.type));
     return all;

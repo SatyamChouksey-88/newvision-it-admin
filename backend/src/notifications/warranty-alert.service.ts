@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
+import { runUnscoped, runWithTenant } from '../tenancy/context';
 import { daysRemaining, matchingThreshold, WARRANTY_THRESHOLDS } from '../common/warranty';
 import { MailerService } from './mailer.service';
 import { NotificationsService } from './notifications.service';
@@ -25,13 +26,18 @@ export class WarrantyAlertService {
   /** Runs daily; fires alerts the day an asset hits a 90/60/30-day warranty threshold. */
   @Cron(CronExpression.EVERY_DAY_AT_8AM, { name: 'warranty-threshold-alerts' })
   async scheduledCheck(): Promise<void> {
-    const result = await this.runCheck();
-    this.logger.log(
-      `Warranty check: ${result.checked} scanned, ${result.created} alerts created ` +
-        `(90d=${result.byThreshold[90] ?? 0}, 60d=${result.byThreshold[60] ?? 0}, 30d=${
-          result.byThreshold[30] ?? 0
-        }).`,
+    const tenants = await runUnscoped(() =>
+      this.prisma.tenant.findMany({ where: { status: { not: 'cancelled' } }, select: { id: true } }),
     );
+    for (const t of tenants) {
+      const result = await runWithTenant(t.id, () => this.runCheck());
+      this.logger.log(
+        `Warranty check tenant ${t.id}: ${result.checked} scanned, ${result.created} alerts created ` +
+          `(90d=${result.byThreshold[90] ?? 0}, 60d=${result.byThreshold[60] ?? 0}, 30d=${
+            result.byThreshold[30] ?? 0
+          }).`,
+      );
+    }
   }
 
   /**
@@ -67,16 +73,14 @@ export class WarrantyAlertService {
       if (already > 0) continue;
 
       const remaining = daysRemaining(asset.warrantyEnd, now);
-      await this.prisma.notification.create({
-        data: {
-          type: 'warranty_expiry',
-          title: `Warranty expiring in ${threshold} days ${marker}: ${asset.assetCode}`,
-          message:
-            `${asset.assetCode} (${asset.brand ?? ''} ${asset.model ?? ''}`.trim() +
-            `) at ${asset.location?.code ?? '—'} has ${remaining} day(s) of warranty remaining ` +
-            `(ends ${asset.warrantyEnd.toISOString().slice(0, 10)}).`,
-          assetId: asset.id,
-        },
+      await this.notifications.fanOutToIt({
+        type: 'warranty_expiry',
+        title: `Warranty expiring in ${threshold} days ${marker}: ${asset.assetCode}`,
+        message:
+          `${asset.assetCode} (${asset.brand ?? ''} ${asset.model ?? ''}`.trim() +
+          `) at ${asset.location?.code ?? '—'} has ${remaining} day(s) of warranty remaining ` +
+          `(ends ${asset.warrantyEnd.toISOString().slice(0, 10)}).`,
+        assetId: asset.id,
       });
       created++;
       byThreshold[threshold] = (byThreshold[threshold] ?? 0) + 1;
@@ -103,5 +107,43 @@ export class WarrantyAlertService {
     }
 
     return { checked: assets.length, created, byThreshold, emailedTo };
+  }
+
+  /** Monday morning summary of warranties ending in the next 90 days. */
+  @Cron('0 8 * * 1', { name: 'warranty-weekly-digest' })
+  async scheduledWeeklyDigest(): Promise<void> {
+    const tenants = await runUnscoped(() =>
+      this.prisma.tenant.findMany({ where: { status: { not: 'cancelled' } }, select: { id: true } }),
+    );
+    for (const t of tenants) {
+      await runWithTenant(t.id, () => this.sendWeeklyDigest());
+    }
+  }
+
+  async sendWeeklyDigest(now: Date = new Date()): Promise<{ emailedTo: number; rows: number }> {
+    const horizon = new Date(now);
+    horizon.setDate(horizon.getDate() + 90);
+    const assets = await this.prisma.asset.findMany({
+      where: {
+        warrantyEnd: { not: null, gte: now, lte: horizon },
+        status: { notIn: ['retired', 'disposed'] },
+      },
+      orderBy: { warrantyEnd: 'asc' },
+      take: 200,
+      select: { assetCode: true, brand: true, model: true, warrantyEnd: true },
+    });
+    if (assets.length === 0) return { emailedTo: 0, rows: 0 };
+    const recipients = await this.notifications.itRecipients();
+    if (recipients.length === 0) return { emailedTo: 0, rows: assets.length };
+    const lines = assets.map(
+      (a) =>
+        `• ${a.assetCode} — ${`${a.brand ?? ''} ${a.model ?? ''}`.trim()} ends ${a.warrantyEnd?.toISOString().slice(0, 10)}`,
+    );
+    await this.mailer.send({
+      to: recipients,
+      subject: `NewVision weekly warranty report (${assets.length} due in 90 days)`,
+      text: `Warranties ending in the next 90 days:\n\n${lines.join('\n')}`,
+    });
+    return { emailedTo: recipients.length, rows: assets.length };
   }
 }

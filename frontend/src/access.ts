@@ -100,11 +100,17 @@ export interface NavItem {
 }
 
 /** Role-specific sidebar. Labels change for My IT / Manager so the shell is visibly different. */
-export function navForRole(role?: string): NavItem[] {
+export function navForRole(
+  role?: string,
+  opts?: {
+    modules?: { procurement?: boolean; chat?: boolean; maintenance?: boolean };
+    onboardingComplete?: boolean;
+  },
+): NavItem[] {
   if (role === 'EMPLOYEE') {
     return [
       { key: 'home', href: '/', label: 'Home', resource: 'dashboard' },
-      { key: 'devices', href: '/assets', label: 'My devices', resource: 'assets' },
+      { key: 'devices', href: '/assets', label: 'My kit', resource: 'assets' },
       { key: 'request', href: '/requests', label: 'Raise a request', resource: 'asset-requests' },
       {
         key: 'tickets',
@@ -124,38 +130,55 @@ export function navForRole(role?: string): NavItem[] {
     ];
   }
   if (role === 'MANAGER') {
-    return [
-      { key: 'home', href: '/', label: 'Team', resource: 'dashboard' },
-      {
-        key: 'requests',
-        href: '/requests',
-        label: 'Requests',
-        resource: 'asset-requests',
-        badgeKey: 'requests',
-      },
-      {
-        key: 'tickets',
-        href: '/tickets',
-        label: 'Team tickets',
-        resource: 'support-tickets',
-        badgeKey: 'tickets',
-      },
-      {
-        key: 'requisitions',
-        href: '/procurement/requisitions',
-        label: 'Requisitions',
-        resource: 'purchase-requisitions',
-      },
-      { key: 'reports', href: '/reports', label: 'Reports', resource: 'reports' },
-      { key: 'help', href: '/help', label: 'Help', resource: 'help' },
-      {
-        key: 'profile',
-        href: '/employees/show',
-        label: 'Profile',
-        resource: 'employees',
-        hidden: true,
-      },
-    ];
+    return filterNav(
+      [
+        { key: 'home', href: '/', label: 'Team', resource: 'dashboard' },
+        {
+          key: 'devices',
+          href: '/assets',
+          label: 'Team devices',
+          resource: 'assets',
+          badgeKey: 'assets',
+        },
+        {
+          key: 'people',
+          href: '/employees',
+          label: 'Team people',
+          resource: 'employees',
+          badgeKey: 'employees',
+        },
+        {
+          key: 'requests',
+          href: '/requests',
+          label: 'Requests',
+          resource: 'asset-requests',
+          badgeKey: 'requests',
+        },
+        {
+          key: 'tickets',
+          href: '/tickets',
+          label: 'Team tickets',
+          resource: 'support-tickets',
+          badgeKey: 'tickets',
+        },
+        {
+          key: 'requisitions',
+          href: '/procurement/requisitions',
+          label: 'Requisitions',
+          resource: 'purchase-requisitions',
+        },
+        { key: 'reports', href: '/reports', label: 'Reports', resource: 'reports' },
+        { key: 'help', href: '/help', label: 'Help', resource: 'help' },
+        {
+          key: 'profile',
+          href: '/employees/show',
+          label: 'Profile',
+          resource: 'employees',
+          hidden: true,
+        },
+      ],
+      opts,
+    );
   }
   const it: NavItem[] = [
     { key: 'dash', href: '/', label: 'Dashboard', resource: 'dashboard' },
@@ -228,7 +251,29 @@ export function navForRole(role?: string): NavItem[] {
   if (role === 'IT_SUPPORT') {
     it.push({ key: 'account', href: '/settings', label: 'Account', resource: 'settings' });
   }
-  return it;
+  return filterNav(it, opts);
+}
+
+function filterNav(
+  items: NavItem[],
+  opts?: {
+    modules?: { procurement?: boolean; chat?: boolean; maintenance?: boolean };
+    onboardingComplete?: boolean;
+  },
+): NavItem[] {
+  const modules = opts?.modules;
+  const hideProcChat = opts?.onboardingComplete === false;
+  return items.filter((item) => {
+    if (item.key === 'chat' && (modules?.chat === false || hideProcChat)) return false;
+    if (item.key === 'maintenance' && modules?.maintenance === false) return false;
+    if (
+      ['vendors', 'requisitions', 'orders', 'contracts'].includes(item.key) &&
+      (modules?.procurement === false || hideProcChat)
+    ) {
+      return false;
+    }
+    return true;
+  });
 }
 
 export const ROLE_CHIP: Record<string, { label: string; color: string; bg: string }> = {

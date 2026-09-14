@@ -22,6 +22,12 @@ import { COLOR_ACCENT, COLOR_BORDER, COLOR_TEXT_SECONDARY } from '../../theme';
 
 const GLANCE = [
   {
+    icon: <CustomerServiceOutlined />,
+    title: 'Employee how-tos',
+    desc: 'Wi-Fi, VPN, MFA, Outlook, printers, phishing — read these from My IT before raising a ticket.',
+    to: 'howto-wifi',
+  },
+  {
     icon: <LaptopOutlined />,
     title: 'Assets',
     desc: 'Create, assign, transfer, retire, print QR labels, and bulk-manage the serialized fleet.',

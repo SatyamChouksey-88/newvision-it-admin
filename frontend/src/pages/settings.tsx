@@ -6,7 +6,8 @@ import type { Identity } from '../providers/authProvider';
 import { httpClient } from '../providers/axios';
 import { useToast } from '../components/Toast';
 import { CategoriesPanel } from './settings/categories';
-import { ChangePasswordCard } from './settings/change-password';
+import { ChangePasswordCard, SuperAdminMfaCard } from './settings/change-password';
+import { WorkspaceSettingsCard } from './settings/workspace';
 import { DepartmentsPanel } from './settings/departments';
 import { HelpdeskSettings } from './settings/helpdesk';
 import { ImportJobsPanel } from './settings/import-jobs';
@@ -91,6 +92,8 @@ export function SettingsPage() {
               </Card>
             ) : null}
             <ChangePasswordCard />
+            <SuperAdminMfaCard />
+            {isSuperAdmin ? <WorkspaceSettingsCard /> : null}
           </Space>
         ),
       },

@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { NotificationType, Prisma, RoleName } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { ListQuery, parseListQuery } from '../common/query';
@@ -42,6 +42,8 @@ export class AccessoriesService {
             OR: [
               { name: { contains: query.q, mode: 'insensitive' } },
               { category: { contains: query.q, mode: 'insensitive' } },
+              { brand: { contains: query.q, mode: 'insensitive' } },
+              { model: { contains: query.q, mode: 'insensitive' } },
             ],
           }
         : {}),
@@ -90,9 +92,12 @@ export class AccessoriesService {
       data: {
         name: dto.name.trim(),
         category: dto.category.trim(),
+        brand: dto.brand?.trim() || null,
+        model: dto.model?.trim() || null,
         quantityTotal: dto.quantityTotal,
         quantityCheckedOut: 0,
         locationId: dto.locationId ?? null,
+        lowStockThreshold: dto.lowStockThreshold ?? 5,
       },
     });
     await this.audit.record({
@@ -119,8 +124,11 @@ export class AccessoriesService {
       data: {
         name: dto.name?.trim(),
         category: dto.category?.trim(),
+        brand: dto.brand !== undefined ? dto.brand.trim() || null : undefined,
+        model: dto.model !== undefined ? dto.model.trim() || null : undefined,
         quantityTotal: dto.quantityTotal,
         ...(dto.locationId !== undefined ? { locationId: dto.locationId } : {}),
+        ...(dto.lowStockThreshold !== undefined ? { lowStockThreshold: dto.lowStockThreshold } : {}),
       },
     });
     await this.audit.record({
@@ -158,6 +166,16 @@ export class AccessoriesService {
           `${employee.employeeCode} is inactive — cannot check out to them`,
         );
       }
+      if (dto.issuedWithAssetId) {
+        const parent = await tx.asset.findUnique({
+          where: { id: dto.issuedWithAssetId },
+          select: { id: true, assetCode: true },
+        });
+        if (!parent) {
+          throw new BadRequestException(`Asset ${dto.issuedWithAssetId} not found`);
+        }
+      }
+      const serial = dto.serialNumber?.trim() || null;
       const checkout = await tx.accessoryCheckout.create({
         data: {
           accessoryId: id,
@@ -165,11 +183,15 @@ export class AccessoriesService {
           quantity: qty,
           processedById: actor.id,
           notes: dto.notes,
+          serialNumber: serial,
+          issuedWithAssetId: dto.issuedWithAssetId ?? null,
+          expectedReturnAt: dto.expectedReturnAt ? new Date(dto.expectedReturnAt) : null,
         },
         include: {
           employee: {
             select: { id: true, employeeCode: true, firstName: true, lastName: true },
           },
+          issuedWithAsset: { select: { id: true, assetCode: true } },
         },
       });
       const updated = await tx.accessory.update({
@@ -188,9 +210,28 @@ export class AccessoriesService {
         },
         tx,
       );
-      return checkout;
+      return { checkout, updated };
     });
-    return result;
+    const available = result.updated.quantityTotal - result.updated.quantityCheckedOut;
+    if (available <= result.updated.lowStockThreshold) {
+      await this.notifyLowStock(result.updated);
+    }
+    let serialWarning: string | undefined;
+    const serial = dto.serialNumber?.trim();
+    if (serial) {
+      const dupOpen = await this.prisma.accessoryCheckout.count({
+        where: {
+          id: { not: result.checkout.id },
+          serialNumber: serial,
+          checkedInAt: null,
+        },
+      });
+      const dupAsset = await this.prisma.asset.count({ where: { serialNumber: serial } });
+      if (dupOpen > 0 || dupAsset > 0) {
+        serialWarning = `Serial ${serial} is already on another open checkout or asset in this tenant.`;
+      }
+    }
+    return { ...result.checkout, serialWarning };
   }
 
   async checkin(id: number, checkoutId: number, actor: AuthUser) {
@@ -252,5 +293,36 @@ export class AccessoriesService {
       ...accessory,
       quantityAvailable: accessory.quantityTotal - accessory.quantityCheckedOut,
     };
+  }
+
+  private async notifyLowStock(accessory: {
+    id: number;
+    name: string;
+    quantityTotal: number;
+    quantityCheckedOut: number;
+    lowStockThreshold: number;
+    locationId?: number | null;
+  }) {
+    const available = accessory.quantityTotal - accessory.quantityCheckedOut;
+    const itUsers = await this.prisma.user.findMany({
+      where: { isActive: true, role: { name: { in: [RoleName.SUPER_ADMIN, RoleName.IT_ADMIN] } } },
+      select: { id: true },
+    });
+    const site = accessory.locationId
+      ? await this.prisma.location.findUnique({
+          where: { id: accessory.locationId },
+          select: { name: true },
+        })
+      : null;
+    const siteLabel = site ? ` at ${site.name}` : '';
+    if (itUsers.length === 0) return;
+    await this.prisma.notification.createMany({
+      data: itUsers.map((u) => ({
+        userId: u.id,
+        type: NotificationType.low_stock,
+        title: 'Low accessory stock',
+        message: `${accessory.name}${siteLabel} has ${available} left (threshold ${accessory.lowStockThreshold})`,
+      })),
+    });
   }
 }

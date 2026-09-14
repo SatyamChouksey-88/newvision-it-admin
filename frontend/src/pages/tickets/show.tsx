@@ -38,9 +38,10 @@ import { useToast } from '../../components/Toast';
 import { useConfirmAction } from '../../hooks/useConfirmAction';
 import type { Identity } from '../../providers/authProvider';
 import { apiErrorMessage, httpClient } from '../../providers/axios';
-import type { CannedResponse, SupportTicket, TicketComment, TicketStatus } from '../../types';
+import type { CannedResponse, SupportTicket, TicketComment, TicketStatus, TicketTemplate } from '../../types';
 import { clipboardImageToFile } from '../../utils/clipboardImage';
 import { formatDate } from '../../utils/format';
+import { AccountPlaybookCard } from './AccountPlaybookCard';
 
 const STAFF = ['SUPER_ADMIN', 'IT_ADMIN', 'IT_SUPPORT'];
 const MANUAL = ['SUPER_ADMIN', 'IT_ADMIN'];
@@ -55,6 +56,7 @@ export function TicketShow() {
   const { query } = useShow<SupportTicket>({ resource: 'support-tickets' });
   const ticket = query.data?.data;
   const [canned, setCanned] = useState<CannedResponse[]>([]);
+  const [templates, setTemplates] = useState<TicketTemplate[]>([]);
   const [staff, setStaff] = useState<{ id: number; fullName: string }[]>([]);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [requesterAssets, setRequesterAssets] = useState<
@@ -77,6 +79,10 @@ export function TicketShow() {
       httpClient
         .get('/canned-responses')
         .then(({ data }) => setCanned(Array.isArray(data) ? data : []))
+        .catch(() => undefined);
+      httpClient
+        .get('/ticket-templates')
+        .then(({ data }) => setTemplates(Array.isArray(data) ? data : (data.data ?? [])))
         .catch(() => undefined);
       httpClient
         .get('/support-tickets/staff')
@@ -388,6 +394,10 @@ export function TicketShow() {
           </Descriptions.Item>
         </Descriptions>
       </Card>
+
+      {isStaff && ticket ? (
+        <AccountPlaybookCard ticket={ticket} templates={templates} onChanged={reload} />
+      ) : null}
 
       {canRate ? (
         <Card title="How did we do?" data-testid="csat-card">

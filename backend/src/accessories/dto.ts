@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
+import { IsDateString, IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
 
 export class CreateAccessoryDto {
   @IsString()
@@ -13,10 +13,26 @@ export class CreateAccessoryDto {
   @Min(0)
   quantityTotal!: number;
 
-  /** Which office holds this stock. Omit for shared/estate-wide stock. */
+  @IsOptional()
+  @IsString()
+  brand?: string;
+
+  @IsOptional()
+  @IsString()
+  model?: string;
+
   @IsOptional()
   @IsInt()
-  locationId?: number;
+  @Min(0)
+  lowStockThreshold?: number;
+
+  /**
+   * Which office holds this stock. Omit or send null for estate-wide stock
+   * (explicit, not a silent drop).
+   */
+  @IsOptional()
+  @IsInt()
+  locationId?: number | null;
 }
 
 export class UpdateAccessoryDto {
@@ -36,8 +52,21 @@ export class UpdateAccessoryDto {
   quantityTotal?: number;
 
   @IsOptional()
+  @IsString()
+  brand?: string;
+
+  @IsOptional()
+  @IsString()
+  model?: string;
+
+  @IsOptional()
   @IsInt()
-  locationId?: number;
+  @Min(0)
+  lowStockThreshold?: number;
+
+  @IsOptional()
+  @IsInt()
+  locationId?: number | null;
 }
 
 export class CheckoutAccessoryDto {
@@ -52,6 +81,18 @@ export class CheckoutAccessoryDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsString()
+  serialNumber?: string;
+
+  @IsOptional()
+  @IsInt()
+  issuedWithAssetId?: number;
+
+  @IsOptional()
+  @IsDateString()
+  expectedReturnAt?: string;
 }
 
 export class CheckinAccessoryDto {

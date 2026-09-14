@@ -129,7 +129,7 @@ describe('Employees — history & offboarding (e2e)', () => {
     const offboarded = await request(server())
       .post(`/api/employees/${ids.employeeB}/offboard`)
       .set(auth(adminToken))
-      .send({ notes: 'Leaving company' })
+      .send({ notes: 'Leaving company', lastWorkingDate: new Date().toISOString() })
       .expect(201);
 
     expect(offboarded.body.isActive).toBe(false);

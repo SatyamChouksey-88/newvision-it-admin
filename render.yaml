@@ -1,8 +1,12 @@
-# NewVision on Render (Hobby / Free)
+# NewVision on Render
 # Dashboard → New → Blueprint → connect this repo → apply.
-# First-boot login: superadmin@newvision.local / Password123!
-# Then change that password.
-# Free Postgres expires after 30 days. Free API sleeps after 15 min idle.
+# First-boot: set BOOTSTRAP_ADMIN_EMAIL / BOOTSTRAP_ADMIN_PASSWORD (12+ chars).
+# Demo accounts (@newvision.local / Password123!) are blocked in production.
+#
+# Hosting region: Singapore — demo only. India region (Mumbai/Hyderabad) on request.
+# Do not recreate the Postgres instance to "move" region; that drops data.
+# API uses Starter (always-on). Postgres plan is left as-is so an apply does not
+# rebuild the database.
 
 databases:
   - name: newvision-db
@@ -17,7 +21,7 @@ services:
   - type: web
     name: newvision-api
     runtime: docker
-    plan: free
+    plan: starter
     region: singapore
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
@@ -35,8 +39,14 @@ services:
           property: connectionString
       - key: JWT_SECRET
         generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
       - key: JWT_EXPIRES_IN
         value: 30m
+      - key: ALLOW_DEMO_LOGINS
+        value: 'false'
+      - key: SWAGGER_ENABLED
+        value: 'false'
       - key: SEED_ON_START
         value: 'true'
       - key: SEED_IF_EMPTY
@@ -85,6 +95,14 @@ services:
         value: INBOX
       - key: EMAIL_INGEST_SECRET
         sync: false
+      - key: HOSTING_REGION
+        value: singapore
+      - key: REQUIRE_SUPERADMIN_MFA
+        value: 'true'
+      - key: PLATFORM_ADMIN_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
 
   - type: web
     name: newvision-web
@@ -99,6 +117,19 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
+    headers:
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      - path: /*
+        name: Content-Security-Policy
+        value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://*.onrender.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
     envVars:
       - key: NODE_VERSION
         value: '22'

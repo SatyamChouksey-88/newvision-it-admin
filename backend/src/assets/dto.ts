@@ -46,6 +46,12 @@ export class AssignAssetDto {
 export class AuditAssetDto {
   @IsOptional() @IsString() notes?: string;
   @IsOptional() @IsDateString() nextAuditDueAt?: string;
+  @IsOptional() @IsEnum(AssetCondition) condition?: AssetCondition;
+  @IsOptional() @IsInt() locationId?: number;
+}
+
+export class AuditByCodeDto extends AuditAssetDto {
+  @IsString() code!: string;
 }
 
 export class TransferAssetDto {

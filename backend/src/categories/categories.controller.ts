@@ -26,6 +26,14 @@ export class CreateCategoryDto {
 }
 export class UpdateCategoryDto extends PartialType(CreateCategoryDto) {}
 
+const DIRECTORY_READ = [
+  RoleName.SUPER_ADMIN,
+  RoleName.IT_ADMIN,
+  RoleName.IT_SUPPORT,
+  RoleName.MANAGER,
+  RoleName.EMPLOYEE,
+] as const;
+
 @ApiTags('categories')
 @Controller('asset-categories')
 export class CategoriesController {
@@ -34,6 +42,7 @@ export class CategoriesController {
     private readonly audit: AuditService,
   ) {}
 
+  @Roles(...DIRECTORY_READ)
   @Get()
   async list(@Query() query: ListQuery) {
     const { skip, take, orderBy } = parseListQuery(query, ['id', 'code', 'name']);
@@ -44,6 +53,7 @@ export class CategoriesController {
     return { data, total };
   }
 
+  @Roles(...DIRECTORY_READ)
   @Get(':id')
   get(@Param('id', ParseIntPipe) id: number) {
     return this.prisma.assetCategory.findUniqueOrThrow({ where: { id } });

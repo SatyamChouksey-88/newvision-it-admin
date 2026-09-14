@@ -29,6 +29,6 @@ test('employee role cannot see asset management actions (API-enforced RBAC, hidd
 }) => {
   await login(page, DEMO_USERS.employee);
   await page.goto('/assets');
-  await expect(page.getByText('My devices')).toBeVisible();
+  await expect(page.getByText('My kit')).toBeVisible();
   await expect(page.getByRole('button', { name: 'New Asset' })).toHaveCount(0);
 });

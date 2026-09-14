@@ -515,6 +515,6 @@ See `ENHANCEMENTS.md` for the full item-by-item list with file references. Summa
 - [x] Manager team devices/people nav + KPI; Super Admin can raise tickets; maintenance `vendorId`; request `fulfilledAssetId`; scan-to-audit
 - [x] Seed make/model pairing; chat test pings deleted immediately
 - [x] Skip link on app chrome; axe across roles; Manager report copy; full audit CSV export
-- [x] Help bulk-assign article; README/PROGRESS Playwright count = **101** `test(` cases in `frontend/e2e/` (not a pass claim)
+- [x] Help bulk-assign article; README/PROGRESS Playwright count = **103** `test(` cases in `frontend/e2e/` (not a pass claim)
 - [ ] Rotate production JWT/refresh secrets + Super Admin password; prove Resend + IMAP on the live URL
 

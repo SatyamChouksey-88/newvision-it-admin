@@ -1,9 +1,10 @@
-import { DownloadOutlined, DownOutlined, PlusOutlined } from '@ant-design/icons';
+import { DownloadOutlined, PlusOutlined } from '@ant-design/icons';
 import { useTable } from '@refinedev/antd';
 import { useGetIdentity } from '@refinedev/core';
-import { Button, Card, Dropdown, Form, Input, Modal, Select, Space, Tag, Typography } from 'antd';
+import { Button, Card, Dropdown, Form, Input, Modal, Select, Space, Tag, Tooltip, Typography } from 'antd';
 import { type MouseEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
+import { NV_TABLE_STICKY } from '../../chrome';
 import { CopyButton } from '../../components/CopyButton';
 import { CopyEmailButton } from '../../components/CopyEmailButton';
 import { DataGrid, type TableDensity } from '../../components/DataGrid/DataGrid';
@@ -11,6 +12,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { StatusLegend } from '../../components/StatusLegend';
 import { TablePagination } from '../../components/TablePagination';
 import { TableSkeleton } from '../../components/TableSkeleton';
+import { useNvPhone } from '../../hooks/useNvPhone';
 import {
   TICKET_STATUS_OPTIONS,
   TicketPriorityTag,
@@ -75,6 +77,7 @@ export function TicketList() {
   const navigate = useNavigate();
   const { search } = useLocation();
   const toast = useToast();
+  const phone = useNvPhone();
   const { data: identity } = useGetIdentity<Identity>();
   const isStaff = STAFF.includes(identity?.role ?? '');
   const restoredView = useRef(false);
@@ -91,8 +94,9 @@ export function TicketList() {
 
   const { tableProps, filters, setFilters, tableQuery } = useTable<SupportTicket>({
     resource: 'support-tickets',
-    syncWithLocation: true,
+    syncWithLocation: identity?.role !== 'EMPLOYEE',
     pagination: { pageSize: 25 },
+    queryOptions: { enabled: Boolean(identity) },
   });
   const { page, pageSize, total, onPageChange } = useRefinePagination(tableProps);
   const rows = tableProps.dataSource ?? [];
@@ -198,6 +202,7 @@ export function TicketList() {
 
   return (
     <Card
+      className="nv-list-page"
       title={
         <Space>
           <Typography.Title level={4} style={{ margin: 0 }}>
@@ -219,7 +224,16 @@ export function TicketList() {
         </Space>
       }
     >
+      <div className="nv-page-pin">
       <div className="nv-filter-row">
+        <Input.Search
+          id="ticket-search"
+          allowClear
+          placeholder="Search tickets"
+          aria-label="Search tickets"
+          defaultValue={String(activeFilters.q ?? '')}
+          onSearch={(q) => applyFilterState({ ...activeFilters, q: q || undefined })}
+        />
         {TICKET_STATUS_OPTIONS.map((s) => (
           <Tag.CheckableTag
             key={s.value}
@@ -267,6 +281,7 @@ export function TicketList() {
           </>
         ) : null}
       </div>
+      </div>
       {tableQuery.isLoading ? (
         <TableSkeleton columns={6} />
       ) : tableQuery.isError ? (
@@ -285,6 +300,28 @@ export function TicketList() {
           actionLabel="Raise a ticket"
           onAction={() => navigate('/tickets/create')}
         />
+      ) : phone ? (
+        <>
+          <div className="nv-phone-cards" data-testid="tickets-phone-cards">
+            {rows.map((r) => (
+              <button
+                type="button"
+                key={r.id}
+                className="nv-phone-card"
+                onClick={() => navigate(`/tickets/show/${r.id}`)}
+              >
+                <strong className="nv-mono">{r.ticketNumber}</strong>
+                <span>{r.subject}</span>
+                <Space size={6} wrap>
+                  <TicketStatusTag status={r.status} />
+                  <TicketPriorityTag priority={r.priority} />
+                  <SlaTag ticket={r} />
+                </Space>
+              </button>
+            ))}
+          </div>
+          <TablePagination total={total} page={page} pageSize={pageSize} onChange={onPageChange} />
+        </>
       ) : (
         <>
           <DataGrid<SupportTicket>
@@ -294,24 +331,13 @@ export function TicketList() {
             density={density}
             onDensityChange={setDensity}
             serverSide
+            sticky={NV_TABLE_STICKY}
             onChange={tableProps.onChange}
             searchInputId="ticket-search"
             enableQueueKeys={isStaff}
             onOpenRow={(r) => navigate(`/tickets/show/${r.id}`)}
             onAssignToMe={(r) => void assignToMe(r.id)}
             onRow={(r) => ({ onClick: () => navigate(`/tickets/show/${r.id}`) })}
-            toolbarLead={
-              <div className="nv-grid-search">
-                <Input.Search
-                  id="ticket-search"
-                  allowClear
-                  placeholder="Search tickets"
-                  aria-label="Search tickets"
-                  defaultValue={String(activeFilters.q ?? '')}
-                  onSearch={(q) => applyFilterState({ ...activeFilters, q: q || undefined })}
-                />
-              </div>
-            }
             hideClientExport={isStaff}
             rowSelection={
               isStaff
@@ -338,19 +364,26 @@ export function TicketList() {
               <>
                 <StatusLegend kind="ticket" />
                 {isStaff ? (
-                  <Dropdown
-                    trigger={['click']}
-                    menu={{
-                      items: [
-                        { key: 'csv', label: 'CSV', onClick: () => void exportFile('csv') },
-                        { key: 'pdf', label: 'PDF', onClick: () => void exportFile('pdf') },
-                      ],
-                    }}
-                  >
-                    <Button size="small" icon={<DownloadOutlined />} aria-label="Export tickets">
-                      Export <DownOutlined />
-                    </Button>
-                  </Dropdown>
+                  <Tooltip title="Export tickets">
+                    <span>
+                      <Dropdown
+                        trigger={['click']}
+                        menu={{
+                          items: [
+                            { key: 'csv', label: 'CSV', onClick: () => void exportFile('csv') },
+                            { key: 'pdf', label: 'PDF', onClick: () => void exportFile('pdf') },
+                          ],
+                        }}
+                      >
+                        <Button
+                          size="small"
+                          className="nv-grid-icon-btn"
+                          icon={<DownloadOutlined />}
+                          aria-label="Export tickets"
+                        />
+                      </Dropdown>
+                    </span>
+                  </Tooltip>
                 ) : null}
               </>
             }

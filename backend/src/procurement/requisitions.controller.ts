@@ -17,6 +17,7 @@ import { RoleName } from '@prisma/client';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { ListQuery } from '../common/query';
+import { assertAllowedUpload } from '../common/uploads';
 import { PrismaService } from '../prisma/prisma.service';
 import { ApprovalDto, CreateRequisitionDto, ReasonDto, UpdateRequisitionDto } from './dto';
 import { RequisitionsService } from './requisitions.service';
@@ -105,6 +106,7 @@ export class RequisitionsController {
     @CurrentUser() user: AuthUser,
   ) {
     await this.requisitions.get(id, user);
+    assertAllowedUpload(file);
     return this.prisma.procurementAttachment.create({
       data: {
         recordType: 'requisition',

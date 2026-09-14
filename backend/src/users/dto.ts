@@ -1,5 +1,6 @@
 import { RoleName } from '@prisma/client';
 import { IsBoolean, IsEmail, IsEnum, IsInt, IsOptional, IsString, MinLength } from 'class-validator';
+import { MIN_PASSWORD_LENGTH } from '../common/password';
 
 export class CreateUserDto {
   @IsEmail()
@@ -18,7 +19,7 @@ export class CreateUserDto {
 
   @IsOptional()
   @IsString()
-  @MinLength(8)
+  @MinLength(MIN_PASSWORD_LENGTH)
   password?: string;
 }
 
@@ -44,6 +45,6 @@ export class UpdateUserDto {
 export class AdminResetPasswordDto {
   @IsOptional()
   @IsString()
-  @MinLength(8)
+  @MinLength(MIN_PASSWORD_LENGTH)
   password?: string;
 }

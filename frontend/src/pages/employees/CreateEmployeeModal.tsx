@@ -1,8 +1,15 @@
-import { App as AntdApp, Alert, Checkbox, Form, Input, Modal, Select } from 'antd';
+import { App as AntdApp, Alert, Checkbox, DatePicker, Form, Input, Modal, Select } from 'antd';
+import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
+import { EmployeeSelect } from '../../components/EmployeeSelect';
 import { apiErrorMessage, httpClient } from '../../providers/axios';
 import type { Department, Location } from '../../types';
+
+const dateJoinedProps = {
+  getValueProps: (v?: string) => ({ value: v ? dayjs(v) : undefined }),
+  normalize: (v: dayjs.Dayjs | null) => (v ? v.startOf('day').toISOString() : undefined),
+};
 
 export function CreateEmployeeModal({
   open,
@@ -56,8 +63,16 @@ export function CreateEmployeeModal({
       designation?: string;
       locationId: number;
       departmentId?: number;
+      managerId?: number;
+      dateJoined: string;
+      expectedStartDate?: string;
+      probationEndDate?: string;
+      deskOrSeat?: string;
+      employmentType?: string;
+      contractEndDate?: string;
       createLogin?: boolean;
       loginRole?: string;
+      startOnboardChecklist?: boolean;
     };
     try {
       v = await form.validateFields();
@@ -66,17 +81,22 @@ export function CreateEmployeeModal({
     }
     setLoading(true);
     try {
-      await httpClient.post('/employees', {
+      const { data } = await httpClient.post('/employees', {
         ...v,
         phone: v.phone?.trim() || undefined,
         designation: v.designation?.trim() || undefined,
+        deskOrSeat: v.deskOrSeat?.trim() || undefined,
         createLogin: Boolean(v.createLogin),
         loginRole: v.createLogin ? (v.loginRole ?? 'EMPLOYEE') : undefined,
+        startOnboardChecklist: v.startOnboardChecklist !== false,
       });
       try {
         localStorage.setItem('nv.employees.lastLocationId', String(v.locationId));
       } catch {
         /* ignore */
+      }
+      if (data?.duplicateNameJoinWarning) {
+        message.warning(data.duplicateNameJoinWarning);
       }
       message.success('Employee created');
       form.resetFields();
@@ -116,7 +136,15 @@ export function CreateEmployeeModal({
           }
         />
       )}
-      <Form form={form} layout="vertical">
+      <Form
+        form={form}
+        layout="vertical"
+        initialValues={{
+          dateJoined: dayjs().startOf('day').toISOString(),
+          startOnboardChecklist: true,
+          employmentType: 'permanent',
+        }}
+      >
         <Form.Item label="Employee code" name="employeeCode" rules={[{ required: true, min: 2 }]}>
           <Input placeholder="EMP-PUN-0001" />
         </Form.Item>
@@ -128,6 +156,31 @@ export function CreateEmployeeModal({
         </Form.Item>
         <Form.Item label="Email" name="email" rules={[{ required: true, type: 'email' }]}>
           <Input />
+        </Form.Item>
+        <Form.Item
+          label="Date of joining"
+          name="dateJoined"
+          rules={[{ required: true, message: 'Joining date is required' }]}
+          extra="Offer or actual start date — not when this row was typed."
+          {...dateJoinedProps}
+        >
+          <DatePicker style={{ width: '100%' }} allowClear={false} />
+        </Form.Item>
+        <Form.Item
+          label="Expected start"
+          name="expectedStartDate"
+          extra="Optional. Use when kit packing is before the offer date."
+          {...dateJoinedProps}
+        >
+          <DatePicker style={{ width: '100%' }} />
+        </Form.Item>
+        <Form.Item
+          label="Probation end"
+          name="probationEndDate"
+          extra="Leave blank for DOJ + 90 days (India typical)."
+          {...dateJoinedProps}
+        >
+          <DatePicker style={{ width: '100%' }} />
         </Form.Item>
         <Form.Item label="Location" name="locationId" rules={[{ required: true, message: 'Pick a location' }]}>
           <Select
@@ -144,11 +197,19 @@ export function CreateEmployeeModal({
             options={departments.map((d) => ({ label: d.name, value: d.id }))}
           />
         </Form.Item>
-        <Form.Item label="Employment type" name="employmentType" initialValue="permanent">
+        <Form.Item label="Reports to" name="managerId">
+          <EmployeeSelect placeholder="Optional manager" />
+        </Form.Item>
+        <Form.Item label="Desk / seat" name="deskOrSeat">
+          <Input placeholder="Pune 4th, bay 12" />
+        </Form.Item>
+        <Form.Item label="Employment type" name="employmentType">
           <Select
             options={[
               { label: 'Permanent — Active', value: 'permanent' },
               { label: 'Contract — Contract Active', value: 'contract' },
+              { label: 'Intern', value: 'intern' },
+              { label: 'Consultant', value: 'consultant' },
             ]}
           />
         </Form.Item>
@@ -164,8 +225,23 @@ export function CreateEmployeeModal({
         <Form.Item label="Designation" name="designation">
           <Input placeholder="Optional" />
         </Form.Item>
-        <Form.Item label="Phone" name="phone">
-          <Input placeholder="Optional" />
+        <Form.Item label="Phone" name="phone" extra="India numbers: +91 …">
+          <Input placeholder="+91" />
+        </Form.Item>
+        <Form.Item noStyle shouldUpdate={(a, b) => a.dateJoined !== b.dateJoined}>
+          {({ getFieldValue }) => {
+            const doj = getFieldValue('dateJoined');
+            const future = doj && dayjs(doj).isAfter(dayjs(), 'day');
+            return (
+              <Form.Item name="startOnboardChecklist" valuePropName="checked">
+                <Checkbox disabled={future}>
+                  {future
+                    ? 'Onboard checklist starts on joining day (future DOJ)'
+                    : 'Start onboard checklist'}
+                </Checkbox>
+              </Form.Item>
+            );
+          }}
         </Form.Item>
         <Form.Item name="createLogin" valuePropName="checked">
           <Checkbox>Create a login for this employee</Checkbox>

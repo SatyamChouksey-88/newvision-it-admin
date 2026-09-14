@@ -14,10 +14,11 @@ import { RoleName } from '@prisma/client';
 import * as crypto from 'node:crypto';
 import { AuditService } from '../audit/audit.service';
 import { AuthService } from '../auth/auth.service';
-import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { ListQuery, parseListQuery } from '../common/query';
 import { PrismaService } from '../prisma/prisma.service';
+import { runUnscoped } from '../tenancy/context';
 import { AdminResetPasswordDto, CreateUserDto, UpdateUserDto } from './dto';
 
 /**
@@ -64,12 +65,26 @@ export class UsersController {
 
   /** Create a standalone login, or link one to an existing employee (email/reset-link only — no plaintext password stored or returned). */
   @Post()
-  async create(@Body() dto: CreateUserDto, @CurrentUser('id') actorId: number) {
+  async create(@Body() dto: CreateUserDto, @CurrentUser() actor: AuthUser) {
     const role = await this.prisma.role.findUnique({ where: { name: dto.role } });
     if (!role) throw new BadRequestException(`Unknown role ${dto.role}`);
     if (dto.employeeId) {
       const existing = await this.prisma.user.findUnique({ where: { employeeId: dto.employeeId } });
       if (existing) throw new BadRequestException('This employee already has a login');
+    }
+    const itRoles: RoleName[] = [RoleName.SUPER_ADMIN, RoleName.IT_ADMIN, RoleName.IT_SUPPORT];
+    if (itRoles.includes(dto.role)) {
+      const tenant = await runUnscoped(() =>
+        this.prisma.tenant.findUnique({ where: { id: actor.tenantId }, select: { seatCap: true } }),
+      );
+      const used = await this.prisma.user.count({
+        where: { role: { name: { in: itRoles } } },
+      });
+      if (tenant && used >= tenant.seatCap) {
+        throw new BadRequestException(
+          `This workspace is at its IT seat cap (${tenant.seatCap}). Assets are not metered — talk to sales to add IT seats.`,
+        );
+      }
     }
     // A random, never-communicated placeholder — the real password is set via the emailed link.
     const placeholder = dto.password ?? crypto.randomBytes(24).toString('hex');
@@ -94,7 +109,7 @@ export class UsersController {
       entityId: user.id,
       action: 'create',
       summary: `Created login ${user.email} (${dto.role})`,
-      changedById: actorId,
+      changedById: actor.id,
       newValue: { email: user.email, role: dto.role, employeeId: dto.employeeId },
     });
     return this.present(user);

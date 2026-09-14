@@ -1,12 +1,16 @@
 # NewVision — Project Status & Gap Audit
 
-**2026-09-14 (Prompts 29–30):** In-app Help is current (articles + regenerated screenshots; `cd frontend && npm run screenshots`). QA plan/results/defects live in `QA_TEST_PLAN.md`, `QA_RESULTS.md`, `QA_DEFECTS.md`. SLA chip contrast and Help link underlines were fixed this pass. Production mailbox / full 80-spec Playwright job are still open (see those files). Feature inventory: `PROJECT_HISTORY.md` + `PROGRESS.md`.
+**Authoritative current docs:** [`PROGRESS.md`](./PROGRESS.md) (what shipped), [`DECISIONS.md`](./DECISIONS.md) (why), [`PRODUCT_GAPS_AND_ENHANCEMENTS.md`](./PRODUCT_GAPS_AND_ENHANCEMENTS.md) (Prompt 32 security/loops/docs ledger).
 
-This document is the current gap audit, cross-checked against the codebase after **Prompt 20** (visual rebuild, role-based shells, ticket depth, email-in). For the build log see `PROGRESS.md`; for judgment calls see `DECISIONS.md`.
+**2026-09-14 (Prompt 32):** Security hardening (demo logins, RBAC leaks, rate-limit, Helmet/CSP, httpOnly refresh, Swagger lock, upload hygiene) plus finished loops (email attachments, overdue mail, Manager team UI, Super Admin tickets, maintenance vendors, request fulfillment asset, scan-to-audit, seed quality) and doc/a11y/report copy. Numbered sections below are **historical after Prompt 20** — do not treat them as the runbook.
 
-> **Stale from Prompt 20 onward for the numbered sections below.** Vendor/procurement (Prompt 23), Teams-style chat (Prompt 24),
-> and later hardening are not fully reflected in sections 1–n.
-> Use **`PROJECT_HISTORY.md`** for the current, verified feature inventory and open-issues list.
+**2026-09-14 (Prompt 37):** Productized as a multi-tenant SaaS: `tenantId` isolation at Prisma, self-serve `/signup`, 14-day Team trial → Starter, first-hour checklist + sample company, export/delete/billing hooks, DB-verifying `/api/health` + documented Singapore demo region. Legal/GST/DPA remain external.
+
+**2026-09-14 (Prompt 38):** Joining date required; Hardware tabs + My kit; accessory catalog depth; sticky list chrome; `nv-phone` Employee+lookup. No dark mode. Phone-width admin rewrite still out (`FUTURE_IDEAS.md`). Sister pack Prompts 32–37 unchanged.
+
+**2026-09-14 (Prompts 29–30):** In-app Help is current (articles + regenerated screenshots; `cd frontend && npm run screenshots`). QA plan/results/defects live in `QA_TEST_PLAN.md`, `QA_RESULTS.md`, `QA_DEFECTS.md`. SLA chip contrast and Help link underlines were fixed this pass. Production mailbox / full Playwright job are still open (see those files). Feature inventory: `PROJECT_HISTORY.md` + `PROGRESS.md`.
+
+> Vendor/procurement (Prompt 23), Teams-style chat (Prompt 24), and later hardening are in **PROGRESS.md**, not in sections 1–n below.
 
 ## 1. What’s covered (Phases 1–4 — core product)
 

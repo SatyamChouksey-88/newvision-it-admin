@@ -5,6 +5,8 @@ import { ListQuery, parseListQuery } from '../common/query';
 import { ImportExportService } from '../import-export/import-export.service';
 import { parseTabular, type Row } from '../import-export/parse';
 import { PrismaService } from '../prisma/prisma.service';
+import { runWithTenant } from '../tenancy/context';
+import { TenantService } from '../tenancy/tenant.service';
 import {
   applyMapping,
   ASSET_CANONICAL_FIELDS,
@@ -21,7 +23,7 @@ import {
 import { findDuplicates } from './duplicates';
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
-const SAMPLE_SIZE = 8;
+const SAMPLE_SIZE = 50;
 
 const omitFile = { fileData: false } as const;
 
@@ -32,6 +34,7 @@ export class ImportJobsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly importer: ImportExportService,
+    private readonly tenants: TenantService,
   ) {}
 
   async list(query: ListQuery) {
@@ -125,8 +128,11 @@ export class ImportJobsService {
       where: { id },
       data: { status: 'running', mapping: nextMapping, startedAt: new Date() },
     });
+    const tenantId = actor.tenantId;
     setImmediate(() => {
-      this.process(id, actor).catch((e) => this.logger.error(`Import job ${id} failed`, e));
+      runWithTenant(tenantId, () => this.process(id, actor)).catch((e) =>
+        this.logger.error(`Import job ${id} failed`, e),
+      );
     });
     return this.get(id);
   }
@@ -169,7 +175,7 @@ export class ImportJobsService {
 
       // importAssetRows numbers rows as if `toImport` were the whole file; rewrite using original positions.
       const errors = [...dupErrors, ...imported.errors];
-      return this.prisma.importJob.update({
+      const updated = await this.prisma.importJob.update({
         where: { id },
         data: {
           status: 'completed',
@@ -182,6 +188,13 @@ export class ImportJobsService {
         },
         omit: omitFile,
       });
+      if (imported.created > 0) {
+        await this.tenants.markStep(
+          actor,
+          job.kind === 'assets' ? 'importAssets' : 'importEmployees',
+        );
+      }
+      return updated;
     } catch (e) {
       await this.prisma.importJob.update({
         where: { id },

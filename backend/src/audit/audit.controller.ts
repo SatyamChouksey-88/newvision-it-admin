@@ -1,7 +1,9 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, Res } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { AuditAction, Prisma, RoleName } from '@prisma/client';
+import type { Response } from 'express';
 import { Roles } from '../common/decorators/roles.decorator';
+import { contentDisposition } from '../common/uploads';
 import { PrismaService } from '../prisma/prisma.service';
 
 const AUDIT_ACTIONS = new Set<string>(Object.values(AuditAction));
@@ -12,13 +14,45 @@ function parseActions(raw?: string | string[]): AuditAction[] {
   return list.map((a) => a.trim()).filter((a) => AUDIT_ACTIONS.has(a)) as AuditAction[];
 }
 
+const ADMIN = [RoleName.SUPER_ADMIN, RoleName.IT_ADMIN] as const;
+
 /** Audit log viewer — restricted to Super Admin and IT Admin. Read-only. */
 @ApiTags('audit')
 @Controller('audit-logs')
-@Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
 export class AuditController {
   constructor(private readonly prisma: PrismaService) {}
 
+  @Roles(...ADMIN)
+  @Get('export')
+  async exportCsv(@Res() res: Response) {
+    const rows = await this.prisma.auditLog.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 50_000,
+      include: { changedBy: { select: { fullName: true, email: true } } },
+    });
+    const header = ['createdAt', 'action', 'entityType', 'entityId', 'summary', 'actor', 'email'];
+    const lines = [
+      header.join(','),
+      ...rows.map((r) =>
+        [
+          r.createdAt.toISOString(),
+          r.action,
+          csvCell(r.entityType),
+          csvCell(r.entityId),
+          csvCell(r.summary),
+          csvCell(r.changedBy?.fullName ?? ''),
+          csvCell(r.changedBy?.email ?? ''),
+        ].join(','),
+      ),
+    ];
+    const buf = Buffer.from(lines.join('\n'), 'utf8');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', contentDisposition('audit-logs.csv'));
+    res.setHeader('X-Row-Count', String(rows.length));
+    res.send(buf);
+  }
+
+  @Roles(...ADMIN)
   @Get()
   async list(
     @Query('entityType') entityType?: string,
@@ -65,4 +99,9 @@ export class AuditController {
     ]);
     return { data: rows, total };
   }
+}
+
+function csvCell(value: string): string {
+  if (/[",\n]/.test(value)) return `"${value.replaceAll('"', '""')}"`;
+  return value;
 }

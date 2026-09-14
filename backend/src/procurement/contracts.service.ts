@@ -5,6 +5,7 @@ import { AuthUser } from '../common/decorators/current-user.decorator';
 import { ListQuery, parseListQuery } from '../common/query';
 import { MailerService } from '../notifications/mailer.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { forEachTenant } from '../tenancy/context';
 import { CONTRACT_RENEWAL_DAYS } from './constants';
 import { CreateContractDto, UpdateContractDto } from './dto';
 import { ProcurementLogService } from './log.service';
@@ -186,8 +187,10 @@ export class ContractsService {
   /** Daily 08:05 — 90/60/30/7-day contract renewal alerts, de-duplicated per contract+threshold. */
   @Cron(CronExpression.EVERY_DAY_AT_8AM, { name: 'contract-renewal-alerts' })
   async scheduledCheck(): Promise<void> {
-    const result = await this.runRenewalCheck();
-    this.logger.log(`Contract renewal check: ${result.created} alerts`);
+    await forEachTenant(this.prisma, async () => {
+      const result = await this.runRenewalCheck();
+      this.logger.log(`Contract renewal check: ${result.created} alerts`);
+    });
   }
 
   async runRenewalCheck(now: Date = new Date()): Promise<{ created: number; checked: number }> {

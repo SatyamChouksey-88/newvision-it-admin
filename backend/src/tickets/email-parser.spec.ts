@@ -52,4 +52,30 @@ loop
     const text = `Please try again.\n\nOn Tue, Asha wrote:\n> old text`;
     expect(stripQuotedReply(text)).toBe('Please try again.');
   });
+
+  it('extracts inbound attachments from multipart/mixed', () => {
+    const parsed = parseRfc822(`From: Asha <asha.apte@newvision.local>
+To: it@newvision.local
+Subject: Screenshot of the error
+Message-ID: <att@mail.test>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="BOUND"
+
+--BOUND
+Content-Type: text/plain
+
+The printer jammed again.
+--BOUND
+Content-Type: text/plain
+Content-Disposition: attachment; filename="notes.txt"
+Content-Transfer-Encoding: base64
+
+aGVscCBwbGVhc2U=
+--BOUND--
+`);
+    expect(parsed.text).toContain('printer jammed');
+    expect(parsed.attachments).toHaveLength(1);
+    expect(parsed.attachments[0].filename).toBe('notes.txt');
+    expect(parsed.attachments[0].data.toString('utf8')).toBe('help please');
+  });
 });

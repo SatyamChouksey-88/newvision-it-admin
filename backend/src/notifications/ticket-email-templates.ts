@@ -189,6 +189,25 @@ export function dailyDigestEmail(args: {
   };
 }
 
+export function ticketOverdueEmail(args: {
+  ticketId: number;
+  ticketNumber: string;
+  subject: string;
+}): EmailContent {
+  const url = ticketUrl(args.ticketId);
+  return {
+    subject: `${args.ticketNumber} is overdue`,
+    text: `Your ticket ${args.ticketNumber} (${args.subject}) has gone past its due date. We'll keep working it — reply to this email if you have an update.\n\n${url}`,
+    html: shell({
+      preheader: `${args.ticketNumber} is overdue`,
+      heading: 'Your ticket is overdue',
+      bodyHtml: `<strong>${escapeHtml(args.ticketNumber)}</strong>: "${escapeHtml(args.subject)}" has passed its due date. IT still has it — reply here if anything has changed.`,
+      ctaLabel: 'View ticket',
+      ctaUrl: url,
+    }),
+  };
+}
+
 function escapeHtml(s: string): string {
   return s
     .replaceAll('&', '&amp;')

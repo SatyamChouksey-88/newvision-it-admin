@@ -2,6 +2,7 @@ import { CheckOutlined, CloseOutlined, EditOutlined, FormOutlined } from '@ant-d
 import { useGetIdentity } from '@refinedev/core';
 import { Button, Card, Form, Input, Modal, Select, Space, Tag, Typography } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
+import { AssetSelect } from '../../components/AssetSelect';
 import { PrimaryWithSub } from '../../components/Cells';
 import { ChipSelect } from '../../components/ChipSelect';
 import { CopyButton } from '../../components/CopyButton';
@@ -29,6 +30,10 @@ export function RequestsPage() {
   const [categories, setCategories] = useState<AssetCategory[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
   const [reviewTarget, setReviewTarget] = useState<AssetRequest | null>(null);
+  const [fulfillTarget, setFulfillTarget] = useState<AssetRequest | null>(null);
+  const [fulfillAssetId, setFulfillAssetId] = useState<number | undefined>();
+  const [fulfillKitId, setFulfillKitId] = useState<number | undefined>();
+  const [kits, setKits] = useState<{ id: number; name: string }[]>([]);
   const [editTarget, setEditTarget] = useState<AssetRequest | null>(null);
   const [reviewComment, setReviewComment] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
@@ -76,7 +81,13 @@ export function RequestsPage() {
       .get('/asset-categories', { params: { _start: 0, _end: 100 } })
       .then(({ data }) => setCategories(data.data ?? []))
       .catch(() => setCategories([]));
-  }, []);
+    if (['SUPER_ADMIN', 'IT_ADMIN'].includes(identity?.role ?? '')) {
+      httpClient
+        .get('/issue-kits')
+        .then(({ data }) => setKits(Array.isArray(data) ? data : []))
+        .catch(() => setKits([]));
+    }
+  }, [identity?.role]);
 
   useEffect(() => {
     if (!createOpen) return;
@@ -213,10 +224,23 @@ export function RequestsPage() {
     }
   };
 
-  const fulfill = async (id: number) => {
+  const fulfill = async () => {
+    if (!fulfillTarget) return;
     try {
-      await httpClient.patch(`/asset-requests/${id}/fulfill`);
-      toast.success('Marked fulfilled — assign the asset from the Assets page');
+      await httpClient.patch(`/asset-requests/${fulfillTarget.id}/fulfill`, {
+        ...(fulfillKitId ? { kitId: fulfillKitId } : {}),
+        ...(!fulfillKitId && fulfillTarget.kind === 'asset' ? { assetId: fulfillAssetId } : {}),
+      });
+      toast.success(
+        fulfillKitId
+          ? 'Issued the kit and recorded the asset on this request'
+          : fulfillAssetId
+            ? 'Fulfilled — the issued asset is recorded on this request'
+            : 'Marked fulfilled',
+      );
+      setFulfillTarget(null);
+      setFulfillAssetId(undefined);
+      setFulfillKitId(undefined);
       void load();
     } catch (e) {
       toast.error(apiErrorMessage(e, 'Could not mark the request fulfilled'));
@@ -439,6 +463,12 @@ export function RequestsPage() {
                 ),
               },
               {
+                title: 'Issued',
+                gridKey: 'issued',
+                render: (_, r) => r.fulfilledAsset?.assetCode ?? '—',
+                getExportValue: (r) => r.fulfilledAsset?.assetCode ?? '',
+              },
+              {
                 title: 'Actions',
                 gridKey: 'actions',
                 exportable: false,
@@ -499,18 +529,15 @@ export function RequestsPage() {
                         </Button>
                       </>
                     )}
-                    {['SUPER_ADMIN', 'IT_ADMIN'].includes(role) && r.status === 'approved' && (
+                    {['SUPER_ADMIN', 'IT_ADMIN', 'IT_SUPPORT'].includes(role) &&
+                      r.status === 'approved' && (
                       <Button
                         size="small"
                         type="primary"
                         onClick={(e) => {
                           e.stopPropagation();
-                          void confirmAction({
-                            title: 'Mark fulfilled?',
-                            content: `Request #${r.id} will be marked fulfilled.`,
-                            okText: 'Mark fulfilled',
-                            onOk: () => fulfill(r.id),
-                          });
+                          setFulfillTarget(r);
+                          setFulfillAssetId(undefined);
                         }}
                       >
                         Mark fulfilled
@@ -622,6 +649,58 @@ export function RequestsPage() {
             />
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        open={!!fulfillTarget}
+        title={`Fulfill request #${fulfillTarget?.id ?? ''}`}
+        onCancel={() => {
+          setFulfillTarget(null);
+          setFulfillAssetId(undefined);
+          setFulfillKitId(undefined);
+        }}
+        onOk={() => void fulfill()}
+        okText="Record and fulfill"
+        okButtonProps={{
+          disabled:
+            fulfillTarget?.kind === 'asset' && !fulfillAssetId && !fulfillKitId,
+        }}
+      >
+        {fulfillTarget?.kind === 'asset' ? (
+          <Form layout="vertical">
+            {kits.length > 0 ? (
+              <Form.Item label="Issue kit (optional)">
+                <Select
+                  allowClear
+                  placeholder="One-click kit"
+                  value={fulfillKitId}
+                  onChange={(v) => {
+                    setFulfillKitId(v);
+                    if (v) setFulfillAssetId(undefined);
+                  }}
+                  options={kits.map((k) => ({ label: k.name, value: k.id }))}
+                />
+              </Form.Item>
+            ) : null}
+            <Form.Item label="Asset issued" required={!fulfillKitId}>
+              <AssetSelect
+                value={fulfillAssetId}
+                onChange={(v) => {
+                  setFulfillAssetId(v);
+                  if (v) setFulfillKitId(undefined);
+                }}
+                placeholder="Pick an available matching asset"
+                aria-label="Asset issued"
+                status="available"
+                categoryId={fulfillTarget.categoryId ?? undefined}
+              />
+            </Form.Item>
+          </Form>
+        ) : (
+          <Typography.Paragraph>
+            This accessory request will be marked fulfilled. Stock checkout stays on Accessories.
+          </Typography.Paragraph>
+        )}
       </Modal>
 
       <Modal

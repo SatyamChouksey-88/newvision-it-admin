@@ -21,7 +21,9 @@ import type { Response } from 'express';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { ListQuery } from '../common/query';
+import { contentDisposition } from '../common/uploads';
 import {
+  ApplyTemplateDto,
   AssignTicketDto,
   BulkAssignDto,
   BulkCloseDto,
@@ -32,6 +34,7 @@ import {
   DuplicateDto,
   NotifyPrefDto,
   RateTicketDto,
+  RecordIdpResetDto,
   TemplateDto,
   TimeLogDto,
   TransitionTicketDto,
@@ -106,7 +109,7 @@ export class TicketsController {
     const filename = `tickets${nameBits ? `_${nameBits}` : ''}.${fmt}`;
     res.setHeader('X-Row-Count', String(rows.length));
     res.setHeader('Content-Type', fmt === 'pdf' ? 'application/pdf' : 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Disposition', contentDisposition(filename));
     res.send(buf);
   }
 
@@ -134,7 +137,7 @@ export class TicketsController {
       ];
       const buf = await reportsToPdf('Ticket reports', lines);
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', 'attachment; filename="ticket-reports.pdf"');
+      res.setHeader('Content-Disposition', contentDisposition('ticket-reports.pdf'));
       res.send(buf);
       return;
     }
@@ -146,7 +149,7 @@ export class TicketsController {
       { title: 'Ratings', rows: data.ratingDistribution },
     ]);
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename="ticket-reports.csv"');
+    res.setHeader('Content-Disposition', contentDisposition('ticket-reports.csv'));
     res.send(buf);
   }
 
@@ -390,6 +393,38 @@ export class TicketsController {
     return this.tickets.markDuplicate(id, dto.originalTicketNumber, user);
   }
 
+  @Roles(...STAFF)
+  @Post('support-tickets/:id/apply-template')
+  applyTemplate(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ApplyTemplateDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.tickets.applyTemplate(id, dto.templateId, user);
+  }
+
+  @Roles(...STAFF)
+  @Post('support-tickets/:id/verify-identity')
+  verifyIdentity(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
+    return this.tickets.verifyIdentity(id, user);
+  }
+
+  @Roles(...STAFF)
+  @Post('support-tickets/:id/send-reset-link')
+  sendResetLink(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
+    return this.tickets.sendNewVisionReset(id, user);
+  }
+
+  @Roles(...STAFF)
+  @Post('support-tickets/:id/record-idp-reset')
+  recordIdpReset(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: RecordIdpResetDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.tickets.recordIdpReset(id, dto.system, user);
+  }
+
   @Post('support-tickets/:id/attachments')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 8 * 1024 * 1024 } }))
   uploadAttachment(
@@ -410,7 +445,7 @@ export class TicketsController {
   ) {
     const row = await this.tickets.getAttachment(id, attId, user);
     res.setHeader('Content-Type', row.mimeType);
-    res.setHeader('Content-Disposition', `attachment; filename="${row.filename}"`);
+    res.setHeader('Content-Disposition', contentDisposition(row.filename));
     res.send(Buffer.from(row.data));
   }
 }

@@ -4,6 +4,7 @@ import { RoleName } from '@prisma/client';
 import type { Response } from 'express';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
+import { contentDisposition } from '../common/uploads';
 import { ReportFormat, ReportsService, ReportType } from './reports.service';
 
 const VALID_TYPES: ReportType[] = [
@@ -41,7 +42,7 @@ export class ReportsController {
     const fmt: ReportFormat = format === 'pdf' ? 'pdf' : 'csv';
     const { buffer, filename } = await this.reports.render(type as ReportType, fmt, user);
     res.setHeader('Content-Type', fmt === 'pdf' ? 'application/pdf' : 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Disposition', contentDisposition(filename));
     res.send(buffer);
   }
 }

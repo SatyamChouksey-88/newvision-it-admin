@@ -15,6 +15,7 @@ import { RoleName } from '@prisma/client';
 import type { Response } from 'express';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
+import { contentDisposition } from '../common/uploads';
 import { ListQuery } from '../common/query';
 import { AmendPoDto, CreateInvoiceDto, InvoicePaymentDto, ReasonDto, ReceiveDto } from './dto';
 import { PurchaseOrdersService } from './purchase-orders.service';
@@ -41,7 +42,7 @@ export class PurchaseOrdersController {
   ) {
     const buffer = await this.orders.pdf(id, user);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="po-${id}.pdf"`);
+    res.setHeader('Content-Disposition', contentDisposition(`po-${id}.pdf`));
     res.send(buffer);
   }
 

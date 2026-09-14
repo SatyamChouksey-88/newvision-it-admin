@@ -1,11 +1,13 @@
-# NewVision — IT Asset Management System
+# NewVision — IT Asset Management (multi-tenant SaaS)
 
-Internal IT asset inventory & management for a company operating across **Pune, Hyderabad, and Bhopal** (~1,250 assets, ~1,180 employees). It replaces spreadsheets: from one place an IT admin can see how many assets exist, who has what, its condition, warranty status, and where each asset is in its lifecycle.
+IT asset inventory for Indian companies: who has what, warranty, tickets. Each company is an isolated **tenant** (shared Postgres, `tenantId` on every operational row — see `DECISIONS.md` Prompt 37). Self-serve signup starts a **14-day Team trial**; after expiry the workspace stays on **Starter** (no vendors/chat). Assets are not metered.
+
+Legal entity, GST invoicing (Zoho Books), DPA/MSA PDFs, and certifications are **outside this repo**. In-app hooks: `/signup`, `/trust`, Settings → Workspace (export / delete / billing snapshot). Hosting region: **Singapore — demo only; India on request** (`GET /api/health` → `residency`). Backup drill: [`docs/BACKUP.md`](./docs/BACKUP.md).
 
 - **Frontend:** React + TypeScript, [Refine](https://refine.dev) + Ant Design (Vite)
 - **Backend:** NestJS + TypeScript, PostgreSQL via Prisma
-- **Auth:** JWT + role-based access control (5 roles), enforced at the API layer
-- **Testing:** Jest (unit + integration/API) and Playwright (end-to-end)
+- **Auth:** JWT + 5-role RBAC at the API layer; Super Admin MFA (TOTP) in production
+- **Testing:** Jest (unit + e2e including tenant isolation) and Playwright
 - **Local dev:** Docker Compose (Postgres + backend + frontend)
 - **CI:** GitHub Actions — lint, type-check, unit, integration, and Playwright on every push
 
@@ -152,11 +154,11 @@ cd backend && npm run start:dev
 # 2) In another terminal, run the e2e suite
 cd frontend
 npx playwright install chromium   # first time only
-npm run test:e2e                  # 68 tests
+npm run test:e2e                  # Playwright (103 test() cases in frontend/e2e/ as of Prompt 32)
 npm run test:e2e:report           # open the last HTML report
 ```
 
-Current status: **68 Playwright tests passing** (includes axe-core a11y on dashboard/assets/tickets/notes, help docs, first-run onboarding, tablet/light-only checks, helpdesk tickets, lazy-route smoke, cumulative growth chart, the asset-request approval flow, and procurement nav).
+Current status: **101 Playwright `test()` cases** in `frontend/e2e/` (axe-core now covers login, scan, procurement, settings, and Employee/Manager/IT Support homes as well as the IT Admin shell). Older README figures (22 / 55 / 68) were snapshot counts from earlier prompts — do not mix them. A green local run is recorded in CI, not by this paragraph.
 
 ---
 

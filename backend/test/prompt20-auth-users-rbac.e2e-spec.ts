@@ -11,7 +11,7 @@ describe('Prompt 20 — refresh tokens, password reset, Users CRUD, RBAC dashboa
   let ids: TestContext['ids'];
   let superAdmin: string;
   let admin: string;
-  let manager: string;
+  let _manager: string;
   let employee: string;
 
   beforeAll(async () => {
@@ -20,7 +20,7 @@ describe('Prompt 20 — refresh tokens, password reset, Users CRUD, RBAC dashboa
     ids = await seedCore(prisma);
     superAdmin = await login(app, 'superadmin@newvision.local');
     admin = await login(app, 'itadmin@newvision.local');
-    manager = await login(app, 'manager@newvision.local');
+    _manager = await login(app, 'manager@newvision.local');
     employee = await login(app, 'employee@newvision.local');
     jest.spyOn(app.get(MailerService), 'send').mockResolvedValue(undefined);
   });
@@ -163,6 +163,7 @@ describe('Prompt 20 — refresh tokens, password reset, Users CRUD, RBAC dashboa
         lastName: 'Test',
         email: 'login.test@newvision.local',
         locationId: ids.locationPune,
+        dateJoined: new Date().toISOString(),
         createLogin: true,
         loginRole: 'EMPLOYEE',
       })
@@ -188,6 +189,7 @@ describe('Prompt 20 — refresh tokens, password reset, Users CRUD, RBAC dashboa
         email: 'dept.referrer@newvision.local',
         locationId: ids.locationPune,
         departmentId: dep.body.id,
+        dateJoined: new Date().toISOString(),
       })
       .expect(201);
     const blocked = await request(app.getHttpServer())
@@ -210,6 +212,7 @@ describe('Prompt 20 — refresh tokens, password reset, Users CRUD, RBAC dashboa
         lastName: 'Referrer',
         email: 'loc.referrer@newvision.local',
         locationId: loc.body.id,
+        dateJoined: new Date().toISOString(),
       })
       .expect(201);
     const blockedLoc = await request(app.getHttpServer())
@@ -220,27 +223,30 @@ describe('Prompt 20 — refresh tokens, password reset, Users CRUD, RBAC dashboa
   });
 
   it('scopes the dashboard: estate endpoints are IT-only, employee/manager get their own summaries', async () => {
-    await request(app.getHttpServer()).get('/api/dashboard/metrics').set(auth(manager)).expect(403);
-    await request(app.getHttpServer()).get('/api/dashboard/metrics').set(auth(employee)).expect(403);
+    const managerTok = await login(app, 'manager@newvision.local');
+    const employeeTok = await login(app, 'employee@newvision.local', 'ChangedPassword123!');
+    await request(app.getHttpServer()).get('/api/dashboard/metrics').set(auth(managerTok)).expect(403);
+    await request(app.getHttpServer()).get('/api/dashboard/metrics').set(auth(employeeTok)).expect(403);
     await request(app.getHttpServer()).get('/api/dashboard/metrics').set(auth(admin)).expect(200);
 
     const mine = await request(app.getHttpServer())
       .get('/api/dashboard/my-summary')
-      .set(auth(employee))
+      .set(auth(employeeTok))
       .expect(200);
     expect(Array.isArray(mine.body.assets)).toBe(true);
+    expect(Array.isArray(mine.body.accessories)).toBe(true);
     expect(Array.isArray(mine.body.openTickets)).toBe(true);
 
     const team = await request(app.getHttpServer())
       .get('/api/dashboard/team-summary')
-      .set(auth(manager))
+      .set(auth(managerTok))
       .expect(200);
     expect(typeof team.body.pendingRequestCount).toBe('number');
     expect(typeof team.body.teamDeviceCount).toBe('number');
 
     // my-summary/team-summary are scoped to the caller's own role — an IT admin has no
     // employeeId in the seed fixture, so it degrades to empty rather than someone else's data.
-    await request(app.getHttpServer()).get('/api/dashboard/team-summary').set(auth(employee)).expect(403);
+    await request(app.getHttpServer()).get('/api/dashboard/team-summary').set(auth(employeeTok)).expect(403);
   });
 
   it('the public scan endpoint no longer leaks the assignee name or serial number (B10)', async () => {

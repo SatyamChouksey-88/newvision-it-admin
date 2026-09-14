@@ -30,6 +30,7 @@ test.describe('Functionality audit — browser regressions', () => {
         lastName: `Fixture${stamp}`,
         email: `audit.fixture.${stamp}@newvision.local`,
         locationId: locations.data[0].id,
+        dateJoined: new Date().toISOString(),
       },
     });
     expect(created.ok()).toBeTruthy();
@@ -40,6 +41,7 @@ test.describe('Functionality audit — browser regressions', () => {
     await page.getByRole('button', { name: 'Offboard' }).click();
     const modal = page.getByRole('dialog');
     await expect(modal).toBeVisible();
+    await modal.getByLabel('Last working day').fill('2026-09-14');
     await modal.getByRole('button', { name: 'Offboard employee' }).click();
     await expectSuccess(page, /offboarded/i);
     await expect(page.getByRole('button', { name: 'Reinstate' })).toBeVisible();

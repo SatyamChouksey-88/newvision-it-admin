@@ -51,7 +51,7 @@ export class ReportsService {
       case 'employees':
         return this.employeeReport(actor);
       case 'locations':
-        return this.locationReport();
+        return this.locationReport(actor);
       case 'warranty':
         return this.warrantyReport(actor);
       case 'supplies':
@@ -137,6 +137,7 @@ export class ReportsService {
       include: { category: true, location: true, department: true, assignedEmployee: true },
       orderBy: { assetCode: 'asc' },
     });
+    const canSeeCost = actor.role === RoleName.SUPER_ADMIN || actor.role === RoleName.IT_ADMIN;
     return {
       title: 'Asset Report',
       columns: [
@@ -149,7 +150,7 @@ export class ReportsService {
         { header: 'Location', key: 'location', width: 55 },
         { header: 'Assigned To', key: 'assignedTo', width: 90 },
         { header: 'Warranty End', key: 'warrantyEnd', width: 70 },
-        { header: 'Cost (INR)', key: 'cost', width: 65 },
+        ...(canSeeCost ? [{ header: 'Cost (INR)', key: 'cost', width: 65 }] : []),
       ],
       rows: assets.map((a) => ({
         assetCode: a.assetCode,
@@ -163,7 +164,7 @@ export class ReportsService {
           ? `${a.assignedEmployee.firstName} ${a.assignedEmployee.lastName}`
           : '',
         warrantyEnd: fmtDate(a.warrantyEnd),
-        cost: a.purchaseCost ? a.purchaseCost.toString() : '',
+        ...(canSeeCost ? { cost: a.purchaseCost ? a.purchaseCost.toString() : '' } : {}),
       })),
     };
   }
@@ -201,11 +202,42 @@ export class ReportsService {
     };
   }
 
-  private async locationReport(): Promise<ReportData> {
+  private async locationReport(actor: AuthUser): Promise<ReportData> {
+    const assetWhere = this.assetWhere(actor);
+    const empWhere = this.employeeWhere(actor);
+    let locationWhere: Prisma.LocationWhereInput = {};
+    if (!IT_ROLES.includes(actor.role)) {
+      const [assetLocs, empLocs] = await Promise.all([
+        this.prisma.asset.findMany({
+          where: assetWhere,
+          select: { locationId: true },
+          distinct: ['locationId'],
+        }),
+        this.prisma.employee.findMany({
+          where: empWhere,
+          select: { locationId: true },
+          distinct: ['locationId'],
+        }),
+      ]);
+      locationWhere = {
+        id: { in: [...assetLocs.map((a) => a.locationId), ...empLocs.map((e) => e.locationId)] },
+      };
+    }
     const [locations, byStatus, empCounts] = await Promise.all([
-      this.prisma.location.findMany({ orderBy: { code: 'asc' } }),
-      this.prisma.asset.groupBy({ by: ['locationId', 'status'], _count: { _all: true } }),
-      this.prisma.employee.groupBy({ by: ['locationId'], _count: { _all: true } }),
+      this.prisma.location.findMany({
+        where: locationWhere,
+        orderBy: { code: 'asc' },
+      }),
+      this.prisma.asset.groupBy({
+        by: ['locationId', 'status'],
+        where: assetWhere,
+        _count: { _all: true },
+      }),
+      this.prisma.employee.groupBy({
+        by: ['locationId'],
+        where: empWhere,
+        _count: { _all: true },
+      }),
     ]);
     const empMap = new Map(empCounts.map((e) => [e.locationId, e._count._all]));
     const statusMap = new Map<string, number>();

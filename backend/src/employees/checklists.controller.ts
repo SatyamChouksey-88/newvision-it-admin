@@ -5,6 +5,7 @@ import { IsArray, IsBoolean, IsEnum, IsOptional, IsString } from 'class-validato
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { PrismaService } from '../prisma/prisma.service';
+import { DEFAULT_OFFBOARD_ITEMS, DEFAULT_ONBOARD_ITEMS } from './checklist-defaults';
 
 class TemplateDto {
   @IsString() name!: string;
@@ -72,7 +73,7 @@ export class ChecklistsController {
   async start(
     @Param('id', ParseIntPipe) employeeId: number,
     @Body() dto: StartChecklistDto,
-    @CurrentUser() actor: AuthUser,
+    @CurrentUser() _actor: AuthUser,
   ) {
     let labels: string[] = [];
     if (dto.templateId) {
@@ -83,10 +84,7 @@ export class ChecklistsController {
       labels = tpl?.items.map((i) => i.label) ?? [];
     }
     if (labels.length === 0) {
-      labels =
-        dto.kind === 'onboard'
-          ? ['Issue laptop', 'Create login', 'VPN / MFA', 'ID badge']
-          : ['Recover assets', 'Disable login', 'Revoke access'];
+      labels = dto.kind === 'onboard' ? DEFAULT_ONBOARD_ITEMS : DEFAULT_OFFBOARD_ITEMS;
     }
     return this.prisma.employeeChecklist.create({
       data: {
@@ -94,7 +92,7 @@ export class ChecklistsController {
         templateId: dto.templateId ?? null,
         kind: dto.kind,
         items: {
-          create: labels.map((label, i) => ({ label, sortOrder: i, doneById: actor.id })),
+          create: labels.map((label, i) => ({ label, sortOrder: i })),
         },
       },
       include: { items: { orderBy: { sortOrder: 'asc' } } },
@@ -109,7 +107,7 @@ export class ChecklistsController {
       data: {
         done: dto.done,
         doneAt: dto.done ? new Date() : null,
-        doneById: actor.id,
+        doneById: dto.done ? actor.id : null,
       },
     });
   }

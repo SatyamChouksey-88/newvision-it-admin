@@ -1,5 +1,5 @@
 import { BookOutlined, QuestionCircleOutlined, SearchOutlined } from '@ant-design/icons';
-import { Button, Layout, Space } from 'antd';
+import { Alert, Button, Layout, Space } from 'antd';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { COLOR_BORDER, FONT_MONO } from '../theme';
@@ -8,6 +8,8 @@ import { HistoryNav } from './HistoryNav';
 import { NotificationBell } from './NotificationBell';
 import { ShortcutsOverlay } from './ShortcutsOverlay';
 import { StaffChatLauncher } from './StaffChat';
+import { useGetIdentity } from '@refinedev/core';
+import type { Identity } from '../providers/authProvider';
 
 const CRUMBS: Record<string, string> = {
   '/': 'Dashboard',
@@ -36,8 +38,12 @@ function crumbFor(pathname: string) {
 export function Header() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const { data: identity } = useGetIdentity<Identity>();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const trialDays = identity?.tenant?.trialDaysRemaining;
+  const trial = identity?.tenant?.status === 'trial';
+  const expired = identity?.tenant?.status === 'expired';
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -70,6 +76,21 @@ export function Header() {
   }, [navigate]);
 
   return (
+    <>
+      {trial && trialDays != null ? (
+        <Alert
+          banner
+          type="info"
+          message={`Trial: ${trialDays} day(s) left. After expiry this workspace stays on Starter (no vendors or chat). GST invoices are raised in Zoho Books.`}
+        />
+      ) : null}
+      {expired ? (
+        <Alert
+          banner
+          type="warning"
+          message="Trial ended — you are on Starter. Talk to sales to unlock Team."
+        />
+      ) : null}
     <Layout.Header
       style={{
         position: 'sticky',
@@ -88,7 +109,7 @@ export function Header() {
       <HistoryNav />
 
       <nav className="nv-breadcrumb" aria-label="Breadcrumb">
-        <span>NewVision</span>
+        <span>{identity?.tenant?.name ?? 'NewVision'}</span>
         <span className="nv-breadcrumb-sep">/</span>
         <span className="nv-breadcrumb-current">{crumbFor(pathname)}</span>
       </nav>
@@ -132,5 +153,6 @@ export function Header() {
         </Button>
       </Space>
     </Layout.Header>
+    </>
   );
 }

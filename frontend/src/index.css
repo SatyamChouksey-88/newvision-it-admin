@@ -677,6 +677,10 @@ code,
   border-radius: 8px;
 }
 
+.nv-grid-shell {
+  width: 100%;
+}
+
 .nv-grid-toolbar {
   display: flex;
   align-items: center;
@@ -685,17 +689,21 @@ code,
   flex-wrap: nowrap;
   overflow: visible;
   min-height: 32px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   position: relative;
   z-index: 2;
   background: #fff;
+}
+
+.nv-grid-toolbar--end .nv-grid-toolbar__left:empty {
+  display: none;
 }
 
 .nv-grid-toolbar__left,
 .nv-grid-toolbar__right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: nowrap;
 }
 
@@ -721,24 +729,14 @@ code,
   height: 30px;
 }
 
+.nv-grid-icon-btn.ant-btn {
+  width: 30px;
+  padding-inline: 0;
+}
+
 .nv-grid-toolbar .ant-segmented-item {
   display: inline-flex;
   align-items: center;
-}
-
-@media (max-width: 1279px) {
-  .nv-grid-toolbar {
-    flex-wrap: wrap;
-  }
-
-  .nv-grid-toolbar__left {
-    flex: 1 1 100%;
-  }
-
-  .nv-grid-toolbar__right {
-    flex: 1 1 100%;
-    justify-content: flex-end;
-  }
 }
 
 .nv-paste-zone {
@@ -1662,9 +1660,8 @@ a:hover {
   scrollbar-color: #64748b #e2e8f0;
 }
 
-.nv-grid .ant-table-container:has(> .ant-table-header) {
-  overflow: hidden !important;
-}
+/* Do not set overflow on .ant-table-container — it becomes the sticky containing
+   block, so offsetHeader: 148px parks the thead in the middle of the rows. */
 
 .nv-grid .ant-table-content::-webkit-scrollbar,
 .nv-grid .ant-table-body::-webkit-scrollbar {
@@ -1686,9 +1683,18 @@ a:hover {
 
 .nv-grid .ant-table table {
   table-layout: fixed !important;
+  margin-inline: 0;
+  min-width: max(100%, var(--nv-grid-min-width, 0px)) !important;
 }
 
-.nv-grid:not(.nv-grid--wrap) .ant-table-cell {
+.nv-grid .ant-table-thead > tr > th.nv-grid-fill,
+.nv-grid .ant-table-tbody > tr > td.nv-grid-fill {
+  padding: 0 !important;
+  border-inline-start: none !important;
+  pointer-events: none;
+}
+
+.nv-grid:not(.nv-grid--wrap) .ant-table-cell:not(.nv-grid-fill) {
   overflow: hidden;
 }
 

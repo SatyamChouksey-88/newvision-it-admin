@@ -18,6 +18,7 @@ import { RoleName } from '@prisma/client';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { ListQuery } from '../common/query';
+import { assertAllowedUpload } from '../common/uploads';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateVendorDto, ScorecardDto, UpdateVendorDto, VendorStatusDto } from './dto';
 import { VendorsService } from './vendors.service';
@@ -34,7 +35,7 @@ export class VendorsController {
     private readonly prisma: PrismaService,
   ) {}
 
-  @Roles(...ADMIN, RoleName.MANAGER)
+  @Roles(...ADMIN)
   @Get()
   list(
     @Query() query: ListQuery & { status?: string; category?: string },
@@ -43,7 +44,13 @@ export class VendorsController {
     return this.vendors.list(query, user);
   }
 
-  @Roles(...ADMIN, RoleName.MANAGER)
+  @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN, RoleName.IT_SUPPORT)
+  @Get('options')
+  options() {
+    return this.vendors.nameOptions();
+  }
+
+  @Roles(...ADMIN)
   @Get(':id/history')
   history(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
     return this.vendors.history(id, user);
@@ -55,7 +62,7 @@ export class VendorsController {
     return this.vendors.computedKpis(id);
   }
 
-  @Roles(...ADMIN, RoleName.MANAGER)
+  @Roles(...ADMIN)
   @Get(':id')
   get(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
     return this.vendors.get(id, user);
@@ -114,6 +121,7 @@ export class VendorsController {
     @CurrentUser() user: AuthUser,
   ) {
     await this.vendors.get(id, user);
+    if (file) assertAllowedUpload(file);
     return this.prisma.vendorComplianceDoc.create({
       data: {
         vendorId: id,

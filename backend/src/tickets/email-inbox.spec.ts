@@ -19,13 +19,14 @@ describe('EmailInboxService.processRaw', () => {
       findMany: jest.fn(),
     },
     ticketCategory: { findFirst: jest.fn() },
-    supportTicket: { findUnique: jest.fn() },
+    supportTicket: { findUnique: jest.fn(), findFirst: jest.fn() },
     notification: { createMany: jest.fn() },
     emailIngestState: { upsert: jest.fn() },
   };
   const tickets: any = {
     create: jest.fn(),
     addPublicOrInternalComment: jest.fn(),
+    addAttachment: jest.fn(async () => ({})),
   };
   const mailer: any = { send: jest.fn() };
   const svc = new EmailInboxService(prisma, tickets, mailer);
@@ -35,6 +36,7 @@ describe('EmailInboxService.processRaw', () => {
     prisma.ticketMessage.findUnique.mockResolvedValue(null);
     prisma.ticketMessage.findFirst.mockResolvedValue(null);
     prisma.ticketMessage.create.mockResolvedValue({});
+    tickets.addAttachment = jest.fn(async () => ({}));
     prisma.user.findMany.mockResolvedValue([]);
     prisma.user.findFirst.mockResolvedValue({
       id: 1,
@@ -49,6 +51,35 @@ describe('EmailInboxService.processRaw', () => {
       email: 'asha.apte@newvision.local',
     });
     tickets.create.mockResolvedValue({ id: 10, ticketNumber: 'TCK-000010' });
+  });
+
+  it('stores inbound attachments on the new ticket', async () => {
+    const raw = `From: Asha Apte <asha.apte@newvision.local>
+To: it@newvision.local
+Subject: Screenshot of the error
+Message-ID: <att-inbox@mail.test>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="BOUND"
+
+--BOUND
+Content-Type: text/plain
+
+The printer jammed again.
+--BOUND
+Content-Type: text/plain
+Content-Disposition: attachment; filename="notes.txt"
+Content-Transfer-Encoding: base64
+
+aGVscCBwbGVhc2U=
+--BOUND--
+`;
+    const result = await svc.processRaw(raw);
+    expect(result.action).toBe('ticket');
+    expect(tickets.addAttachment).toHaveBeenCalledWith(
+      10,
+      expect.objectContaining({ originalname: 'notes.txt', mimetype: 'text/plain' }),
+      expect.anything(),
+    );
   });
 
   it('creates a ticket from a known employee', async () => {
@@ -100,7 +131,7 @@ References: <orig@newvision.tickets>`,
   });
 
   it('matches a reply via subject ticket number when headers are stripped', async () => {
-    prisma.supportTicket.findUnique.mockResolvedValue({
+    prisma.supportTicket.findFirst.mockResolvedValue({
       id: 23,
       ticketNumber: 'TCK-000023',
       subject: 'VPN',
@@ -119,7 +150,7 @@ Message-ID: <reply-subj@mail.test>`,
     );
     const result = await svc.processRaw(raw);
     expect(result.action).toBe('comment');
-    expect(prisma.supportTicket.findUnique).toHaveBeenCalledWith({
+    expect(prisma.supportTicket.findFirst).toHaveBeenCalledWith({
       where: { ticketNumber: 'TCK-000023' },
     });
   });

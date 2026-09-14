@@ -33,7 +33,7 @@ import { apiErrorMessage, httpClient } from '../../providers/axios';
 import type { Asset, Location } from '../../types';
 import { employeeLabel } from '../../utils/employeeLabel';
 import { employmentStatus, contractDaysLeft } from '../../utils/employmentStatus';
-import { formatDate } from '../../utils/format';
+import { formatDate, formatTenure } from '../../utils/format';
 import { TransferModal } from '../assets/actions';
 import { AssignToEmployeeModal } from './AssignToEmployeeModal';
 
@@ -51,6 +51,7 @@ export function EmployeeProfile() {
   const toast = useToast();
   const { data: identity } = useGetIdentity<Identity>();
   const canOffboard = ['SUPER_ADMIN', 'IT_ADMIN'].includes(identity?.role ?? '');
+  const itStaff = ['SUPER_ADMIN', 'IT_ADMIN', 'IT_SUPPORT'].includes(identity?.role ?? '');
   const isSelf = Boolean(identity?.employeeId && Number(id) === Number(identity.employeeId));
   const [selfOpen, setSelfOpen] = useState(false);
   const [selfBusy, setSelfBusy] = useState(false);
@@ -59,6 +60,8 @@ export function EmployeeProfile() {
   const [offboardOpen, setOffboardOpen] = useState(false);
   const [reassignTo, setReassignTo] = useState<number>();
   const [offboardNotes, setOffboardNotes] = useState('');
+  const [lastWorkingDate, setLastWorkingDate] = useState('');
+  const [recoverBy, setRecoverBy] = useState('');
   const [offboarding, setOffboarding] = useState(false);
   const [reinstating, setReinstating] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
@@ -97,12 +100,18 @@ export function EmployeeProfile() {
   const history = historyQuery.data?.data ?? [];
 
   const runOffboard = async () => {
+    if (!lastWorkingDate) {
+      toast.error('Last working day is required');
+      return;
+    }
     setOffboarding(true);
     try {
       await httpClient.post(`/employees/${id}/offboard`, {
         notes: offboardNotes || undefined,
         reassignAssetsToId: reassignTo,
         returnAssets: !reassignTo,
+        lastWorkingDate,
+        recoverByDate: recoverBy || undefined,
       });
       toast.success(
         `${emp?.employeeCode} offboarded — ${assets.length} asset${assets.length === 1 ? '' : 's'} ${
@@ -114,6 +123,8 @@ export function EmployeeProfile() {
       setOffboardOpen(false);
       setReassignTo(undefined);
       setOffboardNotes('');
+      setLastWorkingDate('');
+      setRecoverBy('');
       void query.refetch();
       void historyQuery.refetch();
     } catch (e) {
@@ -152,6 +163,20 @@ export function EmployeeProfile() {
         <Descriptions.Item label="Status">
           <Tag color={employmentStatus(emp).color}>{employmentStatus(emp).label}</Tag>
         </Descriptions.Item>
+        <Descriptions.Item label="Joined">
+          {emp?.dateJoined
+            ? `${formatDate(emp.dateJoined)} (${formatTenure(emp.dateJoined)})`
+            : '—'}
+        </Descriptions.Item>
+        <Descriptions.Item label="Reports to">
+          {emp?.manager ? `${emp.manager.firstName} ${emp.manager.lastName}` : '—'}
+        </Descriptions.Item>
+        <Descriptions.Item label="Desk / seat">{emp?.deskOrSeat ?? '—'}</Descriptions.Item>
+        <Descriptions.Item label="Probation end">{formatDate(emp?.probationEndDate)}</Descriptions.Item>
+        <Descriptions.Item label="Last working day">
+          {emp?.lastWorkingDate ? formatDate(emp.lastWorkingDate) : '—'}
+        </Descriptions.Item>
+        <Descriptions.Item label="Login">{emp?.user ? 'Has login' : 'No login yet'}</Descriptions.Item>
         <Descriptions.Item label="Contract end">
           {emp?.employmentType === 'contract' ? formatDate(emp.contractEndDate) : '—'}
         </Descriptions.Item>
@@ -169,6 +194,15 @@ export function EmployeeProfile() {
           />
         )}
 
+      {emp?.kitIncomplete && canOffboard ? (
+        <Alert
+          type="warning"
+          showIcon
+          message="Kit incomplete"
+          description="Assigned a laptop or desktop but no charger (or Power accessory) is checked out."
+        />
+      ) : null}
+
       {canOffboard && emp ? (
         <ManualEditButton
           entityType="Employee"
@@ -179,6 +213,7 @@ export function EmployeeProfile() {
             { name: 'email', label: 'Email', value: emp.email },
             { name: 'phone', label: 'Phone', value: emp.phone },
             { name: 'designation', label: 'Designation', value: emp.designation },
+            { name: 'dateJoined', label: 'Date of joining', value: emp.dateJoined },
           ]}
           onSaved={() => void query.refetch()}
         />
@@ -317,7 +352,7 @@ export function EmployeeProfile() {
         />
       )}
 
-      <Card size="small" title="Accessories checked out">
+      <Card size="small" title="Kit — accessories checked out">
         <DataGrid<any>
           tableKey={`employee-${id}-accessories`}
           rowKey="id"
@@ -335,6 +370,20 @@ export function EmployeeProfile() {
                 r.accessory?.category,
             },
             { title: 'Qty', dataIndex: 'quantity' },
+            {
+              title: 'With asset',
+              render: (_: unknown, r: { issuedWithAsset?: { assetCode?: string } }) =>
+                r.issuedWithAsset?.assetCode ?? '—',
+            },
+            ...(itStaff
+              ? [
+                  {
+                    title: 'Serial (IT)',
+                    dataIndex: 'serialNumber',
+                    render: (v: string | null | undefined) => v ?? '—',
+                  } as const,
+                ]
+              : []),
             {
               title: 'Since',
               dataIndex: 'checkedOutAt',
@@ -468,6 +517,9 @@ export function EmployeeProfile() {
                   <CopyButton value={emp.employeeCode} label="employee code" />
                 ) : null}
                 · {emp?.designation ?? '—'} · {emp?.location?.name}
+                {emp?.dateJoined
+                  ? ` · Joined ${formatDate(emp.dateJoined)} (${formatTenure(emp.dateJoined)})`
+                  : null}
               </Space>
             </Typography.Text>
           </Col>
@@ -720,6 +772,21 @@ export function EmployeeProfile() {
           accessories, deactivates the login account, and preserves all historical records.
         </Typography.Paragraph>
         <Form layout="vertical">
+          <Form.Item label="Last working day" required>
+            <Input
+              type="date"
+              value={lastWorkingDate}
+              onChange={(e) => setLastWorkingDate(e.target.value)}
+            />
+          </Form.Item>
+          <Form.Item label="Recover kit by">
+            <Input
+              type="date"
+              value={recoverBy}
+              onChange={(e) => setRecoverBy(e.target.value)}
+              placeholder="Defaults to last working day"
+            />
+          </Form.Item>
           <Form.Item label="Reassign assets to (optional)">
             <EmployeeSelect
               value={reassignTo}

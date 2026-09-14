@@ -209,12 +209,17 @@ export default function App() {
                 <Route
                   element={
                     <Authenticated key="auth" fallback={<CatchAllNavigate to="/login" />}>
+                      <a href="#main-content" className="nv-skip-link">
+                        Skip to content
+                      </a>
                       <ThemedLayout Header={Header} Title={Title} Sider={AppSider}>
                         <TabletCollapse />
                         <Suspense fallback={<RouteFallback />}>
-                          <RoleRouteGuard>
-                            <Outlet />
-                          </RoleRouteGuard>
+                          <main id="main-content">
+                            <RoleRouteGuard>
+                              <Outlet />
+                            </RoleRouteGuard>
+                          </main>
                         </Suspense>
                       </ThemedLayout>
                     </Authenticated>

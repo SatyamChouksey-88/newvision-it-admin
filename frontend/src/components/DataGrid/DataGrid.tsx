@@ -5,7 +5,7 @@ import {
   SettingOutlined,
 } from '@ant-design/icons';
 import type { TableProps } from 'antd';
-import { Button, Checkbox, Dropdown, Input, Segmented, Space, Table, Tooltip } from 'antd';
+import { Button, Checkbox, Dropdown, Input, Segmented, Table, Tooltip } from 'antd';
 import type { ColumnType } from 'antd/es/table';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTableKeyboard } from '../../hooks/useTableKeyboard';
@@ -36,8 +36,8 @@ export interface DataGridProps<T extends object> {
   loading?: boolean;
   density?: TableDensity;
   onDensityChange?: (d: TableDensity) => void;
-  /** Sticky header row (default true). */
-  sticky?: boolean;
+  /** Sticky header row. Pass `{ offsetHeader }` so thead sits under Header + page pin. */
+  sticky?: boolean | { offsetHeader?: number };
   /** Pin first data column on horizontal scroll. */
   fixFirstColumn?: boolean;
   rowSelection?: TableProps<T>['rowSelection'];
@@ -70,12 +70,24 @@ export interface DataGridProps<T extends object> {
 
 const MIN_COL_WIDTH = 60;
 const MAX_AUTOFIT_WIDTH = 640;
+const SELECTION_COL_W = 48;
+const EXPAND_COL_W = 48;
+const FILL_KEY = '__nvFill';
 
 function colKey<T>(col: GridColumn<T>): string {
   if (col.gridKey) return col.gridKey;
   if (typeof col.dataIndex === 'string') return col.dataIndex;
   if (Array.isArray(col.dataIndex)) return col.dataIndex.map(String).join('.');
   return String(col.key ?? col.title ?? 'col');
+}
+
+/** Pixel width for a data column — never a % — so table-layout:fixed stays left-rigid. */
+function columnPixelWidth<T>(col: GridColumn<T>, widths: Record<string, number>): number {
+  const stored = widths[colKey(col)];
+  if (typeof stored === 'number') return stored;
+  if (typeof col.defaultWidth === 'number') return col.defaultWidth;
+  if (typeof col.width === 'number') return col.width;
+  return 140;
 }
 
 function cellText<T>(col: GridColumn<T>, record: T): string {
@@ -243,10 +255,15 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
     [columnDefs, filteredData, setColumnWidth],
   );
 
+  const tableMinWidth = useMemo(() => {
+    const data = orderedVisibleCols.reduce((sum, col) => sum + columnPixelWidth(col, widths), 0);
+    return data + (rowSelection ? SELECTION_COL_W : 0) + (expandable ? EXPAND_COL_W : 0);
+  }, [orderedVisibleCols, widths, rowSelection, expandable]);
+
   const antColumns: ColumnType<T>[] = useMemo(() => {
-    return orderedVisibleCols.map((col, idx) => {
+    const dataCols = orderedVisibleCols.map((col, idx) => {
       const key = colKey(col);
-      const width = widths[key] ?? col.defaultWidth ?? col.width ?? 140;
+      const width = columnPixelWidth(col, widths);
       const { ellipsis, render, ...rest } = col;
       const truncate = ellipsis !== false && !wrapText;
       // Server-side grids must not double-filter the page client-side; the parent sends the
@@ -292,6 +309,17 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
         }),
       };
     });
+    // Unsized last column absorbs leftover viewport width so data columns stay at their px
+    // widths on the left instead of stretching into the middle of the card.
+    const fillCol: ColumnType<T> = {
+      title: '',
+      key: FILL_KEY,
+      className: 'nv-grid-fill',
+      render: () => null,
+      onHeaderCell: () => ({ className: 'nv-grid-fill', 'aria-hidden': true }),
+      onCell: () => ({ className: 'nv-grid-fill' }),
+    };
+    return [...dataCols, fillCol];
   }, [
     orderedVisibleCols,
     widths,
@@ -387,6 +415,21 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
         minWidth: 200,
       }}
     >
+      {onDensityChange ? (
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>Row height</div>
+          <Segmented
+            size="small"
+            block
+            value={density}
+            onChange={(v) => onDensityChange(v as TableDensity)}
+            options={[
+              { label: 'Compact', value: 'Compact' },
+              { label: 'Comfortable', value: 'Comfortable' },
+            ]}
+          />
+        </div>
+      ) : null}
       {defaultKeys.map((k) => {
         const col = columnDefs.find((c) => colKey(c) === k);
         return (
@@ -421,10 +464,25 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
 
   const rowsShown = filteredData.length;
   const rowsTotal = dataSource.length;
+  const hasLeftTools = Boolean(toolbarLead || quickFilter || bulkActions || quickQ.trim());
+  const tableScroll =
+    filteredData.length === 0
+      ? undefined
+      : {
+          x: tableMinWidth,
+          ...(scroll && typeof scroll === 'object' && scroll.y != null ? { y: scroll.y } : {}),
+        };
 
   return (
-    <Space direction="vertical" size={8} style={{ width: '100%' }} ref={tableRef}>
-      <div className="nv-grid-toolbar" title="Select a row and press Ctrl+C to copy it for Excel">
+    <div
+      className="nv-grid-shell"
+      ref={tableRef}
+      style={{ ['--nv-grid-min-width' as string]: `${tableMinWidth}px` }}
+    >
+      <div
+        className={hasLeftTools ? 'nv-grid-toolbar' : 'nv-grid-toolbar nv-grid-toolbar--end'}
+        title="Select a row and press Ctrl+C to copy it for Excel"
+      >
         <div className="nv-grid-toolbar__left">
           {toolbarLead}
           {quickFilter && (
@@ -448,36 +506,40 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
         </div>
         <div className="nv-grid-toolbar__right">
           {toolbarExtra}
-          {onDensityChange && (
-            <Segmented
-              size="small"
-              value={density}
-              onChange={(v) => onDensityChange(v as TableDensity)}
-              options={[
-                { label: 'Compact', value: 'Compact', icon: <ColumnHeightOutlined /> },
-                { label: 'Comfortable', value: 'Comfortable' },
-              ]}
-            />
-          )}
-          <Tooltip title="Select a row and press Ctrl+C to copy it for Excel">
+          {onDensityChange ? (
+            <Tooltip title={density === 'Compact' ? 'Comfortable row height' : 'Compact row height'}>
+              <Button
+                size="small"
+                className="nv-grid-icon-btn"
+                type={density === 'Compact' ? 'primary' : 'default'}
+                icon={<ColumnHeightOutlined />}
+                aria-label="Row height"
+                aria-pressed={density === 'Compact'}
+                onClick={() => onDensityChange(density === 'Compact' ? 'Comfortable' : 'Compact')}
+              />
+            </Tooltip>
+          ) : null}
+          <Tooltip title="Columns — show, hide, and row height">
             <span>
               <Dropdown popupRender={() => columnMenu} trigger={['click']}>
-                <Button size="small" icon={<SettingOutlined />} aria-label="Show or hide columns">
-                  Columns
-                </Button>
+                <Button
+                  size="small"
+                  className="nv-grid-icon-btn"
+                  icon={<SettingOutlined />}
+                  aria-label="Columns"
+                />
               </Dropdown>
             </span>
           </Tooltip>
           {hideClientExport ? null : (
-            <Tooltip title="Export visible columns as CSV. Select a row and press Ctrl+C to copy it.">
+            <Tooltip title="Export visible columns as CSV">
               <Button
                 size="small"
+                className="nv-grid-icon-btn"
                 icon={<DownloadOutlined />}
                 aria-label="Export CSV"
                 onClick={handleExport}
-              >
-                Export CSV
-              </Button>
+              />
             </Tooltip>
           )}
         </div>
@@ -491,8 +553,10 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
         rowKey={rowKey as never}
         loading={loading}
         size={density === 'Compact' ? 'small' : 'middle'}
-        sticky={sticky}
-        scroll={filteredData.length === 0 ? undefined : (scroll ?? { x: 1400 })}
+        sticky={
+          sticky === true ? { offsetHeader: 148 } : sticky === false || sticky == null ? false : sticky
+        }
+        scroll={tableScroll}
         pagination={pagination}
         rowSelection={
           rowSelection
@@ -550,6 +614,6 @@ export function DataGrid<T extends object>(props: DataGridProps<T>) {
           };
         }}
       />
-    </Space>
+    </div>
   );
 }

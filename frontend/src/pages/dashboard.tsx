@@ -18,8 +18,10 @@ import { LocationBreakdownTable, StatusBreakdownTable } from '../components/Brea
 import { ChipSelect } from '../components/ChipSelect';
 import { DashSection } from '../components/DashSection';
 import { FirstRunWelcome } from '../components/FirstRunWelcome';
+import { RouteFallback } from '../components/RouteFallback';
 import { KpiCard } from '../components/KpiCard';
 import { LiveTimestamp } from '../components/LiveTimestamp';
+import { MyKitAccessoryCard } from '../components/MyKitAccessoryCard';
 import { StatusTag } from '../components/StatusTag';
 import { TicketStatusTag } from '../components/TicketStatusTag';
 import { useToast } from '../components/Toast';
@@ -42,6 +44,7 @@ import type {
   DashboardMetrics,
   Location,
   LocationBreakdown,
+  MyKitAccessory,
   SupportTicket,
 } from '../types';
 
@@ -133,8 +136,11 @@ function MyWorkList({
 }
 
 export function DashboardPage() {
-  const { data: identity } = useGetIdentity<Identity>();
+  const { data: identity, isLoading } = useGetIdentity<Identity>();
   const role = identity?.role;
+  // Do not default to the estate console while identity is still hydrating —
+  // employees would see a 403 dashboard (or nothing) instead of My IT.
+  if (isLoading || !role) return <RouteFallback />;
   if (isEmployee(role)) return <MyItHome />;
   if (isManager(role)) return <ManagerHome />;
   if (role === 'IT_SUPPORT') return <SupportHome />;
@@ -152,6 +158,7 @@ function MyItHome() {
       status: AssetStatus;
       category?: string;
     }[];
+    accessories: MyKitAccessory[];
     openTickets: Pick<SupportTicket, 'id' | 'ticketNumber' | 'subject' | 'status' | 'priority'>[];
   } | null>(null);
 
@@ -159,17 +166,21 @@ function MyItHome() {
     httpClient
       .get('/dashboard/my-summary')
       .then(({ data: d }) => setData(d))
-      .catch(() => setData({ assets: [], openTickets: [] }));
+      .catch(() => setData({ assets: [], accessories: [], openTickets: [] }));
   }, []);
 
+  const assets = data?.assets ?? [];
+  const accessories = data?.accessories ?? [];
+
   return (
-    <Space direction="vertical" size={16} style={{ width: '100%' }} data-testid="my-it-home">
+    <div data-testid="my-it-home">
+    <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <div>
         <Typography.Title level={3} className="nv-page-title" style={{ margin: 0 }}>
           My IT
         </Typography.Title>
         <Typography.Text style={{ fontSize: 12.5, color: COLOR_TEXT_SECONDARY }}>
-          Your devices, requests, and tickets — nothing else.
+          Your kit, requests, and tickets — nothing else.
         </Typography.Text>
       </div>
       <Space wrap>
@@ -180,9 +191,35 @@ function MyItHome() {
           <Button>Request a device</Button>
         </Link>
       </Space>
+      <Card size="small" title="Fix it yourself" data-testid="employee-howtos">
+        <Typography.Paragraph type="secondary" style={{ marginTop: 0 }}>
+          Read these before you raise a ticket — most lockouts, Wi-Fi, and VPN questions end here.
+        </Typography.Paragraph>
+        <Space wrap>
+          {[
+            ['howto-wifi', 'Office Wi-Fi'],
+            ['howto-vpn', 'VPN'],
+            ['howto-mfa', 'Lost phone / MFA'],
+            ['howto-outlook-search', 'Outlook search'],
+            ['howto-printer', 'Add a printer'],
+            ['howto-slow-laptop', 'Slow laptop'],
+            ['howto-raise-ticket', 'How to raise a ticket'],
+            ['howto-leaving', "I'm leaving"],
+            ['howto-toner', 'Toner / jam'],
+            ['howto-shared-drive', 'Shared drive'],
+            ['howto-phishing', 'Phishing'],
+            ['howto-password', 'Password lockout'],
+          ].map(([id, label]) => (
+            <Link key={id} to={`/help/${id}`}>
+              <Button size="small">{label}</Button>
+            </Link>
+          ))}
+        </Space>
+      </Card>
+      <Typography.Text strong>My kit</Typography.Text>
       <Row gutter={[12, 12]}>
-        {(data?.assets ?? []).map((a) => (
-          <Col xs={24} sm={12} lg={8} key={a.id}>
+        {assets.map((a) => (
+          <Col xs={24} sm={12} lg={8} key={`a-${a.id}`}>
             <Link to={`/assets/show/${a.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
               <Card size="small" hoverable>
                 <Typography.Text className="nv-mono" style={{ fontSize: 12, color: '#0958d9' }}>
@@ -198,9 +235,14 @@ function MyItHome() {
             </Link>
           </Col>
         ))}
-        {(data?.assets ?? []).length === 0 && (
+        {accessories.map((c) => (
+          <Col xs={24} sm={12} lg={8} key={`acc-${c.id}`}>
+            <MyKitAccessoryCard item={c} />
+          </Col>
+        ))}
+        {assets.length === 0 && accessories.length === 0 && (
           <Col span={24}>
-            <Typography.Text type="secondary">No devices assigned to you yet.</Typography.Text>
+            <Typography.Text type="secondary">No kit assigned to you yet.</Typography.Text>
           </Col>
         )}
       </Row>
@@ -226,6 +268,7 @@ function MyItHome() {
         )}
       </Card>
     </Space>
+    </div>
   );
 }
 
@@ -281,6 +324,7 @@ function ManagerHome() {
             icon={<DatabaseOutlined />}
             accentColor={KPI_ASSIGNED}
             subtitle="Assigned to your reports"
+            href="/assets"
           />
         </Col>
       </Row>
@@ -444,6 +488,7 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
   const siteLine = locations.length
     ? locations.map((l) => l.city || l.name).join(', ')
     : 'your locations';
+  const metricsLoading = isFetching && !m;
   const total = m?.total ?? 0;
   const statusItems = STATUS_ORDER.filter((status) => (m?.byStatus?.[status] ?? 0) > 0).map(
     (status) => {
@@ -519,9 +564,9 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
         )}
       </Row>
 
-      {freshInstall ? (
-        <FirstRunWelcome />
-      ) : (
+      <FirstRunWelcome />
+
+      {!freshInstall && (
         <>
           {superAdmin && (
             <Card size="small" title="Super Admin">
@@ -545,6 +590,7 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
                 accentColor={KPI_TOTAL}
                 href={assetsHref({ locationId })}
                 subtitle="Entire estate"
+                loading={metricsLoading}
               />
             </Col>
             <Col xs={12} sm={8} lg={4}>
@@ -555,6 +601,7 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
                 accentColor={KPI_ASSIGNED}
                 href={assetsHref({ status: 'assigned', locationId })}
                 subtitle="In the field"
+                loading={metricsLoading}
               />
             </Col>
             <Col xs={12} sm={8} lg={4}>
@@ -565,6 +612,7 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
                 accentColor={KPI_AVAILABLE}
                 href={assetsHref({ status: 'available', locationId })}
                 subtitle="Ready to issue"
+                loading={metricsLoading}
               />
             </Col>
             <Col xs={12} sm={8} lg={4}>
@@ -575,6 +623,7 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
                 accentColor={KPI_REPAIR}
                 href={assetsHref({ status: 'under_repair', locationId })}
                 subtitle="Open tickets"
+                loading={metricsLoading}
               />
             </Col>
             <Col xs={12} sm={8} lg={4}>
@@ -585,6 +634,7 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
                 accentColor={KPI_RETIRED}
                 href={assetsHref({ status: 'retired', locationId })}
                 subtitle="End of life"
+                loading={metricsLoading}
               />
             </Col>
             <Col xs={12} sm={8} lg={4}>
@@ -595,6 +645,7 @@ function EstateDashboard({ superAdmin }: { superAdmin: boolean }) {
                 accentColor={KPI_REPAIR}
                 href={ticketsHref()}
                 subtitle="Estate support queue"
+                loading={ticketsQuery.isFetching && !ticketSummary}
               />
             </Col>
           </Row>

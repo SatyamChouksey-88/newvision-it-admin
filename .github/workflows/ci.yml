@@ -30,7 +30,7 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/newvision?schema=public
       DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/newvision_test?schema=public
       JWT_SECRET: ci-secret
-      JWT_EXPIRES_IN: 8h
+      JWT_EXPIRES_IN: 30m
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -94,7 +94,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/newvision?schema=public
       JWT_SECRET: ci-secret
-      JWT_EXPIRES_IN: 8h
+      JWT_EXPIRES_IN: 30m
       CORS_ORIGIN: http://localhost:5173
       CI: "true"
     steps:

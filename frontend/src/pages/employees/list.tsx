@@ -12,13 +12,15 @@ import { EmptyState } from '../../components/EmptyState';
 import { FirstRunWelcome } from '../../components/FirstRunWelcome';
 import { TablePagination } from '../../components/TablePagination';
 import { TableSkeleton } from '../../components/TableSkeleton';
+import { NV_TABLE_STICKY } from '../../chrome';
+import { useNvPhone } from '../../hooks/useNvPhone';
 import { useRefinePagination } from '../../hooks/useRefinePagination';
 import { useSetupStatus } from '../../hooks/useSetupStatus';
 import type { Identity } from '../../providers/authProvider';
 import { httpClient } from '../../providers/axios';
 import type { Department, Employee, Location } from '../../types';
 import { contractDaysLeft, employmentStatus } from '../../utils/employmentStatus';
-import { formatDate } from '../../utils/format';
+import { formatDate, formatTenure } from '../../utils/format';
 import { CreateEmployeeModal } from './CreateEmployeeModal';
 
 type StatusFilter = 'active' | 'inactive' | 'all';
@@ -36,6 +38,7 @@ export function EmployeeList() {
   const { data: identity } = useGetIdentity<Identity>();
   const canManage = IT_ROLES.includes(identity?.role ?? '');
   const { freshInstall } = useSetupStatus();
+  const phone = useNvPhone();
   const [density, setDensity] = useState<TableDensity>('Compact');
   const [searchParams, setSearchParams] = useSearchParams();
   const [createOpen, setCreateOpen] = useState(false);
@@ -61,6 +64,8 @@ export function EmployeeList() {
     resource: 'employees',
     syncWithLocation: true,
     pagination: { pageSize: 25 },
+    // Newest joiners first so leftover Playwright last-names don't float to the top.
+    sorters: { initial: [{ field: 'dateJoined', order: 'desc' }] },
     // Leavers are hidden by default; the status filter reveals them.
     filters: { initial: [{ field: 'isActive', operator: 'eq', value: 'true' }] },
   });
@@ -113,11 +118,19 @@ export function EmployeeList() {
     ? 'contracts'
     : active.incompleteChecklist === 'true'
       ? 'checklist'
+      : active.probationEndingInDays
+        ? 'probation'
+        : undefined;
+  const joinedChip = active.joinedWithinDays
+    ? String(active.joinedWithinDays)
+    : active.joiningInDays
+      ? 'next7'
       : undefined;
 
   return (
     <Card
-      title={<Typography.Text strong>Employees</Typography.Text>}
+      className="nv-list-page"
+      title={<Typography.Text strong>{identity?.role === 'MANAGER' ? 'Your team' : 'Employees'}</Typography.Text>}
       extra={
         canManage ? (
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
@@ -134,6 +147,7 @@ export function EmployeeList() {
           void tableQuery.refetch();
         }}
       />
+      <div className="nv-page-pin">
       <div className="nv-filter-row">
         <Input.Search
           id="employees-grid-search"
@@ -164,8 +178,10 @@ export function EmployeeList() {
           options={[
             { label: 'Permanent', value: 'permanent' },
             { label: 'Contract', value: 'contract' },
+            { label: 'Intern', value: 'intern' },
+            { label: 'Consultant', value: 'consultant' },
           ]}
-          value={active.employmentType as 'permanent' | 'contract' | undefined}
+          value={active.employmentType as string | undefined}
           onChange={(v) => setFilter('employmentType', v)}
         />
         <ChipSelect
@@ -177,6 +193,7 @@ export function EmployeeList() {
           options={[
             { label: 'Contracts ending (14d)', value: 'contracts' },
             { label: 'Incomplete checklist', value: 'checklist' },
+            { label: 'Probation ending (14d)', value: 'probation' },
           ]}
           value={followUp}
           onChange={(v) => {
@@ -191,6 +208,41 @@ export function EmployeeList() {
                   field: 'incompleteChecklist',
                   operator: 'eq',
                   value: v === 'checklist' ? 'true' : undefined,
+                },
+                {
+                  field: 'probationEndingInDays',
+                  operator: 'eq',
+                  value: v === 'probation' ? 14 : undefined,
+                },
+              ],
+              'merge',
+            );
+          }}
+        />
+        <ChipSelect
+          label="Joined"
+          tone="status"
+          allowClear
+          aria-label="Filter by joining date"
+          placeholder="Any"
+          options={[
+            { label: 'Last 7 days', value: '7' },
+            { label: 'Last 30 days', value: '30' },
+            { label: 'Joining next 7 days', value: 'next7' },
+          ]}
+          value={joinedChip}
+          onChange={(v) => {
+            setFilters(
+              [
+                {
+                  field: 'joinedWithinDays',
+                  operator: 'eq',
+                  value: v === '7' || v === '30' ? Number(v) : undefined,
+                },
+                {
+                  field: 'joiningInDays',
+                  operator: 'eq',
+                  value: v === 'next7' ? 7 : undefined,
                 },
               ],
               'merge',
@@ -217,6 +269,7 @@ export function EmployeeList() {
           value={active.departmentId ? Number(active.departmentId) : undefined}
           onChange={(v) => setFilter('departmentId', v)}
         />
+      </div>
       </div>
       {followUp === 'contracts' && (
         <Alert
@@ -277,8 +330,28 @@ export function EmployeeList() {
         />
       ) : (
         <>
+          {phone ? (
+            <div className="nv-phone-cards" data-testid="employees-phone-cards">
+              {rows.map((r) => (
+                <button
+                  type="button"
+                  key={r.id}
+                  className="nv-phone-card"
+                  onClick={() => navigate(`/employees/show/${r.id}`)}
+                >
+                  <strong>
+                    {r.firstName} {r.lastName}
+                  </strong>
+                  <span className="nv-mono">{r.employeeCode}</span>
+                  <span>
+                    {formatDate(r.dateJoined)} · {formatTenure(r.dateJoined)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
           <DataGrid<Employee>
-            tableKey="employees"
+            tableKey="employees-v2"
             searchInputId="employees-grid-search"
             dataSource={rows}
             loading={tableQuery.isFetching}
@@ -287,6 +360,8 @@ export function EmployeeList() {
             onDensityChange={setDensity}
             fixFirstColumn
             serverSide
+            sticky={phone ? false : NV_TABLE_STICKY}
+            scroll={phone ? { x: 'max-content' } : undefined}
             onChange={tableProps.onChange}
             quickFilter={false}
             onRow={(record) => ({
@@ -342,6 +417,30 @@ export function EmployeeList() {
                 ),
               },
               {
+                title: 'Joined',
+                dataIndex: 'dateJoined',
+                defaultWidth: 140,
+                sorter: true,
+                render: (v: string | null | undefined) => formatDate(v),
+                getExportValue: (r) => formatDate(r.dateJoined),
+              },
+              {
+                title: 'Tenure',
+                gridKey: 'tenure',
+                defaultWidth: 90,
+                render: (_, r) => formatTenure(r.dateJoined),
+                getExportValue: (r) => formatTenure(r.dateJoined),
+              },
+              {
+                title: 'Reports to',
+                gridKey: 'manager',
+                defaultWidth: 160,
+                render: (_, r) =>
+                  r.manager ? `${r.manager.firstName} ${r.manager.lastName}` : '—',
+                getExportValue: (r) =>
+                  r.manager ? `${r.manager.firstName} ${r.manager.lastName}` : '',
+              },
+              {
                 title: 'Designation',
                 dataIndex: 'designation',
                 sorter: true,
@@ -371,6 +470,7 @@ export function EmployeeList() {
               },
             ]}
           />
+          )}
           <TablePagination total={total} page={page} pageSize={pageSize} onChange={onPageChange} />
         </>
       )}

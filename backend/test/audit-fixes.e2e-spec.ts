@@ -291,7 +291,11 @@ describe('Functionality audit fixes (e2e)', () => {
       const othersUnread = await prisma.notification.count({
         where: { userId: other.id, isRead: false },
       });
-      expect(othersUnread).toBe(1);
+      expect(othersUnread).toBeGreaterThanOrEqual(1);
+      const otherTitleC = await prisma.notification.count({
+        where: { userId: other.id, isRead: false, title: 'C' },
+      });
+      expect(otherTitleC).toBe(1);
     });
   });
 

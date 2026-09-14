@@ -27,6 +27,13 @@ export class CreateLocationDto {
 }
 export class UpdateLocationDto extends PartialType(CreateLocationDto) {}
 
+const DIRECTORY_READ = [
+  RoleName.SUPER_ADMIN,
+  RoleName.IT_ADMIN,
+  RoleName.IT_SUPPORT,
+  RoleName.MANAGER,
+] as const;
+
 @ApiTags('locations')
 @Controller('locations')
 export class LocationsController {
@@ -35,6 +42,7 @@ export class LocationsController {
     private readonly audit: AuditService,
   ) {}
 
+  @Roles(...DIRECTORY_READ)
   @Get()
   async list(@Query() query: ListQuery) {
     const { skip, take, orderBy } = parseListQuery(query, ['id', 'code', 'name', 'city']);
@@ -45,12 +53,14 @@ export class LocationsController {
     return { data, total };
   }
 
+  @Roles(...DIRECTORY_READ)
   @Get(':id')
   get(@Param('id', ParseIntPipe) id: number) {
     return this.prisma.location.findUniqueOrThrow({ where: { id } });
   }
 
-  /** Asset/employee counts for the location detail view. */
+  /** Asset/employee counts for the location detail view — IT Admin only (estate stats). */
+  @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
   @Get(':id/summary')
   async summary(@Param('id', ParseIntPipe) id: number) {
     const [assetCount, employeeCount] = await Promise.all([

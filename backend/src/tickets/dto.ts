@@ -94,6 +94,14 @@ export class DuplicateDto {
   @IsString() @MinLength(3) originalTicketNumber!: string;
 }
 
+export class ApplyTemplateDto {
+  @Type(() => Number) @IsInt() templateId!: number;
+}
+
+export class RecordIdpResetDto {
+  @IsIn(['m365', 'vpn', 'biometric', 'other']) system!: 'm365' | 'vpn' | 'biometric' | 'other';
+}
+
 export class BulkAssignDto {
   @Transform(toIntArray) @IsArray() @ArrayMinSize(1) @IsInt({ each: true }) ids!: number[];
   @Type(() => Number) @IsInt() userId!: number;

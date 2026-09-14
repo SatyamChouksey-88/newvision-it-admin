@@ -39,6 +39,10 @@ import { TableSkeleton } from '../../components/TableSkeleton';
 import { useToast } from '../../components/Toast';
 import { useConfirmAction } from '../../hooks/useConfirmAction';
 import { useRefinePagination } from '../../hooks/useRefinePagination';
+import { NV_TABLE_STICKY } from '../../chrome';
+import { HardwareTabs } from '../../components/HardwareTabs';
+import { MyKitAccessoryCard } from '../../components/MyKitAccessoryCard';
+import { useNvPhone } from '../../hooks/useNvPhone';
 import { useSetupStatus } from '../../hooks/useSetupStatus';
 import type { Identity } from '../../providers/authProvider';
 import { apiErrorMessage, httpClient } from '../../providers/axios';
@@ -49,6 +53,7 @@ import type {
   AssetStatus,
   Department,
   Location,
+  MyKitAccessory,
   SavedView,
 } from '../../types';
 import { formatCurrency } from '../../utils/format';
@@ -64,11 +69,14 @@ export function AssetList() {
   const { data: identity } = useGetIdentity<Identity>();
   const canManage = IT_ROLES.includes(identity?.role ?? '');
   const { freshInstall } = useSetupStatus();
+  const phone = useNvPhone();
 
+  const isEmployee = identity?.role === 'EMPLOYEE';
   const { tableProps, filters, setFilters, tableQuery } = useTable<Asset>({
     resource: 'assets',
-    syncWithLocation: true,
+    syncWithLocation: !isEmployee,
     pagination: { pageSize: 25 },
+    queryOptions: { enabled: Boolean(identity) },
   });
 
   const [density, setDensity] = useState<TableDensity>('Compact');
@@ -80,6 +88,10 @@ export function AssetList() {
   const [transferTarget, setTransferTarget] = useState<Asset | null>(null);
   const [retireTarget, setRetireTarget] = useState<Asset | null>(null);
   const [views, setViews] = useState<SavedView[]>([]);
+  const [categoryCounts, setCategoryCounts] = useState<
+    { id: number; code: string; name: string; count: number }[]
+  >([]);
+  const [myAccessories, setMyAccessories] = useState<MyKitAccessory[]>([]);
   const [saveViewOpen, setSaveViewOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [bulkOpen, setBulkOpen] = useState<null | 'status' | 'transfer' | 'retire' | 'assign'>(
@@ -131,6 +143,26 @@ export function AssetList() {
     );
     setSelectedIds([]);
   };
+
+  useEffect(() => {
+    const params: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(activeFilters)) {
+      if (k === 'categoryId') continue;
+      params[k] = v;
+    }
+    httpClient
+      .get('/assets/category-counts', { params })
+      .then(({ data }) => setCategoryCounts(data.data ?? []))
+      .catch(() => undefined);
+  }, [activeFilters]);
+
+  useEffect(() => {
+    if (identity?.role !== 'EMPLOYEE') return;
+    httpClient
+      .get('/dashboard/my-summary')
+      .then(({ data }) => setMyAccessories(data.accessories ?? []))
+      .catch(() => setMyAccessories([]));
+  }, [identity?.role]);
 
   const setFilter = (field: string, value: unknown) =>
     applyFilterState({ ...activeFilters, [field]: value ?? undefined });
@@ -323,19 +355,19 @@ export function AssetList() {
 
   if (identity?.role === 'EMPLOYEE') {
     return (
-      <Card title={<Typography.Text strong>My devices</Typography.Text>}>
+      <Card title={<Typography.Text strong>My kit</Typography.Text>}>
         {tableQuery.isLoading ? (
           <TableSkeleton />
-        ) : rows.length === 0 ? (
+        ) : rows.length === 0 && myAccessories.length === 0 ? (
           <EmptyState
-            description="No devices assigned to you yet. Raise a request if you need a laptop or accessory."
+            description="No devices or accessories assigned to you yet. Raise a request if you need a laptop or accessory."
             actionLabel="Request a device"
             onAction={() => navigate('/requests')}
           />
         ) : (
           <Row gutter={[12, 12]}>
             {rows.map((a) => (
-              <Col xs={24} sm={12} lg={8} key={a.id}>
+              <Col xs={24} sm={12} lg={8} key={`a-${a.id}`}>
                 <Link to={`/assets/show/${a.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                   <Card size="small" hoverable>
                     <Typography.Text className="nv-mono" style={{ fontSize: 12, color: '#0958d9' }}>
@@ -357,8 +389,36 @@ export function AssetList() {
                         <WarrantyDays warrantyEnd={a.warrantyEnd} />
                       </div>
                     ) : null}
+                    <Button
+                      size="small"
+                      danger
+                      style={{ marginTop: 10 }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        void (async () => {
+                          try {
+                            await httpClient.post('/maintenance', {
+                              assetId: a.id,
+                              issue: 'Reported from My devices: this device is broken.',
+                            });
+                            toast.success('Repair ticket opened. IT will pick it up.');
+                            void tableQuery.refetch();
+                          } catch (err) {
+                            toast.error(apiErrorMessage(err, 'Could not report the issue'));
+                          }
+                        })();
+                      }}
+                    >
+                      This device is broken
+                    </Button>
                   </Card>
                 </Link>
+              </Col>
+            ))}
+            {myAccessories.map((c) => (
+              <Col xs={24} sm={12} lg={8} key={`acc-${c.id}`}>
+                <MyKitAccessoryCard item={c} />
               </Col>
             ))}
           </Row>
@@ -369,7 +429,15 @@ export function AssetList() {
 
   return (
     <Card
-      title={<Typography.Text strong>Assets</Typography.Text>}
+      className="nv-list-page"
+      title={
+        <span>
+          <Typography.Text strong>
+            {identity?.role === 'MANAGER' ? 'Team devices' : 'Assets'}
+          </Typography.Text>
+          <HardwareTabs />
+        </span>
+      }
       extra={
         <Space>
           {canManage && selectedIds.length > 0 && (
@@ -412,6 +480,7 @@ export function AssetList() {
         </Space>
       }
     >
+      <div className="nv-page-pin">
       <div className="nv-filter-row">
         <Input.Search
           id="assets-grid-search"
@@ -423,6 +492,25 @@ export function AssetList() {
           defaultValue={(activeFilters.q as string | undefined) ?? ''}
           onSearch={(v) => setFilter('q', v.trim())}
         />
+        <fieldset className="nv-cat-pills" aria-label="Category counts">
+          <button
+            type="button"
+            className={!activeFilters.categoryId ? 'is-active' : ''}
+            onClick={() => setFilter('categoryId', undefined)}
+          >
+            All
+          </button>
+          {categoryCounts.map((c) => (
+            <button
+              type="button"
+              key={c.id}
+              className={Number(activeFilters.categoryId) === c.id ? 'is-active' : ''}
+              onClick={() => setFilter('categoryId', c.id)}
+            >
+              {c.name} {c.count}
+            </button>
+          ))}
+        </fieldset>
         <ChipSelect
           label="Status"
           tone="status"
@@ -543,6 +631,7 @@ export function AssetList() {
           Save view
         </Button>
       </div>
+      </div>
       {filterChips.length > 0 && (
         <Space wrap size={[4, 4]} style={{ marginBottom: 12 }} aria-label="Active filters">
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
@@ -583,7 +672,9 @@ export function AssetList() {
       ) : rows.length === 0 ? (
         <EmptyState
           description={
-            activeFilterCount > 0 ? 'No assets match the current filters' : 'No assets yet'
+            activeFilterCount > 0
+              ? 'No assets match the current filters'
+              : 'No serialized assets yet. Monitors are Assets; mice and chargers are Accessories unless they have a serial.'
           }
           actionLabel={
             activeFilterCount > 0 ? 'Clear filters' : canManage ? 'Create asset' : undefined
@@ -596,6 +687,21 @@ export function AssetList() {
                 : undefined
           }
         />
+      ) : phone ? (
+        <div className="nv-phone-cards" data-testid="assets-phone-cards">
+          {rows.map((a) => (
+            <button
+              type="button"
+              key={a.id}
+              className="nv-phone-card"
+              onClick={() => navigate(`/assets/show/${a.id}`)}
+            >
+              <strong className="nv-mono">{a.assetCode}</strong>
+              <span>{`${a.brand ?? ''} ${a.model ?? ''}`.trim() || a.category?.name}</span>
+              <StatusTag status={a.status} />
+            </button>
+          ))}
+        </div>
       ) : (
         <DataGrid<Asset>
           tableKey="assets"
@@ -607,10 +713,11 @@ export function AssetList() {
           onDensityChange={setDensity}
           fixFirstColumn
           serverSide
+          sticky={NV_TABLE_STICKY}
           onChange={tableProps.onChange}
           onExport={exportCsv}
           exportFilename="assets_export.csv"
-          scroll={{ x: 1100 }}
+          scroll={phone ? { x: 'max-content' } : { x: 1100 }}
           quickFilter={false}
           rowSelection={
             canManage

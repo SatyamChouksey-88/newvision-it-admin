@@ -8,7 +8,10 @@ export function RoleRouteGuard({ children }: { children: React.ReactNode }) {
   const { data: identity } = useGetIdentity<Identity>();
   const { pathname } = useLocation();
   if (!identity?.role) return children;
-  const allowed = navForRole(identity.role);
+  const allowed = navForRole(identity.role, {
+    modules: identity.tenant?.modules,
+    onboardingComplete: identity.tenant?.onboardingComplete,
+  });
   const ok = allowed.some((i) => pathname === i.href || (i.href !== '/' && pathname.startsWith(i.href)));
   // Own/team profiles are not in the Employee/Manager sidebar, but the account-menu
   // Profile link and contact cards must still open. The API enforces who can see whom.

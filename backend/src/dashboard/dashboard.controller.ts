@@ -6,6 +6,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { daysRemaining } from '../common/warranty';
 import { MailerService } from '../notifications/mailer.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { requireTenantId } from '../tenancy/context';
 import { computeSla, DEFAULT_PRIORITY_TARGETS } from '../tickets/ticket-sla';
 import { isFreshInstall } from './fresh-install';
 import { buildTrendPoints, trendWindowStart } from './trends';
@@ -65,7 +66,8 @@ export class DashboardController {
     };
   }
 
-  /** First-run detector: true only when the estate has no locations, employees, or assets. */
+  /** First-run detector: estate counts + mail transport. IT Admin / Super Admin only. */
+  @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
   @Get('setup')
   async setup() {
     const [assets, employees, locations, categories] = await Promise.all([
@@ -105,6 +107,7 @@ export class DashboardController {
     const locationId = locationIdRaw ? Number(locationIdRaw) : undefined;
     const start = trendWindowStart(months);
     const locFilter = locationId ? Prisma.sql`AND location_id = ${locationId}` : Prisma.empty;
+    const tenantId = requireTenantId();
 
     const [rows, baselineRows] = await Promise.all([
       this.prisma.$queryRaw<Array<{ month: string; count: number }>>`
@@ -112,6 +115,7 @@ export class DashboardController {
                COUNT(*)::int AS count
         FROM assets
         WHERE created_at >= ${start}
+          AND tenant_id = ${tenantId}
         ${locFilter}
         GROUP BY 1
         ORDER BY 1
@@ -120,6 +124,7 @@ export class DashboardController {
         SELECT COUNT(*)::int AS count
         FROM assets
         WHERE created_at < ${start}
+          AND tenant_id = ${tenantId}
         ${locFilter}
       `,
     ]);
@@ -300,6 +305,9 @@ export class DashboardController {
       warranties14,
       overdueLoaners,
       unauditedAssets,
+      joiningThisWeek,
+      probationEnding,
+      overdueAccessoryLoaners,
     ] = await Promise.all([
       this.prisma.asset.findMany({
         where: {
@@ -431,6 +439,51 @@ export class DashboardController {
         orderBy: { lastAuditedAt: 'asc' },
         take: 5,
       }),
+      this.prisma.employee.findMany({
+        where: {
+          isActive: true,
+          OR: [
+            { dateJoined: { gte: now, lte: in7 } },
+            {
+              dateJoined: { gte: new Date(now.getTime() - 7 * 86_400_000), lte: now },
+              NOT: { checklists: { some: { kind: 'onboard', status: 'complete' } } },
+            },
+          ],
+        },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          employeeCode: true,
+          dateJoined: true,
+        },
+        orderBy: { dateJoined: 'asc' },
+        take: 8,
+      }),
+      this.prisma.employee.findMany({
+        where: {
+          isActive: true,
+          probationEndDate: { gte: now, lte: in14 },
+        },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          employeeCode: true,
+          probationEndDate: true,
+        },
+        orderBy: { probationEndDate: 'asc' },
+        take: 8,
+      }),
+      this.prisma.accessoryCheckout.findMany({
+        where: { checkedInAt: null, expectedReturnAt: { lt: now } },
+        include: {
+          accessory: { select: { name: true } },
+          employee: { select: { id: true, firstName: true, lastName: true, employeeCode: true } },
+        },
+        orderBy: { expectedReturnAt: 'asc' },
+        take: 8,
+      }),
     ]);
 
     const seenTicketIds = new Set<number>();
@@ -521,6 +574,34 @@ export class DashboardController {
         href: `/employees/show/${e.id}`,
         assignTicketId: null as number | null,
       })),
+      ...joiningThisWeek.map((e) => ({
+        type: 'joiner' as const,
+        id: e.id,
+        label: `${e.firstName} ${e.lastName} · ${e.employeeCode}`,
+        detail: e.dateJoined
+          ? `Joining ${e.dateJoined.toISOString().slice(0, 10)}`
+          : 'Joining this week',
+        href: `/employees/show/${e.id}`,
+        assignTicketId: null as number | null,
+      })),
+      ...probationEnding.map((e) => ({
+        type: 'probation' as const,
+        id: e.id,
+        label: `${e.firstName} ${e.lastName} · ${e.employeeCode}`,
+        detail: e.probationEndDate
+          ? `Probation ends ${e.probationEndDate.toISOString().slice(0, 10)}`
+          : 'Probation ending',
+        href: `/employees/show/${e.id}`,
+        assignTicketId: null as number | null,
+      })),
+      ...overdueAccessoryLoaners.map((c) => ({
+        type: 'low_stock' as const,
+        id: c.id,
+        label: c.accessory.name,
+        detail: `Overdue accessory with ${c.employee.firstName} ${c.employee.lastName}`,
+        href: `/employees/show/${c.employee.id}`,
+        assignTicketId: null as number | null,
+      })),
       ...warranties14.map((a) => ({
         type: 'warranty' as const,
         id: a.id,
@@ -600,17 +681,17 @@ export class DashboardController {
   }
 
   /**
-   * Employee "My IT" home: their own assets and their own open tickets — never estate-wide
-   * numbers. Scoped server-side (not just hidden in the UI) so a non-IT client can't pull full
-   * dashboard data by calling the estate endpoints directly.
+   * Employee "My IT" / My kit: assigned serialized assets, open accessory checkouts (not the
+   * qty catalog), and own open tickets. Checkout serials stay off this payload (IT-only).
+   * Scoped server-side so a non-IT client can't pull estate-wide dashboard data.
    */
   @Get('my-summary')
   async mySummary(@CurrentUser() actor: AuthUser) {
     if (!actor.employeeId) {
-      return { assets: [], openTickets: [], openTicketCount: 0 };
+      return { assets: [], accessories: [], openTickets: [], openTicketCount: 0 };
     }
     const OPEN = ['open', 'assigned', 'in_progress', 'waiting_on_employee', 'reopened'] as const;
-    const [assets, openTickets] = await Promise.all([
+    const [assets, checkouts, openTickets] = await Promise.all([
       this.prisma.asset.findMany({
         where: { assignedEmployeeId: actor.employeeId },
         select: {
@@ -620,8 +701,26 @@ export class DashboardController {
           model: true,
           status: true,
           category: { select: { name: true } },
+          assignments: {
+            where: { returnedAt: null },
+            select: { expectedReturnAt: true },
+            orderBy: { assignedAt: 'desc' },
+            take: 1,
+          },
         },
         orderBy: { assetCode: 'asc' },
+      }),
+      this.prisma.accessoryCheckout.findMany({
+        where: { employeeId: actor.employeeId, checkedInAt: null },
+        select: {
+          id: true,
+          quantity: true,
+          checkedOutAt: true,
+          expectedReturnAt: true,
+          accessory: { select: { name: true, category: true } },
+          issuedWithAsset: { select: { assetCode: true } },
+        },
+        orderBy: { checkedOutAt: 'desc' },
       }),
       this.prisma.supportTicket.findMany({
         where: { raisedById: actor.employeeId, status: { in: [...OPEN] } },
@@ -645,6 +744,16 @@ export class DashboardController {
         model: a.model,
         status: a.status,
         category: a.category?.name,
+        expectedReturnAt: a.assignments[0]?.expectedReturnAt ?? null,
+      })),
+      accessories: checkouts.map((c) => ({
+        id: c.id,
+        name: c.accessory.name,
+        category: c.accessory.category,
+        quantity: c.quantity,
+        checkedOutAt: c.checkedOutAt,
+        expectedReturnAt: c.expectedReturnAt,
+        issuedWithAssetCode: c.issuedWithAsset?.assetCode ?? null,
       })),
       openTickets,
       openTicketCount: openTickets.length,

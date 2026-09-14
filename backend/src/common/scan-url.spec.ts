@@ -15,4 +15,10 @@ describe('scan page URL', () => {
   it('defaults to the local Vite origin', () => {
     expect(DEFAULT_PUBLIC_APP_URL).toBe('http://localhost:5173');
   });
+
+  it('nests the tenant slug when provided', () => {
+    expect(scanPageUrl('AST-PUN-LAP-0001', 'http://localhost:5173', 'acme')).toBe(
+      'http://localhost:5173/scan/acme/AST-PUN-LAP-0001',
+    );
+  });
 });

@@ -226,9 +226,14 @@ export function AssetShow() {
               '—'
             )}
           </Descriptions.Item>
-          <Descriptions.Item label="Purchase Cost">
-            {formatCurrency(asset?.purchaseCost)}
-          </Descriptions.Item>
+          {canManage ? (
+            <>
+              <Descriptions.Item label="Purchase Cost">
+                {formatCurrency(asset?.purchaseCost)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Invoice No">{asset?.invoiceNo ?? '—'}</Descriptions.Item>
+            </>
+          ) : null}
           <Descriptions.Item label="Purchase Date">
             {formatDate(asset?.purchaseDate)}
           </Descriptions.Item>
@@ -236,7 +241,6 @@ export function AssetShow() {
             {asset ? <WarrantyDays warrantyEnd={asset.warrantyEnd} /> : null}
           </Descriptions.Item>
           <Descriptions.Item label="Vendor">{asset?.vendor ?? '—'}</Descriptions.Item>
-          <Descriptions.Item label="Invoice No">{asset?.invoiceNo ?? '—'}</Descriptions.Item>
           <Descriptions.Item label="Last audited">
             {asset?.lastAuditedAt ? formatDate(asset.lastAuditedAt) : 'Never'}
           </Descriptions.Item>

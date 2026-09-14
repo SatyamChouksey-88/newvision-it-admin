@@ -38,7 +38,7 @@ test.describe('Prompt 17 / 20 — routes, branding, role homes', () => {
 
   test('employee home is My IT, not the estate dashboard', async ({ page }) => {
     await login(page, DEMO_USERS.employee);
-    await expect(page.getByText(/Raise a ticket|My devices|Your devices/i).first()).toBeVisible({
+    await expect(page.getByText(/Raise a ticket|My kit|Your kit/i).first()).toBeVisible({
       timeout: 20_000,
     });
     await expect(page.getByTestId('growth-chart')).toHaveCount(0);

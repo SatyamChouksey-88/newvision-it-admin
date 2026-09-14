@@ -8,17 +8,21 @@ interface Opt {
   value: number;
 }
 
-/** Server-backed asset picker (searches by code / serial / model). */
+/** Typeahead for “issued with asset” on accessory checkout. */
 export function AssetSelect({
   value,
   onChange,
-  placeholder = 'Select asset',
+  placeholder = 'Optional parent asset',
   'aria-label': ariaLabel,
+  status,
+  categoryId,
 }: {
   value?: number;
-  onChange?: (v: number) => void;
+  onChange?: (v: number | undefined) => void;
   placeholder?: string;
   'aria-label'?: string;
+  status?: string;
+  categoryId?: number;
 }) {
   const [options, setOptions] = useState<Opt[]>([]);
   const [loading, setLoading] = useState(false);
@@ -29,16 +33,20 @@ export function AssetSelect({
     setLoading(true);
     try {
       const { data } = await httpClient.get('/assets', {
-        params: { _start: 0, _end: 20, ...(q ? { q } : {}) },
+        params: {
+          _start: 0,
+          _end: 20,
+          ...(q ? { q } : {}),
+          ...(status ? { status } : {}),
+          ...(categoryId ? { categoryId } : {}),
+        },
       });
       if (mine !== seq.current) return;
       setOptions(
-        (data.data ?? []).map(
-          (a: { id: number; assetCode: string; brand?: string; model?: string }) => ({
-            label: `${a.assetCode} — ${a.brand ?? ''} ${a.model ?? ''}`.trim().replace(/—\s*$/, ''),
-            value: a.id,
-          }),
-        ),
+        (data.data ?? []).map((a: { id: number; assetCode: string; brand?: string; model?: string }) => ({
+          value: a.id,
+          label: `${a.assetCode} — ${`${a.brand ?? ''} ${a.model ?? ''}`.trim()}`.trim(),
+        })),
       );
     } catch {
       if (mine === seq.current) setOptions([]);
@@ -46,27 +54,25 @@ export function AssetSelect({
       if (mine === seq.current) setLoading(false);
     }
   };
-  const debouncedLoad = useDebouncedCallback((q: string) => void load(q), 250);
+  const debounced = useDebouncedCallback((q: string) => void load(q), 250);
 
-  // Initial page only; searches go through `debouncedLoad`.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reload when category/status filters change; load is stable enough for this picker.
   useEffect(() => {
     void load();
-  }, []);
+  }, [status, categoryId]);
 
   return (
     <Select
       showSearch
       allowClear
       filterOption={false}
-      loading={loading}
-      onSearch={debouncedLoad}
-      value={value}
-      onChange={(v) => onChange?.(v as number)}
-      options={options}
+      aria-label={ariaLabel}
       placeholder={placeholder}
-      aria-label={ariaLabel ?? placeholder}
-      notFoundContent={loading ? 'Searching…' : 'No matching asset'}
+      value={value}
+      options={options}
+      loading={loading}
+      onSearch={(q) => debounced(q)}
+      onChange={(v) => onChange?.(v)}
       style={{ width: '100%' }}
     />
   );

@@ -4,14 +4,50 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { AssetStatus, Prisma, RoleName } from '@prisma/client';
+import { AssetStatus, EmploymentType, Prisma, RoleName } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AuthService } from '../auth/auth.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { ListQuery, parseListQuery } from '../common/query';
 import { PrismaService } from '../prisma/prisma.service';
+import { TenantService } from '../tenancy/tenant.service';
+import { DEFAULT_ONBOARD_ITEMS, DEFAULT_PROBATION_DAYS } from './checklist-defaults';
 import { CreateEmployeeDto, OffboardEmployeeDto, UpdateEmployeeDto } from './dto';
 import * as crypto from 'node:crypto';
+
+const EMPLOYMENT_TYPES = new Set(['permanent', 'contract', 'intern', 'consultant']);
+
+function addDays(d: Date, n: number) {
+  const out = new Date(d);
+  out.setUTCDate(out.getUTCDate() + n);
+  return out;
+}
+
+function parseRequiredDate(value: string | undefined, field: string): Date {
+  if (!value || !String(value).trim()) {
+    throw new BadRequestException(`${field} is required`);
+  }
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) {
+    throw new BadRequestException(`${field} must be a valid date`);
+  }
+  return d;
+}
+
+function kitIncomplete(employee: {
+  assignedAssets: { category?: { code?: string } | null }[];
+  accessoryCheckouts: { accessory?: { name?: string; category?: string } | null }[];
+}): boolean {
+  const hasComputer = employee.assignedAssets.some((a) =>
+    ['LAP', 'DES'].includes(a.category?.code ?? ''),
+  );
+  if (!hasComputer) return false;
+  const hasCharger = employee.accessoryCheckouts.some((c) => {
+    const hay = `${c.accessory?.name ?? ''} ${c.accessory?.category ?? ''}`;
+    return /charg|power/i.test(hay);
+  });
+  return !hasCharger;
+}
 
 export interface EmployeeHistoryEvent {
   id: string;
@@ -32,6 +68,12 @@ export interface EmployeeListQuery extends ListQuery {
   contractEndingInDays?: string;
   /** Employees with an onboard/offboard checklist that still has unticked items. */
   incompleteChecklist?: string;
+  /** Joined in the last N days (inclusive of today). */
+  joinedWithinDays?: string;
+  /** Future DOJ within N days (pre-join packing). */
+  joiningInDays?: string;
+  /** Active employees whose probation ends within N days. */
+  probationEndingInDays?: string;
 }
 
 const employeeInclude = {
@@ -47,10 +89,11 @@ export class EmployeesService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly authService: AuthService,
+    private readonly tenants: TenantService,
   ) {}
 
   async list(query: EmployeeListQuery, actor: AuthUser) {
-    const { skip, take, orderBy } = parseListQuery(query, [
+    const parsed = parseListQuery(query, [
       'id',
       'employeeCode',
       'firstName',
@@ -60,25 +103,43 @@ export class EmployeesService {
       'isActive',
       'dateJoined',
     ]);
+    const { skip, take } = parsed;
+    const orderBy = query._sort ? parsed.orderBy : { dateJoined: 'desc' as const };
     const contractDays = Number(query.contractEndingInDays);
     const contractUntil =
       Number.isFinite(contractDays) && contractDays > 0
         ? new Date(Date.now() + contractDays * 86_400_000)
         : null;
+    const joinedDays = Number(query.joinedWithinDays);
+    const joiningDays = Number(query.joiningInDays);
+    const probationDays = Number(query.probationEndingInDays);
+    const now = new Date();
     const where: Prisma.EmployeeWhereInput = {
       ...this.listScopeWhere(actor),
       ...(query.locationId ? { locationId: Number(query.locationId) } : {}),
       ...(query.departmentId ? { departmentId: Number(query.departmentId) } : {}),
       ...(query.isActive === 'true' ? { isActive: true } : {}),
       ...(query.isActive === 'false' ? { isActive: false } : {}),
-      ...(query.employmentType === 'permanent' || query.employmentType === 'contract'
-        ? { employmentType: query.employmentType }
+      ...(query.employmentType && EMPLOYMENT_TYPES.has(query.employmentType)
+        ? { employmentType: query.employmentType as EmploymentType }
         : {}),
       ...(contractUntil
         ? {
             isActive: true,
             employmentType: 'contract',
-            contractEndDate: { gte: new Date(), lte: contractUntil },
+            contractEndDate: { gte: now, lte: contractUntil },
+          }
+        : {}),
+      ...(Number.isFinite(joinedDays) && joinedDays > 0
+        ? { dateJoined: { gte: addDays(now, -joinedDays), lte: now } }
+        : {}),
+      ...(Number.isFinite(joiningDays) && joiningDays > 0
+        ? { dateJoined: { gt: now, lte: addDays(now, joiningDays) } }
+        : {}),
+      ...(Number.isFinite(probationDays) && probationDays > 0
+        ? {
+            isActive: true,
+            probationEndDate: { gte: now, lte: addDays(now, probationDays) },
           }
         : {}),
       ...(query.incompleteChecklist === 'true'
@@ -141,7 +202,10 @@ export class EmployeesService {
         },
         accessoryCheckouts: {
           where: { checkedInAt: null },
-          include: { accessory: true },
+          include: {
+            accessory: true,
+            issuedWithAsset: { select: { id: true, assetCode: true } },
+          },
           orderBy: { checkedOutAt: 'desc' },
         },
         consumableIssues: {
@@ -159,7 +223,8 @@ export class EmployeesService {
     if (!employee) {
       throw new NotFoundException(`Employee ${id} not found`);
     }
-    return employee;
+    void this.tenants.recordProfileOpened(actor);
+    return { ...employee, kitIncomplete: kitIncomplete(employee) };
   }
 
   async get(id: number, actor: AuthUser) {
@@ -345,6 +410,55 @@ export class EmployeesService {
     return events;
   }
 
+  /** DPDP-style subject access: Super Admin export of this employee's stored records. */
+  async exportPersonalData(id: number, actor: AuthUser) {
+    const employee = await this.get(id, actor);
+    const [user, assets, tickets, requests, checklists, notes] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { employeeId: id },
+        select: {
+          id: true,
+          email: true,
+          fullName: true,
+          isActive: true,
+          role: { select: { name: true } },
+          createdAt: true,
+          lastSeenAt: true,
+        },
+      }),
+      this.prisma.asset.findMany({
+        where: { assignedEmployeeId: id },
+        select: { assetCode: true, brand: true, model: true, status: true, serialNumber: true },
+      }),
+      this.prisma.supportTicket.findMany({
+        where: { raisedById: id },
+        select: { ticketNumber: true, subject: true, status: true, createdAt: true },
+      }),
+      this.prisma.assetRequest.findMany({
+        where: { requesterId: id },
+        select: { id: true, kind: true, reason: true, status: true, createdAt: true },
+      }),
+      this.prisma.employeeChecklist.findMany({
+        where: { employeeId: id },
+        include: { items: true },
+      }),
+      this.prisma.recordNote.findMany({
+        where: { entityType: 'Employee', entityId: String(id) },
+        select: { body: true, occurredAt: true },
+      }),
+    ]);
+    return {
+      exportedAt: new Date().toISOString(),
+      employee,
+      login: user,
+      assignedAssets: assets,
+      tickets,
+      requests,
+      checklists,
+      notes,
+    };
+  }
+
   async offboard(id: number, dto: OffboardEmployeeDto, actor: AuthUser) {
     const employee = await this.prisma.employee.findUnique({
       where: { id },
@@ -352,6 +466,10 @@ export class EmployeesService {
         assignedAssets: { select: { id: true, assetCode: true, status: true } },
         accessoryCheckouts: { where: { checkedInAt: null }, include: { accessory: true } },
         user: { select: { id: true } },
+        supportTickets: {
+          where: { status: { in: ['open', 'assigned', 'in_progress', 'waiting_on_employee'] } },
+          select: { id: true, assignedToId: true, status: true },
+        },
       },
     });
     if (!employee) {
@@ -360,6 +478,10 @@ export class EmployeesService {
     if (!employee.isActive) {
       throw new BadRequestException(`${employee.employeeCode} is already inactive`);
     }
+    const lastWorkingDate = parseRequiredDate(dto.lastWorkingDate, 'lastWorkingDate');
+    const recoverByDate = dto.recoverByDate
+      ? parseRequiredDate(dto.recoverByDate, 'recoverByDate')
+      : lastWorkingDate;
     if (dto.reassignAssetsToId) {
       if (dto.reassignAssetsToId === id) {
         throw new BadRequestException('Cannot reassign assets to the employee being offboarded');
@@ -454,7 +576,7 @@ export class EmployeesService {
 
       const updated = await tx.employee.update({
         where: { id },
-        data: { isActive: false },
+        data: { isActive: false, lastWorkingDate, recoverByDate },
         include: employeeInclude,
       });
 
@@ -475,6 +597,8 @@ export class EmployeesService {
           oldValue: { isActive: true, assignedAssets: employee.assignedAssets.length },
           newValue: {
             isActive: false,
+            lastWorkingDate,
+            recoverByDate,
             assetsReturned: returnToPool ? employee.assignedAssets.length : 0,
             assetsReassigned: dto.reassignAssetsToId ? employee.assignedAssets.length : 0,
             accessoriesCheckedIn: employee.accessoryCheckouts.length,
@@ -527,6 +651,10 @@ export class EmployeesService {
   }
 
   async create(dto: CreateEmployeeDto, actor: AuthUser) {
+    const dateJoined = parseRequiredDate(dto.dateJoined, 'dateJoined');
+    const probationEndDate = dto.probationEndDate
+      ? parseRequiredDate(dto.probationEndDate, 'probationEndDate')
+      : addDays(dateJoined, DEFAULT_PROBATION_DAYS);
     const employee = await this.prisma.employee.create({
       data: {
         employeeCode: dto.employeeCode,
@@ -538,12 +666,37 @@ export class EmployeesService {
         locationId: dto.locationId,
         departmentId: dto.departmentId ?? null,
         managerId: dto.managerId ?? null,
-        dateJoined: dto.dateJoined ? new Date(dto.dateJoined) : null,
+        dateJoined,
+        expectedStartDate: dto.expectedStartDate
+          ? parseRequiredDate(dto.expectedStartDate, 'expectedStartDate')
+          : null,
+        probationEndDate,
+        deskOrSeat: dto.deskOrSeat?.trim() || null,
         isActive: dto.isActive ?? true,
         employmentType: dto.employmentType ?? 'permanent',
         contractEndDate: dto.contractEndDate ? new Date(dto.contractEndDate) : null,
       },
     });
+    const sameNameJoin = await this.prisma.employee.count({
+      where: {
+        id: { not: employee.id },
+        firstName: { equals: dto.firstName, mode: 'insensitive' },
+        lastName: { equals: dto.lastName, mode: 'insensitive' },
+        dateJoined,
+      },
+    });
+    const dojTodayOrPast = dateJoined.getTime() <= Date.now();
+    if (dto.startOnboardChecklist !== false && dojTodayOrPast) {
+      await this.prisma.employeeChecklist.create({
+        data: {
+          employeeId: employee.id,
+          kind: 'onboard',
+          items: {
+            create: DEFAULT_ONBOARD_ITEMS.map((label, i) => ({ label, sortOrder: i })),
+          },
+        },
+      });
+    }
     await this.audit.record({
       entityType: 'Employee',
       entityId: employee.id,
@@ -584,7 +737,13 @@ export class EmployeesService {
       }
     }
 
-    return employee;
+    return {
+      ...employee,
+      duplicateNameJoinWarning:
+        sameNameJoin > 0
+          ? `Another employee named ${dto.firstName} ${dto.lastName} already has this joining date.`
+          : undefined,
+    };
   }
 
   /** Create a portal login for an existing employee who does not have one yet. */
@@ -653,13 +812,32 @@ export class EmployeesService {
 
   async update(id: number, dto: UpdateEmployeeDto, actor: AuthUser) {
     const before = await this.get(id, actor);
-    const { createLogin: _c, loginRole: _r, contractEndDate, dateJoined, ...rest } = dto;
+    const {
+      createLogin: _c,
+      loginRole: _r,
+      startOnboardChecklist: _s,
+      contractEndDate,
+      dateJoined,
+      expectedStartDate,
+      probationEndDate,
+      ...rest
+    } = dto;
+    if (dateJoined !== undefined && !String(dateJoined).trim()) {
+      throw new BadRequestException('dateJoined cannot be empty');
+    }
     const employee = await this.prisma.employee.update({
       where: { id },
       data: {
         ...rest,
         email: dto.email ? dto.email.toLowerCase() : undefined,
-        dateJoined: dateJoined ? new Date(dateJoined) : undefined,
+        dateJoined: dateJoined ? parseRequiredDate(dateJoined, 'dateJoined') : undefined,
+        expectedStartDate: expectedStartDate
+          ? parseRequiredDate(expectedStartDate, 'expectedStartDate')
+          : undefined,
+        probationEndDate: probationEndDate
+          ? parseRequiredDate(probationEndDate, 'probationEndDate')
+          : undefined,
+        deskOrSeat: dto.deskOrSeat !== undefined ? dto.deskOrSeat.trim() || null : undefined,
         contractEndDate: contractEndDate ? new Date(contractEndDate) : undefined,
       },
     });

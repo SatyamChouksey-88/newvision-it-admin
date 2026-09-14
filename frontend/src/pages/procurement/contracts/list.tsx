@@ -5,10 +5,12 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { PrimaryWithSub } from '../../../components/Cells';
 import { DataGrid, type TableDensity } from '../../../components/DataGrid/DataGrid';
+import { DesktopOnlyBanner } from '../../../components/DesktopOnlyBanner';
 import { EmptyState } from '../../../components/EmptyState';
 import { TablePagination } from '../../../components/TablePagination';
 import { TableSkeleton } from '../../../components/TableSkeleton';
 import { useToast } from '../../../components/Toast';
+import { NV_TABLE_STICKY } from '../../../chrome';
 import { apiErrorMessage, httpClient } from '../../../providers/axios';
 
 interface ContractRow {
@@ -37,6 +39,7 @@ export function ContractList() {
   const [density, setDensity] = useState<TableDensity>('Compact');
 
   useEffect(() => {
+    void reload;
     let cancelled = false;
     setLoading(true);
     setLoadError(false);
@@ -73,6 +76,7 @@ export function ContractList() {
         </Button>
       }
     >
+      <DesktopOnlyBanner noun="Contracts" />
       {loading ? (
         <TableSkeleton columns={4} />
       ) : loadError ? (
@@ -95,6 +99,7 @@ export function ContractList() {
             rowKey="id"
             density={density}
             onDensityChange={setDensity}
+            sticky={NV_TABLE_STICKY}
             enableQueueKeys
             onOpenRow={(r) => navigate(`/procurement/contracts/show/${r.id}`)}
             onRow={(r) => ({ onClick: () => navigate(`/procurement/contracts/show/${r.id}`) })}

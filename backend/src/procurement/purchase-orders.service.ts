@@ -479,7 +479,7 @@ export class PurchaseOrdersService {
       select: { id: true, invoiceNumber: true, invoiceDate: true, amount: true },
       take: 5,
     });
-    let invoice;
+    let invoice: Awaited<ReturnType<typeof this.prisma.vendorInvoice.create>>;
     try {
       invoice = await this.prisma.vendorInvoice.create({
         data: {

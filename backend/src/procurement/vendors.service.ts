@@ -13,6 +13,7 @@ import { CreateVendorDto, ScorecardDto, UpdateVendorDto, VendorStatusDto } from 
 import { ProcurementLogService } from './log.service';
 import { overallScore } from './match';
 import { classifyTaxId, gstinPanError, normalizeGstin, normalizePan } from './gstin-pan';
+import { accountHolderMatchesLegal } from './names';
 import { maskBank, paddedCode } from './numbers';
 import { bankAccountsMatch, normalizeTaxId, taxIdsMatch } from './vendor-identity';
 
@@ -94,6 +95,12 @@ export class VendorsService {
   async create(dto: CreateVendorDto, actor: AuthUser) {
     this.assertManage(actor);
     const ids = this.resolveGstinPan(dto);
+    this.assertAccountHolder(
+      dto.legalName,
+      dto.accountHolderName,
+      dto.accountHolderOverrideReason,
+      Boolean(dto.bankAccountNumber?.trim()),
+    );
     await this.assertNoDuplicateVendor({
       taxId: ids.taxId,
       gstin: ids.gstin,
@@ -109,6 +116,8 @@ export class VendorsService {
         gstin: ids.gstin,
         pan: ids.pan,
         gstUnregistered: dto.gstUnregistered ?? false,
+        accountHolderName: dto.accountHolderName?.trim() || null,
+        accountHolderOverrideReason: dto.accountHolderOverrideReason?.trim() || null,
         country: dto.country?.trim() || 'IN',
         registeredAddress: dto.registeredAddress,
         remitToAddress: dto.remitToAddress,
@@ -156,6 +165,19 @@ export class VendorsService {
         dto.gstUnregistered !== undefined ? dto.gstUnregistered : existing.gstUnregistered,
       country: dto.country !== undefined ? dto.country : existing.country,
     });
+    this.assertAccountHolder(
+      dto.legalName ?? existing.legalName,
+      dto.accountHolderName !== undefined ? dto.accountHolderName : existing.accountHolderName,
+      dto.accountHolderOverrideReason !== undefined
+        ? dto.accountHolderOverrideReason
+        : existing.accountHolderOverrideReason,
+      Boolean(
+        (dto.bankAccountNumber !== undefined
+          ? dto.bankAccountNumber
+          : existing.bankAccountNumber
+        )?.toString().trim(),
+      ),
+    );
     await this.assertNoDuplicateVendor(
       {
         taxId: ids.taxId,
@@ -179,6 +201,12 @@ export class VendorsService {
       gstin: ids.gstin,
       pan: ids.pan,
       gstUnregistered: dto.gstUnregistered,
+      accountHolderName:
+        dto.accountHolderName !== undefined ? dto.accountHolderName.trim() || null : undefined,
+      accountHolderOverrideReason:
+        dto.accountHolderOverrideReason !== undefined
+          ? dto.accountHolderOverrideReason.trim() || null
+          : undefined,
       country: dto.country,
       registeredAddress: dto.registeredAddress,
       remitToAddress: dto.remitToAddress,
@@ -247,6 +275,18 @@ export class VendorsService {
         },
         id,
       );
+      if (existing.status === 'draft' || existing.status === 'pending_approval') {
+        const created = await this.prisma.procurementActivityLog.findFirst({
+          where: { recordType: 'vendor', recordId: id, action: 'create' },
+          orderBy: { createdAt: 'asc' },
+          select: { actorId: true },
+        });
+        await this.assertNotSamePerson({
+          makerId: created?.actorId,
+          actor,
+          action: 'activate a vendor they created',
+        });
+      }
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {
@@ -292,6 +332,16 @@ export class VendorsService {
     if (!existing) throw new NotFoundException(`Vendor ${id} not found`);
     if (!existing.bankChangePending)
       throw new BadRequestException('No bank-detail change is pending');
+    const pending = await this.prisma.procurementActivityLog.findFirst({
+      where: { recordType: 'vendor', recordId: id, action: 'bank_change_pending' },
+      orderBy: { createdAt: 'desc' },
+      select: { actorId: true },
+    });
+    await this.assertNotSamePerson({
+      makerId: pending?.actorId,
+      actor,
+      action: 'approve a bank-detail change they submitted',
+    });
     const updated = await this.prisma.vendor.update({
       where: { id },
       data: {
@@ -407,6 +457,42 @@ export class VendorsService {
       select: { id: true },
     });
     return paddedCode('VND', (last?.id ?? 0) + 1);
+  }
+
+  private assertAccountHolder(
+    legalName: string,
+    accountHolderName: string | null | undefined,
+    overrideReason: string | null | undefined,
+    bankPresent: boolean,
+  ) {
+    if (bankPresent && !accountHolderName?.trim()) {
+      throw new BadRequestException('Account holder name is required when a bank account is stored');
+    }
+    if (!accountHolderName?.trim()) return;
+    if (accountHolderMatchesLegal(accountHolderName, legalName)) return;
+    if ((overrideReason ?? '').trim().length < 3) {
+      throw new BadRequestException(
+        'Account holder name does not match the legal name. Add a reason to override (no penny-drop check).',
+      );
+    }
+  }
+
+  private async assertNotSamePerson(args: {
+    makerId: number | null | undefined;
+    actor: AuthUser;
+    action: string;
+  }) {
+    if (!args.makerId || args.makerId !== args.actor.id) return;
+    const adminCount = await this.prisma.user.count({
+      where: {
+        isActive: true,
+        role: { name: { in: [RoleName.SUPER_ADMIN, RoleName.IT_ADMIN] } },
+      },
+    });
+    if (args.actor.role === RoleName.SUPER_ADMIN && adminCount <= 1) return;
+    throw new BadRequestException(
+      `The same person cannot ${args.action}. A second Super Admin or IT Admin must confirm.`,
+    );
   }
 
   private async assertNoDuplicateVendor(

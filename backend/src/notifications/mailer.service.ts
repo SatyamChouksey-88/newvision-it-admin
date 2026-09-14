@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
+import { PrismaService } from '../prisma/prisma.service';
+import { resolveTenantId, runUnscoped } from '../tenancy/context';
 
 export interface MailMessage {
   to: string | string[];
@@ -57,7 +59,7 @@ export class MailerService {
   private lastFailureAt: Date | null = null;
   private lastFailureMessage: string | null = null;
 
-  constructor() {
+  constructor(private readonly prisma: PrismaService) {
     this.from = process.env.MAIL_FROM || 'NewVision IT <it-noreply@newvision.local>';
     this.resendKey = process.env.RESEND_API_KEY?.trim() || null;
     const host = process.env.SMTP_HOST;
@@ -99,6 +101,7 @@ export class MailerService {
 
   async send(message: MailMessage): Promise<void> {
     const to = Array.isArray(message.to) ? message.to.join(', ') : message.to;
+    const from = await this.resolveFrom();
     if (this.resendKey) {
       try {
         const res = await fetch('https://api.resend.com/emails', {
@@ -107,7 +110,7 @@ export class MailerService {
             Authorization: `Bearer ${this.resendKey}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(resendPayload(this.from, message)),
+          body: JSON.stringify(resendPayload(from, message)),
         });
         if (!res.ok) {
           const body = await res.text();
@@ -125,7 +128,7 @@ export class MailerService {
     }
     try {
       await this.transporter.sendMail({
-        from: this.from,
+        from,
         to,
         subject: message.subject,
         text: message.text,
@@ -139,6 +142,25 @@ export class MailerService {
       this.logger.log(`[email:sent] To: ${to} | ${message.subject}`);
     } catch (err) {
       this.markFailed(to, message.subject, err);
+    }
+  }
+
+  private async resolveFrom(): Promise<string> {
+    const tid = resolveTenantId();
+    if (!tid) return this.from;
+    try {
+      const t = await runUnscoped(() =>
+        this.prisma.tenant.findUnique({
+          where: { id: tid },
+          select: { mailFromName: true, mailFromAddress: true, name: true },
+        }),
+      );
+      if (!t) return this.from;
+      const email = t.mailFromAddress || parseFromAddress(this.from).email;
+      const name = t.mailFromName || `${t.name} IT`;
+      return `${name} <${email}>`;
+    } catch {
+      return this.from;
     }
   }
 

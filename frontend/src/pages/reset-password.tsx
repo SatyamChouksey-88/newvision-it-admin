@@ -47,13 +47,13 @@ export function ResetPasswordPage() {
         ) : (
           <>
             <Typography.Paragraph style={{ marginBottom: 24, fontSize: 13, color: COLOR_TEXT_SECONDARY }}>
-              Choose a new password (at least 6 characters).
+              Choose a new password (at least 12 characters).
             </Typography.Paragraph>
             <Form layout="vertical" onFinish={submit} style={{ maxWidth: 360 }}>
               <Form.Item
                 name="newPassword"
                 label="New password"
-                rules={[{ required: true, min: 6, message: 'At least 6 characters' }]}
+                rules={[{ required: true, min: 12, message: 'At least 12 characters' }]}
               >
                 <Input.Password autoComplete="new-password" autoFocus />
               </Form.Item>

@@ -28,13 +28,15 @@ services:
     environment:
       DATABASE_URL: postgresql://newvision:newvision@postgres:5432/newvision?schema=public
       JWT_SECRET: change-me-in-production-super-secret
-      JWT_EXPIRES_IN: 8h
+      JWT_REFRESH_SECRET: change-me-refresh-in-production
+      JWT_EXPIRES_IN: 30m
       PORT: "3000"
       CORS_ORIGIN: http://localhost:5173
       PUBLIC_APP_URL: http://localhost:5173
       # Applies migrations then loads demo data on first boot. The seed script
-      # resets demo data each run — set to "false" to keep your own changes.
+      # skips when users already exist if SEED_IF_EMPTY=true (safe to restart).
       SEED_ON_START: "true"
+      SEED_IF_EMPTY: "true"
     ports:
       - "3000:3000"
 

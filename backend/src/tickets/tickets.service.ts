@@ -13,8 +13,10 @@ import {
   TicketStatus,
 } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
+import { AuthService } from '../auth/auth.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { ListQuery, parseListQuery } from '../common/query';
+import { assertAllowedUpload } from '../common/uploads';
 import { MailerService } from '../notifications/mailer.service';
 import {
   dailyDigestEmail,
@@ -23,9 +25,13 @@ import {
   ticketAssignedEmail,
   ticketCommentEmail,
   ticketCreatedEmail,
+  ticketOverdueEmail,
   ticketStatusChangedEmail,
 } from '../notifications/ticket-email-templates';
 import { PrismaService } from '../prisma/prisma.service';
+import { TenantService } from '../tenancy/tenant.service';
+import { requireTenantId } from '../tenancy/context';
+import { ensureAccountPlaybook } from './account-playbook';
 import { canTransitionTicket, currentStatusImpliesWorkStarted } from './tickets.lifecycle';
 import { computeSla, DEFAULT_PRIORITY_TARGETS, type SlaDecor } from './ticket-sla';
 
@@ -45,14 +51,34 @@ export function isTicketStaff(role: RoleName) {
 
 const INCLUDE = {
   category: true,
-  raisedBy: { select: { id: true, firstName: true, lastName: true, email: true, employeeCode: true, department: true, location: true } },
+  raisedBy: {
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      employeeCode: true,
+      department: true,
+      location: true,
+      manager: { select: { id: true, firstName: true, lastName: true, employeeCode: true } },
+      user: { select: { id: true, email: true, isActive: true } },
+    },
+  },
   assignedTo: { select: { id: true, fullName: true, email: true, role: { select: { name: true } }, employee: { select: { id: true, firstName: true, lastName: true, email: true, employeeCode: true, department: true, location: true } } } },
   asset: { select: { id: true, assetCode: true } },
   location: { select: { id: true, code: true, name: true } },
   duplicateOf: { select: { id: true, ticketNumber: true, subject: true } },
+  verifiedBy: { select: { id: true, fullName: true } },
   watchers: { include: { employee: { select: { id: true, firstName: true, lastName: true, email: true } } } },
   _count: { select: { comments: true, attachments: true } },
 } satisfies Prisma.SupportTicketInclude;
+
+const IDP_RESET_LABEL: Record<'m365' | 'vpn' | 'biometric' | 'other', string> = {
+  m365: 'Microsoft 365 / Entra',
+  vpn: 'VPN',
+  biometric: 'biometric',
+  other: 'the identity provider',
+};
 
 @Injectable()
 export class TicketsService {
@@ -60,7 +86,11 @@ export class TicketsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly mailer: MailerService,
+    private readonly auth: AuthService,
+    private readonly tenants: TenantService,
   ) {}
+
+  private playbookEnsured = false;
 
   /** ticketId → userId → last heartbeat. In-memory only (no WebSocket). */
   private readonly viewers = new Map<number, Map<number, { name: string; at: number }>>();
@@ -201,6 +231,7 @@ export class TicketsService {
     });
     if (!ticket) throw new NotFoundException(`Ticket ${id} not found`);
     await this.assertCanView(ticket, actor);
+    await this.ensurePlaybook();
     const comments = isTicketStaff(actor.role)
       ? ticket.comments
       : ticket.comments.filter((c) => !c.isInternal);
@@ -248,6 +279,9 @@ export class TicketsService {
     }
     const category = await this.prisma.ticketCategory.findUnique({ where: { id: categoryId } });
     if (!category) throw new BadRequestException('Unknown ticket category');
+    if (!dto.raisedByEmployeeId && !actor.employeeId) {
+      actor.employeeId = await this.ensureEmployeeForUser(actor);
+    }
     const raisedById = dto.raisedByEmployeeId ?? actor.employeeId;
     if (!raisedById) throw new BadRequestException('Link an employee record before raising a ticket');
     const emp = await this.prisma.employee.findUnique({ where: { id: raisedById } });
@@ -499,6 +533,10 @@ export class TicketsService {
       statusEmail.html,
     );
     if (status === 'resolved') {
+      const publicReply = await this.prisma.ticketComment.count({
+        where: { ticketId: id, isInternal: false },
+      });
+      void this.tenants.recordTicketResolved(actor.tenantId, publicReply > 0);
       const requesterUser = await this.userIdForEmployee(ticket.raisedById);
       if (requesterUser) {
         const rating = ratingPromptEmail({ ticketId: id, ticketNumber: ticket.ticketNumber });
@@ -716,7 +754,7 @@ export class TicketsService {
     if (!OPEN_STATUSES.includes(ticket.status) && ticket.status !== 'resolved') {
       throw new BadRequestException('Only open tickets can be marked duplicate');
     }
-    const original = await this.prisma.supportTicket.findUnique({ where: { ticketNumber: originalNumber } });
+    const original = await this.prisma.supportTicket.findFirst({ where: { ticketNumber: originalNumber } });
     if (!original || original.id === id) throw new BadRequestException('Original ticket not found');
     await this.prisma.$transaction(async (tx) => {
       await tx.supportTicket.update({
@@ -874,6 +912,59 @@ export class TicketsService {
           title: `Helpdesk daily digest ${marker}`,
           message: digest.subject,
         },
+      });
+      sent += 1;
+    }
+    return { sent };
+  }
+
+  /** Email the requester once when their ticket first goes past dueDate. */
+  async mailOverdueTickets(): Promise<{ sent: number }> {
+    return this.sendOverdueRequesterMails();
+  }
+
+  async sendOverdueRequesterMails() {
+    const now = new Date();
+    const tickets = await this.prisma.supportTicket.findMany({
+      where: {
+        dueDate: { lt: now },
+        status: { in: DUE_OPEN_STATUSES },
+        overdueMailedAt: null,
+      },
+      include: { raisedBy: { include: { user: { select: { id: true, email: true } } } } },
+      take: 200,
+    });
+    let sent = 0;
+    for (const t of tickets) {
+      const user = t.raisedBy.user;
+      const to = user?.email || t.raisedBy.email;
+      const content = ticketOverdueEmail({
+        ticketId: t.id,
+        ticketNumber: t.ticketNumber,
+        subject: t.subject,
+      });
+      if (to) {
+        await this.mailer.send({
+          to,
+          subject: content.subject,
+          text: content.text,
+          html: content.html,
+        });
+      }
+      if (user) {
+        await this.prisma.notification.create({
+          data: {
+            userId: user.id,
+            type: 'support_ticket',
+            title: content.subject,
+            message: `${t.ticketNumber} is past its due date`,
+            supportTicketId: t.id,
+          },
+        });
+      }
+      await this.prisma.supportTicket.update({
+        where: { id: t.id },
+        data: { overdueMailedAt: now },
       });
       sent += 1;
     }
@@ -1114,9 +1205,10 @@ export class TicketsService {
     actor: AuthUser,
   ) {
     this.assertStaff(actor);
+    const tenantId = requireTenantId();
     for (const row of rows) {
       await this.prisma.ticketPriorityTarget.upsert({
-        where: { priority: row.priority },
+        where: { tenantId_priority: { tenantId, priority: row.priority } },
         create: { priority: row.priority, targetMinutes: row.targetMinutes },
         update: { targetMinutes: row.targetMinutes },
       });
@@ -1151,7 +1243,8 @@ export class TicketsService {
     return row;
   }
 
-  listCanned() {
+  async listCanned() {
+    await this.ensurePlaybook();
     return this.prisma.cannedResponse.findMany({
       orderBy: { title: 'asc' },
       include: { createdBy: { select: { fullName: true } } },
@@ -1196,7 +1289,8 @@ export class TicketsService {
     return { ok: true };
   }
 
-  listTemplates() {
+  async listTemplates() {
+    await this.ensurePlaybook();
     return this.prisma.ticketTemplate.findMany({
       orderBy: { title: 'asc' },
       include: { category: true, createdBy: { select: { fullName: true } } },
@@ -1236,6 +1330,145 @@ export class TicketsService {
     return { ok: true };
   }
 
+  async applyTemplate(ticketId: number, templateId: number, actor: AuthUser) {
+    this.assertStaff(actor);
+    const ticket = await this.require(ticketId);
+    if (ticket.status === 'closed' || ticket.status === 'resolved') {
+      throw new BadRequestException('Cannot apply a template to a resolved or closed ticket');
+    }
+    const tpl = await this.prisma.ticketTemplate.findUniqueOrThrow({ where: { id: templateId } });
+    const category = await this.prisma.ticketCategory.findUniqueOrThrow({ where: { id: tpl.categoryId } });
+    const emp = await this.prisma.employee.findUniqueOrThrow({ where: { id: ticket.raisedById } });
+    const linkedAsset = ticket.assetId
+      ? await this.prisma.asset.findUnique({ where: { id: ticket.assetId }, select: { assetCode: true } })
+      : null;
+    const vars = {
+      employee: `${emp.firstName} ${emp.lastName} · ${emp.employeeCode}`,
+      asset: linkedAsset?.assetCode ?? '',
+    };
+    const updated = await this.prisma.supportTicket.update({
+      where: { id: ticketId },
+      data: {
+        subject: fillTicketPlaceholders(tpl.subject, vars),
+        description: fillTicketPlaceholders(tpl.description, vars),
+        categoryId: tpl.categoryId,
+        priority: category.defaultPriority,
+      },
+      include: INCLUDE,
+    });
+    await this.audit.record({
+      entityType: 'SupportTicket',
+      entityId: ticketId,
+      action: 'update',
+      summary: `Applied template "${tpl.title}" to ${ticket.ticketNumber}`,
+      changedById: actor.id,
+    });
+    await this.addPublicOrInternalComment({
+      ticket,
+      body: `Applied template "${tpl.title}" (${category.name}, ${category.defaultPriority} priority).`,
+      isInternal: true,
+      authorId: actor.id,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      actorEmployeeId: actor.employeeId,
+    });
+    return this.decorateOne(updated);
+  }
+
+  async verifyIdentity(ticketId: number, actor: AuthUser) {
+    this.assertStaff(actor);
+    const ticket = await this.require(ticketId);
+    if (ticket.identityVerifiedAt) {
+      return this.get(ticketId, actor);
+    }
+    await this.prisma.supportTicket.update({
+      where: { id: ticketId },
+      data: { identityVerifiedAt: new Date(), verifiedById: actor.id },
+    });
+    await this.audit.record({
+      entityType: 'SupportTicket',
+      entityId: ticketId,
+      action: 'update',
+      summary: `Verified identity for ${ticket.ticketNumber} (${ticket.raisedBy.email})`,
+      changedById: actor.id,
+    });
+    await this.addPublicOrInternalComment({
+      ticket,
+      body: 'Identity verified for this requester before any password / MFA reset.',
+      isInternal: true,
+      authorId: actor.id,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      actorEmployeeId: actor.employeeId,
+    });
+    return this.get(ticketId, actor);
+  }
+
+  async sendNewVisionReset(ticketId: number, actor: AuthUser) {
+    this.assertStaff(actor);
+    const ticket = await this.require(ticketId);
+    this.assertIdentityVerified(ticket);
+    const user = await this.prisma.user.findUnique({ where: { employeeId: ticket.raisedById } });
+    if (!user) {
+      throw new BadRequestException(
+        'Requester has no NewVision login. Reset M365 / VPN in the IdP and record it on this ticket.',
+      );
+    }
+    if (!user.isActive) {
+      throw new BadRequestException('Requester login is deactivated');
+    }
+    await this.auth.sendSetPasswordLink(user.id, user.email, {
+      subject: 'Reset your NewVision password',
+      intro:
+        'IT Support reset your NewVision password from a helpdesk ticket. Set a new one using the link below.',
+    });
+    await this.audit.record({
+      entityType: 'SupportTicket',
+      entityId: ticketId,
+      action: 'update',
+      summary: `Sent NewVision reset link for ${ticket.ticketNumber} to ${user.email}`,
+      changedById: actor.id,
+    });
+    await this.addPublicOrInternalComment({
+      ticket,
+      body: `NewVision password reset link sent to ${user.email}. This does not reset M365, VPN, or biometric.`,
+      isInternal: true,
+      authorId: actor.id,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      actorEmployeeId: actor.employeeId,
+    });
+    return this.get(ticketId, actor);
+  }
+
+  async recordIdpReset(
+    ticketId: number,
+    system: 'm365' | 'vpn' | 'biometric' | 'other',
+    actor: AuthUser,
+  ) {
+    this.assertStaff(actor);
+    const ticket = await this.require(ticketId);
+    this.assertIdentityVerified(ticket);
+    const label = IDP_RESET_LABEL[system];
+    await this.audit.record({
+      entityType: 'SupportTicket',
+      entityId: ticketId,
+      action: 'update',
+      summary: `Recorded ${label} reset on ${ticket.ticketNumber}`,
+      changedById: actor.id,
+    });
+    await this.addPublicOrInternalComment({
+      ticket,
+      body: `IT recorded a ${label} reset for this ticket. NewVision did not perform that reset — it was done in the identity provider. Please try signing in and reply here if you are still locked out.`,
+      isInternal: false,
+      authorId: actor.id,
+      actorName: actor.fullName,
+      actorRole: actor.role,
+      actorEmployeeId: actor.employeeId,
+    });
+    return this.get(ticketId, actor);
+  }
+
   listStaff() {
     return this.prisma.user.findMany({
       where: { isActive: true, role: { name: { in: STAFF } } },
@@ -1251,25 +1484,7 @@ export class TicketsService {
     commentId?: number,
   ) {
     await this.get(ticketId, actor);
-    const ext = file.originalname.toLowerCase().replace(/^.*(\.[a-z0-9]+)$/, '$1');
-    const blocked = new Set(['.exe', '.bat', '.cmd', '.msi', '.js', '.vbs', '.scr', '.com', '.pif', '.dll']);
-    if (blocked.has(ext)) throw new BadRequestException('That file type is not allowed');
-    if (file.size > 8 * 1024 * 1024) throw new BadRequestException('Attachments must be 8 MB or smaller');
-    const allowed = new Set([
-      'application/pdf',
-      'image/png',
-      'image/jpeg',
-      'image/gif',
-      'image/webp',
-      'text/plain',
-      'text/csv',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/octet-stream',
-    ]);
-    if (file.mimetype && !allowed.has(file.mimetype) && !file.mimetype.startsWith('image/')) {
-      throw new BadRequestException('That file type is not allowed');
-    }
+    assertAllowedUpload(file);
     const row = await this.prisma.ticketAttachment.create({
       data: {
         ticketId,
@@ -1439,6 +1654,20 @@ export class TicketsService {
     if (!isTicketStaff(actor.role)) throw new ForbiddenException('IT staff only');
   }
 
+  private assertIdentityVerified(ticket: { identityVerifiedAt: Date | null; ticketNumber: string }) {
+    if (!ticket.identityVerifiedAt) {
+      throw new BadRequestException(
+        `Verify the requester's identity on ${ticket.ticketNumber} before sending or recording a reset`,
+      );
+    }
+  }
+
+  private async ensurePlaybook() {
+    if (this.playbookEnsured) return;
+    await ensureAccountPlaybook(this.prisma);
+    this.playbookEnsured = true;
+  }
+
   private async leastLoadedSupport(): Promise<number | null> {
     const users = await this.prisma.user.findMany({
       where: { isActive: true, role: { name: RoleName.IT_SUPPORT } },
@@ -1467,6 +1696,42 @@ export class TicketsService {
       if (!map.has(c.ticketId) && c.authorId != null) map.set(c.ticketId, c.authorId);
     }
     return map;
+  }
+
+  private async ensureEmployeeForUser(actor: AuthUser): Promise<number> {
+    const row = await this.prisma.user.findUnique({
+      where: { id: actor.id },
+      select: { employeeId: true },
+    });
+    if (row?.employeeId) return row.employeeId;
+    const byEmail = await this.prisma.employee.findFirst({
+      where: { email: { equals: actor.email, mode: 'insensitive' } },
+    });
+    if (byEmail) {
+      await this.prisma.user.update({ where: { id: actor.id }, data: { employeeId: byEmail.id } });
+      return byEmail.id;
+    }
+    const loc = actor.locationId
+      ? await this.prisma.location.findUnique({ where: { id: actor.locationId } })
+      : await this.prisma.location.findFirst({ orderBy: { id: 'asc' } });
+    if (!loc) throw new BadRequestException('Add a location before raising a ticket');
+    const parts = actor.fullName.trim().split(/\s+/);
+    const firstName = parts[0] || 'Staff';
+    const lastName = parts.slice(1).join(' ') || 'User';
+    const emp = await this.prisma.employee.create({
+      data: {
+        employeeCode: `EMP-U${actor.id}`,
+        firstName,
+        lastName,
+        email: actor.email.toLowerCase(),
+        locationId: loc.id,
+        designation: actor.role === RoleName.SUPER_ADMIN ? 'Super Admin' : 'Staff',
+        dateJoined: new Date(),
+        tenantId: actor.tenantId,
+      },
+    });
+    await this.prisma.user.update({ where: { id: actor.id }, data: { employeeId: emp.id } });
+    return emp.id;
   }
 
   private async userIdForEmployee(employeeId: number) {

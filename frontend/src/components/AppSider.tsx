@@ -70,7 +70,10 @@ function SiderBody({ collapsed }: { collapsed: boolean }) {
   const [counts, setCounts] = useState<Record<string, number | undefined>>({});
   const [accountOpen, setAccountOpen] = useState(false);
   const [signOutOpen, setSignOutOpen] = useState(false);
-  const items = navForRole(identity?.role).filter((i) => !i.hidden);
+  const items = navForRole(identity?.role, {
+    modules: identity?.tenant?.modules,
+    onboardingComplete: identity?.tenant?.onboardingComplete,
+  }).filter((i) => !i.hidden);
   const procKeys = new Set(['vendors', 'requisitions', 'orders', 'contracts']);
   const manageItems = items.filter((i) => !procKeys.has(i.key));
   const procItems = items.filter((i) => procKeys.has(i.key));
@@ -309,7 +312,7 @@ function SiderBody({ collapsed }: { collapsed: boolean }) {
           </Button>,
         ]}
       >
-        You will need your email and password to sign back in to NewVisionITIS.
+        You will need your email and password to sign back in to NewVision.
       </Modal>
     </>
   );

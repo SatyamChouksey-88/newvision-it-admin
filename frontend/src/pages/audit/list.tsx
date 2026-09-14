@@ -9,6 +9,7 @@ import { TablePagination } from '../../components/TablePagination';
 import { TableSkeleton } from '../../components/TableSkeleton';
 import { useRefinePagination } from '../../hooks/useRefinePagination';
 import type { Identity } from '../../providers/authProvider';
+import { httpClient } from '../../providers/axios';
 import { formatDate } from '../../utils/format';
 
 const ACTION_COLORS: Record<string, string> = {
@@ -88,6 +89,25 @@ export function AuditList() {
             Append-only record of every change (who, what, old → new, when).
           </Typography.Text>
         </Space>
+      }
+      extra={
+        <Button
+          size="small"
+          onClick={async () => {
+            const res = await httpClient.get('/audit-logs/export', { responseType: 'blob' });
+            const blob: Blob = res.data;
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'audit-logs.csv';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+          }}
+        >
+          Download all CSV
+        </Button>
       }
     >
       {tableQuery.isLoading ? (

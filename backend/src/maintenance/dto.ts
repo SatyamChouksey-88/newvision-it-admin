@@ -5,6 +5,7 @@ export class CreateMaintenanceDto {
   @IsInt() assetId!: number;
   @IsString() @MinLength(3) issue!: string;
   @IsOptional() @IsString() vendor?: string;
+  @IsOptional() @IsInt() vendorId?: number;
   @IsOptional() @IsNumber() estimatedCost?: number;
   @IsOptional() @IsString() expectedCompletionDate?: string;
   @IsOptional() @IsString() notes?: string;
@@ -14,6 +15,7 @@ export class CreateMaintenanceDto {
 export class UpdateMaintenanceDto {
   @IsOptional() @IsString() @MinLength(3) issue?: string;
   @IsOptional() @IsString() vendor?: string;
+  @IsOptional() @IsInt() vendorId?: number;
   @IsOptional() @IsNumber() estimatedCost?: number;
   @IsOptional() @IsNumber() actualCost?: number;
   @IsOptional() @IsString() expectedCompletionDate?: string;

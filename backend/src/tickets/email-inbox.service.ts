@@ -4,6 +4,7 @@ import { RoleName } from '@prisma/client';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { MailerService } from '../notifications/mailer.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { requireTenantId, resolveTenantId, runUnscoped, runWithTenant } from '../tenancy/context';
 import {
   extractTicketNumber,
   isMailLoopOrAutoReply,
@@ -47,9 +48,10 @@ export class EmailInboxService {
   }
 
   async status() {
+    const tenantId = requireTenantId();
     const row = await this.prisma.emailIngestState.upsert({
-      where: { id: 1 },
-      create: { id: 1 },
+      where: { tenantId },
+      create: { tenantId },
       update: {},
     });
     return {
@@ -97,7 +99,7 @@ export class EmailInboxService {
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       this.logger.warn(`Email-in poll failed: ${message}`);
-      await this.touchState({ lastError: message });
+      if (resolveTenantId() != null) await this.touchState({ lastError: message });
     }
   }
 
@@ -132,12 +134,24 @@ export class EmailInboxService {
     } finally {
       await client.logout();
     }
-    await this.touchState({ lastMessageCount: imported, lastError: null });
+    if (resolveTenantId() != null) {
+      await this.touchState({ lastMessageCount: imported, lastError: null });
+    }
     return imported;
   }
 
   async processRaw(raw: string): Promise<IngestResult> {
-    const parsed = parseRfc822(raw);
+    if (resolveTenantId() == null) {
+      const parsed = parseRfc822(raw);
+      const tenantId = await runUnscoped(() =>
+        this.inferTenantId(parsed.fromAddress, [extractAddr(parsed.to)]),
+      );
+      if (tenantId) return runWithTenant(tenantId, () => this.ingestParsed(parsed));
+    }
+    return this.ingestParsed(parseRfc822(raw));
+  }
+
+  private async ingestParsed(parsed: ParsedEmail): Promise<IngestResult> {
     const own = [
       this.helpdeskAddress(),
       extractAddr(process.env.MAIL_FROM),
@@ -187,7 +201,7 @@ export class EmailInboxService {
         actorEmployeeId: employee?.id ?? user?.employeeId ?? null,
         unmatchedSender: user || employee ? null : parsed.fromAddress,
       });
-      await this.storeInbound(matched.id, parsed);
+      await this.storeInbound(matched.id, parsed, await this.systemActor());
       return {
         action: 'comment',
         ticketId: matched.id,
@@ -224,7 +238,7 @@ export class EmailInboxService {
       actor,
     );
 
-    await this.storeInbound(created.id, parsed);
+    await this.storeInbound(created.id, parsed, actor);
     if (!employee) {
       await this.notifyAdminsUnmatched(
         parsed.fromAddress,
@@ -252,12 +266,12 @@ export class EmailInboxService {
     }
     const number = extractTicketNumber(parsed.subject);
     if (number) {
-      return this.prisma.supportTicket.findUnique({ where: { ticketNumber: number } });
+      return this.prisma.supportTicket.findFirst({ where: { ticketNumber: number } });
     }
     return null;
   }
 
-  private async storeInbound(ticketId: number, parsed: ParsedEmail) {
+  private async storeInbound(ticketId: number, parsed: ParsedEmail, actor: AuthUser) {
     await this.prisma.ticketMessage.create({
       data: {
         ticketId,
@@ -270,6 +284,23 @@ export class EmailInboxService {
         subject: parsed.subject,
       },
     });
+    for (const att of parsed.attachments) {
+      try {
+        await this.tickets.addAttachment(
+          ticketId,
+          {
+            originalname: att.filename,
+            mimetype: att.mimeType,
+            size: att.data.length,
+            buffer: att.data,
+          },
+          actor,
+        );
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        this.logger.warn(`Skipped inbound attachment ${att.filename}: ${message}`);
+      }
+    }
   }
 
   private async systemActor(): Promise<AuthUser> {
@@ -286,6 +317,7 @@ export class EmailInboxService {
       fullName: u.fullName,
       role: u.role.name,
       employeeId: u.employeeId,
+      tenantId: u.tenantId,
     };
   }
 
@@ -317,10 +349,11 @@ export class EmailInboxService {
   }
 
   private async touchState(patch: { lastMessageCount?: number; lastError?: string | null }) {
+    const tenantId = requireTenantId();
     await this.prisma.emailIngestState.upsert({
-      where: { id: 1 },
+      where: { tenantId },
       create: {
-        id: 1,
+        tenantId,
         lastCheckedAt: new Date(),
         lastMessageCount: patch.lastMessageCount ?? 0,
         lastError: patch.lastError ?? null,
@@ -331,6 +364,32 @@ export class EmailInboxService {
         lastError: patch.lastError ?? null,
       },
     });
+  }
+
+  private async inferTenantId(fromAddress: string, toAddresses: string[]): Promise<number | null> {
+    if (typeof this.prisma.tenant?.findFirst !== 'function') return null;
+    try {
+      const mailboxes = toAddresses.map((a) => a.trim().toLowerCase()).filter(Boolean);
+      for (const addr of mailboxes) {
+        const byMailbox = await this.prisma.tenant.findFirst({
+          where: {
+            OR: [
+              { helpdeskMailbox: { equals: addr, mode: 'insensitive' } },
+              { mailFromAddress: { equals: addr, mode: 'insensitive' } },
+            ],
+          },
+          select: { id: true },
+        });
+        if (byMailbox) return byMailbox.id;
+      }
+      const emp = await this.prisma.employee.findFirst({
+        where: { email: { equals: fromAddress, mode: 'insensitive' } },
+        select: { tenantId: true },
+      });
+      return emp?.tenantId ?? null;
+    } catch {
+      return null;
+    }
   }
 }
 

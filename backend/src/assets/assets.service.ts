@@ -12,6 +12,7 @@ import { ListQuery, parseListQuery } from '../common/query';
 import { PrismaService } from '../prisma/prisma.service';
 import { QrService } from '../qr/qr.service';
 import { WebhooksService } from '../webhooks/webhooks.service';
+import { TenantService } from '../tenancy/tenant.service';
 import {
   assetCodeError,
   assetCodePrefix,
@@ -21,12 +22,13 @@ import {
 } from './asset-code';
 import {
   AssignAssetDto,
+  AuditAssetDto,
+  AuditByCodeDto,
   BulkAssetsDto,
   ChangeStatusDto,
   CreateAssetDto,
   TransferAssetDto,
   UpdateAssetDto,
-  AuditAssetDto,
 } from './dto';
 import { assertTransition, InvalidTransitionError } from './lifecycle';
 
@@ -65,6 +67,7 @@ export class AssetsService {
     private readonly qr: QrService,
     private readonly webhooks: WebhooksService,
     private readonly accessories: AccessoriesService,
+    private readonly tenants: TenantService,
   ) {}
 
   async qrPng(id: number, actor: AuthUser): Promise<Buffer> {
@@ -200,7 +203,56 @@ export class AssetsService {
       this.prisma.asset.findMany({ where, skip, take, orderBy, include: assetInclude }),
       this.prisma.asset.count({ where }),
     ]);
-    return { data, total };
+    return { data: data.map((row) => this.redactFinance(row, actor)), total };
+  }
+
+  /** Category pills: counts for the current tenant + non-category filters. */
+  async categoryCounts(query: AssetListQuery, actor: AuthUser) {
+    const { categoryId: _ignore, ...rest } = query;
+    const where: Prisma.AssetWhereInput = {
+      ...this.scopeWhere(actor),
+      ...(rest.status ? { status: rest.status as AssetStatus } : {}),
+      ...(rest.locationId ? { locationId: Number(rest.locationId) } : {}),
+      ...(rest.departmentId ? { departmentId: Number(rest.departmentId) } : {}),
+      ...(rest.assignedEmployeeId ? { assignedEmployeeId: Number(rest.assignedEmployeeId) } : {}),
+      ...(rest.warrantyExpiringInDays
+        ? {
+            warrantyEnd: {
+              gte: new Date(),
+              lte: addDays(new Date(), Number(rest.warrantyExpiringInDays)),
+            },
+          }
+        : {}),
+      ...(rest.warrantyExpired === 'true'
+        ? { warrantyEnd: { not: null, lt: new Date() } }
+        : {}),
+      ...(rest.unaudited === 'true'
+        ? {
+            status: { notIn: ['retired', 'disposed'] },
+            OR: [{ lastAuditedAt: null }, { lastAuditedAt: { lt: addDays(new Date(), -365) } }],
+          }
+        : {}),
+      ...(rest.q ? this.searchClause(rest.q) : {}),
+    };
+    const grouped = await this.prisma.asset.groupBy({
+      by: ['categoryId'],
+      where,
+      _count: { _all: true },
+    });
+    const cats = await this.prisma.assetCategory.findMany({
+      select: { id: true, code: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+    const countBy = new Map(grouped.map((g) => [g.categoryId, g._count._all]));
+    return {
+      data: cats.map((c) => ({
+        id: c.id,
+        code: c.code,
+        name: c.name,
+        count: countBy.get(c.id) ?? 0,
+      })),
+      total: grouped.reduce((s, g) => s + g._count._all, 0),
+    };
   }
 
   async get(id: number, actor: AuthUser): Promise<Asset> {
@@ -231,7 +283,7 @@ export class AssetsService {
     if (!asset) {
       throw new NotFoundException(`Asset ${id} not found`);
     }
-    return asset;
+    return this.redactFinance(asset, actor);
   }
 
   // -------------------------------------------------------------------------
@@ -479,6 +531,7 @@ export class AssetsService {
         await this.accessories.checkout(accessoryId, { employeeId: dto.employeeId }, actor);
       }
     }
+    void this.tenants.recordAssignment(actor.tenantId);
     return updated;
   }
 
@@ -658,10 +711,19 @@ export class AssetsService {
     const nextAuditDueAt = dto.nextAuditDueAt
       ? new Date(dto.nextAuditDueAt)
       : addDays(lastAuditedAt, 365);
+    if (dto.locationId) {
+      const loc = await this.prisma.location.findUnique({ where: { id: dto.locationId } });
+      if (!loc) throw new BadRequestException('Unknown location');
+    }
     const updated = await this.prisma.$transaction(async (tx) => {
       const next = await tx.asset.update({
         where: { id },
-        data: { lastAuditedAt, nextAuditDueAt },
+        data: {
+          lastAuditedAt,
+          nextAuditDueAt,
+          ...(dto.condition ? { condition: dto.condition } : {}),
+          ...(dto.locationId ? { locationId: dto.locationId } : {}),
+        },
         include: assetInclude,
       });
       await this.audit.record(
@@ -671,14 +733,32 @@ export class AssetsService {
           action: 'update',
           summary: `Audited ${asset.assetCode}${dto.notes ? ` — ${dto.notes}` : ''}`,
           changedById: actor.id,
-          oldValue: { lastAuditedAt: asset.lastAuditedAt, nextAuditDueAt: asset.nextAuditDueAt },
-          newValue: { lastAuditedAt, nextAuditDueAt },
+          oldValue: {
+            lastAuditedAt: asset.lastAuditedAt,
+            nextAuditDueAt: asset.nextAuditDueAt,
+            condition: asset.condition,
+            locationId: asset.locationId,
+          },
+          newValue: {
+            lastAuditedAt,
+            nextAuditDueAt,
+            condition: next.condition,
+            locationId: next.locationId,
+          },
         },
         tx,
       );
       return next;
     });
-    return updated;
+    void this.tenants.recordScan(actor.tenantId);
+    return this.redactFinance(updated, actor);
+  }
+
+  async stampAuditByCode(dto: AuditByCodeDto, actor: AuthUser) {
+    const code = decodeURIComponent(dto.code).trim();
+    const asset = await this.prisma.asset.findFirst({ where: { assetCode: code } });
+    if (!asset) throw new NotFoundException(`Asset ${code} not found`);
+    return this.stampAudit(asset.id, dto, actor);
   }
 
   async changeStatus(id: number, dto: ChangeStatusDto, actor: AuthUser): Promise<Asset> {
@@ -778,6 +858,18 @@ export class AssetsService {
       }
     }
     return formatAssetCode(location.code, category.code, maxSeq + 1);
+  }
+
+  private canSeeFinance(actor: AuthUser) {
+    return actor.role === RoleName.SUPER_ADMIN || actor.role === RoleName.IT_ADMIN;
+  }
+
+  private redactFinance<T extends { purchaseCost?: unknown; invoiceNo?: string | null }>(
+    row: T,
+    actor: AuthUser,
+  ): T {
+    if (this.canSeeFinance(actor)) return row;
+    return { ...row, purchaseCost: null, invoiceNo: null };
   }
 
   private scopeWhere(actor: AuthUser): Prisma.AssetWhereInput {

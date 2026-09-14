@@ -12,6 +12,7 @@ import {
   InputNumber,
   Modal,
   Popconfirm,
+  Select,
   Space,
   Typography,
 } from 'antd';
@@ -178,6 +179,24 @@ export function MaintenancePage() {
               );
             })}
           </div>
+          <Button
+            size="small"
+            type={staleDaysFilter === 14 ? 'primary' : 'default'}
+            onClick={() =>
+              setFilters(
+                [
+                  {
+                    field: 'staleDays',
+                    operator: 'eq',
+                    value: staleDaysFilter === 14 ? undefined : 14,
+                  },
+                ],
+                'merge',
+              )
+            }
+          >
+            Stale 14+ days
+          </Button>
         </div>
       ) : null}
       {staleDaysFilter > 0 ? (
@@ -318,7 +337,12 @@ export function MaintenancePage() {
                     ),
                   getExportValue: (r) => r.status,
                 },
-                { title: 'Vendor', dataIndex: 'vendor', render: (v) => v || '—' },
+                {
+                  title: 'Vendor',
+                  gridKey: 'vendor',
+                  render: (_, r) => r.vendorRecord?.legalName || r.vendor || '—',
+                  getExportValue: (r) => r.vendorRecord?.legalName || r.vendor || '',
+                },
                 {
                   title: 'Est. Cost',
                   dataIndex: 'estimatedCost',
@@ -457,6 +481,14 @@ function ReportIssueModal({
   const { message } = AntdApp.useApp();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [vendors, setVendors] = useState<{ id: number; legalName: string }[]>([]);
+  useEffect(() => {
+    if (!open) return;
+    httpClient
+      .get('/vendors/options')
+      .then(({ data }) => setVendors(Array.isArray(data) ? data : data.data ?? []))
+      .catch(() => setVendors([]));
+  }, [open]);
 
   const submit = async () => {
     try {
@@ -465,7 +497,7 @@ function ReportIssueModal({
       await httpClient.post('/maintenance', {
         assetId: v.assetId,
         issue: v.issue,
-        vendor: v.vendor || undefined,
+        vendorId: v.vendorId || undefined,
         estimatedCost: v.estimatedCost ?? undefined,
         expectedCompletionDate: v.expectedCompletionDate
           ? v.expectedCompletionDate.toISOString()
@@ -502,8 +534,14 @@ function ReportIssueModal({
         >
           <Input.TextArea rows={3} placeholder="e.g. Screen flickering intermittently" />
         </Form.Item>
-        <Form.Item name="vendor" label="Vendor (optional)">
-          <Input placeholder="e.g. Dell Service Center" />
+        <Form.Item name="vendorId" label="Repair vendor (optional)">
+          <Select
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            placeholder="Link a vendor record"
+            options={vendors.map((v) => ({ value: v.id, label: v.legalName }))}
+          />
         </Form.Item>
         <Form.Item name="estimatedCost" label="Estimated cost (₹, optional)">
           <InputNumber min={0} style={{ width: '100%' }} />

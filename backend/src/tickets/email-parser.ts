@@ -1,9 +1,17 @@
+import { sanitizeInboundHtml } from '../common/html-sanitize';
+
 /**
  * Lightweight RFC-822 parser for helpdesk email-in. Handles the simple text/plain
  * (and first text/plain part of multipart/mixed) messages we receive from IMAP or
  * an ingest webhook. Intentionally not a full MIME library — if a body cannot be
  * stripped confidently we keep the full text rather than drop content.
  */
+
+export interface ParsedAttachment {
+  filename: string;
+  mimeType: string;
+  data: Buffer;
+}
 
 export interface ParsedEmail {
   messageId: string;
@@ -17,6 +25,7 @@ export interface ParsedEmail {
   html?: string;
   headers: Record<string, string>;
   autoSubmitted?: string;
+  attachments: ParsedAttachment[];
 }
 
 const TICKET_RE = /\[?(TCK-\d{6,})\]?/i;
@@ -31,10 +40,12 @@ export function parseRfc822(raw: string): ParsedEmail {
   const contentType = (headers['content-type'] ?? 'text/plain').toLowerCase();
   let text = body;
   let html: string | undefined;
+  let attachments: ParsedAttachment[] = [];
   if (contentType.includes('multipart/')) {
-    const extracted = extractMultipartText(body, headers['content-type'] ?? '');
+    const extracted = extractMultipart(body, headers['content-type'] ?? '');
     text = extracted.text;
     html = extracted.html;
+    attachments = extracted.attachments;
   } else if (contentType.includes('text/html')) {
     html = body;
     text = stripHtml(body);
@@ -55,9 +66,10 @@ export function parseRfc822(raw: string): ParsedEmail {
     to: headers.to ?? '',
     subject: headers.subject ?? '(no subject)',
     text: text.trim(),
-    html,
+    html: html ? sanitizeInboundHtml(html) : undefined,
     headers,
     autoSubmitted: headers['auto-submitted'] || headers['x-autoreply'] || headers['x-autorespond'],
+    attachments,
   };
 }
 
@@ -164,24 +176,83 @@ function decodeBody(body: string, encoding?: string): string {
   return body;
 }
 
-function extractMultipartText(
+function decodeBytes(body: string, encoding?: string): Buffer {
+  const enc = (encoding ?? '').toLowerCase();
+  if (enc === 'base64') {
+    try {
+      return Buffer.from(body.replace(/\s+/g, ''), 'base64');
+    } catch {
+      return Buffer.from(body);
+    }
+  }
+  return Buffer.from(decodeBody(body, encoding), 'utf8');
+}
+
+function parseFilename(headers: Record<string, string>): string | null {
+  const cd = headers['content-disposition'] ?? '';
+  const star = cd.match(/filename\*=(?:UTF-8'')?([^;]+)/i);
+  if (star) {
+    try {
+      return decodeURIComponent(star[1].replace(/["']/g, '').trim());
+    } catch {
+      return star[1].replace(/["']/g, '').trim();
+    }
+  }
+  const plain = cd.match(/filename="?([^";]+)"?/i);
+  if (plain) return plain[1].trim();
+  const ct = headers['content-type'] ?? '';
+  const name = ct.match(/name="?([^";]+)"?/i);
+  return name ? name[1].trim() : null;
+}
+
+function extractMultipart(
   body: string,
   contentType: string,
-): { text: string; html?: string } {
+): { text: string; html?: string; attachments: ParsedAttachment[] } {
   const boundaryMatch = contentType.match(/boundary="?([^";]+)"?/i);
-  if (!boundaryMatch) return { text: body };
+  if (!boundaryMatch) return { text: body, attachments: [] };
   const boundary = boundaryMatch[1];
   const parts = body.split(new RegExp(`--${escapeRegExp(boundary)}`));
   let text = '';
   let html: string | undefined;
+  const attachments: ParsedAttachment[] = [];
   for (const part of parts) {
-    if (!part.trim() || part.trim() === '--') continue;
-    const parsed = parseRfc822(`X-Part: 1\n${part.trimStart()}`);
-    const ct = (parsed.headers['content-type'] ?? '').toLowerCase();
-    if (ct.includes('text/plain') && !text) text = parsed.text;
-    if (ct.includes('text/html') && !html) html = parsed.html ?? parsed.text;
+    const trimmed = part.trim();
+    if (!trimmed || trimmed === '--') continue;
+    const normalized = part.replace(/^\r?\n/, '');
+    const split = normalized.indexOf('\n\n');
+    const headerBlock = split === -1 ? normalized : normalized.slice(0, split);
+    const rawBody = split === -1 ? '' : normalized.slice(split + 2);
+    const headers = unfoldHeaders(headerBlock);
+    const ct = (headers['content-type'] ?? 'text/plain').toLowerCase();
+    const cd = (headers['content-disposition'] ?? '').toLowerCase();
+    if (ct.includes('multipart/')) {
+      const nested = extractMultipart(rawBody, headers['content-type'] ?? '');
+      if (!text) text = nested.text;
+      if (!html) html = nested.html;
+      attachments.push(...nested.attachments);
+      continue;
+    }
+    const filename = parseFilename(headers);
+    const mime = ct.split(';')[0].trim() || 'application/octet-stream';
+    const isAttach =
+      cd.includes('attachment') ||
+      Boolean(filename && !mime.startsWith('text/'));
+    if (isAttach) {
+      attachments.push({
+        filename: filename || 'attachment',
+        mimeType: mime,
+        data: decodeBytes(rawBody, headers['content-transfer-encoding']),
+      });
+      continue;
+    }
+    if (ct.includes('text/html') && !html) {
+      html = decodeBody(rawBody, headers['content-transfer-encoding']);
+    } else if (ct.includes('text/plain') && !text) {
+      text = decodeBody(rawBody, headers['content-transfer-encoding']);
+    }
   }
-  return { text: text || stripHtml(html ?? body), html };
+  return { text: text || stripHtml(html ?? body), html, attachments };
 }
 
 function stripHtml(html: string): string {

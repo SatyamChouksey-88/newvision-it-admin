@@ -26,7 +26,7 @@ export default async function globalSetup(): Promise<void> {
   // Apply migrations to the test DB.
   execSync('npx prisma migrate deploy', {
     env: { ...process.env, DATABASE_URL: TEST_DB },
-    stdio: 'ignore',
+    stdio: 'inherit',
   });
   // eslint-disable-next-line no-console
   console.log('[e2e] migrations applied to test database');

@@ -25,6 +25,13 @@ export class CreateDepartmentDto {
 }
 export class UpdateDepartmentDto extends PartialType(CreateDepartmentDto) {}
 
+const DIRECTORY_READ = [
+  RoleName.SUPER_ADMIN,
+  RoleName.IT_ADMIN,
+  RoleName.IT_SUPPORT,
+  RoleName.MANAGER,
+] as const;
+
 @ApiTags('departments')
 @Controller('departments')
 export class DepartmentsController {
@@ -33,29 +40,39 @@ export class DepartmentsController {
     private readonly audit: AuditService,
   ) {}
 
+  @Roles(...DIRECTORY_READ)
   @Get()
-  async list(@Query() query: ListQuery) {
+  async list(@Query() query: ListQuery, @CurrentUser() actor: { role: RoleName }) {
     const { skip, take, orderBy } = parseListQuery(query, ['id', 'name']);
+    const showCounts =
+      actor.role === RoleName.SUPER_ADMIN ||
+      actor.role === RoleName.IT_ADMIN ||
+      actor.role === RoleName.IT_SUPPORT;
     const [rows, total] = await Promise.all([
       this.prisma.department.findMany({
         skip,
         take,
         orderBy,
-        include: { _count: { select: { employees: true } } },
+        include: showCounts ? { _count: { select: { employees: true } } } : undefined,
       }),
       this.prisma.department.count(),
     ]);
-    const data = rows.map((d) => ({
-      id: d.id,
-      name: d.name,
-      description: d.description,
-      createdAt: d.createdAt,
-      updatedAt: d.updatedAt,
-      employeeCount: d._count.employees,
-    }));
+    const data = rows.map((d) => {
+      const count =
+        '_count' in d ? (d as { _count: { employees: number } })._count.employees : undefined;
+      return {
+        id: d.id,
+        name: d.name,
+        description: d.description,
+        createdAt: d.createdAt,
+        updatedAt: d.updatedAt,
+        ...(count !== undefined ? { employeeCount: count } : {}),
+      };
+    });
     return { data, total };
   }
 
+  @Roles(...DIRECTORY_READ)
   @Get(':id')
   get(@Param('id', ParseIntPipe) id: number) {
     return this.prisma.department.findUniqueOrThrow({ where: { id } });

@@ -8,8 +8,15 @@ import { AssetRequestStatus, NotificationType, Prisma, RoleName } from '@prisma/
 import { AuditService } from '../audit/audit.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { ListQuery, parseListQuery } from '../common/query';
+import { AssetsService } from '../assets/assets.service';
+import { IssueKitsService } from '../assets/issue-kits.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateAssetRequestDto, ReviewAssetRequestDto, UpdateAssetRequestDto } from './dto';
+import {
+  CreateAssetRequestDto,
+  FulfillAssetRequestDto,
+  ReviewAssetRequestDto,
+  UpdateAssetRequestDto,
+} from './dto';
 
 const requestInclude = {
   requester: {
@@ -24,6 +31,7 @@ const requestInclude = {
   category: true,
   reviewedBy: { select: { id: true, fullName: true } },
   fulfilledBy: { select: { id: true, fullName: true } },
+  fulfilledAsset: { select: { id: true, assetCode: true, brand: true, model: true } },
 } satisfies Prisma.AssetRequestInclude;
 
 @Injectable()
@@ -31,6 +39,8 @@ export class AssetRequestsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly assets: AssetsService,
+    private readonly kits: IssueKitsService,
   ) {}
 
   async list(query: ListQuery & { status?: string; kind?: string }, actor: AuthUser) {
@@ -268,7 +278,7 @@ export class AssetRequestsService {
     return updated;
   }
 
-  async fulfill(id: number, actor: AuthUser) {
+  async fulfill(id: number, actor: AuthUser, dto: FulfillAssetRequestDto = {}) {
     const request = await this.prisma.assetRequest.findUnique({
       where: { id },
       include: requestInclude,
@@ -280,12 +290,38 @@ export class AssetRequestsService {
       throw new BadRequestException('Only approved requests can be marked fulfilled');
     }
 
+    let fulfilledAssetId = dto.assetId ?? null;
+    if (dto.kitId) {
+      const issued = await this.kits.issue(
+        dto.kitId,
+        { employeeId: request.requesterId },
+        actor,
+      );
+      fulfilledAssetId = issued.asset.id;
+    } else if (dto.assetId) {
+      const asset = await this.prisma.asset.findUnique({ where: { id: dto.assetId } });
+      if (!asset) throw new BadRequestException('Unknown asset');
+      if (asset.status === 'available') {
+        await this.assets.assign(
+          asset.id,
+          { employeeId: request.requesterId, notes: `Fulfilled request #${id}` },
+          actor,
+        );
+      } else if (asset.assignedEmployeeId !== request.requesterId) {
+        throw new BadRequestException('That asset is not available to issue to the requester');
+      }
+      fulfilledAssetId = asset.id;
+    } else if (request.kind === 'asset') {
+      throw new BadRequestException('Pick the asset or kit you issued');
+    }
+
     const updated = await this.prisma.assetRequest.update({
       where: { id },
       data: {
         status: 'fulfilled',
         fulfilledById: actor.id,
         fulfilledAt: new Date(),
+        fulfilledAssetId,
       },
       include: requestInclude,
     });
@@ -294,10 +330,12 @@ export class AssetRequestsService {
       entityType: 'AssetRequest',
       entityId: id,
       action: 'fulfill',
-      summary: `Request marked fulfilled by IT`,
+      summary: fulfilledAssetId
+        ? `Request fulfilled with asset ${fulfilledAssetId}`
+        : `Request marked fulfilled by IT`,
       changedById: actor.id,
       oldValue: { status: request.status },
-      newValue: { status: 'fulfilled' },
+      newValue: { status: 'fulfilled', fulfilledAssetId },
     });
 
     const requesterUser = await this.prisma.user.findFirst({

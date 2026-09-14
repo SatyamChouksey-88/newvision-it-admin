@@ -51,12 +51,24 @@ const EMPLOYEE_FIELDS = new Set([
   'designation',
   'isActive',
   'dateJoined',
+  'expectedStartDate',
+  'probationEndDate',
+  'deskOrSeat',
   'departmentId',
   'locationId',
   'managerId',
   'createdAt',
 ]);
-const ACCESSORY_FIELDS = new Set(['name', 'category', 'quantityTotal', 'quantityCheckedOut']);
+const ACCESSORY_FIELDS = new Set([
+  'name',
+  'category',
+  'brand',
+  'model',
+  'quantityTotal',
+  'quantityCheckedOut',
+  'lowStockThreshold',
+  'locationId',
+]);
 const CONSUMABLE_FIELDS = new Set([
   'name',
   'category',
@@ -315,7 +327,7 @@ export class RecordsService {
     }
     const data: Prisma.EmployeeUpdateInput = {};
     for (const [k, v] of Object.entries(picked)) {
-      if (['dateJoined', 'createdAt'].includes(k)) (data as Record<string, unknown>)[k] = this.asDate(v);
+      if (['dateJoined', 'createdAt', 'expectedStartDate', 'probationEndDate'].includes(k)) (data as Record<string, unknown>)[k] = this.asDate(v);
       else if (['departmentId', 'locationId', 'managerId'].includes(k)) {
         (data as Record<string, unknown>)[k] = this.asInt(v, k);
       } else (data as Record<string, unknown>)[k] = v;

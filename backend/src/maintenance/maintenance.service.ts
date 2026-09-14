@@ -5,6 +5,7 @@ import { assertTransition, InvalidTransitionError } from '../assets/lifecycle';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { ListQuery, parseListQuery } from '../common/query';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { WebhooksService } from '../webhooks/webhooks.service';
 import { CreateMaintenanceDto, TransitionMaintenanceDto, UpdateMaintenanceDto } from './dto';
 import {
@@ -25,6 +26,7 @@ const maintenanceInclude = {
     },
   },
   reportedBy: { select: { id: true, fullName: true, email: true } },
+  vendorRecord: { select: { id: true, legalName: true, vendorCode: true } },
 } satisfies Prisma.AssetMaintenanceInclude;
 
 export interface MaintenanceListQuery extends ListQuery {
@@ -39,6 +41,7 @@ export class MaintenanceService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly webhooks: WebhooksService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // -------------------------------------------------------------------------
@@ -121,6 +124,7 @@ export class MaintenanceService {
           assetId: dto.assetId,
           issue: dto.issue,
           vendor: dto.vendor ?? null,
+          vendorId: dto.vendorId ?? null,
           estimatedCost: dto.estimatedCost ?? null,
           expectedCompletionDate: dto.expectedCompletionDate
             ? new Date(dto.expectedCompletionDate)
@@ -143,15 +147,15 @@ export class MaintenanceService {
         },
         tx,
       );
-      // Notify IT (broadcast — userId null) that a new issue was reported.
-      await tx.notification.create({
-        data: {
+      await this.notifications.fanOutToIt(
+        {
           type: 'issue_reported',
           title: `Issue reported: ${asset.assetCode}`,
           message: dto.issue,
           assetId: asset.id,
         },
-      });
+        tx,
+      );
       return record;
     });
   }
@@ -168,6 +172,7 @@ export class MaintenanceService {
         data: {
           issue: dto.issue,
           vendor: dto.vendor,
+          vendorId: dto.vendorId,
           estimatedCost: dto.estimatedCost,
           actualCost: dto.actualCost,
           expectedCompletionDate: dto.expectedCompletionDate

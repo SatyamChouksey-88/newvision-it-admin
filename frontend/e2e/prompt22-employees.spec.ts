@@ -22,6 +22,7 @@ test('employees list shows contract-ending and incomplete-checklist tags', async
       lastName: `Followup${stamp}`,
       email: `contract.followup.${stamp}@newvision.local`,
       locationId: locations.data[0].id,
+      dateJoined: new Date().toISOString(),
       employmentType: 'contract',
       contractEndDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
     },
@@ -45,4 +46,44 @@ test('employees list shows contract-ending and incomplete-checklist tags', async
   await page.goto(`/employees/show/${emp.id}`);
   await expect(page.getByText(/Contract ends/i).first()).toBeVisible();
   await expect(page.getByText('Checklist incomplete').first()).toBeVisible();
+});
+
+test('add employee form has joining date; list and profile show DOJ', async ({ page }) => {
+  await login(page);
+  const stamp = Date.now();
+  const loginRes = await page.request.post(`${API}/auth/login`, {
+    data: { email: DEMO_USERS.itAdmin, password: DEMO_PASSWORD },
+  });
+  expect(loginRes.ok()).toBeTruthy();
+  const token = (await loginRes.json()).access_token as string;
+  const headers = { Authorization: `Bearer ${token}` };
+  const locations = await (
+    await page.request.get(`${API}/locations?_start=0&_end=1`, { headers })
+  ).json();
+  const created = await page.request.post(`${API}/employees`, {
+    headers,
+    data: {
+      employeeCode: `EMP-DOJ-${stamp}`,
+      firstName: 'Join',
+      lastName: `Date${stamp}`,
+      email: `join.date.${stamp}@newvision.local`,
+      locationId: locations.data[0].id,
+      dateJoined: '2024-01-15T00:00:00.000Z',
+    },
+  });
+  expect(created.ok()).toBeTruthy();
+  const emp = await created.json();
+
+  await page.goto('/employees');
+  await page.getByLabel('Search employees').fill(`Date${stamp}`);
+  await page.getByLabel('Search employees').press('Enter');
+  await expect(page.getByText(`Date${stamp}`).first()).toBeVisible();
+  await expect(page.getByText('15 Jan 2024').first()).toBeVisible();
+
+  await page.goto(`/employees/show/${emp.id}`);
+  await expect(page.getByText(/15 Jan 2024/).first()).toBeVisible();
+
+  await page.goto('/employees');
+  await page.getByRole('button', { name: 'Add employee' }).click();
+  await expect(page.getByText('Date of joining')).toBeVisible();
 });

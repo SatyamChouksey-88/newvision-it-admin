@@ -5,9 +5,11 @@ import { useNavigate } from 'react-router';
 import { PrimaryWithSub } from '../../../components/Cells';
 import { CopyButton } from '../../../components/CopyButton';
 import { DataGrid, type TableDensity } from '../../../components/DataGrid/DataGrid';
+import { DesktopOnlyBanner } from '../../../components/DesktopOnlyBanner';
 import { EmptyState } from '../../../components/EmptyState';
 import { TablePagination } from '../../../components/TablePagination';
 import { TableSkeleton } from '../../../components/TableSkeleton';
+import { NV_TABLE_STICKY } from '../../../chrome';
 import { httpClient } from '../../../providers/axios';
 import { VendorStatusTag } from '../status';
 
@@ -36,6 +38,7 @@ export function VendorList() {
   const [density, setDensity] = useState<TableDensity>('Compact');
 
   useEffect(() => {
+    void reload;
     let cancelled = false;
     setLoading(true);
     setLoadError(false);
@@ -70,6 +73,7 @@ export function VendorList() {
         </Button>
       }
     >
+      <DesktopOnlyBanner noun="Vendors" />
       <div className="nv-filter-row">
         <Input.Search
           allowClear
@@ -96,6 +100,7 @@ export function VendorList() {
             rowKey="id"
             density={density}
             onDensityChange={setDensity}
+            sticky={NV_TABLE_STICKY}
             enableQueueKeys
             onOpenRow={(r) => navigate(`/procurement/vendors/show/${r.id}`)}
             onRow={(r) => ({ onClick: () => navigate(`/procurement/vendors/show/${r.id}`) })}

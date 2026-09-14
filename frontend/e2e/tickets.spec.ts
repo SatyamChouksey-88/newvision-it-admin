@@ -29,8 +29,8 @@ test.describe('Support tickets', () => {
     await expect(page.getByTestId('quick-view-unassigned')).toBeVisible();
     await expect(page.getByLabel('Search tickets')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Status legend' })).toBeVisible();
+    await expect(page.getByLabel('Search tickets')).toBeVisible();
     const toolbar = page.locator('.nv-grid-toolbar');
-    await expect(toolbar.getByLabel('Search tickets')).toBeVisible();
     await expect(toolbar.getByRole('button', { name: 'Export tickets' })).toBeVisible();
     await expect(toolbar.getByRole('button', { name: 'Columns' })).toBeVisible();
     await page.getByRole('main').getByRole('link', { name: 'Reports' }).click();

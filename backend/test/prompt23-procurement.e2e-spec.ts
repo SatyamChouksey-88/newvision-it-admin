@@ -86,7 +86,8 @@ describe('Prompt 23 — Vendor & Procurement (e2e)', () => {
       .expect(200);
 
     const listed = await request(app.getHttpServer()).get('/api/vendors').set(auth(admin)).expect(200);
-    expect(String(listed.body.data[0].bankAccountNumber)).toMatch(/••••/);
+    expect(listed.body.data[0].bankAccountNumber).toBeTruthy();
+    expect(String(listed.body.data[0].bankAccountNumber)).not.toMatch(/^•+$/);
 
     const created = await request(app.getHttpServer())
       .post('/api/purchase-requisitions')

@@ -56,6 +56,12 @@ export class EmployeesController {
     return this.employees.history(id, user);
   }
 
+  @Roles(RoleName.SUPER_ADMIN)
+  @Get(':id/export')
+  exportPersonalData(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
+    return this.employees.exportPersonalData(id, user);
+  }
+
   @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
   @Post(':id/offboard')
   offboard(

@@ -13,6 +13,7 @@ import {
 import { ChatPresenceMode, RoleName } from '@prisma/client';
 import type { Server, Socket } from 'socket.io';
 import { PrismaService } from '../prisma/prisma.service';
+import { runUnscoped, runWithTenant } from '../tenancy/context';
 import { ChatPresenceService } from './chat.presence';
 import { ChatRealtimeService } from './chat.realtime';
 
@@ -53,16 +54,19 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         return;
       }
       client.data.userId = user.id;
-      await client.join(`user:${user.id}`);
-      const memberships = await this.prisma.chatChannelMember.findMany({
-        where: { userId: user.id },
-        select: { channelId: true },
-      });
-      await Promise.all(memberships.map((m) => client.join(`channel:${m.channelId}`)));
-      this.presence.connect(user.id, client.id, user.presenceMode);
-      await this.prisma.user.updateMany({
-        where: { id: user.id },
-        data: { lastSeenAt: new Date() },
+      client.data.tenantId = user.tenantId;
+      await runWithTenant(user.tenantId, async () => {
+        await client.join(`user:${user.id}`);
+        const memberships = await this.prisma.chatChannelMember.findMany({
+          where: { userId: user.id },
+          select: { channelId: true },
+        });
+        await Promise.all(memberships.map((m) => client.join(`channel:${m.channelId}`)));
+        this.presence.connect(user.id, client.id, user.presenceMode);
+        await this.prisma.user.updateMany({
+          where: { id: user.id },
+          data: { lastSeenAt: new Date() },
+        });
       });
     } catch (err) {
       this.log.debug(`Chat socket rejected: ${err instanceof Error ? err.message : err}`);
@@ -78,12 +82,15 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   @SubscribeMessage('join')
   async join(@ConnectedSocket() client: Socket, @MessageBody() body: { channelId?: number }) {
     const userId = client.data.userId as number | undefined;
-    if (!userId || !body?.channelId) return;
-    const member = await this.prisma.chatChannelMember.findUnique({
-      where: { channelId_userId: { channelId: body.channelId, userId } },
+    const tenantId = client.data.tenantId as number | undefined;
+    if (!userId || !tenantId || !body?.channelId) return;
+    await runWithTenant(tenantId, async () => {
+      const member = await this.prisma.chatChannelMember.findUnique({
+        where: { channelId_userId: { channelId: body.channelId!, userId } },
+      });
+      if (!member) return;
+      await client.join(`channel:${body.channelId}`);
     });
-    if (!member) return;
-    await client.join(`channel:${body.channelId}`);
   }
 
   @SubscribeMessage('typing')
@@ -104,12 +111,15 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   @SubscribeMessage('presence:ping')
   async ping(@ConnectedSocket() client: Socket) {
     const userId = client.data.userId as number | undefined;
-    if (!userId) return;
+    const tenantId = client.data.tenantId as number | undefined;
+    if (!userId || !tenantId) return;
     this.presence.touch(userId);
-    await this.prisma.user.updateMany({
-      where: { id: userId },
-      data: { lastSeenAt: new Date() },
-    });
+    await runWithTenant(tenantId, () =>
+      this.prisma.user.updateMany({
+        where: { id: userId },
+        data: { lastSeenAt: new Date() },
+      }),
+    );
   }
 
   @SubscribeMessage('presence:set')
@@ -118,13 +128,16 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     @MessageBody() body: { mode?: ChatPresenceMode },
   ) {
     const userId = client.data.userId as number | undefined;
-    if (!userId || !body?.mode) return;
+    const tenantId = client.data.tenantId as number | undefined;
+    if (!userId || !tenantId || !body?.mode) return;
     if (!Object.values(ChatPresenceMode).includes(body.mode)) return;
     this.presence.setMode(userId, body.mode);
-    await this.prisma.user.updateMany({
-      where: { id: userId },
-      data: { presenceMode: body.mode, lastSeenAt: new Date() },
-    });
+    await runWithTenant(tenantId, () =>
+      this.prisma.user.updateMany({
+        where: { id: userId },
+        data: { presenceMode: body.mode, lastSeenAt: new Date() },
+      }),
+    );
   }
 
   private async userFromHandshake(client: Socket) {
@@ -135,10 +148,12 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         : '');
     if (!raw) return null;
     const payload = await this.jwt.verifyAsync<{ sub: number }>(raw);
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
-      include: { role: true },
-    });
+    const user = await runUnscoped(() =>
+      this.prisma.user.findUnique({
+        where: { id: payload.sub },
+        include: { role: true },
+      }),
+    );
     if (!user?.isActive || !STAFF.includes(user.role.name)) return null;
     return user;
   }

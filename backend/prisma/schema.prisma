@@ -24,6 +24,8 @@ enum RoleName {
 enum EmploymentType {
   permanent
   contract
+  intern
+  consultant
 }
 
 enum ChecklistKind {
@@ -112,6 +114,12 @@ enum AuditAction {
   fulfill
   comment
   manual_override
+  login
+  logout
+  auth_failure
+  password_change
+  mfa_enroll
+  mfa_verify
 }
 
 enum NotificationType {
@@ -282,6 +290,110 @@ enum LineItemKind {
   license
 }
 
+enum TenantPlan {
+  starter
+  team
+}
+
+enum TenantStatus {
+  trial
+  active
+  expired
+  cancelled
+}
+
+model Tenant {
+  id               Int          @id @default(autoincrement())
+  slug             String       @unique
+  name             String
+  logoUrl          String?      @map("logo_url")
+  mailFromName     String?      @map("mail_from_name")
+  mailFromAddress  String?      @map("mail_from_address")
+  helpdeskMailbox  String?      @map("helpdesk_mailbox")
+  plan             TenantPlan   @default(team)
+  status           TenantStatus @default(trial)
+  trialEndsAt      DateTime?    @map("trial_ends_at")
+  modules          Json
+  seatCap          Int          @default(10) @map("seat_cap")
+  onboarding       Json?
+  activatedAt      DateTime?    @map("activated_at")
+  activationA1At   DateTime?    @map("activation_a1_at")
+  activationA2At   DateTime?    @map("activation_a2_at")
+  profileOpenedAt  DateTime?    @map("profile_opened_at")
+  closedAt         DateTime?    @map("closed_at")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+
+  users                         User[]
+  locations                     Location[]
+  departments                   Department[]
+  employees                     Employee[]
+  assetCategories               AssetCategory[]
+  assets                        Asset[]
+  assetAssignments              AssetAssignment[]
+  assetTransfers                AssetTransfer[]
+  assetMaintenances             AssetMaintenance[]
+  auditLogs                     AuditLog[]
+  notifications                 Notification[]
+  importJobs                    ImportJob[]
+  savedViews                    SavedView[]
+  reconciliationRuns            ReconciliationRun[]
+  webhookEndpoints              WebhookEndpoint[]
+  assetRequests                 AssetRequest[]
+  accessories                   Accessory[]
+  accessoryCheckouts            AccessoryCheckout[]
+  issueKits                     IssueKit[]
+  issueKitAccessories           IssueKitAccessory[]
+  consumables                   Consumable[]
+  consumableIssues              ConsumableIssue[]
+  ticketCategories              TicketCategory[]
+  supportTickets                SupportTicket[]
+  ticketMessages                TicketMessage[]
+  ticketPriorityTargets         TicketPriorityTarget[]
+  emailIngestStates             EmailIngestState[]
+  ticketComments                TicketComment[]
+  ticketWatchers                TicketWatcher[]
+  ticketTimeLogs                TicketTimeLog[]
+  ticketAttachments             TicketAttachment[]
+  cannedResponses               CannedResponse[]
+  ticketTemplates               TicketTemplate[]
+  checklistTemplates            ChecklistTemplate[]
+  checklistTemplateItems        ChecklistTemplateItem[]
+  employeeChecklists            EmployeeChecklist[]
+  chatChannels                  ChatChannel[]
+  chatChannelMembers            ChatChannelMember[]
+  chatMessages                  ChatMessage[]
+  chatAttachments               ChatAttachment[]
+  chatReactions                 ChatReaction[]
+  chatMentions                  ChatMention[]
+  employeeChecklistItems        EmployeeChecklistItem[]
+  recordNotes                   RecordNote[]
+  vendors                       Vendor[]
+  vendorContacts                VendorContact[]
+  vendorStatusChanges           VendorStatusChange[]
+  vendorComplianceDocs          VendorComplianceDoc[]
+  approvalMatrixRules           ApprovalMatrixRule[]
+  purchaseRequisitions          PurchaseRequisition[]
+  purchaseRequisitionLocations  PurchaseRequisitionLocation[]
+  requisitionLineItems          RequisitionLineItem[]
+  requisitionQuotes             RequisitionQuote[]
+  requisitionApprovers          RequisitionApprover[]
+  purchaseOrders                PurchaseOrder[]
+  purchaseOrderLines            PurchaseOrderLine[]
+  purchaseOrderAmendments       PurchaseOrderAmendment[]
+  goodsReceipts                 GoodsReceipt[]
+  goodsReceiptLines             GoodsReceiptLine[]
+  vendorInvoices                VendorInvoice[]
+  vendorContracts               VendorContract[]
+  vendorContractAssets          VendorContractAsset[]
+  vendorScorecards              VendorScorecard[]
+  procurementActivityLogs       ProcurementActivityLog[]
+  procurementAttachments        ProcurementAttachment[]
+  procurementHandoffs           ProcurementHandoff[]
+
+  @@map("tenants")
+}
+
 // ---------------------------------------------------------------------------
 // Auth / RBAC
 // ---------------------------------------------------------------------------
@@ -310,6 +422,9 @@ model Permission {
 
 model User {
   id                     Int       @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   email                  String    @unique
   passwordHash           String    @map("password_hash")
   fullName               String    @map("full_name")
@@ -320,8 +435,13 @@ model User {
   employee               Employee? @relation(fields: [employeeId], references: [id])
   refreshTokenHash       String?   @map("refresh_token_hash")
   refreshTokenExpiresAt  DateTime? @map("refresh_token_expires_at")
+  refreshTokenHash2      String?   @map("refresh_token_hash_2")
+  refreshTokenExpiresAt2 DateTime? @map("refresh_token_expires_at_2")
   resetPasswordTokenHash String?   @map("reset_password_token_hash")
   resetPasswordExpiresAt DateTime? @map("reset_password_expires_at")
+  passwordChangedAt      DateTime? @map("password_changed_at")
+  totpSecretEnc          String?   @map("totp_secret_enc")
+  totpEnabled            Boolean   @default(false) @map("totp_enabled")
   createdAt              DateTime  @default(now()) @map("created_at")
   updatedAt              DateTime  @updatedAt @map("updated_at")
 
@@ -342,6 +462,7 @@ model User {
   lastSeenAt         DateTime?           @map("last_seen_at")
   presenceMode       ChatPresenceMode    @default(auto) @map("presence_mode")
   assignedTickets    SupportTicket[]     @relation("TicketAssignee")
+  ticketsIdentityVerified SupportTicket[] @relation("TicketIdentityVerifier")
   ticketComments     TicketComment[]
   ticketTimeLogs     TicketTimeLog[]
   cannedResponses    CannedResponse[]
@@ -368,6 +489,7 @@ model User {
   procurementLogs         ProcurementActivityLog[]
   procurementAttachments  ProcurementAttachment[]     @relation("ProcurementAttachmentUploader")
   handoffsCreated         ProcurementHandoff[]
+  @@index([tenantId])
 
   @@map("users")
 }
@@ -378,7 +500,10 @@ model User {
 
 model Location {
   id        Int      @id @default(autoincrement())
-  code      String   @unique // e.g. PUN, HYD, BHO
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code      String // e.g. PUN, HYD, BHO
   name      String
   city      String
   address   String?
@@ -397,13 +522,18 @@ model Location {
   goodsReceipts  GoodsReceipt[]
   contracts      VendorContract[]
   issueKits      IssueKit[]
+  @@unique([tenantId, code])
+  @@index([tenantId])
 
   @@map("locations")
 }
 
 model Department {
   id          Int      @id @default(autoincrement())
-  name        String   @unique
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name        String
   description String?
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -411,23 +541,33 @@ model Department {
   employees    Employee[]
   assets       Asset[]
   requisitions PurchaseRequisition[]
+  @@unique([tenantId, name])
+  @@index([tenantId])
 
   @@map("departments")
 }
 
 model Employee {
   id           Int       @id @default(autoincrement())
-  employeeCode String    @unique @map("employee_code")
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employeeCode String @map("employee_code")
   firstName    String    @map("first_name")
   lastName     String    @map("last_name")
-  email        String    @unique
+  email        String
   phone        String?
   designation  String?
   isActive         Boolean        @default(true) @map("is_active")
-  employmentType   EmploymentType @default(permanent) @map("employment_type")
-  contractEndDate  DateTime?      @map("contract_end_date")
-  dateJoined       DateTime?      @map("date_joined")
-  checklists       EmployeeChecklist[]
+  employmentType    EmploymentType @default(permanent) @map("employment_type")
+  contractEndDate   DateTime?      @map("contract_end_date")
+  dateJoined        DateTime?      @map("date_joined")
+  expectedStartDate DateTime?      @map("expected_start_date")
+  probationEndDate  DateTime?      @map("probation_end_date")
+  lastWorkingDate   DateTime?      @map("last_working_date")
+  recoverByDate     DateTime?      @map("recover_by_date")
+  deskOrSeat        String?        @map("desk_or_seat")
+  checklists        EmployeeChecklist[]
 
   departmentId Int?        @map("department_id")
   department   Department? @relation(fields: [departmentId], references: [id])
@@ -454,6 +594,12 @@ model Employee {
 
   @@index([isActive])
   @@index([managerId])
+  @@index([dateJoined])
+  @@index([probationEndDate])
+  @@index([lastWorkingDate])
+  @@unique([tenantId, employeeCode])
+  @@unique([tenantId, email])
+  @@index([tenantId])
   @@map("employees")
 }
 
@@ -463,7 +609,10 @@ model Employee {
 
 model AssetCategory {
   id            Int            @id @default(autoincrement())
-  code          String         @unique // e.g. LAP, DES, MON
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code          String // e.g. LAP, DES, MON
   name          String
   description   String?
   assets        Asset[]
@@ -471,18 +620,23 @@ model AssetCategory {
   issueKits     IssueKit[]
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
+  @@unique([tenantId, code])
+  @@index([tenantId])
 
   @@map("asset_categories")
 }
 
 model Asset {
   id                 Int            @id @default(autoincrement())
-  assetCode          String         @unique @map("asset_code") // AST-{LOC}-{CAT}-{SEQ}
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assetCode          String @map("asset_code") // AST-{LOC}-{CAT}-{SEQ}
   categoryId         Int            @map("category_id")
   category           AssetCategory  @relation(fields: [categoryId], references: [id])
   brand              String?
   model              String?
-  serialNumber       String?        @unique @map("serial_number")
+  serialNumber       String? @map("serial_number")
   purchaseDate       DateTime?      @map("purchase_date")
   purchaseCost       Decimal?       @map("purchase_cost") @db.Decimal(12, 2)
   warrantyStart      DateTime?      @map("warranty_start")
@@ -517,6 +671,8 @@ model Asset {
   supportTickets SupportTicket[]
   vendorContracts VendorContractAsset[]
   procurementHandoffs ProcurementHandoff[]
+  fulfilledRequests AssetRequest[] @relation("FulfilledAsset")
+  accessoryIssues   AccessoryCheckout[] @relation("AccessoryIssuedWith")
 
   @@index([status])
   @@index([locationId])
@@ -525,11 +681,17 @@ model Asset {
   @@index([lastAuditedAt])
   @@index([warrantyEnd])
   @@index([nextAuditDueAt])
+  @@unique([tenantId, assetCode])
+  @@unique([tenantId, serialNumber])
+  @@index([tenantId])
   @@map("assets")
 }
 
 model AssetAssignment {
   id           Int       @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   assetId      Int       @map("asset_id")
   asset        Asset     @relation(fields: [assetId], references: [id])
   employeeId   Int       @map("employee_id")
@@ -544,11 +706,15 @@ model AssetAssignment {
   @@index([assetId])
   @@index([employeeId])
   @@index([expectedReturnAt])
+  @@index([tenantId])
   @@map("asset_assignments")
 }
 
 model AssetTransfer {
   id              Int       @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   assetId         Int       @map("asset_id")
   asset           Asset     @relation(fields: [assetId], references: [id])
   fromEmployeeId  Int?      @map("from_employee_id")
@@ -565,11 +731,15 @@ model AssetTransfer {
   reason          String?
 
   @@index([assetId])
+  @@index([tenantId])
   @@map("asset_transfers")
 }
 
 model AssetMaintenance {
   id                     Int               @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   assetId                Int               @map("asset_id")
   asset                  Asset             @relation(fields: [assetId], references: [id])
   reportedById           Int?              @map("reported_by_id")
@@ -577,6 +747,8 @@ model AssetMaintenance {
   issue                  String
   status                 MaintenanceStatus @default(reported)
   vendor                 String?
+  vendorId               Int?              @map("vendor_id")
+  vendorRecord           Vendor?           @relation(fields: [vendorId], references: [id])
   estimatedCost          Decimal?          @map("estimated_cost") @db.Decimal(12, 2)
   actualCost             Decimal?          @map("actual_cost") @db.Decimal(12, 2)
   reportedAt             DateTime          @default(now()) @map("reported_at")
@@ -589,6 +761,8 @@ model AssetMaintenance {
   @@index([assetId])
   @@index([status])
   @@index([supportTicketId])
+  @@index([vendorId])
+  @@index([tenantId])
   @@map("asset_maintenance")
 }
 
@@ -599,6 +773,9 @@ model AssetMaintenance {
 // Append-only. Application layer exposes INSERT + SELECT only.
 model AuditLog {
   id          Int         @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   entityType  String      @map("entity_type") // e.g. "Asset"
   entityId    String      @map("entity_id")
   action      AuditAction
@@ -611,11 +788,15 @@ model AuditLog {
 
   @@index([entityType, entityId])
   @@index([createdAt])
+  @@index([tenantId])
   @@map("audit_logs")
 }
 
 model Notification {
   id              Int              @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   userId          Int?             @map("user_id")
   user            User?            @relation(fields: [userId], references: [id])
   type            NotificationType
@@ -632,6 +813,7 @@ model Notification {
   @@index([userId])
   @@index([isRead])
   @@index([type])
+  @@index([tenantId])
   @@map("notifications")
 }
 
@@ -641,6 +823,9 @@ model Notification {
 
 model ImportJob {
   id             Int             @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   kind           ImportKind
   filename       String
   status         ImportJobStatus @default(queued)
@@ -662,11 +847,15 @@ model ImportJob {
 
   @@index([status])
   @@index([createdById])
+  @@index([tenantId])
   @@map("import_jobs")
 }
 
 model SavedView {
   id          Int      @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name        String
   resource    String   @default("assets")
   filters     Json
@@ -677,11 +866,15 @@ model SavedView {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@index([resource, createdById])
+  @@index([tenantId])
   @@map("saved_views")
 }
 
 model ReconciliationRun {
   id           Int                @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   kind         ReconciliationKind
   filename     String
   matchField   String             @map("match_field")
@@ -694,11 +887,15 @@ model ReconciliationRun {
   createdAt    DateTime           @default(now()) @map("created_at")
 
   @@index([createdAt])
+  @@index([tenantId])
   @@map("reconciliation_runs")
 }
 
 model WebhookEndpoint {
   id            Int       @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   url           String
   secret        String
   events        String[] // "asset.created" | "asset.status_changed"
@@ -712,6 +909,7 @@ model WebhookEndpoint {
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
   @@index([isActive])
+  @@index([tenantId])
   @@map("webhook_endpoints")
 }
 
@@ -721,6 +919,9 @@ model WebhookEndpoint {
 
 model AssetRequest {
   id              Int                @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   requesterId     Int                @map("requester_id")
   requester       Employee           @relation(fields: [requesterId], references: [id])
   kind            AssetRequestKind
@@ -737,20 +938,30 @@ model AssetRequest {
   fulfilledById   Int?               @map("fulfilled_by_id")
   fulfilledBy     User?              @relation("RequestFulfiller", fields: [fulfilledById], references: [id])
   fulfilledAt     DateTime?          @map("fulfilled_at")
+  fulfilledAssetId Int?              @map("fulfilled_asset_id")
+  fulfilledAsset   Asset?            @relation("FulfilledAsset", fields: [fulfilledAssetId], references: [id])
   createdAt       DateTime           @default(now()) @map("created_at")
   updatedAt       DateTime           @updatedAt @map("updated_at")
 
   @@index([status])
   @@index([requesterId])
+  @@index([fulfilledAssetId])
+  @@index([tenantId])
   @@map("asset_requests")
 }
 
 model Accessory {
   id                 Int                 @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name               String
   category           String
+  brand              String?
+  model              String?
   quantityTotal      Int                 @map("quantity_total")
   quantityCheckedOut Int                 @default(0) @map("quantity_checked_out")
+  lowStockThreshold  Int                 @default(5) @map("low_stock_threshold")
   locationId         Int?                @map("location_id")
   location           Location?           @relation(fields: [locationId], references: [id])
   createdAt          DateTime            @default(now()) @map("created_at")
@@ -761,30 +972,45 @@ model Accessory {
 
   @@index([category])
   @@index([locationId])
+  @@index([brand])
+  @@index([tenantId])
   @@map("accessories")
 }
 
 model AccessoryCheckout {
   id            Int       @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   accessoryId   Int       @map("accessory_id")
   accessory     Accessory @relation(fields: [accessoryId], references: [id])
   employeeId    Int       @map("employee_id")
   employee      Employee  @relation(fields: [employeeId], references: [id])
-  quantity      Int       @default(1)
-  checkedOutAt  DateTime  @default(now()) @map("checked_out_at")
-  checkedInAt   DateTime? @map("checked_in_at")
-  processedById Int?      @map("processed_by_id")
-  processedBy   User?     @relation("AccessoryCheckoutActor", fields: [processedById], references: [id])
-  notes         String?
+  quantity          Int       @default(1)
+  serialNumber      String?   @map("serial_number")
+  issuedWithAssetId Int?      @map("issued_with_asset_id")
+  issuedWithAsset   Asset?    @relation("AccessoryIssuedWith", fields: [issuedWithAssetId], references: [id])
+  expectedReturnAt  DateTime? @map("expected_return_at")
+  checkedOutAt      DateTime  @default(now()) @map("checked_out_at")
+  checkedInAt       DateTime? @map("checked_in_at")
+  processedById     Int?      @map("processed_by_id")
+  processedBy       User?     @relation("AccessoryCheckoutActor", fields: [processedById], references: [id])
+  notes             String?
 
   @@index([accessoryId])
   @@index([employeeId])
+  @@index([issuedWithAssetId])
+  @@index([expectedReturnAt])
+  @@index([tenantId])
   @@map("accessory_checkouts")
 }
 
 /** Named hardware kit: next available asset in a category (+ optional site) plus default accessories. */
 model IssueKit {
   id         Int           @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name       String
   categoryId Int           @map("category_id")
   category   AssetCategory @relation(fields: [categoryId], references: [id])
@@ -794,12 +1020,16 @@ model IssueKit {
   createdAt  DateTime      @default(now()) @map("created_at")
   updatedAt  DateTime      @updatedAt @map("updated_at")
   accessories IssueKitAccessory[]
+  @@index([tenantId])
 
   @@map("issue_kits")
 }
 
 model IssueKitAccessory {
   id          Int       @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   kitId       Int       @map("kit_id")
   kit         IssueKit  @relation(fields: [kitId], references: [id], onDelete: Cascade)
   accessoryId Int       @map("accessory_id")
@@ -807,11 +1037,15 @@ model IssueKitAccessory {
   quantity    Int       @default(1)
 
   @@unique([kitId, accessoryId])
+  @@index([tenantId])
   @@map("issue_kit_accessories")
 }
 
 model Consumable {
   id                Int               @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name              String
   category          String
   quantityTotal     Int               @map("quantity_total")
@@ -826,11 +1060,15 @@ model Consumable {
 
   @@index([category])
   @@index([locationId])
+  @@index([tenantId])
   @@map("consumables")
 }
 
 model ConsumableIssue {
   id            Int        @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   consumableId  Int        @map("consumable_id")
   consumable    Consumable @relation(fields: [consumableId], references: [id])
   employeeId    Int        @map("employee_id")
@@ -842,6 +1080,7 @@ model ConsumableIssue {
 
   @@index([consumableId])
   @@index([employeeId])
+  @@index([tenantId])
   @@map("consumable_issues")
 }
 
@@ -851,19 +1090,27 @@ model ConsumableIssue {
 
 model TicketCategory {
   id              Int              @id @default(autoincrement())
-  code            String           @unique
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code            String
   name            String
   defaultPriority TicketPriority   @default(medium) @map("default_priority")
   tickets         SupportTicket[]
   templates       TicketTemplate[]
   createdAt       DateTime         @default(now()) @map("created_at")
+  @@unique([tenantId, code])
+  @@index([tenantId])
 
   @@map("ticket_categories")
 }
 
 model SupportTicket {
   id                    Int             @id @default(autoincrement())
-  ticketNumber          String          @unique @map("ticket_number")
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ticketNumber          String @map("ticket_number")
   subject               String
   description           String
   categoryId            Int             @map("category_id")
@@ -894,6 +1141,11 @@ model SupportTicket {
   firstResponseAt       DateTime?       @map("first_response_at")
   waitingSince          DateTime?       @map("waiting_since")
   waitingTotalMinutes   Int             @default(0) @map("waiting_total_minutes")
+  /** Staff confirmed the requester's identity before a password / MFA reset. */
+  identityVerifiedAt    DateTime?       @map("identity_verified_at")
+  verifiedById          Int?            @map("verified_by_id")
+  verifiedBy            User?           @relation("TicketIdentityVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+  overdueMailedAt       DateTime?       @map("overdue_mailed_at")
   createdAt             DateTime        @default(now()) @map("created_at")
   updatedAt             DateTime        @updatedAt @map("updated_at")
 
@@ -910,6 +1162,9 @@ model SupportTicket {
   @@index([assignedToId])
   @@index([raisedById])
   @@index([dueDate])
+  @@index([verifiedById])
+  @@unique([tenantId, ticketNumber])
+  @@index([tenantId])
   @@map("support_tickets")
 }
 
@@ -918,6 +1173,9 @@ model SupportTicket {
  */
 model TicketMessage {
   id          Int                    @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   ticketId    Int                    @map("ticket_id")
   ticket      SupportTicket          @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   direction   TicketMessageDirection
@@ -931,6 +1189,7 @@ model TicketMessage {
 
   @@index([ticketId])
   @@index([inReplyTo])
+  @@index([tenantId])
   @@map("ticket_messages")
 }
 
@@ -939,9 +1198,14 @@ model TicketMessage {
  */
 model TicketPriorityTarget {
   id            Int            @id @default(autoincrement())
-  priority      TicketPriority @unique
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  priority      TicketPriority
   targetMinutes Int?           @map("target_minutes")
   updatedAt     DateTime       @updatedAt @map("updated_at")
+  @@unique([tenantId, priority])
+  @@index([tenantId])
 
   @@map("ticket_priority_targets")
 }
@@ -950,17 +1214,25 @@ model TicketPriorityTarget {
  * Singleton (id=1) status row for the email-in poller, surfaced in Settings.
  */
 model EmailIngestState {
-  id               Int       @id @default(1)
+  id               Int       @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   lastCheckedAt    DateTime? @map("last_checked_at")
   lastMessageCount Int       @default(0) @map("last_message_count")
   lastError        String?   @map("last_error")
   updatedAt        DateTime  @updatedAt @map("updated_at")
+  @@unique([tenantId])
+  @@index([tenantId])
 
   @@map("email_ingest_state")
 }
 
 model TicketComment {
   id              Int                @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   ticketId        Int                @map("ticket_id")
   ticket          SupportTicket      @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   authorId        Int?               @map("author_id")
@@ -975,11 +1247,15 @@ model TicketComment {
   attachments     TicketAttachment[]
 
   @@index([ticketId])
+  @@index([tenantId])
   @@map("ticket_comments")
 }
 
 model TicketWatcher {
   id         Int           @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   ticketId   Int           @map("ticket_id")
   ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   employeeId Int           @map("employee_id")
@@ -987,11 +1263,15 @@ model TicketWatcher {
   createdAt  DateTime      @default(now()) @map("created_at")
 
   @@unique([ticketId, employeeId])
+  @@index([tenantId])
   @@map("ticket_watchers")
 }
 
 model TicketTimeLog {
   id       Int           @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   ticketId Int           @map("ticket_id")
   ticket   SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   staffId  Int           @map("staff_id")
@@ -1001,11 +1281,15 @@ model TicketTimeLog {
   loggedAt DateTime      @default(now()) @map("logged_at")
 
   @@index([ticketId])
+  @@index([tenantId])
   @@map("ticket_time_logs")
 }
 
 model TicketAttachment {
   id           Int            @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   ticketId     Int            @map("ticket_id")
   ticket       SupportTicket  @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   commentId    Int?           @map("comment_id")
@@ -1019,11 +1303,15 @@ model TicketAttachment {
   createdAt    DateTime       @default(now()) @map("created_at")
 
   @@index([ticketId])
+  @@index([tenantId])
   @@map("ticket_attachments")
 }
 
 model CannedResponse {
   id           Int            @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   title        String
   body         String
   /** Optional status applied when this snippet is sent as a public reply. */
@@ -1032,12 +1320,16 @@ model CannedResponse {
   createdBy    User           @relation(fields: [createdById], references: [id])
   createdAt    DateTime       @default(now()) @map("created_at")
   updatedAt    DateTime       @updatedAt @map("updated_at")
+  @@index([tenantId])
 
   @@map("canned_responses")
 }
 
 model TicketTemplate {
   id          Int            @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   title       String
   subject     String
   description String
@@ -1047,33 +1339,45 @@ model TicketTemplate {
   createdBy   User           @relation(fields: [createdById], references: [id])
   createdAt   DateTime       @default(now()) @map("created_at")
   updatedAt   DateTime       @updatedAt @map("updated_at")
+  @@index([tenantId])
 
   @@map("ticket_templates")
 }
 
 model ChecklistTemplate {
   id        Int                     @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name      String
   kind      ChecklistKind
   items     ChecklistTemplateItem[]
   createdAt DateTime                @default(now()) @map("created_at")
   updatedAt DateTime                @updatedAt @map("updated_at")
+  @@index([tenantId])
 
   @@map("checklist_templates")
 }
 
 model ChecklistTemplateItem {
   id         Int                @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   templateId Int                @map("template_id")
   template   ChecklistTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
   label      String
   sortOrder  Int                @default(0) @map("sort_order")
+  @@index([tenantId])
 
   @@map("checklist_template_items")
 }
 
 model EmployeeChecklist {
   id         Int                      @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   employeeId Int                      @map("employee_id")
   employee   Employee                 @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   templateId Int?                     @map("template_id")
@@ -1083,11 +1387,15 @@ model EmployeeChecklist {
   createdAt  DateTime                 @default(now()) @map("created_at")
 
   @@index([employeeId])
+  @@index([tenantId])
   @@map("employee_checklists")
 }
 
 model ChatChannel {
   id          Int                 @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   type        ChatChannelType
   name        String?
   description String?
@@ -1099,12 +1407,16 @@ model ChatChannel {
   createdAt   DateTime            @default(now()) @map("created_at")
   members     ChatChannelMember[]
   messages    ChatMessage[]
+  @@index([tenantId])
 
   @@map("chat_channels")
 }
 
 model ChatChannelMember {
   id                Int            @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   channelId         Int            @map("channel_id")
   channel           ChatChannel    @relation(fields: [channelId], references: [id], onDelete: Cascade)
   userId            Int            @map("user_id")
@@ -1117,11 +1429,15 @@ model ChatChannelMember {
   joinedAt          DateTime       @default(now()) @map("joined_at")
 
   @@unique([channelId, userId])
+  @@index([tenantId])
   @@map("chat_channel_members")
 }
 
 model ChatMessage {
   id          Int              @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   channelId   Int              @map("channel_id")
   channel     ChatChannel      @relation(fields: [channelId], references: [id], onDelete: Cascade)
   authorId    Int              @map("author_id")
@@ -1139,11 +1455,15 @@ model ChatMessage {
 
   @@index([channelId, createdAt])
   @@index([parentId])
+  @@index([tenantId])
   @@map("chat_messages")
 }
 
 model ChatAttachment {
   id           Int         @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   messageId    Int         @map("message_id")
   message      ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
   filename     String
@@ -1155,11 +1475,15 @@ model ChatAttachment {
   createdAt    DateTime    @default(now()) @map("created_at")
 
   @@index([messageId])
+  @@index([tenantId])
   @@map("chat_attachments")
 }
 
 model ChatReaction {
   id        Int         @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   messageId Int         @map("message_id")
   message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
   userId    Int         @map("user_id")
@@ -1168,11 +1492,15 @@ model ChatReaction {
   createdAt DateTime    @default(now()) @map("created_at")
 
   @@unique([messageId, userId, emoji])
+  @@index([tenantId])
   @@map("chat_reactions")
 }
 
 model ChatMention {
   id        Int             @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   messageId Int             @map("message_id")
   message   ChatMessage     @relation(fields: [messageId], references: [id], onDelete: Cascade)
   userId    Int?            @map("user_id")
@@ -1181,11 +1509,15 @@ model ChatMention {
 
   @@index([messageId])
   @@index([userId])
+  @@index([tenantId])
   @@map("chat_mentions")
 }
 
 model EmployeeChecklistItem {
   id          Int                @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   checklistId Int                @map("checklist_id")
   checklist   EmployeeChecklist  @relation(fields: [checklistId], references: [id], onDelete: Cascade)
   label       String
@@ -1193,12 +1525,16 @@ model EmployeeChecklistItem {
   doneAt      DateTime?          @map("done_at")
   doneById    Int?               @map("done_by_id")
   sortOrder   Int                @default(0) @map("sort_order")
+  @@index([tenantId])
 
   @@map("employee_checklist_items")
 }
 
 model RecordNote {
   id           Int      @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   entityType   String   @map("entity_type")
   entityId     String   @map("entity_id")
   body         String
@@ -1209,6 +1545,7 @@ model RecordNote {
   createdAt    DateTime @default(now()) @map("created_at")
 
   @@index([entityType, entityId])
+  @@index([tenantId])
   @@map("record_notes")
 }
 
@@ -1218,13 +1555,18 @@ model RecordNote {
 
 model Vendor {
   id                         Int          @id @default(autoincrement())
-  vendorCode                 String       @unique @map("vendor_code")
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  vendorCode                 String @map("vendor_code")
   legalName                  String       @map("legal_name")
   tradingName                String?      @map("trading_name")
   taxId                      String?      @map("tax_id")
   gstin                      String?
   pan                        String?
   gstUnregistered            Boolean      @default(false) @map("gst_unregistered")
+  accountHolderName          String?      @map("account_holder_name")
+  accountHolderOverrideReason String?     @map("account_holder_override_reason")
   country                    String       @default("IN")
   registeredAddress          String?      @map("registered_address")
   remitToAddress             String?      @map("remit_to_address")
@@ -1259,16 +1601,20 @@ model Vendor {
   contracts          VendorContract[]
   scorecards         VendorScorecard[]
   assets             Asset[]
+  maintenanceJobs    AssetMaintenance[]
 
   @@index([status])
   @@index([legalName])
-  @@index([gstin])
-  @@index([pan])
+  @@unique([tenantId, vendorCode])
+  @@index([tenantId])
   @@map("vendors")
 }
 
 model VendorContact {
   id        Int     @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   vendorId  Int     @map("vendor_id")
   vendor    Vendor  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   name      String
@@ -1278,11 +1624,15 @@ model VendorContact {
   isPrimary Boolean @default(false) @map("is_primary")
 
   @@index([vendorId])
+  @@index([tenantId])
   @@map("vendor_contacts")
 }
 
 model VendorStatusChange {
   id          Int          @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   vendorId    Int          @map("vendor_id")
   vendor      Vendor       @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   fromStatus  VendorStatus @map("from_status")
@@ -1293,11 +1643,15 @@ model VendorStatusChange {
   changedAt   DateTime     @default(now()) @map("changed_at")
 
   @@index([vendorId])
+  @@index([tenantId])
   @@map("vendor_status_changes")
 }
 
 model VendorComplianceDoc {
   id        Int       @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   vendorId  Int       @map("vendor_id")
   vendor    Vendor    @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   title     String
@@ -1307,11 +1661,15 @@ model VendorComplianceDoc {
   data      Bytes?
 
   @@index([vendorId])
+  @@index([tenantId])
   @@map("vendor_compliance_docs")
 }
 
 model ApprovalMatrixRule {
   id        Int             @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   minAmount Decimal         @map("min_amount") @db.Decimal(12, 2)
   category  String?
   role      RoleName
@@ -1319,13 +1677,17 @@ model ApprovalMatrixRule {
   kind      RequisitionApprovalKind @default(required)
   routing   ApprovalRouting @default(parallel)
   createdAt DateTime        @default(now()) @map("created_at")
+  @@index([tenantId])
 
   @@map("approval_matrix_rules")
 }
 
 model PurchaseRequisition {
   id                      Int                        @id @default(autoincrement())
-  requisitionNumber       String                     @unique @map("requisition_number")
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  requisitionNumber       String @map("requisition_number")
   title                   String
   departmentId            Int?                       @map("department_id")
   department              Department?                @relation(fields: [departmentId], references: [id])
@@ -1365,22 +1727,31 @@ model PurchaseRequisition {
 
   @@index([status])
   @@index([requesterId])
+  @@unique([tenantId, requisitionNumber])
+  @@index([tenantId])
   @@map("purchase_requisitions")
 }
 
 model PurchaseRequisitionLocation {
   id             Int                  @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   requisitionId  Int                  @map("requisition_id")
   requisition    PurchaseRequisition  @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
   locationId     Int                  @map("location_id")
   location       Location             @relation(fields: [locationId], references: [id])
 
   @@unique([requisitionId, locationId])
+  @@index([tenantId])
   @@map("purchase_requisition_locations")
 }
 
 model RequisitionLineItem {
   id             Int                 @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   requisitionId  Int                 @map("requisition_id")
   requisition    PurchaseRequisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
   product        String
@@ -1391,11 +1762,15 @@ model RequisitionLineItem {
   sortOrder      Int                 @default(0) @map("sort_order")
 
   @@index([requisitionId])
+  @@index([tenantId])
   @@map("requisition_line_items")
 }
 
 model RequisitionQuote {
   id             Int                 @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   requisitionId  Int                 @map("requisition_id")
   requisition    PurchaseRequisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
   vendorId       Int?                @map("vendor_id")
@@ -1407,11 +1782,15 @@ model RequisitionQuote {
   selected       Boolean             @default(false)
 
   @@index([requisitionId])
+  @@index([tenantId])
   @@map("requisition_quotes")
 }
 
 model RequisitionApprover {
   id             Int                       @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   requisitionId  Int                       @map("requisition_id")
   requisition    PurchaseRequisition       @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
   userId         Int                       @map("user_id")
@@ -1424,12 +1803,16 @@ model RequisitionApprover {
 
   @@index([requisitionId])
   @@index([userId])
+  @@index([tenantId])
   @@map("requisition_approvers")
 }
 
 model PurchaseOrder {
   id                Int                 @id @default(autoincrement())
-  poNumber          String              @unique @map("po_number")
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  poNumber          String @map("po_number")
   requisitionId     Int?                @map("requisition_id")
   requisition       PurchaseRequisition? @relation(fields: [requisitionId], references: [id])
   vendorId          Int                 @map("vendor_id")
@@ -1459,11 +1842,16 @@ model PurchaseOrder {
 
   @@index([status])
   @@index([vendorId])
+  @@unique([tenantId, poNumber])
+  @@index([tenantId])
   @@map("purchase_orders")
 }
 
 model PurchaseOrderLine {
   id              Int           @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   purchaseOrderId Int           @map("purchase_order_id")
   purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   product         String
@@ -1475,11 +1863,15 @@ model PurchaseOrderLine {
   receiptLines    GoodsReceiptLine[]
 
   @@index([purchaseOrderId])
+  @@index([tenantId])
   @@map("purchase_order_lines")
 }
 
 model PurchaseOrderAmendment {
   id              Int           @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   purchaseOrderId Int           @map("purchase_order_id")
   purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   revision        Int
@@ -1490,12 +1882,16 @@ model PurchaseOrderAmendment {
   amendedAt       DateTime      @default(now()) @map("amended_at")
 
   @@index([purchaseOrderId])
+  @@index([tenantId])
   @@map("purchase_order_amendments")
 }
 
 model GoodsReceipt {
   id              Int           @id @default(autoincrement())
-  grnNumber       String        @unique @map("grn_number")
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  grnNumber       String @map("grn_number")
   purchaseOrderId Int           @map("purchase_order_id")
   purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
   locationId      Int?          @map("location_id")
@@ -1513,11 +1909,16 @@ model GoodsReceipt {
   handoffs        ProcurementHandoff[]
 
   @@index([purchaseOrderId])
+  @@unique([tenantId, grnNumber])
+  @@index([tenantId])
   @@map("goods_receipts")
 }
 
 model GoodsReceiptLine {
   id               Int               @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   goodsReceiptId   Int               @map("goods_receipt_id")
   goodsReceipt     GoodsReceipt      @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
   purchaseOrderLineId Int            @map("purchase_order_line_id")
@@ -1525,11 +1926,15 @@ model GoodsReceiptLine {
   quantityReceived Decimal           @map("quantity_received") @db.Decimal(12, 2)
 
   @@index([goodsReceiptId])
+  @@index([tenantId])
   @@map("goods_receipt_lines")
 }
 
 model VendorInvoice {
   id               Int                   @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   vendorId         Int                   @map("vendor_id")
   vendor           Vendor                @relation(fields: [vendorId], references: [id])
   purchaseOrderId  Int?                  @map("purchase_order_id")
@@ -1557,11 +1962,15 @@ model VendorInvoice {
   @@index([vendorId])
   @@index([purchaseOrderId])
   @@index([paymentStatus])
+  @@index([tenantId])
   @@map("vendor_invoices")
 }
 
 model VendorContract {
   id               Int                @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   vendorId         Int                @map("vendor_id")
   vendor           Vendor             @relation(fields: [vendorId], references: [id])
   type             VendorContractType
@@ -1592,22 +2001,30 @@ model VendorContract {
 
   @@index([vendorId])
   @@index([endDate])
+  @@index([tenantId])
   @@map("vendor_contracts")
 }
 
 model VendorContractAsset {
   id         Int            @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   contractId Int            @map("contract_id")
   contract   VendorContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
   assetId    Int            @map("asset_id")
   asset      Asset          @relation(fields: [assetId], references: [id], onDelete: Cascade)
 
   @@unique([contractId, assetId])
+  @@index([tenantId])
   @@map("vendor_contract_assets")
 }
 
 model VendorScorecard {
   id                     Int      @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   vendorId               Int      @map("vendor_id")
   vendor                 Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   period                 String
@@ -1622,11 +2039,15 @@ model VendorScorecard {
   createdAt              DateTime @default(now()) @map("created_at")
 
   @@index([vendorId])
+  @@index([tenantId])
   @@map("vendor_scorecards")
 }
 
 model ProcurementActivityLog {
   id          Int                   @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   recordType  ProcurementRecordType @map("record_type")
   recordId    Int                   @map("record_id")
   action      String
@@ -1639,11 +2060,15 @@ model ProcurementActivityLog {
   createdAt   DateTime              @default(now()) @map("created_at")
 
   @@index([recordType, recordId])
+  @@index([tenantId])
   @@map("procurement_activity_logs")
 }
 
 model ProcurementAttachment {
   id           Int                   @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   recordType   ProcurementRecordType @map("record_type")
   recordId     Int                   @map("record_id")
   filename     String
@@ -1655,11 +2080,15 @@ model ProcurementAttachment {
   createdAt    DateTime              @default(now()) @map("created_at")
 
   @@index([recordType, recordId])
+  @@index([tenantId])
   @@map("procurement_attachments")
 }
 
 model ProcurementHandoff {
   id              Int           @id @default(autoincrement())
+
+  tenantId Int @default(1) @map("tenant_id")
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   kind            HandoffKind
   purchaseOrderId Int           @map("purchase_order_id")
   purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
@@ -1680,5 +2109,6 @@ model ProcurementHandoff {
   createdAt       DateTime      @default(now()) @map("created_at")
 
   @@index([purchaseOrderId])
+  @@index([tenantId])
   @@map("procurement_handoffs")
 }

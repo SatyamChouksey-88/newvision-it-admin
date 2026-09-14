@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AccessoriesModule } from './accessories/accessories.module';
 import { AssetRequestsModule } from './asset-requests/asset-requests.module';
@@ -15,6 +15,7 @@ import { ConsumablesModule } from './consumables/consumables.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { DepartmentsModule } from './departments/departments.module';
 import { EmployeesModule } from './employees/employees.module';
+import { HealthModule } from './health/health.module';
 import { ImportExportModule } from './import-export/import-export.module';
 import { ImportJobsModule } from './import-jobs/import-jobs.module';
 import { LocationsModule } from './locations/locations.module';
@@ -29,17 +30,22 @@ import { RecordsModule } from './records/records.module';
 import { ReportsModule } from './reports/reports.module';
 import { SavedViewsModule } from './saved-views/saved-views.module';
 import { SearchModule } from './search/search.module';
+import { TenancyModule } from './tenancy/tenancy.module';
 import { TicketsModule } from './tickets/tickets.module';
 import { UsersModule } from './users/users.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
+import { ModulesGuard } from './tenancy/modules.guard';
+import { TenantInterceptor } from './tenancy/tenant.interceptor';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
     PrismaModule,
+    TenancyModule,
     AuditModule,
     AuthModule,
+    HealthModule,
     LocationsModule,
     DepartmentsModule,
     CategoriesModule,
@@ -70,6 +76,8 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     // Order matters: authenticate first, then check roles. Both run globally.
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: ModulesGuard },
+    { provide: APP_INTERCEPTOR, useClass: TenantInterceptor },
   ],
 })
 export class AppModule {}

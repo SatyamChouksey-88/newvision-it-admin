@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import * as ExcelJS from 'exceljs';
+import { RoleName } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
@@ -75,6 +76,7 @@ export class ImportExportService {
   async exportAssets(
     format: 'csv' | 'xlsx',
     filters: AssetExportFilters = {},
+    actor?: AuthUser,
   ): Promise<{ buffer: Buffer; rowCount: number; filename: string }> {
     const now = new Date();
     const warrantyLimit = filters.warrantyExpiringInDays
@@ -102,6 +104,11 @@ export class ImportExportService {
       include: { category: true, location: true, department: true, assignedEmployee: true },
       orderBy: { assetCode: 'asc' },
     });
+    const canSeeCost =
+      !actor || actor.role === RoleName.SUPER_ADMIN || actor.role === RoleName.IT_ADMIN;
+    const columns = canSeeCost
+      ? ASSET_COLUMNS
+      : ASSET_COLUMNS.filter((c) => c !== 'purchaseCost' && c !== 'invoiceNo');
     const rows = assets.map((a) => ({
       assetCode: a.assetCode,
       category: a.category?.code ?? '',
@@ -114,15 +121,19 @@ export class ImportExportService {
       department: a.department?.name ?? '',
       assignedEmployee: a.assignedEmployee?.employeeCode ?? '',
       purchaseDate: fmtDate(a.purchaseDate),
-      purchaseCost: a.purchaseCost ? a.purchaseCost.toString() : '',
+      ...(canSeeCost
+        ? {
+            purchaseCost: a.purchaseCost ? a.purchaseCost.toString() : '',
+            invoiceNo: a.invoiceNo ?? '',
+          }
+        : {}),
       warrantyStart: fmtDate(a.warrantyStart),
       warrantyEnd: fmtDate(a.warrantyEnd),
       vendor: a.vendor ?? '',
-      invoiceNo: a.invoiceNo ?? '',
     }));
     const base = this.scopeFilename(filters, 'assets');
     const ext = format === 'xlsx' ? 'xlsx' : 'csv';
-    const buffer = await this.buildFile(ASSET_COLUMNS, rows, format, 'Assets');
+    const buffer = await this.buildFile(columns, rows, format, 'Assets');
     return { buffer, rowCount: rows.length, filename: `${base}.${ext}` };
   }
 
@@ -341,7 +352,7 @@ export class ImportExportService {
         }
         const department = row.department ? depByName.get(row.department.toLowerCase()) : undefined;
         const manager = row.manager
-          ? await this.prisma.employee.findUnique({ where: { employeeCode: row.manager } })
+          ? await this.prisma.employee.findFirst({ where: { employeeCode: row.manager } })
           : null;
 
         const created = await this.prisma.employee.create({

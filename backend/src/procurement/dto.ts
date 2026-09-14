@@ -145,6 +145,14 @@ export class CreateVendorDto {
 
   @IsOptional()
   @IsString()
+  accountHolderName?: string;
+
+  @IsOptional()
+  @IsString()
+  accountHolderOverrideReason?: string;
+
+  @IsOptional()
+  @IsString()
   defaultBudgetHead?: string;
 
   @IsOptional()
@@ -225,6 +233,14 @@ export class UpdateVendorDto {
   @IsOptional()
   @IsString()
   bankIfscSwift?: string;
+
+  @IsOptional()
+  @IsString()
+  accountHolderName?: string;
+
+  @IsOptional()
+  @IsString()
+  accountHolderOverrideReason?: string;
 
   @IsOptional()
   @IsString()

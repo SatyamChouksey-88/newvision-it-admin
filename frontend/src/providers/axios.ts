@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { clearSession, readSession, REFRESH_TOKEN_KEY, TOKEN_KEY, writeSession } from './session';
+import { clearSession, readSession, TOKEN_KEY, USER_KEY, writeSession } from './session';
 
 function resolveApiUrl(): string {
   const raw = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
@@ -11,35 +11,22 @@ function resolveApiUrl(): string {
 export const API_URL = resolveApiUrl();
 export { TOKEN_KEY, USER_KEY } from './session';
 
-export const httpClient = axios.create({ baseURL: API_URL });
-
-httpClient.interceptors.request.use((config) => {
-  const token = readSession(TOKEN_KEY);
-  if (token) {
-    config.headers = config.headers ?? {};
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
+export const httpClient = axios.create({
+  baseURL: API_URL,
+  withCredentials: true,
 });
-
-/** Persisted the same way the access token was (localStorage vs sessionStorage). */
-function persistedDurably(): boolean {
-  return localStorage.getItem(TOKEN_KEY) !== null;
-}
 
 let refreshInFlight: Promise<string | null> | null = null;
 
-/** Exchanges the stored refresh token for a new access/refresh pair. Never throws. */
+/** Exchanges the httpOnly refresh cookie for a new access token. Never throws. */
 async function tryRefresh(): Promise<string | null> {
-  const refreshToken = readSession(REFRESH_TOKEN_KEY);
-  if (!refreshToken) return null;
   if (!refreshInFlight) {
     refreshInFlight = axios
-      .post(`${API_URL}/auth/refresh`, { refresh_token: refreshToken })
+      .post(`${API_URL}/auth/refresh`, {}, { withCredentials: true })
       .then(({ data }) => {
-        const persist = persistedDurably();
-        writeSession(TOKEN_KEY, data.access_token, persist);
-        writeSession(REFRESH_TOKEN_KEY, data.refresh_token, persist);
+        if (!data?.access_token) return null;
+        writeSession(TOKEN_KEY, data.access_token);
+        if (data.user) writeSession(USER_KEY, JSON.stringify(data.user));
         return data.access_token as string;
       })
       .catch(() => null)
@@ -50,12 +37,22 @@ async function tryRefresh(): Promise<string | null> {
   return refreshInFlight;
 }
 
-/**
- * Expired/invalid session: most screens call the API directly (not through Refine's data
- * provider), so Refine's `onError` never sees the 401. On a 401, try one silent refresh before
- * giving up — access tokens are short-lived (30m) by design, so this is the common case, not
- * the exception. Only clear the session and bounce to /login if the refresh itself fails.
- */
+/** On boot: if this tab has no access token, try the refresh cookie ("Keep me signed in"). */
+export async function restoreSession(): Promise<boolean> {
+  if (readSession(TOKEN_KEY)) return true;
+  const token = await tryRefresh();
+  return Boolean(token);
+}
+
+httpClient.interceptors.request.use((config) => {
+  const token = readSession(TOKEN_KEY);
+  if (token) {
+    config.headers = config.headers ?? {};
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 httpClient.interceptors.response.use(
   (res) => res,
   async (error) => {
@@ -64,7 +61,7 @@ httpClient.interceptors.response.use(
     const url: string = config.url ?? '';
     const isAuthRoute = url.includes('/auth/login') || url.includes('/auth/refresh');
 
-    if (status === 401 && !isAuthRoute && readSession(TOKEN_KEY) && !config.__retried) {
+    if (status === 401 && !isAuthRoute && !config.__retried) {
       const newToken = await tryRefresh();
       if (newToken) {
         config.__retried = true;

@@ -140,6 +140,16 @@ export function VendorForm() {
         <Form.Item name="bankIfscSwift" label="IFSC / SWIFT">
           <Input />
         </Form.Item>
+        <Form.Item name="accountHolderName" label="Account holder name">
+          <Input placeholder="Must match the legal name unless you give a reason" />
+        </Form.Item>
+        <Form.Item
+          name="accountHolderOverrideReason"
+          label="Name mismatch reason"
+          extra="Required if the account is not in the legal name. We compare the strings only — no penny-drop."
+        >
+          <Input.TextArea rows={2} />
+        </Form.Item>
         <Form.Item name="defaultBudgetHead" label="Default budget head">
           <Input />
         </Form.Item>

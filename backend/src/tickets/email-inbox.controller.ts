@@ -11,6 +11,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { RoleName } from '@prisma/client';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
+import { secretsMatch } from '../common/crypto-secret';
 import { EmailInboxService } from './email-inbox.service';
 
 @ApiTags('email-in')
@@ -55,7 +56,7 @@ export class EmailInboxController {
     @Headers('x-email-ingest-secret') secret?: string,
   ) {
     const configured = process.env.EMAIL_INGEST_SECRET;
-    if (!configured || secret !== configured) {
+    if (!secretsMatch(secret, configured)) {
       throw new ForbiddenException('Invalid or missing X-Email-Ingest-Secret');
     }
     if (!body?.raw?.trim()) throw new BadRequestException('raw email body is required');
