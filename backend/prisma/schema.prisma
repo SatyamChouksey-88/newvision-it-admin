@@ -211,6 +211,14 @@ enum VendorStatus {
   blacklisted
 }
 
+enum VendorDocKind {
+  gst_certificate
+  pan
+  cancelled_cheque
+  msme
+  other
+}
+
 enum PurchaseRequisitionStatus {
   draft
   pending_approval
@@ -1655,6 +1663,7 @@ model VendorComplianceDoc {
   vendorId  Int       @map("vendor_id")
   vendor    Vendor    @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   title     String
+  docKind   VendorDocKind @default(other) @map("doc_kind")
   expiresAt DateTime? @map("expires_at")
   filename  String?
   mimeType  String?   @map("mime_type")

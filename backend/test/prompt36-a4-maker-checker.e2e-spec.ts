@@ -90,7 +90,7 @@ describe('Prompt 36 A4 — maker ≠ checker and account holder', () => {
     const draft = await request(app.getHttpServer())
       .post('/api/vendors')
       .set(auth(itAdmin))
-      .send({ legalName: 'Activate Guard Pvt Ltd' })
+      .send({ legalName: 'Activate Guard Pvt Ltd', country: 'US' })
       .expect(201);
 
     const sameActivate = await request(app.getHttpServer())
@@ -103,7 +103,7 @@ describe('Prompt 36 A4 — maker ≠ checker and account holder', () => {
     await request(app.getHttpServer())
       .patch(`/api/vendors/${draft.body.id}/status`)
       .set(auth(superAdmin))
-      .send({ status: 'active', reason: 'Confirmed by second admin' })
+      .send({ status: 'active', reason: 'Confirmed by second admin', override: true })
       .expect(200);
   });
 });

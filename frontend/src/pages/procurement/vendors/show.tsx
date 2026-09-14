@@ -1,5 +1,5 @@
 import { useGetIdentity } from '@refinedev/core';
-import { Button, Card, Descriptions, Form, Input, Modal, Space, Tooltip, Typography } from 'antd';
+import { Button, Card, Descriptions, Form, Input, Modal, Select, Space, Switch, Tooltip, Typography, Upload } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { EmptyState } from '../../../components/EmptyState';
@@ -11,6 +11,22 @@ import { useConfirmAction } from '../../../hooks/useConfirmAction';
 import type { Identity } from '../../../providers/authProvider';
 import { apiErrorMessage, httpClient } from '../../../providers/axios';
 import { VendorStatusTag } from '../status';
+
+const DOC_KIND_OPTIONS = [
+  { value: 'cancelled_cheque', label: 'Cancelled cheque / bank letter' },
+  { value: 'pan', label: 'PAN' },
+  { value: 'gst_certificate', label: 'GST certificate' },
+  { value: 'msme', label: 'Udyam / MSME' },
+  { value: 'other', label: 'Other' },
+];
+
+type ComplianceDoc = {
+  id: number;
+  title: string;
+  docKind?: string;
+  filename?: string | null;
+  expiresAt?: string | null;
+};
 
 export function VendorShow() {
   const { id } = useParams();
@@ -25,6 +41,10 @@ export function VendorShow() {
   const [history, setHistory] = useState<TimelineEvent[]>([]);
   const [reasonOpen, setReasonOpen] = useState<string | null>(null);
   const [reason, setReason] = useState('');
+  const [kycOverride, setKycOverride] = useState(false);
+  const [docKind, setDocKind] = useState('cancelled_cheque');
+  const [docTitle, setDocTitle] = useState('');
+  const [docBusy, setDocBusy] = useState(false);
 
   const load = useCallback(() => {
     if (!id) return;
@@ -68,13 +88,37 @@ export function VendorShow() {
   const changeStatus = async (next: string) => {
     if (!id) return;
     try {
-      await httpClient.patch(`/vendors/${id}/status`, { status: next, reason });
+      await httpClient.patch(`/vendors/${id}/status`, {
+        status: next,
+        reason,
+        override: next === 'active' ? kycOverride : undefined,
+      });
       toast.success('Status updated');
       setReasonOpen(null);
       setReason('');
+      setKycOverride(false);
       load();
     } catch (e) {
       toast.error(apiErrorMessage(e, 'Could not change status'));
+    }
+  };
+
+  const uploadCompliance = async (file: File) => {
+    if (!id) return;
+    setDocBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('title', docTitle.trim() || file.name);
+      fd.append('docKind', docKind);
+      await httpClient.post(`/vendors/${id}/compliance`, fd);
+      toast.success('Document saved');
+      setDocTitle('');
+      load();
+    } catch (e) {
+      toast.error(apiErrorMessage(e, 'Could not upload document'));
+    } finally {
+      setDocBusy(false);
     }
   };
 
@@ -204,6 +248,51 @@ export function VendorShow() {
           </Descriptions.Item>
         </Descriptions>
       </Card>
+      <Card title="KYC documents">
+        <Typography.Paragraph type="secondary">
+          Indian vendors need a PAN on the record and a cancelled cheque (or bank letter) before
+          activation. Super Admin can override.
+        </Typography.Paragraph>
+        <Space direction="vertical" size={8} style={{ width: '100%' }}>
+          {((row?.complianceDocs as ComplianceDoc[]) ?? []).length === 0 ? (
+            <Typography.Text type="secondary">No documents yet.</Typography.Text>
+          ) : (
+            ((row?.complianceDocs as ComplianceDoc[]) ?? []).map((d) => (
+              <Typography.Text key={d.id}>
+                {DOC_KIND_OPTIONS.find((o) => o.value === d.docKind)?.label ?? d.docKind ?? 'Other'}{' '}
+                · {d.title}
+                {d.filename ? ` (${d.filename})` : ''}
+              </Typography.Text>
+            ))
+          )}
+          {canManage ? (
+            <Space wrap align="start">
+              <Select
+                value={docKind}
+                onChange={setDocKind}
+                options={DOC_KIND_OPTIONS}
+                style={{ minWidth: 240 }}
+              />
+              <Input
+                placeholder="Title (optional)"
+                value={docTitle}
+                onChange={(e) => setDocTitle(e.target.value)}
+                style={{ minWidth: 200 }}
+              />
+              <Upload
+                maxCount={1}
+                showUploadList={false}
+                beforeUpload={(file) => {
+                  void uploadCompliance(file);
+                  return false;
+                }}
+              >
+                <Button loading={docBusy}>Upload</Button>
+              </Upload>
+            </Space>
+          ) : null}
+        </Space>
+      </Card>
       <Card title="Edit history">
         <EventTimeline events={history} />
       </Card>
@@ -211,17 +300,26 @@ export function VendorShow() {
       <Modal
         title="Reason required"
         open={!!reasonOpen}
-        onCancel={() => setReasonOpen(null)}
+        onCancel={() => {
+          setReasonOpen(null);
+          setKycOverride(false);
+        }}
         onOk={() => reasonOpen && void changeStatus(reasonOpen)}
         okButtonProps={{ disabled: reason.trim().length < 3 }}
       >
         <Typography.Paragraph type="secondary">
-          Status changes are audited. Give a short reason.
+          Status changes are audited. Give a short reason. Indian vendors also need PAN + cancelled
+          cheque unless Super Admin overrides.
         </Typography.Paragraph>
         <Form layout="vertical">
           <Form.Item label="Reason" required>
             <Input.TextArea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} />
           </Form.Item>
+          {reasonOpen === 'active' && identity?.role === 'SUPER_ADMIN' ? (
+            <Form.Item label="Skip PAN / cancelled-cheque check">
+              <Switch checked={kycOverride} onChange={setKycOverride} />
+            </Form.Item>
+          ) : null}
         </Form>
       </Modal>
     </Space>

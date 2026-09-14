@@ -94,6 +94,11 @@ export function VendorForm() {
             }
           />
         ) : null}
+        {!id ? (
+          <Typography.Paragraph type="secondary">
+            Search GSTIN, PAN, or bank account before you create. Matches appear below as you type.
+          </Typography.Paragraph>
+        ) : null}
         <Form.Item name="legalName" label="Legal name" rules={[{ required: true, min: 2 }]}>
           <Input onChange={(e) => searchExisting(e.target.value)} />
         </Form.Item>

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -20,6 +21,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { ListQuery } from '../common/query';
 import { assertAllowedUpload } from '../common/uploads';
 import { PrismaService } from '../prisma/prisma.service';
+import { VENDOR_DOC_KINDS, type VendorDocKindName } from './constants';
 import { CreateVendorDto, ScorecardDto, UpdateVendorDto, VendorStatusDto } from './dto';
 import { VendorsService } from './vendors.service';
 
@@ -116,22 +118,27 @@ export class VendorsController {
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 8 * 1024 * 1024 } }))
   async compliance(
     @Param('id', ParseIntPipe) id: number,
-    @Body() body: { title?: string; expiresAt?: string },
+    @Body() body: { title?: string; expiresAt?: string; docKind?: string },
     @UploadedFile() file: Uploaded | undefined,
     @CurrentUser() user: AuthUser,
   ) {
     await this.vendors.get(id, user);
     if (file) assertAllowedUpload(file);
+    const kind = (body.docKind ?? 'other').toString() as VendorDocKindName;
+    if (!VENDOR_DOC_KINDS.includes(kind)) {
+      throw new BadRequestException('docKind must be gst_certificate, pan, cancelled_cheque, msme, or other');
+    }
     return this.prisma.vendorComplianceDoc.create({
       data: {
         vendorId: id,
         title: (body.title ?? file?.originalname ?? 'Compliance document').toString(),
+        docKind: kind,
         expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
         filename: file?.originalname,
         mimeType: file?.mimetype,
         data: file ? new Uint8Array(file.buffer) : undefined,
       },
-      select: { id: true, title: true, expiresAt: true, filename: true },
+      select: { id: true, title: true, docKind: true, expiresAt: true, filename: true },
     });
   }
 }

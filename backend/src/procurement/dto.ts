@@ -278,6 +278,10 @@ export class VendorStatusDto {
   @IsString()
   @MinLength(3)
   reason!: string;
+
+  @IsOptional()
+  @IsBoolean()
+  override?: boolean;
 }
 
 export class CreateRequisitionDto {

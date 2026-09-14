@@ -25,8 +25,8 @@ describe('Prompt 36 A1 — unique vendor invoice numbers', () => {
     vendorCode = vendor.body.vendorCode;
     await request(app.getHttpServer())
       .patch(`/api/vendors/${vendorId}/status`)
-      .set(auth(admin))
-      .send({ status: 'active', reason: 'Ready for invoice uniqueness tests' })
+      .set(auth(superTok))
+      .send({ status: 'active', reason: 'Ready for invoice uniqueness tests', override: true })
       .expect(200);
   });
 

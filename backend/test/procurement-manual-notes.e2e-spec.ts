@@ -35,8 +35,8 @@ describe('Procurement manual correction & notes (e2e)', () => {
     vendorId = vendor.body.id;
     await request(app.getHttpServer())
       .patch(`/api/vendors/${vendorId}/status`)
-      .set(auth(admin))
-      .send({ status: 'active', reason: 'Test setup' })
+      .set(auth(superTok))
+      .send({ status: 'active', reason: 'Test setup', override: true })
       .expect(200);
 
     const pr = await request(app.getHttpServer())

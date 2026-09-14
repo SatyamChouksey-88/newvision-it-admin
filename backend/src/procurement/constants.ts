@@ -22,5 +22,15 @@ export const SCORECARD_WEIGHTS = {
 
 export const CONTRACT_RENEWAL_DAYS = [90, 60, 30, 7] as const;
 
+export const VENDOR_DOC_KINDS = [
+  'gst_certificate',
+  'pan',
+  'cancelled_cheque',
+  'msme',
+  'other',
+] as const;
+
+export type VendorDocKindName = (typeof VENDOR_DOC_KINDS)[number];
+
 export type ProcurementCategory = (typeof PROCUREMENT_CATEGORIES)[number];
 export type ProcurementType = (typeof PROCUREMENT_TYPES)[number];

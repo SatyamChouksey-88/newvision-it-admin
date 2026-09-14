@@ -26,7 +26,7 @@ const vendorInclude = {
     take: 20,
     include: { changedBy: { select: { fullName: true } } },
   },
-  complianceDocs: { select: { id: true, title: true, expiresAt: true, filename: true } },
+  complianceDocs: { select: { id: true, title: true, docKind: true, expiresAt: true, filename: true } },
   scorecards: { orderBy: { createdAt: 'desc' as const }, take: 8 },
   internalOwner: { select: { id: true, fullName: true } },
   approvedBy: { select: { id: true, fullName: true } },
@@ -261,7 +261,10 @@ export class VendorsService {
 
   async changeStatus(id: number, dto: VendorStatusDto, actor: AuthUser) {
     this.assertManage(actor);
-    const existing = await this.prisma.vendor.findUnique({ where: { id } });
+    const existing = await this.prisma.vendor.findUnique({
+      where: { id },
+      include: { complianceDocs: { select: { docKind: true } } },
+    });
     if (!existing) throw new NotFoundException(`Vendor ${id} not found`);
     const to = dto.status as VendorStatus;
     if (existing.status === to) throw new BadRequestException(`Vendor is already ${to}`);
@@ -275,6 +278,7 @@ export class VendorsService {
         },
         id,
       );
+      this.assertIndianKycDocs(existing, existing.complianceDocs, actor, dto.override === true);
       if (existing.status === 'draft' || existing.status === 'pending_approval') {
         const created = await this.prisma.procurementActivityLog.findFirst({
           where: { recordType: 'vendor', recordId: id, action: 'create' },
@@ -457,6 +461,22 @@ export class VendorsService {
       select: { id: true },
     });
     return paddedCode('VND', (last?.id ?? 0) + 1);
+  }
+
+  private assertIndianKycDocs(
+    vendor: { country: string; pan?: string | null },
+    docs: { docKind: string }[],
+    actor: AuthUser,
+    override: boolean,
+  ) {
+    if ((vendor.country || 'IN').trim().toUpperCase() !== 'IN') return;
+    const hasPan = Boolean(normalizePan(vendor.pan));
+    const hasCheque = docs.some((d) => d.docKind === 'cancelled_cheque');
+    if (hasPan && hasCheque) return;
+    if (override && actor.role === RoleName.SUPER_ADMIN) return;
+    throw new BadRequestException(
+      'Indian vendors need a PAN and a cancelled-cheque (or bank letter) document before activation. Super Admin can override.',
+    );
   }
 
   private assertAccountHolder(

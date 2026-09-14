@@ -57,10 +57,11 @@ describe('Prompt 23 — Vendor & Procurement (e2e)', () => {
       .set(auth(admin))
       .send({
         legalName: 'Contoso Licensing Pvt Ltd',
-        taxId: 'GSTIN-CONTOSO',
+        gstUnregistered: true,
         categories: ['Licenses/Software'],
         bankAccountNumber: '123456789012',
         bankIfscSwift: 'HDFC0001111',
+        accountHolderName: 'Contoso Licensing Pvt Ltd',
         paymentTerms: 'Net 30',
       })
       .expect(201);
@@ -69,14 +70,18 @@ describe('Prompt 23 — Vendor & Procurement (e2e)', () => {
 
     await request(app.getHttpServer())
       .patch(`/api/vendors/${vendor.body.id}/status`)
-      .set(auth(admin))
-      .send({ status: 'active', reason: 'Onboarded after due diligence' })
+      .set(auth(superTok))
+      .send({ status: 'active', reason: 'Onboarded after due diligence', override: true })
       .expect(200);
 
     await request(app.getHttpServer())
       .put(`/api/vendors/${vendor.body.id}`)
       .set(auth(admin))
-      .send({ legalName: 'Contoso Licensing Pvt Ltd', bankAccountNumber: '999988887777' })
+      .send({
+        legalName: 'Contoso Licensing Pvt Ltd',
+        bankAccountNumber: '999988887777',
+        accountHolderName: 'Contoso Licensing Pvt Ltd',
+      })
       .expect(200)
       .then((r) => expect(r.body.bankChangePending).toBe(true));
 
@@ -201,8 +206,8 @@ describe('Prompt 23 — Vendor & Procurement (e2e)', () => {
       .expect(201);
     await request(app.getHttpServer())
       .patch(`/api/vendors/${hwVendor.body.id}/status`)
-      .set(auth(admin))
-      .send({ status: 'active', reason: 'Preferred hardware supplier' })
+      .set(auth(superTok))
+      .send({ status: 'active', reason: 'Preferred hardware supplier', override: true })
       .expect(200);
 
     const hwPr = await request(app.getHttpServer())
