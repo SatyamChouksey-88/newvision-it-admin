@@ -6,15 +6,11 @@ async function assertNoSeriousViolations(page: import('@playwright/test').Page) 
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa'])
     // Keep the rule enabled; Ant Design portals historically trap focus with aria-hidden.
-    .exclude([
-      '.ant-select-dropdown',
-      '.ant-picker-dropdown',
-      '.ant-dropdown',
-      '.ant-modal-wrap',
-      // Ant Design Table injects an aria-hidden measure row with a focusable "Select all"
-      // checkbox. Upstream, not our chrome — same class of portal/internal node as dropdowns.
-      '.ant-table-measure-row',
-    ])
+    .exclude('.ant-select-dropdown')
+    .exclude('.ant-picker-dropdown')
+    .exclude('.ant-dropdown')
+    .exclude('.ant-modal-wrap')
+    .exclude('.ant-table-measure-row')
     .analyze();
   const serious = results.violations.filter((v) =>
     ['serious', 'critical'].includes(v.impact ?? ''),

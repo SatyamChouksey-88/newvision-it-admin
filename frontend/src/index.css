@@ -1694,6 +1694,14 @@ a:hover {
   pointer-events: none;
 }
 
+/* Ant Design's column-measure row is aria-hidden but still contains a focusable
+   "Select all" checkbox. Hide those controls so they are not in the a11y tree. */
+.ant-table-measure-row input,
+.ant-table-measure-row button,
+.ant-table-measure-row .ant-checkbox {
+  display: none !important;
+}
+
 .nv-grid:not(.nv-grid--wrap) .ant-table-cell:not(.nv-grid-fill) {
   overflow: hidden;
 }
@@ -3228,8 +3236,8 @@ a:hover {
 }
 
 .nv-cat-pills button.is-active {
-  background: #1677ff;
-  border-color: #1677ff;
+  background: #0958d9;
+  border-color: #0958d9;
   color: #fff;
 }
 

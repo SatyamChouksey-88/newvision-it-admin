@@ -553,7 +553,7 @@ function ReportIssueModal({
     >
       <Form form={form} layout="vertical">
         <Form.Item name="assetId" label="Asset" rules={[{ required: true }]}>
-          <AssetSelect />
+          <AssetSelect placeholder="Select asset" aria-label="Select asset" />
         </Form.Item>
         <Form.Item
           name="issue"

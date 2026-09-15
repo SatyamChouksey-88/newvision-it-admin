@@ -23,12 +23,13 @@ test('employees list keeps Active only in the Status column', async ({ page }) =
   await expect(first).toBeVisible({ timeout: 15_000 });
   const nameCell = first.locator('td').first();
   await expect(nameCell.locator('.ant-tag').filter({ hasText: /^Active$/ })).toHaveCount(0);
-  const headers = page.locator('table thead th');
-  const n = await headers.count();
-  let statusIdx = -1;
-  for (let i = 0; i < n; i++) {
-    if ((await headers.nth(i).innerText()).trim() === 'Status') statusIdx = i;
-  }
+  const statusHeader = page.locator('table').first().getByRole('columnheader', { name: /Status/ });
+  await expect(statusHeader).toBeVisible();
+  const statusIdx = await statusHeader.evaluate((el) => {
+    const row = el.parentElement;
+    if (!row) return -1;
+    return [...row.children].indexOf(el);
+  });
   expect(statusIdx, 'Status column header').toBeGreaterThanOrEqual(0);
   await expect(first.locator('td').nth(statusIdx).locator('.ant-tag').first()).toBeVisible();
 });
