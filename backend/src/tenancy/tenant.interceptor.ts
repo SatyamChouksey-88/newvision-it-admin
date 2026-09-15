@@ -8,7 +8,7 @@ import { Observable, from, lastValueFrom } from 'rxjs';
 import type { AuthUser } from '../common/decorators/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { runUnscoped, runWithTenant } from './context';
-import { effectiveModules, trialExpired, type TenantRecord } from './plans';
+import { effectiveModules, onboardingComplete, trialExpired, type TenantRecord } from './plans';
 
 @Injectable()
 export class TenantInterceptor implements NestInterceptor {
@@ -43,6 +43,7 @@ export class TenantInterceptor implements NestInterceptor {
           req.tenant = {
             ...tenant,
             modules: effectiveModules(tenant),
+            onboardingComplete: onboardingComplete(tenant.onboarding),
           } as TenantRecord;
           if (req.user) {
             req.user.tenant = req.tenant;

@@ -33,6 +33,7 @@ export type TenantRecord = {
   modules: TenantModules;
   seatCap: number;
   onboarding: unknown;
+  onboardingComplete: boolean;
   activatedAt: Date | null;
   closedAt: Date | null;
 };

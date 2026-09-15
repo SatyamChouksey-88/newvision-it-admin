@@ -441,6 +441,10 @@ async function main() {
   await prisma.permission.deleteMany();
   await prisma.role.deleteMany();
 
+  // Demo estate is already full — skip the first-hour checklist (null onboarding also
+  // counts as complete for legacy tenants; skipped is explicit so a leftover `{}` JSON
+  // from an older seed cannot keep showing "First hour" after reseed).
+  const demoOnboarding = { skipped: true };
   await prisma.tenant.upsert({
     where: { id: 1 },
     create: {
@@ -450,8 +454,9 @@ async function main() {
       plan: 'team',
       status: 'active',
       modules: { procurement: true, chat: true, maintenance: true },
+      onboarding: demoOnboarding,
     },
-    update: {},
+    update: { onboarding: demoOnboarding },
   });
 
   // ---- roles + permissions ----

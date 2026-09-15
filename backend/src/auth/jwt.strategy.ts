@@ -6,7 +6,12 @@ import { demoLoginsAllowed, isDemoLoginEmail } from '../common/demo-logins';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { runUnscoped } from '../tenancy/context';
-import { effectiveModules, parseModules, type TenantRecord } from '../tenancy/plans';
+import {
+  effectiveModules,
+  onboardingComplete,
+  parseModules,
+  type TenantRecord,
+} from '../tenancy/plans';
 
 export interface JwtPayload {
   sub: number;
@@ -102,6 +107,7 @@ export function toTenantRecord(row: {
     }),
     seatCap: row.seatCap,
     onboarding: row.onboarding,
+    onboardingComplete: onboardingComplete(row.onboarding),
     activatedAt: row.activatedAt,
     closedAt: row.closedAt,
   };
