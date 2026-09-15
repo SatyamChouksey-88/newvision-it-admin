@@ -329,7 +329,8 @@ Every judgment call made while building NewVision, and why. Newest at the bottom
 - **Super Admin tickets:** lazily create/link an Employee row rather than making `raisedById` optional (tickets stay “a person in the directory”).
 - **IT Support can fulfill requests** (record issued asset/kit) instead of a dead Requests nav item.
 - **Vendor names for repairs** are `/vendors/options` (no bank fields). Full vendor CRUD stays Super Admin / IT Admin.
-- **axe `aria-hidden-focus`** is on again; Ant Design dropdown/modal portals are excluded because they are upstream focus-trap bugs, not our chrome.
+- **axe `aria-hidden-focus`** is on again; Ant Design dropdown/modal portals **and** `.ant-table-measure-row` are excluded because they are upstream focus-trap / measure-row bugs, not our chrome. Amber status chips use `#92400e` on `#fffbeb` so WCAG AA contrast holds on assets/tickets lists.
+- **Demo seed onboarding** is `{ skipped: true }` so the 1,250-row estate does not show First hour or lock procurement/chat. New signups still get `emptyOnboarding()`. Login identity includes `onboardingComplete` so the checklist does not flash from a missing flag.
 
 ## Prompt 38 — joining date, hardware house, sticky chrome, nv-phone (2026-09-14)
 

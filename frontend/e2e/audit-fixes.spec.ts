@@ -73,11 +73,30 @@ test.describe('Functionality audit — browser regressions', () => {
     expect(texts.length).toBeGreaterThan(0);
     for (const t of texts) expect(t.trim()).toBe('create');
 
+    const token = await apiToken(page);
+    const headers = { Authorization: `Bearer ${token}` };
+    const locations = await (await page.request.get(`${API}/locations?_start=0&_end=1`, { headers })).json();
+    const stamp = Date.now();
+    const created = await page.request.post(`${API}/employees`, {
+      headers,
+      data: {
+        employeeCode: `AUD-${stamp}`,
+        firstName: 'AuditSearch',
+        lastName: `Row${stamp}`,
+        email: `audit.search.${stamp}@newvision.local`,
+        locationId: locations.data[0].id,
+        dateJoined: new Date().toISOString(),
+      },
+    });
+    expect(created.ok()).toBeTruthy();
+
     await page.goto('/audit-logs');
-    await page.getByLabel('Search audit log').fill('Reinstated');
+    await page.getByLabel('Search audit log').fill(`AUD-${stamp}`);
     await page.getByLabel('Search audit log').press('Enter');
-    await expect(page).toHaveURL(/q.*Reinstated/i);
-    await expect(page.locator('table tbody tr.ant-table-row').first()).toContainText(/Reinstated/i);
+    await expect(page).toHaveURL(new RegExp(`q.*AUD-${stamp}`));
+    await expect(page.locator('table tbody tr.ant-table-row').first()).toContainText(
+      new RegExp(`AUD-${stamp}`),
+    );
   });
 
   test('consumables low-stock toggle asks the API for lowStock rows', async ({ page }) => {

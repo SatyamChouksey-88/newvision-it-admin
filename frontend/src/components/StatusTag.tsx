@@ -32,7 +32,7 @@ const STATUS_META: Record<AssetStatus, StatusMeta> = {
   under_repair: {
     label: 'Under Repair',
     icon: <ToolOutlined />,
-    style: { color: '#B45309', background: '#FFFBEB', borderColor: '#FDE68A' },
+    style: { color: '#92400e', background: '#FFFBEB', borderColor: '#FDE68A' },
   },
   retired: {
     label: 'Retired',

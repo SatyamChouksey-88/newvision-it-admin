@@ -774,14 +774,18 @@ export function EmployeeProfile() {
         <Form layout="vertical">
           <Form.Item label="Last working day" required>
             <Input
+              id="offboard-last-working-day"
               type="date"
+              aria-label="Last working day"
               value={lastWorkingDate}
               onChange={(e) => setLastWorkingDate(e.target.value)}
             />
           </Form.Item>
           <Form.Item label="Recover kit by">
             <Input
+              id="offboard-recover-by"
               type="date"
+              aria-label="Recover kit by"
               value={recoverBy}
               onChange={(e) => setRecoverBy(e.target.value)}
               placeholder="Defaults to last working day"

@@ -26,12 +26,12 @@ const STATUS_META: Record<TicketStatus, { label: string; icon: ReactNode; style:
   in_progress: {
     label: 'In progress',
     icon: <SyncOutlined />,
-    style: { color: '#b45309', background: '#fffbeb', borderColor: '#fde68a' },
+    style: { color: '#92400e', background: '#fffbeb', borderColor: '#fde68a' },
   },
   waiting_on_employee: {
     label: 'Waiting on employee',
     icon: <ClockCircleOutlined />,
-    style: { color: '#b45309', background: '#fffbeb', borderColor: '#fde68a' },
+    style: { color: '#92400e', background: '#fffbeb', borderColor: '#fde68a' },
   },
   resolved: {
     label: 'Resolved',
@@ -64,7 +64,7 @@ const PRIORITY_META: Record<TicketPriority, { label: string; icon: ReactNode; st
   high: {
     label: 'High',
     icon: <ExclamationCircleOutlined />,
-    style: { color: '#b45309', background: '#fffbeb', borderColor: '#fde68a' },
+    style: { color: '#92400e', background: '#fffbeb', borderColor: '#fde68a' },
   },
   urgent: {
     label: 'Urgent',

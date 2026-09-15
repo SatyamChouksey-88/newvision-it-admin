@@ -124,7 +124,12 @@ export function MaintenancePage() {
     <Card
       title={<Typography.Text strong>Maintenance &amp; Repairs</Typography.Text>}
       extra={
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setReportOpen(true)}>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          data-testid="report-issue"
+          onClick={() => setReportOpen(true)}
+        >
           Report Issue
         </Button>
       }

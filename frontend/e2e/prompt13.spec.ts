@@ -17,6 +17,63 @@ async function mockFreshInstall(page: Page) {
   });
 }
 
+async function mockIncompleteOnboarding(page: Page) {
+  const incomplete = {
+    importEmployees: false,
+    importAssets: false,
+    assignedAsset: false,
+    scannedQr: false,
+    resolvedTicket: false,
+    skipped: false,
+  };
+  await page.route('**/api/auth/login', async (route) => {
+    const response = await route.fetch();
+    const json = (await response.json()) as {
+      user?: { tenant?: Record<string, unknown> };
+    };
+    if (json?.user?.tenant) {
+      json.user.tenant = {
+        ...json.user.tenant,
+        onboarding: incomplete,
+        onboardingComplete: false,
+      };
+    }
+    const headers = { ...response.headers() };
+    delete headers['content-encoding'];
+    delete headers['content-length'];
+    await route.fulfill({
+      status: response.status(),
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify(json),
+    });
+  });
+  await page.route('**/api/tenant', async (route) => {
+    if (route.request().method() !== 'GET') {
+      await route.continue();
+      return;
+    }
+    const path = new URL(route.request().url()).pathname.replace(/\/$/, '');
+    if (path !== '/api/tenant') {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      json: {
+        id: 1,
+        slug: 'newvision',
+        name: 'NewVision Softcom',
+        plan: 'team',
+        status: 'active',
+        modules: { procurement: true, chat: true, maintenance: true },
+        onboarding: incomplete,
+        onboardingComplete: false,
+      },
+    });
+  });
+}
+
 async function mockEmptyAssetList(page: Page) {
   await page.route(/\/api\/assets(\?|$)/, async (route) => {
     if (route.request().method() !== 'GET') {
@@ -36,17 +93,21 @@ async function mockEmptyAssetList(page: Page) {
 }
 
 test.describe('Prompt 13 — first-run onboarding', () => {
-  test('empty estate shows Welcome to NewVision, not KPI drill-down', async ({ page }) => {
+  test('empty estate shows First hour, not KPI drill-down', async ({ page }) => {
     await mockFreshInstall(page);
+    await mockIncompleteOnboarding(page);
     await login(page);
     await expect(page.getByTestId('first-run-welcome')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Welcome to NewVision' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Add a location' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'First hour' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Load sample company' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Skip for now' })).toBeVisible();
+    await expect(page.getByText('Import employees').first()).toBeVisible();
     await expect(page.getByRole('link', { name: /^Assigned:/ })).toHaveCount(0);
   });
 
   test('assets list shows the same first-run card when the estate is empty', async ({ page }) => {
     await mockFreshInstall(page);
+    await mockIncompleteOnboarding(page);
     await mockEmptyAssetList(page);
     await login(page);
     await page.goto('/assets');
@@ -131,7 +192,9 @@ test.describe('Prompt 13 — public scan on a phone', () => {
 
   test('scan card stays inside the viewport', async ({ page, request }) => {
     await login(page);
-    const token = await page.evaluate(() => localStorage.getItem('newvision:token'));
+    const token = await page.evaluate(
+      () => sessionStorage.getItem('newvision:token') || localStorage.getItem('newvision:token'),
+    );
     const list = await request.get('http://localhost:3000/api/assets?_start=0&_end=1', {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -139,7 +202,7 @@ test.describe('Prompt 13 — public scan on a phone', () => {
     const asset = (await list.json()).data[0];
     await page.goto(`/scan/${asset.assetCode}`);
     await expect(page.locator('.nv-scan-page')).toBeVisible();
-    await expect(page.getByText('Physical audit')).toBeVisible();
+    await expect(page.getByTestId('scan-audit')).toBeVisible();
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );

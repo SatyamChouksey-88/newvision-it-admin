@@ -535,7 +535,13 @@ export function TicketShow() {
                 <Checkbox>Internal note (not visible to the requester)</Checkbox>
               </Form.Item>
             ) : null}
-            <Button type="primary" htmlType="submit" loading={commentBusy} disabled={commentBusy}>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={commentBusy}
+              disabled={commentBusy}
+              data-testid="ticket-comment-send"
+            >
               Send
             </Button>
           </Form>

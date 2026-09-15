@@ -9,7 +9,7 @@ import {
 import { Button, Card, Checkbox, Col, Row, Space, Typography, Upload } from 'antd';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { useTenant } from '../hooks/useTenant';
+import { useTenant, type TenantSnapshot } from '../hooks/useTenant';
 import { apiErrorMessage, httpClient } from '../providers/axios';
 import { useToast } from './Toast';
 import { COLOR_TEXT_SECONDARY } from '../theme';
@@ -106,12 +106,27 @@ function ImportDrop({ kind, onDone }: { kind: 'employees' | 'assets'; onDone: ()
   );
 }
 
+/** Same rules as backend `onboardingComplete`: null = legacy/demo (done); skip or all five steps. */
+function checklistComplete(tenant: TenantSnapshot | null): boolean {
+  if (!tenant) return false;
+  if (typeof tenant.onboardingComplete === 'boolean') return tenant.onboardingComplete;
+  if (tenant.onboarding == null) return true;
+  if (tenant.onboarding.skipped) return true;
+  return Boolean(
+    tenant.onboarding.importEmployees &&
+      tenant.onboarding.importAssets &&
+      tenant.onboarding.assignedAsset &&
+      tenant.onboarding.scannedQr &&
+      tenant.onboarding.resolvedTicket,
+  );
+}
+
 /** Persistent first-hour checklist. Shown until the five actions are done or skipped. */
 export function FirstRunWelcome() {
   const { data: identity } = useGetIdentity<Identity>();
   const { tenant, reload } = useTenant();
   const toast = useToast();
-  const done = tenant?.onboardingComplete;
+  const done = checklistComplete(tenant);
   const steps = tenant?.onboarding ?? {};
 
   const remaining = useMemo(

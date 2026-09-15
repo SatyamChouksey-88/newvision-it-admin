@@ -11,7 +11,7 @@ test('reports a repair issue and starts the repair', async ({ page }) => {
   await page.goto('/maintenance');
   await expect(page.getByText('Maintenance & Repairs')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Report Issue' }).click();
+  await page.getByTestId('report-issue').click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
 

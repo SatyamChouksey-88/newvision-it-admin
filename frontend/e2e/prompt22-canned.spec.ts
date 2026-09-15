@@ -58,6 +58,6 @@ test('canned wait-macro sets waiting on employee when the reply is sent', async 
     })
     .first()
     .click();
-  await page.getByRole('button', { name: 'Send' }).click();
+  await page.getByTestId('ticket-comment-send').click();
   await expect(page.getByText('Waiting on employee').first()).toBeVisible({ timeout: 10_000 });
 });

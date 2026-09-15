@@ -65,11 +65,11 @@ test.describe('Support tickets', () => {
     await expect(page.getByTestId('ticket-number')).toBeVisible();
     await expect(page.getByRole('combobox', { name: 'Assignee' })).toBeVisible();
     await page.getByRole('textbox', { name: 'Comment' }).fill('We are looking into the search index.');
-    await page.getByRole('button', { name: 'Send' }).click();
+    await page.getByTestId('ticket-comment-send').click();
     await expect(page.getByTestId('public-comment').first()).toBeVisible({ timeout: 10_000 });
     await page.getByRole('textbox', { name: 'Comment' }).fill('Internal: rebuild the index tonight.');
     await page.getByRole('checkbox', { name: /Internal note/ }).check();
-    await page.getByRole('button', { name: 'Send' }).click();
+    await page.getByTestId('ticket-comment-send').click();
     await expect(page.getByTestId('internal-note').first()).toBeVisible({ timeout: 10_000 });
     await page.getByLabel('Minutes spent').fill('15');
     await page.getByRole('button', { name: 'Log time' }).click();
