@@ -66,6 +66,43 @@ const prisma = new PrismaClient({ adapter }).$extends({
 
 const DEMO_PASSWORD = 'Password123!';
 
+const DEMO_USER_EMAILS = [
+  'superadmin@newvision.local',
+  'itadmin@newvision.local',
+  'support@newvision.local',
+  'manager@newvision.local',
+  'employee@newvision.local',
+];
+
+function demoLoginsAllowedForSeed(): boolean {
+  if (process.env.ALLOW_DEMO_LOGINS === 'true') return true;
+  if (process.env.ALLOW_DEMO_LOGINS === 'false') return false;
+  return process.env.NODE_ENV !== 'production';
+}
+
+/** Keeps seeded @newvision.local passwords on Password123! when full reseed is skipped. */
+async function syncDemoPasswords() {
+  if (!demoLoginsAllowedForSeed()) {
+    console.log('Skipping demo password sync (demo logins disabled).');
+    return;
+  }
+  const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
+  let updated = 0;
+  for (const email of DEMO_USER_EMAILS) {
+    const result = await prisma.user.updateMany({
+      where: { email },
+      data: {
+        passwordHash,
+        isActive: true,
+        resetPasswordTokenHash: null,
+        resetPasswordExpiresAt: null,
+      },
+    });
+    updated += result.count;
+  }
+  console.log(`Synced demo passwords for ${updated} account(s) → ${DEMO_PASSWORD}`);
+}
+
 // ---- deterministic-ish helpers ----
 const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 const randInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
@@ -362,6 +399,7 @@ async function main() {
   if (process.env.SEED_IF_EMPTY === 'true') {
     const existing = await prisma.user.count();
     if (existing > 0) {
+      await syncDemoPasswords();
       console.log(`Skipping seed (SEED_IF_EMPTY=true, ${existing} users already exist).`);
       return;
     }

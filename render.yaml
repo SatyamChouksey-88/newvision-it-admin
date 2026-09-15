@@ -145,3 +145,5 @@ services:
           name: newvision-api
           type: web
           envVarKey: RENDER_EXTERNAL_URL
+      - key: VITE_SHOW_DEMO
+        value: 'true'

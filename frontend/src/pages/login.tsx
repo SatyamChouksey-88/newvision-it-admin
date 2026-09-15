@@ -12,9 +12,9 @@ const DEMO_ACCOUNTS = [
   ['Employee', 'employee@newvision.local'],
 ];
 
-// Temporarily show demo accounts on live while bootstrap login is paused.
-const SHOW_DEMO = true;
-// const SHOW_DEMO = import.meta.env.DEV;
+/** Demo hints stay on unless the build sets VITE_SHOW_DEMO=false. */
+const SHOW_DEMO = import.meta.env.VITE_SHOW_DEMO !== 'false';
+const DEMO_PASSWORD = 'Password123!';
 
 type MfaState =
   | { mode: 'verify'; token: string }
@@ -38,6 +38,7 @@ export function LoginPage() {
   const [forgotOpen, setForgotOpen] = useState(false);
   const [forgotSending, setForgotSending] = useState(false);
   const [forgotForm] = Form.useForm();
+  const [loginForm] = Form.useForm();
   const [mfa, setMfa] = useState<MfaState | null>(null);
   const [mfaCode, setMfaCode] = useState('');
 
@@ -158,11 +159,12 @@ export function LoginPage() {
           </div>
         ) : (
           <Form
+            form={loginForm}
             layout="vertical"
             requiredMark={false}
             initialValues={
               SHOW_DEMO
-                ? { email: 'itadmin@newvision.local', password: 'Password123!', remember: true }
+                ? { email: 'itadmin@newvision.local', password: DEMO_PASSWORD, remember: true }
                 : { remember: true }
             }
             onFinish={(values) => void signIn(values)}
@@ -228,12 +230,21 @@ export function LoginPage() {
               Local demo accounts
             </Typography.Text>
             <Typography.Text style={{ display: 'block', fontSize: 12, color: COLOR_TEXT_MUTED, marginTop: 4 }}>
-              Password: Password123! — never shown in a production build.
+              Password for all: {DEMO_PASSWORD} — click a role to fill the form.
             </Typography.Text>
             <ul>
               {DEMO_ACCOUNTS.map(([role, email]) => (
                 <li key={email}>
-                  <strong>{role}:</strong> {email}
+                  <strong>{role}:</strong>{' '}
+                  <Button
+                    type="link"
+                    style={{ padding: 0, height: 'auto', fontSize: 12 }}
+                    onClick={() =>
+                      loginForm.setFieldsValue({ email, password: DEMO_PASSWORD, remember: true })
+                    }
+                  >
+                    {email}
+                  </Button>
                 </li>
               ))}
             </ul>
