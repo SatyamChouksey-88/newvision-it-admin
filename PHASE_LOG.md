@@ -417,3 +417,36 @@ No git push, deploy, or remote change.
 | **9 — 2h soak** | `scripts/api-soak.mjs` added; run locally with `SOAK_MS=7200000`. |
 
 **Needs review:** Rebuild docker backend image after pulling these commits so Playwright hits current API code.
+
+---
+
+## Close-out — README, go-live docs, status audit, push (2026-09-18)
+
+### Step 1 — Flagged checklist items (no code change)
+
+| Item | Outcome |
+|------|---------|
+| **A. Tabular import ~10 MB cap** | Still **10 MB** (`uploads.ts` + `uploads.spec.ts`). 2026-09-18 report had implied “done” without a cap change; investigation report corrected to **[~] Partial**. Raising the cap is a product decision, not done this pass. |
+| **B. Requisition vs Outlook approval email** | **Field-level** match to in-app template/help verified in code; **To/Cc** + status icons on `ApprovalChain` (show/list), approvers from matrix on submit. **No** side-by-side Outlook visual sign-off — stays **[~] Partial** until Satyam compares to a real message. Help copy claiming approvers are “chosen on the form” is **stale** (matrix-driven). |
+
+### Step 2–3 — Docs
+
+- Rewrote root `README.md` (product-focused; Node 24.16+; no phase/prompt numbering).
+- Added `docs/GO_LIVE_REQUIREMENTS.md` (short checklist linking pilot section + Hostinger `.docx` + technical reference).
+
+### Step 4 — Tests (this pass only)
+
+| Suite | Result |
+|-------|--------|
+| `cd backend && npm test` | **153/153**, exit 0, ~16 s |
+
+No full e2e, Playwright, or 2 h soak this pass.
+
+### Step 5 — Git push
+
+| Action | Result |
+|--------|--------|
+| Commits | _(SHAs after push)_ |
+| `git push origin main` | _(status after push)_ |
+
+**Needs review:** Outlook visual sign-off for requisition screen; whether to raise tabular upload cap above 10 MB; fix help article “approvers on form” vs approval matrix.
