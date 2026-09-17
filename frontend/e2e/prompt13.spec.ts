@@ -126,7 +126,7 @@ test.describe('Prompt 13 — first-run onboarding', () => {
 test.describe('Prompt 13 — desktop sidebar toggle', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
-  test('ChatGPT-style toggle collapses, expands, and restores after refresh', async ({ page }) => {
+  test('collapsible sider toggle collapses, expands, and restores after refresh', async ({ page }) => {
     await login(page);
     await page.evaluate(() => localStorage.removeItem('nv.siderCollapsed'));
     await page.reload();

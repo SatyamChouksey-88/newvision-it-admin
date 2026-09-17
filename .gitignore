@@ -17,3 +17,5 @@ design-reference/_extract/
 backend/tsconfig.build.tsbuildinfo
 backend/e2e-results.json
 backend/prisma/schema.head.prisma
+__pycache__/
+*.pyc

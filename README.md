@@ -1,21 +1,15 @@
-# NewVision — IT Asset Management (multi-tenant SaaS)
+# NewVision — IT Asset Management
 
-IT asset inventory for Indian companies: who has what, warranty, tickets. Each company is an isolated **tenant** (shared Postgres, `tenantId` on every operational row — see `DECISIONS.md` Prompt 37). Self-serve signup starts a **14-day Team trial**; after expiry the workspace stays on **Starter** (no vendors/chat). Assets are not metered.
+Multi-tenant SaaS for IT asset inventory, helpdesk, maintenance, procurement, and internal chat. Each company is an isolated **tenant** (shared PostgreSQL with `tenantId` on operational rows).
 
-Legal entity, GST invoicing (Zoho Books), DPA/MSA PDFs, and certifications are **outside this repo**. In-app hooks: `/signup`, `/trust`, Settings → Workspace (export / delete / billing snapshot). Hosting region: **Singapore — demo only; India on request** (`GET /api/health` → `residency`). Backup drill: [`docs/BACKUP.md`](./docs/BACKUP.md).
-
-- **Frontend:** React + TypeScript, [Refine](https://refine.dev) + Ant Design (Vite)
-- **Backend:** NestJS + TypeScript, PostgreSQL via Prisma
-- **Auth:** JWT + 5-role RBAC at the API layer; Super Admin MFA (TOTP) in production
-- **Testing:** Jest (unit + e2e including tenant isolation) and Playwright
-- **Local dev:** Docker Compose (Postgres + backend + frontend)
-- **CI:** GitHub Actions — lint, type-check, unit, integration, and Playwright on every push
-
-See [`DECISIONS.md`](./DECISIONS.md) for every judgment call, [`PROGRESS.md`](./PROGRESS.md) for phase-by-phase status, and [`FUTURE_IDEAS.md`](./FUTURE_IDEAS.md) for deliberately out-of-scope ideas.
+- **Frontend:** React 19, TypeScript, Refine, Ant Design, Vite
+- **Backend:** NestJS, Prisma, PostgreSQL
+- **Auth:** JWT + refresh cookie, five system roles, optional custom roles and Microsoft Entra ID
+- **Ops:** Docker Compose locally; [Render Blueprint](render.yaml) for production
 
 ---
 
-## Quick start (Docker — recommended)
+## Quick start (Docker)
 
 Requires Docker Desktop.
 
@@ -23,152 +17,95 @@ Requires Docker Desktop.
 docker compose up --build
 ```
 
-This starts three services and, on first boot, the backend automatically applies migrations and seeds realistic demo data:
+| Service  | URL                         |
+|----------|-----------------------------|
+| Frontend | http://localhost:5173       |
+| API      | http://localhost:3000/api   |
+| Swagger  | http://localhost:3000/api/docs |
 
-| Service   | URL                              | Notes                                  |
-|-----------|----------------------------------|----------------------------------------|
-| Frontend  | http://localhost:5173            | Refine + AntD UI                       |
-| Backend   | http://localhost:3000/api        | REST API (`/api/docs` = Swagger)       |
-| Postgres  | localhost:5432                   | user/pass/db all `newvision`           |
-
-> **Seeding:** the backend seeds on start when `SEED_ON_START=true` (the default in `docker-compose.yml`). The seed script **resets** demo data on each run. After your first boot, set `SEED_ON_START: "false"` in `docker-compose.yml` if you want to keep changes across restarts. To reseed manually: `docker compose exec backend npm run seed`.
+On first boot the backend runs migrations and seeds demo data when `SEED_ON_START=true` (default in `docker-compose.yml`). Set `SEED_ON_START: "false"` after the first run if you want to keep local changes across restarts.
 
 ### Demo accounts
 
-All accounts use password **`Password123!`**:
+Password for all: **`Password123!`**
 
-| Role        | Email                          |
-|-------------|--------------------------------|
-| Super Admin | `superadmin@newvision.local`   |
-| IT Admin    | `itadmin@newvision.local`      |
-| IT Support  | `support@newvision.local`      |
-| Manager     | `manager@newvision.local`      |
-| Employee    | `employee@newvision.local`     |
-
-### Fresh install (no seed)
-
-On a truly empty database, `npx prisma migrate deploy` creates the schema but no logins. Local/dev: `npm run seed` creates the five demo accounts above. Production: set `SEED_MODE=bootstrap` plus `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` so seed creates **only** that Super Admin (no demo estate). `SEED_IF_EMPTY=true` skips seed once any user exists. The dashboard banner (`seedWipeRisk`) only appears when `SEED_ON_START=true` without `SEED_IF_EMPTY`.
-
-### Email-in (one shared mailbox)
-
-Outbound ticket mail now includes `Message-ID` / `In-Reply-To` / `References`, a `Reply-To` of `HELPDESK_MAILBOX`, and `[TCK-000123]` in the subject. Employees can reply to add a comment.
-
-Inbound options (pick one):
-
-1. **IMAP poll** every minute — set `IMAP_HOST`, `IMAP_USER`, `IMAP_PASS` (and optional `IMAP_PORT` / `IMAP_MAILBOX`). Unconfigured hosts are skipped; the app still starts.
-2. **Ingest webhook** — `POST /api/email-in/webhook` with `X-Email-Ingest-Secret` and `{ "raw": "<rfc822>" }`, or `POST /api/email-in/ingest` as Super Admin / IT Admin.
-
-Auto-replies, mail from the system's own address, and duplicate `Message-ID`s are discarded. Unrecognized senders still create a ticket, flagged with `unmatchedSender` (no auto-created employee).
+| Role        | Email                        |
+|-------------|------------------------------|
+| Super Admin | `superadmin@newvision.local` |
+| IT Admin    | `itadmin@newvision.local`    |
+| IT Support  | `support@newvision.local`    |
+| Manager     | `manager@newvision.local`    |
+| Employee    | `employee@newvision.local`   |
 
 ---
 
 ## Local development (without Docker)
 
-You need **Node 22+** and a running **PostgreSQL 16**. Create two databases: `newvision` and `newvision_test`.
+Node **22+** (CI) or **24+** (package engines) and PostgreSQL **16**. Create databases `newvision` and `newvision_test`.
 
-### Backend
+**Backend**
 
 ```bash
 cd backend
-cp .env.example .env         # adjust DATABASE_URL if needed
+cp .env.example .env
 npm install
 npx prisma generate
-npx prisma migrate deploy    # apply schema
-npm run seed                 # load demo data
-npm run start:dev            # http://localhost:3000/api  (Swagger at /api/docs)
+npx prisma migrate deploy
+npm run seed
+npm run start:dev
 ```
 
-### Frontend
+**Frontend**
 
 ```bash
 cd frontend
 npm install
-npm run dev                  # http://localhost:5173
+npm run dev
 ```
 
-The frontend reads the API base URL from `VITE_API_URL` (defaults to `http://localhost:3000/api`). If the value is the API origin without `/api`, the client appends `/api` automatically.
+Set `VITE_API_URL` if the API is not at `http://localhost:3000/api`.
 
 ---
 
-## Deploy on Render
+## Deploy
 
-`render.yaml` at the repo root is a [Render Blueprint](https://render.com/docs/blueprint-spec): Postgres 16, the NestJS API (Docker), and the Vite static UI.
-
-1. Push this repo to GitHub / GitLab / Bitbucket.
-2. Open [dashboard.render.com](https://dashboard.render.com/) → **New → Blueprint** → select the repo.
-3. Confirm names (`newvision-db`, `newvision-api`, `newvision-web`) and region **Singapore**.
-4. Set production secrets in the Blueprint / dashboard (do **not** reuse local `.env` values):
-   - `JWT_SECRET` (auto-generated by the Blueprint)
-   - `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` / `BOOTSTRAP_ADMIN_NAME` — first Super Admin on an **empty** database (`SEED_MODE=bootstrap`). Password must be ≥12 characters.
-   - `RESEND_API_KEY` and `MAIL_FROM` (a verified Resend sender) so ticket mail leaves over HTTPS. SMTP (`SMTP_HOST`) still works where ports 587/465 are open.
-   - Optional: `IMAP_HOST` / `IMAP_USER` / `IMAP_PASS` / `HELPDESK_MAILBOX` / `EMAIL_INGEST_SECRET` for email-in.
-5. Apply. On a **new** empty database the seed creates roles + that Super Admin only (no 1,250-asset demo). On a database that already has users, `SEED_IF_EMPTY=true` skips seed and never wipes data. `SEED_ON_START=true` is safe only because `SEED_IF_EMPTY` is also true.
-6. Open `https://newvision-web.onrender.com` and sign in as the bootstrap admin (or, on the existing demo database, `superadmin@newvision.local` / `Password123!`). Change that password immediately.
-7. Swagger: `https://newvision-api.onrender.com/api/docs`. Health: `/api/health`. Public QR card: `https://newvision-web.onrender.com/scan/:code`.
-
-If the UI calls the wrong host after the first apply, trigger a **Manual Deploy** of `newvision-web` so Vite rebuilds with the live `VITE_API_URL`.
-
-Hobby / Free limits ([Render free docs](https://render.com/docs/free)): API sleeps after 15 minutes idle (~1 min wake-up) — scheduled jobs (warranty, digest, IMAP, contract renewals) only run while the process is awake. `.github/workflows/keep-alive.yml` pings `/api/health` every 10 minutes so the Free instance stays up; move the API to a paid instance if you turn that workflow off. Free Postgres is 1 GB and **expires after 30 days**. SMTP on ports 587/465 will not work from a Free web service — set `RESEND_API_KEY` instead.
-
-**First Super Admin on a brand-new empty database:** set `SEED_MODE=bootstrap` (already in `render.yaml`) plus `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` (≥12 characters) / optional `BOOTSTRAP_ADMIN_NAME`. The entrypoint runs `prisma migrate deploy` then seed. If users already exist, `SEED_IF_EMPTY=true` skips seed and never wipes. Do not set `SEED_ON_START=true` without `SEED_IF_EMPTY=true` on a database that has real data.
-
-**Existing live database** (this project’s Render Postgres): demo accounts are still present. Create a real Super Admin from Settings → Users (or `POST /api/users` as Super Admin) and change the demo passwords. Bootstrap seed will not run again unless the database is empty.
+Use the root [`render.yaml`](render.yaml) Blueprint (Postgres + API + static frontend). Full steps, secrets, and bootstrap admin: **[`docs/TECHNICAL_REFERENCE.md`](docs/TECHNICAL_REFERENCE.md#setup-and-deployment)**.
 
 ---
 
 ## Testing
 
-Run the full suite yourself before considering any phase done — all green is the bar.
-
-### Backend — unit + integration (API) tests
-
-Unit tests cover pure business logic (status-transition rules, RBAC permission checks, warranty date math, asset-code generation). Integration tests hit every API endpoint with at least one happy-path and one failure-path each, against a dedicated `newvision_test` database.
+**Backend** (from `backend/`):
 
 ```bash
-cd backend
-npm run lint          # Biome
-npm run typecheck     # tsc --noEmit
-npm test              # unit tests
-npm run test:e2e      # integration/API tests (needs Postgres reachable)
+npm run lint
+npm run typecheck
+npm test
+npm run test:e2e
 ```
 
-Current status: **101 unit + 136 integration = 237 passing** (Prompt 27 pass, 2026-09-13).
+E2e tests need Postgres and `DATABASE_URL_TEST` (see `backend/.env.example`).
 
-### Frontend — lint, type-check, build
+**Frontend** (from `frontend/`):
 
 ```bash
-cd frontend
 npm run lint
 npm run typecheck
 npm run build
+npm run test:e2e
 ```
 
-### End-to-end (Playwright)
-
-The Playwright suite drives the real UI and covers: **login, create an asset, assign an asset, transfer an asset, global search, CSV import, role-based access control, reporting a repair, downloading reports, saving a filter view, dry-running a mapped import job, HR reconciliation, and the public QR scan page**. It needs the backend running with seeded data on `:3000`; Playwright starts the frontend dev server automatically.
-
-```bash
-# 1) In one terminal, run the seeded backend (or `docker compose up backend postgres`)
-cd backend && npm run start:dev
-
-# 2) In another terminal, run the e2e suite
-cd frontend
-npx playwright install chromium   # first time only
-npm run test:e2e                  # Playwright (103 test() cases in frontend/e2e/ as of Prompt 32)
-npm run test:e2e:report           # open the last HTML report
-```
-
-Current status: **103 Playwright `test()` cases** in `frontend/e2e/` (axe-core now covers login, scan, procurement, settings, and Employee/Manager/IT Support homes as well as the IT Admin shell). Older README figures (22 / 55 / 68) were snapshot counts from earlier prompts — do not mix them. A green local run is recorded in CI, not by this paragraph.
+Playwright expects the API on port 3000 with seeded data; it starts the Vite dev server automatically. CI runs the same checks in [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 ---
 
-## Continuous integration
+## Documentation
 
-[`.github/workflows/ci.yml`](./.github/workflows/ci.yml) runs on every push and pull request:
+| Doc | Purpose |
+|-----|---------|
+| [`docs/TECHNICAL_REFERENCE.md`](docs/TECHNICAL_REFERENCE.md) | Consolidated engineering docs (architecture, API, RBAC, workflows, setup, ops) — use the [table of contents](docs/TECHNICAL_REFERENCE.md#table-of-contents) for section anchors |
 
-1. **Backend** — `npm ci`, Prisma generate, Biome lint, `tsc` type-check, unit tests, integration/API tests (against a Postgres service container).
-2. **Frontend** — lint, type-check, production build.
-3. **Playwright e2e** — builds & seeds the backend, boots it, installs Chromium, and runs the browser tests (report uploaded as an artifact).
+PDF handoffs: [`docs/handoff/`](docs/handoff/) (developer + functional spec). User guide: [`docs/user-guide/`](docs/user-guide/).
 
 ---
 
@@ -176,148 +113,11 @@ Current status: **103 Playwright `test()` cases** in `frontend/e2e/` (axe-core n
 
 ```
 IT_ADMIN/
-├── backend/                 # NestJS API + Prisma
-│   ├── prisma/              # schema, migrations, seed
-│   ├── src/                 # modules: auth, assets, employees, locations, ...
-│   ├── test/                # Jest integration (e2e API) tests
-│   └── Dockerfile
-├── frontend/                # Refine + AntD (Vite)
-│   ├── src/                 # pages, components, providers, theme
-│   ├── e2e/                 # Playwright tests + fixtures
-│   └── Dockerfile
-├── docker-compose.yml       # postgres + backend + frontend
-├── .github/workflows/ci.yml
-├── DECISIONS.md · PROGRESS.md · FUTURE_IDEAS.md
+├── backend/           NestJS API, Prisma, Jest
+├── frontend/          Vite SPA, Playwright e2e
+├── docs/              Product and engineering docs
+├── design-reference/  Design tokens + standalone HTML reference
+├── docker-compose.yml
+├── render.yaml
+└── .github/workflows/
 ```
-
----
-
-## Phase 1 — Core foundation (complete)
-
-Everything below is implemented, tested, and explorable with the seeded demo data:
-
-- **Auth + 5-role RBAC** (Super Admin, IT Admin, IT Support, Manager, Employee) enforced at the API layer, not just hidden in the UI.
-- **CRUD** for Locations, Departments, Employees, Asset Categories, and Assets.
-- **Assign / Transfer / Retire** actions with **enforced lifecycle transitions** and an **append-only audit log** on every create/update/assign/transfer/status-change.
-- **Global search** across asset code, serial number, employee name/ID, model, and location (top-bar search box).
-- **Dashboard** with metric cards (total / assigned / available / under-repair / retired / warranty-expiring) and an all-locations / per-location filter.
-- **CSV/Excel import & export** for assets and employees.
-- **Audit log viewer**, restricted to Super Admin and IT Admin.
-- **Seed script** with realistic data spread across Pune, Hyderabad, and Bhopal.
-
-### Things to try after `docker compose up`
-
-1. Log in as **IT Admin** → the dashboard shows live metric cards; switch the location filter.
-2. Open **Assets** → filter by status, toggle Compact/Comfortable density, **Assign** an available asset, then **Transfer** it. Watch the status change and open the asset to see its audit history.
-3. Use the top-bar **search** to jump straight to an asset or employee.
-4. **Import** `frontend/e2e/fixtures/assets-import.csv` from the Assets page, and **Export** the current list.
-5. Log in as **Employee** and confirm asset-management actions are unavailable (and blocked by the API).
-
-## Phase 2 — Operational depth (complete)
-
-Built on top of Phase 1, tested, and explorable with the seeded demo data:
-
-- **Maintenance / repair module** — a repair ticket runs `reported → under_repair → repaired → reassigned` (or `cancelled`), tracking vendor, estimated & actual cost, and expected/completed dates. Ticket transitions drive the **asset's** status (into `under_repair`, then back to `assigned`/`available`) in a single audited transaction. Employees can report an issue on their own asset; IT roles manage the queue at **Maintenance**.
-- **Warranty expiry alerts** — a daily scheduled job raises de-duplicated notifications the day an asset hits 90/60/30 days of remaining warranty, and emails IT (SMTP when configured, otherwise logged to the backend console). Trigger it on demand with `POST /api/warranty/run-check`.
-- **Reports** — Asset, Employee, Location, and Warranty reports, each downloadable as **CSV** or **PDF**, from the **Reports** page (`report:run` roles).
-- **Employee profile** — every asset assigned to a person, in a single N+1-free query, with status and warranty.
-
-### Things to try (Phase 2)
-
-1. Open **Maintenance** → **Report Issue**, pick an asset, describe the problem, then **Start Repair** → **Mark Repaired** → **Reassign** and watch the asset's status follow along (check its audit trail on the asset page).
-2. Open **Reports** → download the **Warranty Report** as PDF and the **Asset Report** as CSV.
-3. As IT Admin, `POST /api/warranty/run-check` (see Swagger at `/api/docs`) and then check **notifications** / the backend console for the warranty emails.
-
-## Phase 3 — Scale & governance (complete)
-
-- **Background import jobs** — Settings → **Import jobs**. Upload a CSV/XLSX, map columns (aliases like `Serial No` → `serialNumber` are suggested), dry-run to flag duplicates, then commit. The job runs in-process on the API; poll the job list for `completed` / `failed`. **Rollback** deletes only the rows that job created.
-- **Saved filter views + bulk actions** — on **Assets**, pick **Saved view** or **Save view** for the current filters. Select rows and use **Bulk status**, **Bulk transfer**, or **Bulk retire** (partial success: one bad row does not abort the rest).
-- **Reconciliation** — Settings → **Reconciliation**. Upload an HR (or inventory) CSV and choose a match key (`employeeCode` / `email`, or `assetCode` / `serialNumber`). Rows only in the file vs only in NewVision are listed. Manual upload only.
-
-### Things to try (Phase 3)
-
-1. **Assets** → filter Status = Available → **Save view** → reload and apply it from **Saved view**.
-2. Select a few available assets → **Bulk retire**, or assigned ones → **Bulk transfer** to Hyderabad.
-3. **Settings → Import jobs** → upload a CSV with `Serial No` / `Location Code` headers → **Dry-run preview** → **Commit import**. Confirm the new assets, then **Rollback**.
-4. **Settings → Reconciliation** → upload a CSV with one real `EMP-#####` plus a fake code; the fake code appears under **Only in uploaded file**.
-
-## Phase 4 — QR codes & webhooks (complete)
-
-The REST API is the existing NestJS surface (Swagger at `/api/docs`). Phase 4 adds physical-audit QR codes and outbound webhooks.
-
-- **QR + scan page** — every asset has `GET /api/assets/:id/qr` (auth) and `GET /api/public/assets/:code/qr` (public) PNG stickers. The QR encodes `{PUBLIC_APP_URL}/scan/{assetCode}`. `/scan/:code` is a mobile-friendly public page (no login) showing status, item, serial, location, assignee, and warranty days — not cost or history.
-- **Webhooks** — Settings → **Webhooks**. Subscribe to `asset.created` and `asset.status_changed`. The API POSTs JSON with `X-NewVision-Event` and `X-NewVision-Signature` (HMAC-SHA256 of the raw body). The signing secret is shown once on create.
-
-### Things to try (Phase 4)
-
-1. Open any asset → see the **QR sticker** card → **Open scan page** (or scan the PNG with a phone on the same LAN after setting `PUBLIC_APP_URL`).
-2. Visit `/scan/AST-PUN-LAP-0001` while logged out — the audit card still loads.
-3. **Settings → Webhooks** → add `http://127.0.0.1:9999/hook` → create or retire an asset → the row’s **Last** column shows the delivery error or HTTP status.
-
-Out-of-scope ideas stay in `FUTURE_IDEAS.md`. All four planned phases are now implemented.
-
-## Prompt 2 — Requests, accessories & UX polish (complete)
-
-- **Asset/accessory requests** — Employees submit at **Requests**; managers approve/reject (reason required); IT Admin marks fulfilled (manual assign only).
-- **Accessories & consumables** — Separate modules with checkout/check-in, stock tracking, low-stock alerts, and a **Supplies** report.
-- **Dashboard attention panel** — Warranty ≤7 days, stale repairs, low stock, pending requests.
-- **UX** — Notification bell, copy-to-clipboard, scoped CSV export, custom pagination on all tables, expand rows, skeleton/empty states, keyboard shortcuts (`/` search, `Esc` dismiss, ↑↓ row focus), axe-core accessibility checks.
-- **Branding** — Official NewVision logos in `frontend/public/brand/`.
-
-## Prompt 4 — Dashboard & import charts (complete)
-
-- **Dashboard visualizations** — Status donut, assets-by-location bar chart, 12-month addition trend, sparkline on the Total KPI card. Charts use a dedicated palette (`frontend/src/chartColors.ts`) separate from UI chrome.
-- **Import visual summary** — Completed/failed jobs show an outcome donut (created/updated/failed/duplicates) plus a failure-category bar chart when row errors exist.
-
-Current status: **49 unit + 47 integration = 96** backend tests; **22 Playwright** (including a11y, help, request flow).
-
-## Prompt 6 — Audit, Excel-grade tables, Help, ship (complete)
-
-- **Prompt 3 completed** — `#1F1F1F` text hierarchy, two-tier shadows, single accent on interactive chrome.
-- **`DataGrid`** — shared Excel-grade table (sort, filter, resize, reorder, show/hide columns, sticky header, density, Ctrl+C row copy, CSV export).
-- **Help** — full `/help` documentation area with search, categorized nav, and per-feature articles.
-- **Structured import error codes** — `ImportErrorCode` enum on API; charts bucket by code.
-- **Seed** — accessories and consumables demo catalog.
-
-See `PROJECT_STATUS.md` for the full gap audit and deliberate exclusions.
-
-## Prompt 13 — Tablet, light-only, first-run (complete)
-
-- **Tablet-width admin** — below 992px the sider is a hamburger drawer; 992–1023px it collapses to icons. Tables scroll horizontally; the public `/scan/:code` page stays phone-first. Phone-width rewrite of the authenticated app is an explicit non-goal.
-- **Light-only** — OS dark preference cannot invert chrome. Documented in `DECISIONS.md`.
-- **First-run** — a migrate-only empty estate shows **Welcome to NewVision** (locations → categories → employees → assets). Seeded demo is unchanged. Settings → Categories and Employees → Add employee back those steps.
-
-Current status: **58 unit + 84 integration = 142** backend tests; **55 Playwright**.
-
-## Prompts 14–16 — Helpdesk, CSAT, notes & manual edit (complete)
-
-- **Bug fixes** — Growth (12 months) chart uses real UTC month counts; table select-all is a checkbox; MANAGE is one muted color; logos/favicon from `frontend/public/brand/`.
-- **Support Tickets** — Spiceworks-simple helpdesk (lifecycle, public/internal comments, watchers, time, canned replies, templates, attachments, optional asset link, overdue flag, reports). Separate from Maintenance and Requests.
-- **IT queue extras** — CSAT on resolve, Immediate vs Daily digest email, quick/saved views, full-text search, contact cards, duplicate-of linking, bulk assign/close, category default priority, CSV/PDF export.
-- **Notes & manual correction** — append-only notes on major records; Super Admin / IT Admin override with mandatory reason + confirm; backfilled entries tagged; audit filter for `manual_override`.
-
-## Prompt 17 — Verified enhancement pass (complete)
-
-- **Bundle splitting** — route-level `React.lazy` + `Suspense`; vendor `manualChunks` (charts, Ant Design, Refine, React). Login/dashboard no longer download the 3.6 MB monolith. Ant Design’s used subset is ~1.2 MB minified and is the one irreducible vendor chunk (`chunkSizeWarningLimit` 1300 KB).
-- **Growth chart** — cumulative running estate total (climbing line) plus labelled “Added this month”; baseline includes assets created before the window.
-- **Helpdesk/notes polish** — empty/loading states, axe-core on tickets + notes, command-palette global search.
-
-## Prompt 18 — Real helpdesk emails (complete)
-
-- **Branded HTML emails** for the full support-ticket lifecycle — created (requester confirmation), assigned, new unassigned ticket (IT staff), comment, status change, resolve→rate prompt, daily digest. See `backend/src/notifications/ticket-email-templates.ts`.
-- **Graceful without SMTP** — `MailerService.send` takes an optional `html` body and falls back to plain text / a console log when `SMTP_HOST` isn't set, matching the existing warranty-email behavior. See `SMTP_*` / `PUBLIC_APP_URL` in `.env.example`.
-- **Tested** — `backend/test/ticket-emails.e2e-spec.ts` spies the mailer and asserts the right template fires per event.
-
-## Prompt 19 — Re-verified against the reference mockup (complete)
-
-- Read `design-reference/NewVision-standalone-src.html` directly and reverted an interim "futuristic" visual pass (glow, glass, gradient mesh, a bento dashboard) that had drifted from it — the app matches the reference's plain, flat design again.
-- Kept the `⌘K` command palette and the dashboard's "Updated Ns ago" copy as genuine improvements (not visual style), and fixed a real WCAG contrast failure (AntD's `color="green"` preset tag) found while re-testing.
-
-Current status: **81 unit + 111 integration = 192** backend tests; **68 Playwright**.
-
-## Prompt 23 v2 — Vendor & Procurement (complete)
-
-- Sidebar **Procurement** (Super Admin / IT Admin): Vendors, Requisitions, Purchase Orders, Contracts. Managers see team requisitions only.
-- Requisition form matches the company approval-request template; parallel To/Cc approval with status icons; material edits reset the chain.
-- PO amend/cancel/short-close, GRN partials + void, 3-way match invoices, contract renewals, scorecards, and reconcilable asset handoff.
-- Help articles under **Procurement**. Out of scope (e-sourcing, OCR invoices, payment execution) stays in `FUTURE_IDEAS.md`.

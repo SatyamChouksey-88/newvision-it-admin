@@ -24,7 +24,7 @@ export interface KpiCardProps {
 }
 
 /**
- * Signature KPI tile from the approved Claude Design mockup:
+ * Signature KPI tile from the approved design mockup:
  * white surface, 3px top accent bar, glyph + label, mono value, muted sub-line.
  */
 export function KpiCard({
