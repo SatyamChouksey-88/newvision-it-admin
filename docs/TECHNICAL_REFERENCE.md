@@ -1584,6 +1584,8 @@ Detail: [`PHASE_LOG.md`](../PHASE_LOG.md). Legend: `[x]` verified · `[~]` parti
 - [x] Clients, VDI, assignments API; ticket client/VDI fields; `tickets-by-client` report; `/clients` UI.
 - [x] Ticket category `vdi` in seed/provision catalog.
 
+<a id="whats-left-before-real-go-live"></a>
+
 ### What's left before real go-live `[!]`
 
 Local engineering gate (unit **153/153**, e2e **206/206**, Playwright **102/102** as of **2026-09-18** gap-fix pass) is green; items below still require Satyam / production environment.
