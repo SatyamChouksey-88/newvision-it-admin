@@ -70,6 +70,12 @@ function buildReports(
       meta: 'CSV · PDF · live stock',
     },
     {
+      type: 'tickets-by-client',
+      title: 'Tickets by client',
+      desc: 'Open and closed ticket counts grouped by client account (MSP / VDI).',
+      meta: 'CSV · PDF · helpdesk',
+    },
+    {
       type: 'procurement-spend',
       title: 'Procurement spend by vendor',
       desc: 'Purchase orders and totals grouped for finance reviews.',
@@ -108,6 +114,7 @@ const MANAGER_REPORTS = new Set([
   'locations',
   'warranty',
   'procurement-open',
+  'tickets-by-client',
 ]);
 const SUPPORT_HIDDEN = new Set([
   'procurement-spend',

@@ -40,7 +40,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const user = await runUnscoped(() =>
       this.prisma.user.findUnique({
         where: { id: payload.sub },
-        include: { role: true, employee: { select: { locationId: true } }, tenant: true },
+        include: {
+          role: true,
+          customRole: { select: { id: true, label: true, isActive: true } },
+          employee: { select: { locationId: true } },
+          tenant: true,
+        },
       }),
     );
     if (!user?.isActive) {
@@ -59,6 +64,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!user.tenantId || !user.tenant) {
       throw new UnauthorizedException('User is not attached to a workspace');
     }
+    const customRoleId =
+      user.customRole?.isActive === false ? null : (user.customRoleId ?? null);
     return {
       id: user.id,
       email: user.email,
@@ -69,6 +76,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       tenantId: user.tenantId,
       tenantSlug: user.tenant.slug,
       tenant: toTenantRecord(user.tenant),
+      customRoleId,
     };
   }
 }

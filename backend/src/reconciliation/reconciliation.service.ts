@@ -4,6 +4,7 @@ import { AuthUser } from '../common/decorators/current-user.decorator';
 import { ListQuery, parseListQuery } from '../common/query';
 import { parseTabular } from '../import-export/parse';
 import { PrismaService } from '../prisma/prisma.service';
+import { assertTabularUpload } from '../common/uploads';
 import { reconcileSets, type ReconcileItem } from './diff';
 
 const FILE_KEY_ALIASES: Record<string, string[]> = {
@@ -47,6 +48,7 @@ export class ReconciliationService {
     actor: AuthUser,
   ) {
     if (!file?.buffer?.length) throw new BadRequestException('No file uploaded (field name must be "file")');
+    assertTabularUpload({ originalname: file.originalname, size: file.buffer.length });
     const allowed =
       kind === 'employees' ? ['employeeCode', 'email'] : ['assetCode', 'serialNumber'];
     if (!allowed.includes(matchField)) {

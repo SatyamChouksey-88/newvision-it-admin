@@ -14,7 +14,7 @@ describe('Prompt 28 — RBAC leaks (notes, inventory, search)', () => {
 
   beforeAll(async () => {
     app = await createTestApp();
-    ids = await seedCore(app.get(PrismaService));
+    ids = await seedCore(app.get(PrismaService), app);
     admin = await login(app, 'itadmin@newvision.local');
     manager = await login(app, 'manager@newvision.local');
     employee = await login(app, 'employee@newvision.local');

@@ -21,6 +21,7 @@ export type ReportType =
   | 'locations'
   | 'warranty'
   | 'supplies'
+  | 'tickets-by-client'
   | 'procurement-spend'
   | 'procurement-open'
   | 'procurement-renewals'
@@ -56,6 +57,8 @@ export class ReportsService {
         return this.warrantyReport(actor);
       case 'supplies':
         return this.suppliesReport();
+      case 'tickets-by-client':
+        return this.ticketsByClientReport();
       case 'procurement-spend':
         return this.procurementSpendReport();
       case 'procurement-open':
@@ -87,6 +90,9 @@ export class ReportsService {
     }
     if (type === 'supplies' && !IT_ROLES.includes(actor.role)) {
       throw new ForbiddenException('Supply reports are limited to IT staff');
+    }
+    if (type === 'tickets-by-client' && !IT_ROLES.includes(actor.role) && actor.role !== RoleName.MANAGER) {
+      throw new ForbiddenException('Client ticket reports are limited to IT staff and managers');
     }
   }
 
@@ -299,6 +305,39 @@ export class ReportsService {
         { header: 'Location', key: 'location', width: 70 },
         { header: 'Warranty End', key: 'warrantyEnd', width: 90 },
         { header: 'Days Remaining', key: 'daysRemaining', width: 90 },
+      ],
+      rows,
+    };
+  }
+
+  private async ticketsByClientReport(): Promise<ReportData> {
+    const clients = await this.prisma.clientAccount.findMany({ orderBy: { code: 'asc' } });
+    const grouped = await this.prisma.supportTicket.groupBy({
+      by: ['clientId', 'status'],
+      _count: { _all: true },
+      where: { clientId: { not: null } },
+    });
+    const counts = new Map<string, number>();
+    for (const g of grouped) {
+      const key = `${g.clientId}:${g.status}`;
+      counts.set(key, g._count._all);
+    }
+    const rows = clients.flatMap((c) => {
+      const statuses = ['open', 'assigned', 'in_progress', 'waiting_on_employee', 'resolved', 'closed'];
+      return statuses.map((status) => ({
+        clientCode: c.code,
+        clientName: c.name,
+        status,
+        count: counts.get(`${c.id}:${status}`) ?? 0,
+      }));
+    });
+    return {
+      title: 'Tickets by client',
+      columns: [
+        { header: 'Client code', key: 'clientCode' },
+        { header: 'Client name', key: 'clientName' },
+        { header: 'Status', key: 'status' },
+        { header: 'Count', key: 'count' },
       ],
       rows,
     };

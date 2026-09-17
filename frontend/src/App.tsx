@@ -25,6 +25,7 @@ import { App as AntdApp, ConfigProvider, theme } from 'antd';
 import { lazy, Suspense, type ComponentType } from 'react';
 import { BrowserRouter, Outlet, Route, Routes } from 'react-router';
 import { AppSider } from './components/AppSider';
+import { EmployeeBottomNav } from './components/EmployeeBottomNav';
 import { Header } from './components/Header';
 import { RoleRouteGuard } from './components/RoleRouteGuard';
 import { RouteFallback } from './components/RouteFallback';
@@ -74,11 +75,13 @@ const PurchaseOrderShow = lazyNamed(() => import('./pages/procurement/orders/sho
 const ContractList = lazyNamed(() => import('./pages/procurement/contracts/list'), 'ContractList');
 const ContractShow = lazyNamed(() => import('./pages/procurement/contracts/show'), 'ContractShow');
 const ReportsPage = lazyNamed(() => import('./pages/reports'), 'ReportsPage');
+const ClientsPage = lazyNamed(() => import('./pages/clients/list'), 'ClientsPage');
 const AuditList = lazyNamed(() => import('./pages/audit/list'), 'AuditList');
 const SettingsPage = lazyNamed(() => import('./pages/settings'), 'SettingsPage');
 const HelpSection = lazyNamed(() => import('./pages/help/HelpSection'), 'HelpSection');
 const ChatPage = lazyNamed(() => import('./pages/chat/ChatPage'), 'ChatPage');
 const LoginPage = lazyNamed(() => import('./pages/login'), 'LoginPage');
+const EntraCompletePage = lazyNamed(() => import('./pages/entra-complete'), 'EntraCompletePage');
 const ResetPasswordPage = lazyNamed(() => import('./pages/reset-password'), 'ResetPasswordPage');
 const ScanPage = lazyNamed(() => import('./pages/scan'), 'ScanPage');
 
@@ -222,6 +225,7 @@ export default function App() {
                           </main>
                         </Suspense>
                       </ThemedLayout>
+                      <EmployeeBottomNav />
                     </Authenticated>
                   }
                 >
@@ -277,6 +281,7 @@ export default function App() {
                     <Route path="show/:id" element={<ContractShow />} />
                   </Route>
                   <Route path="/reports" element={<ReportsPage />} />
+                  <Route path="/clients" element={<ClientsPage />} />
                   <Route path="/audit-logs" element={<AuditList />} />
                   <Route path="/settings" element={<SettingsPage />} />
 
@@ -319,6 +324,7 @@ export default function App() {
                   }
                 >
                   <Route path="/login" element={<LoginPage />} />
+                  <Route path="/auth/entra/complete" element={<EntraCompletePage />} />
                 </Route>
               </Routes>
             </Suspense>

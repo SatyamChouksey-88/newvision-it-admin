@@ -3,7 +3,13 @@ import { Reflector } from '@nestjs/core';
 import { RoleName } from '@prisma/client';
 import { AuthUser } from '../decorators/current-user.decorator';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import {
+  PERMISSIONS_KEY,
+  type PermissionRequirement,
+} from '../decorators/permissions.decorator';
 import { ROLES_KEY } from '../decorators/roles.decorator';
+import { userHasPermissions } from '../rbac/permissions';
+import { permissionsForRoute } from '../rbac/route-permissions';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -25,8 +31,17 @@ export class RolesGuard implements CanActivate {
       context.getClass(),
     ]);
 
-    if (!requiredRoles || requiredRoles.length === 0) {
-      // Authenticated but no specific role required.
+    const explicitPerms = this.reflector.getAllAndOverride<PermissionRequirement>(PERMISSIONS_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    const routePerms = permissionsForRoute(context);
+    const permissionReq: PermissionRequirement | undefined =
+      explicitPerms ??
+      (routePerms?.length ? { keys: routePerms, mode: 'any' } : undefined);
+
+    if ((!requiredRoles || requiredRoles.length === 0) && !permissionReq?.keys?.length) {
       return true;
     }
 
@@ -34,11 +49,39 @@ export class RolesGuard implements CanActivate {
     if (!user) {
       throw new ForbiddenException('Not authenticated');
     }
-    if (!requiredRoles.includes(user.role)) {
-      throw new ForbiddenException(
-        `Requires one of roles: ${requiredRoles.join(', ')}. You are ${user.role}.`,
-      );
+
+    if (user.customRoleId != null) {
+      if (!permissionReq?.keys?.length) {
+        throw new ForbiddenException('This route is not available for custom-role accounts');
+      }
+      const ok = userHasPermissions(user, permissionReq.keys, permissionReq.mode ?? 'any');
+      if (!ok) {
+        throw new ForbiddenException(
+          `Missing required permission(s): ${permissionReq.keys.join(', ')}`,
+        );
+      }
+      return true;
     }
-    return true;
+
+    if (requiredRoles?.length) {
+      if (!requiredRoles.includes(user.role)) {
+        throw new ForbiddenException(
+          `Requires one of roles: ${requiredRoles.join(', ')}. You are ${user.role}.`,
+        );
+      }
+      return true;
+    }
+
+    if (permissionReq?.keys?.length) {
+      const ok = userHasPermissions(user, permissionReq.keys, permissionReq.mode ?? 'any');
+      if (!ok) {
+        throw new ForbiddenException(
+          `Missing required permission(s): ${permissionReq.keys.join(', ')}`,
+        );
+      }
+      return true;
+    }
+
+    throw new ForbiddenException('Forbidden');
   }
 }

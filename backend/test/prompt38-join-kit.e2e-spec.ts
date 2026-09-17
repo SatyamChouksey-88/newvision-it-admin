@@ -16,7 +16,7 @@ describe('Prompt 38 — join / kit / accessories', () => {
 
   beforeAll(async () => {
     app = await createTestApp();
-    const ids = await seedCore(app.get(PrismaService));
+    const ids = await seedCore(app.get(PrismaService), app);
     locationId = ids.locationPune;
     categoryLap = ids.categoryLap;
     employeeA = ids.employeeA;

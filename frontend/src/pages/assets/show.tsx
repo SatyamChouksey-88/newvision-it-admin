@@ -232,6 +232,17 @@ export function AssetShow() {
                 {formatCurrency(asset?.purchaseCost)}
               </Descriptions.Item>
               <Descriptions.Item label="Invoice No">{asset?.invoiceNo ?? '—'}</Descriptions.Item>
+              <Descriptions.Item label="Depreciation (years)">
+                {asset?.depreciationYears ?? '—'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Salvage value">
+                {formatCurrency(asset?.salvageValue)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Book value (straight-line)">
+                {asset?.depreciation?.bookValue != null
+                  ? formatCurrency(asset.depreciation.bookValue)
+                  : '—'}
+              </Descriptions.Item>
             </>
           ) : null}
           <Descriptions.Item label="Purchase Date">

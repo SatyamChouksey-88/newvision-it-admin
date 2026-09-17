@@ -15,7 +15,7 @@ describe('Prompt 2 — requests, accessories & consumables (e2e)', () => {
 
   beforeAll(async () => {
     app = await createTestApp();
-    const ids = await seedCore(app.get(PrismaService));
+    const ids = await seedCore(app.get(PrismaService), app);
     categoryId = ids.categoryLap;
     employeeId = ids.employeeA;
     locationId = ids.locationPune;

@@ -13,4 +13,6 @@ module.exports = {
   globalSetup: '<rootDir>/global-setup.ts',
   testTimeout: 30000,
   forceExit: true,
+  // All e2e specs share one Postgres database — never run files in parallel.
+  maxWorkers: 1,
 };

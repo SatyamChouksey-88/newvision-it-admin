@@ -1,25 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { auth, createTestApp, DEMO_PASSWORD } from './helpers';
+import { auth, createTestApp, DEMO_PASSWORD, provisionTrialTenant } from './helpers';
 
-const password = 'TrialPassword1!';
-
-async function signup(
-  app: INestApplication,
-  company: string,
-  email: string,
-  loadSample = false,
-) {
-  const res = await request(app.getHttpServer())
-    .post('/api/auth/signup')
-    .send({ companyName: company, fullName: 'Owner', email, password, loadSample })
-    .expect(201);
-  expect(res.body.access_token).toBeTruthy();
-  return res.body.access_token as string;
-}
-
-describe('Prompt 37 — tenant isolation, signup, plan gating', () => {
+describe('Prompt 37 — tenant isolation, provisioning, plan gating', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
@@ -31,8 +15,8 @@ describe('Prompt 37 — tenant isolation, signup, plan gating', () => {
   });
 
   it('signs up two tenants and blocks cross-tenant reads via the API', async () => {
-    const tokenA = await signup(app, 'Acme Isolation', `a-${Date.now()}@acme.test`);
-    const tokenB = await signup(app, 'Beta Isolation', `b-${Date.now()}@beta.test`);
+    const tokenA = await provisionTrialTenant(app, 'Acme Isolation', `a-${Date.now()}@acme.test`);
+    const tokenB = await provisionTrialTenant(app, 'Beta Isolation', `b-${Date.now()}@beta.test`);
 
     await request(app.getHttpServer()).post('/api/tenant/onboarding/skip').set(auth(tokenA)).expect(201);
     await request(app.getHttpServer()).post('/api/tenant/onboarding/skip').set(auth(tokenB)).expect(201);
@@ -126,7 +110,7 @@ describe('Prompt 37 — tenant isolation, signup, plan gating', () => {
 
   it('gates procurement and chat on Starter even with a valid JWT', async () => {
     process.env.PLATFORM_ADMIN_SECRET = 'platform-test-secret';
-    const token = await signup(app, 'Starter Shop', `starter-${Date.now()}@shop.test`);
+    const token = await provisionTrialTenant(app, 'Starter Shop', `starter-${Date.now()}@shop.test`);
     const me = await request(app.getHttpServer()).get('/api/auth/me').set(auth(token)).expect(200);
     const tenantId = me.body.tenantId ?? me.body.tenant?.id;
     expect(tenantId).toBeTruthy();
@@ -142,7 +126,7 @@ describe('Prompt 37 — tenant isolation, signup, plan gating', () => {
   });
 
   it('exports tenant data and reports a real health check', async () => {
-    const token = await signup(app, 'Export Co', `export-${Date.now()}@ex.test`);
+    const token = await provisionTrialTenant(app, 'Export Co', `export-${Date.now()}@ex.test`);
     const exported = await request(app.getHttpServer()).get('/api/tenant/export').set(auth(token)).expect(200);
     expect(exported.body.employees).toBeDefined();
     expect(exported.body.assets).toBeDefined();
@@ -158,5 +142,17 @@ describe('Prompt 37 — tenant isolation, signup, plan gating', () => {
       .send({ email: 'nobody@example.test', password: DEMO_PASSWORD })
       .expect(401);
     expect(JSON.stringify(res.body)).not.toMatch(/Password123/);
+  });
+
+  it('does not expose public self-serve signup', async () => {
+    await request(app.getHttpServer())
+      .post('/api/auth/signup')
+      .send({
+        companyName: 'Ghost Co',
+        fullName: 'Ghost',
+        email: `ghost-${Date.now()}@ghost.test`,
+        password: 'TrialPassword1!',
+      })
+      .expect(404);
   });
 });

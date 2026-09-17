@@ -13,6 +13,7 @@ const VALID_TYPES: ReportType[] = [
   'locations',
   'warranty',
   'supplies',
+  'tickets-by-client',
   'procurement-spend',
   'procurement-open',
   'procurement-renewals',

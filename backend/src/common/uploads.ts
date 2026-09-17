@@ -85,6 +85,30 @@ export function assertAllowedUpload(file: {
   }
 }
 
+const TABULAR_EXTS = new Set(['.csv', '.xls', '.xlsx']);
+export const TABULAR_UPLOAD_MAX_FILE_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Phase 1 hardening: the import/export and reconciliation endpoints previously relied only on
+ * `parseTabular()` throwing on non-tabular content, with no explicit extension allowlist — so a
+ * `.html`/`.svg`/`.exe` upload reached the parser before being rejected. These endpoints only
+ * ever expect CSV/Excel, so this is a narrower, purpose-built check rather than reusing
+ * `assertAllowedUpload` (which permits PDFs/images/docs and caps at 8MB, not the 10MB these
+ * endpoints already document).
+ */
+export function assertTabularUpload(
+  file: { originalname: string; size: number },
+  maxBytes: number = TABULAR_UPLOAD_MAX_FILE_BYTES,
+): void {
+  const ext = fileExtension(file.originalname);
+  if (!TABULAR_EXTS.has(ext)) {
+    throw new BadRequestException('Only .csv, .xls, or .xlsx files are allowed');
+  }
+  if (file.size > maxBytes) {
+    throw new BadRequestException(`File exceeds ${Math.round(maxBytes / (1024 * 1024))} MB limit`);
+  }
+}
+
 /** RFC 5987 Content-Disposition that cannot inject headers or scripts via the filename. */
 export function contentDisposition(filename: string, inline = false): string {
   const cleaned = filename.replace(/[\r\n\\"]/g, '_').replace(/[^\w.\- ()[\]]+/g, '_');

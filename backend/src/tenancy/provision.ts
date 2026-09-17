@@ -41,6 +41,7 @@ export async function seedStarterCatalog(prisma: Db): Promise<void> {
         { code: 'access_account', name: 'Access & Account', defaultPriority: 'high' },
         { code: 'hardware_other', name: 'Hardware-other', defaultPriority: 'medium' },
         { code: 'general', name: 'General', defaultPriority: 'low' },
+        { code: 'vdi', name: 'VDI / Client desktop', defaultPriority: 'medium' },
       ],
     });
   }

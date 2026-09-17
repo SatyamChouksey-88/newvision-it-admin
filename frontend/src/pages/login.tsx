@@ -1,7 +1,8 @@
-import { App as AntdApp, Button, Checkbox, Form, Input, Modal, Typography } from 'antd';
-import { useState } from 'react';
+import { App as AntdApp, Button, Checkbox, Divider, Form, Input, Modal, Typography } from 'antd';
+import { useEffect, useState } from 'react';
 import { apiErrorMessage, httpClient } from '../providers/axios';
-import { TOKEN_KEY, USER_KEY, writeSession } from '../providers/session';
+import { ENTRA_MFA_HANDOFF_KEY, entraErrorMessage, entraLoginUrl } from '../providers/entra';
+import { finishSession } from '../providers/session';
 import { COLOR_TEXT_MUTED, COLOR_TEXT_SECONDARY, FONT_MONO } from '../theme';
 
 const DEMO_ACCOUNTS = [
@@ -12,24 +13,43 @@ const DEMO_ACCOUNTS = [
   ['Employee', 'employee@newvision.local'],
 ];
 
-/** Demo hints stay on unless the build sets VITE_SHOW_DEMO=false. */
-const SHOW_DEMO = import.meta.env.VITE_SHOW_DEMO !== 'false';
+/** Phase 1 hardening: opt-in only — demo hints stay off unless the build sets VITE_SHOW_DEMO=true. */
+const SHOW_DEMO = import.meta.env.VITE_SHOW_DEMO === 'true';
 const DEMO_PASSWORD = 'Password123!';
+
+/** The standard four-color Microsoft logo squares, per Microsoft's sign-in button guidelines. */
+function MicrosoftIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 21 21" aria-hidden="true">
+      <rect x="1" y="1" width="9" height="9" fill="#f25022" />
+      <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
+      <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
+      <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
+    </svg>
+  );
+}
 
 type MfaState =
   | { mode: 'verify'; token: string }
   | { mode: 'enroll'; token: string; secret: string; qr: string };
 
-function redirectAfterLogin() {
-  const to = new URLSearchParams(window.location.search).get('to');
-  return to?.startsWith('/') && !to.startsWith('//') ? to : '/';
-}
-
-function finishSession(data: { access_token?: string; user?: unknown }) {
-  if (!data.access_token || !data.user) throw new Error('Login did not return a session');
-  writeSession(TOKEN_KEY, data.access_token);
-  writeSession(USER_KEY, JSON.stringify(data.user));
-  window.location.assign(redirectAfterLogin());
+function mfaStateFrom(data: {
+  mfaRequired?: boolean;
+  mfaRequired2?: never;
+  mfaEnrollRequired?: boolean;
+  mfaSetupRequired?: boolean;
+  mfaToken?: string;
+  mfa_token?: string;
+  secret?: string;
+  qrDataUrl?: string;
+}): MfaState | null {
+  const token = data.mfaToken || data.mfa_token;
+  if (!token) return null;
+  if (data.mfaRequired) return { mode: 'verify', token };
+  if (data.mfaEnrollRequired || data.mfaSetupRequired) {
+    return { mode: 'enroll', token, secret: data.secret ?? '', qr: data.qrDataUrl ?? '' };
+  }
+  return null;
 }
 
 export function LoginPage() {
@@ -41,6 +61,26 @@ export function LoginPage() {
   const [loginForm] = Form.useForm();
   const [mfa, setMfa] = useState<MfaState | null>(null);
   const [mfaCode, setMfaCode] = useState('');
+  const [entraError, setEntraError] = useState<string | null>(null);
+
+  // Picks up an MFA challenge handed off from the Entra sign-in flow (entra.ts /
+  // EntraCompletePage), so it renders through this same code/QR form rather than duplicating
+  // it. Single read — the handoff is consumed immediately.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const entraErrorParam = params.get('entraError');
+    if (entraErrorParam) setEntraError(entraErrorParam);
+    if (params.get('entraMfa') !== '1') return;
+    const raw = sessionStorage.getItem(ENTRA_MFA_HANDOFF_KEY);
+    sessionStorage.removeItem(ENTRA_MFA_HANDOFF_KEY);
+    if (!raw) return;
+    try {
+      const state = mfaStateFrom(JSON.parse(raw));
+      if (state) setMfa(state);
+    } catch {
+      // Malformed/expired handoff payload — fall through to the normal sign-in form.
+    }
+  }, []);
 
   const sendResetLink = async (values: { email: string }) => {
     setForgotSending(true);
@@ -64,18 +104,9 @@ export function LoginPage() {
         password: values.password,
         remember: values.remember !== false,
       });
-      const token = data.mfaToken || data.mfa_token;
-      if (data.mfaRequired && token) {
-        setMfa({ mode: 'verify', token });
-        return;
-      }
-      if ((data.mfaEnrollRequired || data.mfaSetupRequired) && token) {
-        setMfa({
-          mode: 'enroll',
-          token,
-          secret: data.secret ?? '',
-          qr: data.qrDataUrl,
-        });
+      const state = mfaStateFrom(data);
+      if (state) {
+        setMfa(state);
         return;
       }
       finishSession(data);
@@ -191,16 +222,29 @@ export function LoginPage() {
             <Button type="primary" htmlType="submit" loading={submitting} block style={{ height: 36, marginTop: 8 }}>
               Sign in
             </Button>
+            <Divider style={{ margin: '16px 0' }} plain>
+              <Typography.Text style={{ fontSize: 12, color: COLOR_TEXT_MUTED }}>or</Typography.Text>
+            </Divider>
+            <Button
+              block
+              style={{ height: 36 }}
+              icon={<MicrosoftIcon />}
+              onClick={() => {
+                window.location.assign(entraLoginUrl());
+              }}
+            >
+              Sign in with Microsoft
+            </Button>
           </Form>
         )}
 
-        <Typography.Paragraph style={{ marginTop: 16, fontSize: 13 }}>
-          New company? <a href="/signup">Start a 14-day trial</a>
-          {' · '}
-          <a href="/trust">Trust</a>
-        </Typography.Paragraph>
+        {entraError ? (
+          <Typography.Paragraph style={{ marginTop: 12, fontSize: 12, color: '#cf1322', maxWidth: 360 }}>
+            {entraErrorMessage(entraError)}
+          </Typography.Paragraph>
+        ) : null}
 
-        <Typography.Paragraph style={{ marginTop: 8, fontSize: 12, color: COLOR_TEXT_MUTED, maxWidth: 360 }}>
+        <Typography.Paragraph style={{ marginTop: 16, fontSize: 12, color: COLOR_TEXT_MUTED, maxWidth: 360 }}>
           Trouble signing in? Use Forgot password, or ask your workspace Super Admin.
         </Typography.Paragraph>
 

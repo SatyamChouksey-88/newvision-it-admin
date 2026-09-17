@@ -8,6 +8,7 @@ import { HistoryNav } from './HistoryNav';
 import { NotificationBell } from './NotificationBell';
 import { ShortcutsOverlay } from './ShortcutsOverlay';
 import { StaffChatLauncher } from './StaffChat';
+import { FeedbackButton } from './FeedbackButton';
 import { useGetIdentity } from '@refinedev/core';
 import type { Identity } from '../providers/authProvider';
 
@@ -135,6 +136,7 @@ export function Header() {
       <Space size={8} wrap={false} style={{ flexShrink: 0 }}>
         <StaffChatLauncher />
         <NotificationBell />
+        <FeedbackButton />
         <Button
           size="small"
           icon={<QuestionCircleOutlined />}

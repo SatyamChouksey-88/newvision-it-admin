@@ -27,3 +27,16 @@ function durableRemove(key: string) {
 export function hasSession(): boolean {
   return Boolean(readSession(TOKEN_KEY));
 }
+
+export function redirectAfterLogin(): string {
+  const to = new URLSearchParams(window.location.search).get('to');
+  return to?.startsWith('/') && !to.startsWith('//') ? to : '/';
+}
+
+/** Shared by password login and Entra sign-in (Phase 2) — both end up with the same shape. */
+export function finishSession(data: { access_token?: string; user?: unknown }) {
+  if (!data.access_token || !data.user) throw new Error('Login did not return a session');
+  writeSession(TOKEN_KEY, data.access_token);
+  writeSession(USER_KEY, JSON.stringify(data.user));
+  window.location.assign(redirectAfterLogin());
+}

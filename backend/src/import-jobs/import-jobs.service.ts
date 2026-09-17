@@ -2,8 +2,9 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from '@nes
 import { ImportJobStatus, ImportKind, Prisma } from '@prisma/client';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { ListQuery, parseListQuery } from '../common/query';
+import { assertTabularUpload } from '../common/uploads';
 import { ImportExportService } from '../import-export/import-export.service';
-import { parseTabular, type Row } from '../import-export/parse';
+import { forEachTabularRow, parseTabular, type Row } from '../import-export/parse';
 import { PrismaService } from '../prisma/prisma.service';
 import { runWithTenant } from '../tenancy/context';
 import { TenantService } from '../tenancy/tenant.service';
@@ -22,7 +23,6 @@ import {
 } from '../import-export/import-errors';
 import { findDuplicates } from './duplicates';
 
-const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const SAMPLE_SIZE = 50;
 
 const omitFile = { fileData: false } as const;
@@ -64,16 +64,18 @@ export class ImportJobsService {
 
   async create(file: { buffer: Buffer; originalname: string }, kind: ImportKind, actor: AuthUser) {
     if (!file?.buffer?.length) throw new BadRequestException('No file uploaded (field name must be "file")');
-    if (file.buffer.length > MAX_FILE_BYTES) {
-      throw new BadRequestException(`File exceeds ${MAX_FILE_BYTES / (1024 * 1024)} MB limit`);
-    }
-    const rows = await parseTabular(file.buffer, file.originalname);
-    const headers = headersOf(rows);
+    assertTabularUpload({ originalname: file.originalname, size: file.buffer.length });
+    const sampleRows: Row[] = [];
+    let headers: string[] = [];
+    const { rowCount } = await forEachTabularRow(file.buffer, file.originalname, (row) => {
+      if (!headers.length) headers = headersOf([row]);
+      if (sampleRows.length < SAMPLE_SIZE) sampleRows.push(row);
+    });
     const canonical = kind === 'assets' ? ASSET_CANONICAL_FIELDS : EMPLOYEE_CANONICAL_FIELDS;
     const mapping = suggestMapping(headers, canonical);
     const preview = {
       headers,
-      sampleRows: rows.slice(0, SAMPLE_SIZE),
+      sampleRows,
       suggestedMapping: mapping,
       canonical: [...canonical],
     };
@@ -83,7 +85,7 @@ export class ImportJobsService {
         filename: file.originalname,
         status: 'queued',
         mapping,
-        totalRows: rows.length,
+        totalRows: rowCount,
         preview: preview as unknown as Prisma.InputJsonValue,
         fileData: new Uint8Array(file.buffer),
         createdById: actor.id,
@@ -120,34 +122,44 @@ export class ImportJobsService {
    * Persist mapping, mark running, and process in-process (setImmediate).
    * Tests should call `process(id, actor)` directly instead of waiting on the event loop.
    */
-  async commit(id: number, actor: AuthUser, mapping?: ColumnMapping) {
+  async commit(id: number, actor: AuthUser, mapping?: ColumnMapping, validateOnly?: boolean) {
     const job = await this.loadWithFile(id);
     this.assertMutable(job.status);
     const nextMapping = mapping ?? ((job.mapping as ColumnMapping | null) ?? {});
     await this.prisma.importJob.update({
       where: { id },
-      data: { status: 'running', mapping: nextMapping, startedAt: new Date() },
+      data: {
+        status: 'running',
+        mapping: nextMapping,
+        startedAt: new Date(),
+        preview: {
+          ...(job.preview as object),
+          validateOnly: Boolean(validateOnly),
+        } as unknown as Prisma.InputJsonValue,
+      },
     });
     const tenantId = actor.tenantId;
     setImmediate(() => {
-      runWithTenant(tenantId, () => this.process(id, actor)).catch((e) =>
+      runWithTenant(tenantId, () => this.process(id, actor, validateOnly)).catch((e) =>
         this.logger.error(`Import job ${id} failed`, e),
       );
     });
     return this.get(id);
   }
 
-  async process(id: number, actor: AuthUser) {
+  async process(id: number, actor: AuthUser, validateOnly?: boolean) {
     const job = await this.loadWithFile(id);
     try {
       const mapping = (job.mapping as ColumnMapping | null) ?? {};
-      const raw = await this.parseJob(job);
-      const rows = applyMapping(raw, mapping);
-      const scan = await this.scanDuplicates(job.kind, rows);
+      const mappedRows: Row[] = [];
+      await this.forEachMappedJobRow(job, mapping, (row) => {
+        mappedRows.push(row);
+      });
+      const scan = await this.scanDuplicates(job.kind, mappedRows);
       const skip = new Set(scan.skipRows);
       const toImport: Row[] = [];
       const dupErrors: ImportRowError[] = [];
-      rows.forEach((row, i) => {
+      mappedRows.forEach((row, i) => {
         const rowNum = i + 2;
         if (skip.has(rowNum)) {
           const hit = scan.hits.find((h) => h.row === rowNum);
@@ -168,10 +180,11 @@ export class ImportJobsService {
         }
       });
 
-      const imported =
-        job.kind === 'assets'
-          ? await this.importer.importAssetRows(toImport, actor)
-          : await this.importer.importEmployeeRows(toImport, actor);
+      const imported = validateOnly
+        ? { created: 0, failed: 0, errors: [] as ImportRowError[], createdIds: [] as number[] }
+        : job.kind === 'assets'
+          ? await this.importAssetRowsInBatches(toImport, actor)
+          : await this.importEmployeeRowsInBatches(toImport, actor);
 
       // importAssetRows numbers rows as if `toImport` were the whole file; rewrite using original positions.
       const errors = [...dupErrors, ...imported.errors];
@@ -183,12 +196,12 @@ export class ImportJobsService {
           failedCount: imported.failed + dupErrors.length,
           duplicateCount: scan.hits.length,
           errors: errors as unknown as Prisma.InputJsonValue,
-          createdIds: imported.createdIds,
+          createdIds: validateOnly ? [] : imported.createdIds,
           finishedAt: new Date(),
         },
         omit: omitFile,
       });
-      if (imported.created > 0) {
+      if (!validateOnly && imported.created > 0) {
         await this.tenants.markStep(
           actor,
           job.kind === 'assets' ? 'importAssets' : 'importEmployees',
@@ -252,6 +265,54 @@ export class ImportJobsService {
   private async parseJob(job: { fileData: Uint8Array | null; filename: string }): Promise<Row[]> {
     if (!job.fileData) throw new BadRequestException('Import file is no longer stored');
     return parseTabular(Buffer.from(job.fileData), job.filename);
+  }
+
+  private async forEachMappedJobRow(
+    job: { fileData: Uint8Array | null; filename: string },
+    mapping: ColumnMapping,
+    onRow: (row: Row) => void,
+  ) {
+    if (!job.fileData) throw new BadRequestException('Import file is no longer stored');
+    const buffer = Buffer.from(job.fileData);
+    const rawRows: Row[] = [];
+    await forEachTabularRow(buffer, job.filename, (row) => {
+      rawRows.push(row);
+    });
+    applyMapping(rawRows, mapping).forEach(onRow);
+  }
+
+  private async importAssetRowsInBatches(rows: Row[], actor: AuthUser) {
+    const BATCH = 250;
+    let created = 0;
+    let failed = 0;
+    const errors: ImportRowError[] = [];
+    const createdIds: number[] = [];
+    for (let i = 0; i < rows.length; i += BATCH) {
+      const chunk = rows.slice(i, i + BATCH);
+      const part = await this.importer.importAssetRows(chunk, actor);
+      created += part.created;
+      failed += part.failed;
+      errors.push(...part.errors);
+      createdIds.push(...part.createdIds);
+    }
+    return { created, failed, errors, createdIds };
+  }
+
+  private async importEmployeeRowsInBatches(rows: Row[], actor: AuthUser) {
+    const BATCH = 250;
+    let created = 0;
+    let failed = 0;
+    const errors: ImportRowError[] = [];
+    const createdIds: number[] = [];
+    for (let i = 0; i < rows.length; i += BATCH) {
+      const chunk = rows.slice(i, i + BATCH);
+      const part = await this.importer.importEmployeeRows(chunk, actor);
+      created += part.created;
+      failed += part.failed;
+      errors.push(...part.errors);
+      createdIds.push(...part.createdIds);
+    }
+    return { created, failed, errors, createdIds };
   }
 
   private async scanDuplicates(kind: ImportKind, rows: Row[]) {

@@ -13,7 +13,9 @@ test.describe('Team chat', () => {
     await expect(page.getByTestId('chat-appbar')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Assets' })).toHaveCount(0);
     await expect(page.getByTestId('chat-find')).toBeVisible();
-    await expect(page.getByTestId('chat-filters').getByRole('button', { name: 'All' })).toBeVisible();
+    await expect(
+      page.getByTestId('chat-filters').getByRole('button', { name: 'All', exact: true }),
+    ).toBeVisible();
     await expect(page.getByTestId('chat-message-list')).toHaveAttribute('role', 'log');
 
     const itOps = page.getByRole('option', { name: /#it-ops/i });

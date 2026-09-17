@@ -22,6 +22,7 @@ describe('EmailInboxService.processRaw', () => {
     supportTicket: { findUnique: jest.fn(), findFirst: jest.fn() },
     notification: { createMany: jest.fn() },
     emailIngestState: { upsert: jest.fn() },
+    ticketWatcher: { findUnique: jest.fn() },
   };
   const tickets: any = {
     create: jest.fn(),
@@ -50,6 +51,7 @@ describe('EmailInboxService.processRaw', () => {
       id: 3,
       email: 'asha.apte@newvision.local',
     });
+    prisma.ticketWatcher.findUnique.mockResolvedValue(null);
     tickets.create.mockResolvedValue({ id: 10, ticketNumber: 'TCK-000010' });
   });
 
@@ -179,6 +181,99 @@ Message-ID: <ooo@mail.test>`,
     const result = await svc.processRaw(raw);
     expect(result.action).toBe('ignored');
     expect(tickets.create).not.toHaveBeenCalled();
+  });
+
+  it('Phase 1: flags a reply from someone who is not the requester, assignee, or a watcher', async () => {
+    // beforeEach's employee/user mocks make the sender employeeId=3, but this ticket was
+    // raised by employeeId=7 and assigned to userId=5 — sender matches neither, and the
+    // watcher lookup (mocked null) confirms they aren't a watcher either.
+    prisma.user.findMany.mockResolvedValue([{ id: 42 }]);
+    prisma.ticketMessage.findFirst.mockResolvedValue({
+      ticket: {
+        id: 22,
+        ticketNumber: 'TCK-000022',
+        subject: 'VPN',
+        status: 'assigned',
+        raisedById: 7,
+        assignedToId: 5,
+        firstResponseAt: null,
+        waitingSince: null,
+        waitingTotalMinutes: 0,
+      },
+    });
+    const raw = eml(
+      `From: Asha Apte <asha.apte@newvision.local>
+Subject: Re: [TCK-000022] VPN
+Message-ID: <reply-unauth@mail.test>
+In-Reply-To: <orig@newvision.tickets>
+References: <orig@newvision.tickets>`,
+      'I am not on this ticket but I know the number.',
+    );
+    const result = await svc.processRaw(raw);
+    expect(result.action).toBe('comment_unverified');
+    expect(tickets.addPublicOrInternalComment).toHaveBeenCalledWith(
+      expect.objectContaining({ isInternal: true, unmatchedSender: 'asha.apte@newvision.local' }),
+    );
+    expect(prisma.notification.createMany).toHaveBeenCalled();
+  });
+
+  it('Phase 1: accepts a reply from the ticket requester as a public comment', async () => {
+    prisma.ticketMessage.findFirst.mockResolvedValue({
+      ticket: {
+        id: 22,
+        ticketNumber: 'TCK-000022',
+        subject: 'VPN',
+        status: 'assigned',
+        raisedById: 3,
+        assignedToId: 5,
+        firstResponseAt: null,
+        waitingSince: null,
+        waitingTotalMinutes: 0,
+      },
+    });
+    const raw = eml(
+      `From: Asha Apte <asha.apte@newvision.local>
+Subject: Re: [TCK-000022] VPN
+Message-ID: <reply-requester@mail.test>
+In-Reply-To: <orig@newvision.tickets>
+References: <orig@newvision.tickets>`,
+      'Still broken after reboot.',
+    );
+    const result = await svc.processRaw(raw);
+    expect(result.action).toBe('comment');
+    expect(tickets.addPublicOrInternalComment).toHaveBeenCalledWith(
+      expect.objectContaining({ isInternal: false }),
+    );
+  });
+
+  it('Phase 1: accepts a reply from a ticket watcher as a public comment', async () => {
+    prisma.ticketWatcher.findUnique.mockResolvedValue({ ticketId: 22, employeeId: 3 });
+    prisma.ticketMessage.findFirst.mockResolvedValue({
+      ticket: {
+        id: 22,
+        ticketNumber: 'TCK-000022',
+        subject: 'VPN',
+        status: 'assigned',
+        raisedById: 99,
+        assignedToId: 5,
+        firstResponseAt: null,
+        waitingSince: null,
+        waitingTotalMinutes: 0,
+      },
+    });
+    const raw = eml(
+      `From: Asha Apte <asha.apte@newvision.local>
+Subject: Re: [TCK-000022] VPN
+Message-ID: <reply-watcher@mail.test>
+In-Reply-To: <orig@newvision.tickets>
+References: <orig@newvision.tickets>`,
+      'Watching this one too — still broken.',
+    );
+    const result = await svc.processRaw(raw);
+    expect(result.action).toBe('comment');
+    expect(prisma.ticketWatcher.findUnique).toHaveBeenCalledWith({
+      where: { ticketId_employeeId: { ticketId: 22, employeeId: 3 } },
+    });
   });
 
   it('flags an unrecognized sender instead of creating an employee', async () => {

@@ -219,6 +219,12 @@ enum ReconciliationKind {
   assets
 }
 
+enum AuditCycleStatus {
+  draft
+  in_progress
+  closed
+}
+
 enum VendorStatus {
   draft
   pending_approval
@@ -414,6 +420,12 @@ model Tenant {
   procurementActivityLogs       ProcurementActivityLog[]
   procurementAttachments        ProcurementAttachment[]
   procurementHandoffs           ProcurementHandoff[]
+  customRoles                   CustomRole[]
+  auditCycles                   AuditCycle[]
+  auditCycleFindings            AuditCycleFinding[]
+  clientAccounts                ClientAccount[]
+  vdiEnvironments               VdiEnvironment[]
+  employeeClientAssignments     EmployeeClientAssignment[]
 
   @@map("tenants")
 }
@@ -439,9 +451,29 @@ model Permission {
   key         String   @unique // e.g. "asset:create", "audit:read"
   description String?
   roles       Role[]   @relation("RolePermissions")
+  customRoles CustomRole[] @relation("CustomRolePermissions")
   createdAt   DateTime @default(now()) @map("created_at")
 
   @@map("permissions")
+}
+
+/// Tenant-scoped permission bundles (Phase 5). System {@link Role} rows stay enum-backed.
+model CustomRole {
+  id          Int          @id @default(autoincrement())
+  tenantId    Int          @map("tenant_id")
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  key         String       @map("role_key")
+  label       String
+  description String?
+  isActive    Boolean      @default(true) @map("is_active")
+  permissions Permission[] @relation("CustomRolePermissions")
+  users       User[]
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  @@unique([tenantId, key])
+  @@index([tenantId])
+  @@map("custom_roles")
 }
 
 model User {
@@ -455,6 +487,8 @@ model User {
   isActive               Boolean   @default(true) @map("is_active")
   roleId                 Int       @map("role_id")
   role                   Role      @relation(fields: [roleId], references: [id])
+  customRoleId           Int?      @map("custom_role_id")
+  customRole             CustomRole? @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
   employeeId             Int?      @unique @map("employee_id")
   employee               Employee? @relation(fields: [employeeId], references: [id])
   refreshTokenHash       String?   @map("refresh_token_hash")
@@ -466,6 +500,12 @@ model User {
   passwordChangedAt      DateTime? @map("password_changed_at")
   totpSecretEnc          String?   @map("totp_secret_enc")
   totpEnabled            Boolean   @default(false) @map("totp_enabled")
+  /// Microsoft Entra ID's immutable object id (the `oid` claim) — the account-linking key for
+  /// "Sign in with Microsoft" (Phase 2). Deliberately NOT the email: emails can change or be
+  /// reused, oid never does. Nullable because most accounts today are password-only.
+  entraObjectId          String?   @unique @map("entra_object_id")
+  /// Department from Microsoft (Entra `department` claim), stored for JIT-provisioned accounts.
+  entraDepartment        String?   @map("entra_department")
   createdAt              DateTime  @default(now()) @map("created_at")
   updatedAt              DateTime  @updatedAt @map("updated_at")
 
@@ -513,6 +553,7 @@ model User {
   procurementLogs         ProcurementActivityLog[]
   procurementAttachments  ProcurementAttachment[]     @relation("ProcurementAttachmentUploader")
   handoffsCreated         ProcurementHandoff[]
+  auditCyclesSignedOff    AuditCycle[]                @relation("AuditCycleSignoff")
   @@index([tenantId])
 
   @@map("users")
@@ -612,6 +653,7 @@ model Employee {
   supportTickets     SupportTicket[]     @relation("TicketRequester")
   ticketWatches      TicketWatcher[]
   requisitionsOwned  PurchaseRequisition[] @relation("RequisitionOwner")
+  clientAssignments  EmployeeClientAssignment[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -685,10 +727,13 @@ model Asset {
   reconciliationNote  String?       @map("reconciliation_note")
   lastAuditedAt      DateTime?      @map("last_audited_at")
   nextAuditDueAt     DateTime?      @map("next_audit_due_at")
+  depreciationYears Int?            @map("depreciation_years")
+  salvageValue      Decimal?        @map("salvage_value") @db.Decimal(12, 2)
   createdAt          DateTime       @default(now()) @map("created_at")
   updatedAt          DateTime       @updatedAt @map("updated_at")
 
   assignments    AssetAssignment[]
+  auditFindings  AuditCycleFinding[]
   transfers      AssetTransfer[]
   maintenance    AssetMaintenance[]
   notifications  Notification[]
@@ -919,6 +964,104 @@ model ReconciliationRun {
   @@index([createdAt])
   @@index([tenantId])
   @@map("reconciliation_runs")
+}
+
+model AuditCycle {
+  id            Int              @id @default(autoincrement())
+  tenantId      Int              @map("tenant_id")
+  tenant        Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name          String
+  status        AuditCycleStatus @default(draft)
+  scopeNote     String?          @map("scope_note")
+  startedAt     DateTime?        @map("started_at")
+  closedAt      DateTime?        @map("closed_at")
+  signedOffById Int?             @map("signed_off_by_id")
+  signedOffBy   User?            @relation("AuditCycleSignoff", fields: [signedOffById], references: [id], onDelete: SetNull)
+  findings      AuditCycleFinding[]
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+
+  @@index([tenantId])
+  @@index([status])
+  @@map("audit_cycles")
+}
+
+model AuditCycleFinding {
+  id            Int         @id @default(autoincrement())
+  tenantId      Int         @map("tenant_id")
+  tenant        Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cycleId       Int         @map("cycle_id")
+  cycle         AuditCycle  @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  assetId       Int?        @map("asset_id")
+  asset         Asset?      @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  exceptionType String      @map("exception_type")
+  notes         String?
+  evidenceUrl   String?     @map("evidence_url")
+  resolvedAt    DateTime?   @map("resolved_at")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  @@index([cycleId])
+  @@index([assetId])
+  @@index([tenantId])
+  @@map("audit_cycle_findings")
+}
+
+model ClientAccount {
+  id          Int       @id @default(autoincrement())
+  tenantId    Int       @map("tenant_id")
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  code        String
+  name        String
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  assignments EmployeeClientAssignment[]
+  tickets     SupportTicket[]
+  vdiEnvironments VdiEnvironment[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@map("client_accounts")
+}
+
+model VdiEnvironment {
+  id          Int           @id @default(autoincrement())
+  tenantId    Int           @map("tenant_id")
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  clientId    Int           @map("client_id")
+  client      ClientAccount @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name        String
+  poolName    String?       @map("pool_name")
+  isActive    Boolean       @default(true) @map("is_active")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  tickets     SupportTicket[]
+
+  @@index([clientId])
+  @@index([tenantId])
+  @@map("vdi_environments")
+}
+
+model EmployeeClientAssignment {
+  id          Int           @id @default(autoincrement())
+  tenantId    Int           @map("tenant_id")
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  employeeId  Int           @map("employee_id")
+  employee    Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  clientId    Int           @map("client_id")
+  client      ClientAccount @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  startedAt   DateTime      @default(now()) @map("started_at")
+  endedAt     DateTime?     @map("ended_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  @@index([employeeId])
+  @@index([clientId])
+  @@index([tenantId])
+  @@map("employee_client_assignments")
 }
 
 model WebhookEndpoint {
@@ -1176,6 +1319,12 @@ model SupportTicket {
   verifiedById          Int?            @map("verified_by_id")
   verifiedBy            User?           @relation("TicketIdentityVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
   overdueMailedAt       DateTime?       @map("overdue_mailed_at")
+  slaEscalatedAt        DateTime?       @map("sla_escalated_at")
+  clientId              Int?            @map("client_id")
+  client                ClientAccount?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  vdiEnvironmentId      Int?            @map("vdi_environment_id")
+  vdiEnvironment        VdiEnvironment? @relation(fields: [vdiEnvironmentId], references: [id], onDelete: SetNull)
+  waitingOnClient       Boolean         @default(false) @map("waiting_on_client")
   createdAt             DateTime        @default(now()) @map("created_at")
   updatedAt             DateTime        @updatedAt @map("updated_at")
 
@@ -1193,6 +1342,8 @@ model SupportTicket {
   @@index([raisedById])
   @@index([dueDate])
   @@index([verifiedById])
+  @@index([clientId])
+  @@index([vdiEnvironmentId])
   @@unique([tenantId, ticketNumber])
   @@index([tenantId])
   @@map("support_tickets")

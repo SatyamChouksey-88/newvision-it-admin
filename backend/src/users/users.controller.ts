@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Param,
   ParseIntPipe,
@@ -18,6 +19,11 @@ import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorat
 import { Roles } from '../common/decorators/roles.decorator';
 import { ListQuery, parseListQuery } from '../common/query';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  actorMayAssignRole,
+  actorMayManageUsers,
+  isRoleEscalation,
+} from '../common/rbac/role-authority';
 import { runUnscoped } from '../tenancy/context';
 import { AdminResetPasswordDto, CreateUserDto, UpdateUserDto } from './dto';
 
@@ -28,7 +34,7 @@ import { AdminResetPasswordDto, CreateUserDto, UpdateUserDto } from './dto';
  */
 @ApiTags('users')
 @Controller('users')
-@Roles(RoleName.SUPER_ADMIN)
+@Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
 export class UsersController {
   constructor(
     private readonly prisma: PrismaService,
@@ -44,7 +50,11 @@ export class UsersController {
         skip,
         take,
         orderBy,
-        include: { role: true, employee: { select: { id: true, firstName: true, lastName: true, employeeCode: true } } },
+        include: {
+          role: true,
+          customRole: { select: { id: true, key: true, label: true } },
+          employee: { select: { id: true, firstName: true, lastName: true, employeeCode: true } },
+        },
       }),
       this.prisma.user.count(),
     ]);
@@ -58,7 +68,11 @@ export class UsersController {
   async get(@Param('id', ParseIntPipe) id: number) {
     const u = await this.prisma.user.findUniqueOrThrow({
       where: { id },
-      include: { role: true, employee: { select: { id: true, firstName: true, lastName: true, employeeCode: true } } },
+      include: {
+        role: true,
+        customRole: { select: { id: true, key: true, label: true } },
+        employee: { select: { id: true, firstName: true, lastName: true, employeeCode: true } },
+      },
     });
     return this.present(u);
   }
@@ -66,6 +80,10 @@ export class UsersController {
   /** Create a standalone login, or link one to an existing employee (email/reset-link only — no plaintext password stored or returned). */
   @Post()
   async create(@Body() dto: CreateUserDto, @CurrentUser() actor: AuthUser) {
+    if (!actorMayManageUsers(actor.role)) throw new ForbiddenException();
+    if (!actorMayAssignRole(actor.role, dto.role)) {
+      throw new ForbiddenException('You cannot assign this role');
+    }
     const role = await this.prisma.role.findUnique({ where: { name: dto.role } });
     if (!role) throw new BadRequestException(`Unknown role ${dto.role}`);
     if (dto.employeeId) {
@@ -119,18 +137,57 @@ export class UsersController {
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateUserDto,
-    @CurrentUser('id') actorId: number,
+    @CurrentUser() actor: AuthUser,
   ) {
-    const before = await this.prisma.user.findUniqueOrThrow({ where: { id }, include: { role: true } });
+    if (!actorMayManageUsers(actor.role)) throw new ForbiddenException();
+    const before = await this.prisma.user.findUniqueOrThrow({
+      where: { id },
+      include: { role: true, customRole: { select: { id: true, key: true, label: true } } },
+    });
     let roleId: number | undefined;
     if (dto.role) {
+      if (!actorMayAssignRole(actor.role, dto.role)) {
+        throw new ForbiddenException('You cannot assign this role');
+      }
+      if (id === actor.id && isRoleEscalation(before.role.name, dto.role)) {
+        throw new ForbiddenException('You cannot escalate your own role');
+      }
       const role = await this.prisma.role.findUnique({ where: { name: dto.role } });
       if (!role) throw new BadRequestException(`Unknown role ${dto.role}`);
       roleId = role.id;
     }
+    // Phase 1 hardening: never let this endpoint leave the tenant with zero active Super
+    // Admins — whether by demoting the last one's role or deactivating them. Applies whether
+    // the actor is demoting themselves or someone else.
+    if (before.role.name === RoleName.SUPER_ADMIN) {
+      const losingRole = roleId !== undefined && roleId !== before.roleId;
+      const losingActive = dto.isActive === false && before.isActive !== false;
+      if (losingRole || losingActive) {
+        const otherActiveSuperAdmins = await this.prisma.user.count({
+          where: { id: { not: id }, isActive: true, role: { name: RoleName.SUPER_ADMIN } },
+        });
+        if (otherActiveSuperAdmins === 0) {
+          throw new BadRequestException(
+            'Cannot remove or deactivate the last remaining Super Admin.',
+          );
+        }
+      }
+    }
     if (dto.employeeId) {
       const existing = await this.prisma.user.findUnique({ where: { employeeId: dto.employeeId } });
       if (existing && existing.id !== id) throw new BadRequestException('This employee already has a login');
+    }
+    let customRoleId: number | null | undefined;
+    if (dto.customRoleId !== undefined) {
+      if (dto.customRoleId === null) {
+        customRoleId = null;
+      } else {
+        const cr = await this.prisma.customRole.findFirst({
+          where: { id: dto.customRoleId, tenantId: actor.tenantId, isActive: true },
+        });
+        if (!cr) throw new BadRequestException('Unknown or inactive custom role');
+        customRoleId = cr.id;
+      }
     }
     const user = await this.prisma.user.update({
       where: { id },
@@ -139,17 +196,38 @@ export class UsersController {
         ...(roleId !== undefined ? { roleId } : {}),
         ...(dto.employeeId !== undefined ? { employeeId: dto.employeeId } : {}),
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+        ...(customRoleId !== undefined ? { customRoleId } : {}),
       },
-      include: { role: true, employee: { select: { id: true, firstName: true, lastName: true, employeeCode: true } } },
+      include: {
+        role: true,
+        customRole: { select: { id: true, key: true, label: true } },
+        employee: { select: { id: true, firstName: true, lastName: true, employeeCode: true } },
+      },
     });
+    const roleAudit =
+      dto.role !== undefined && dto.role !== before.role.name
+        ? ` role ${before.role.name}→${user.role.name}`
+        : '';
+    const customAudit =
+      customRoleId !== undefined
+        ? ` customRole ${before.customRole?.label ?? 'none'}→${user.customRole?.label ?? 'none'}`
+        : '';
     await this.audit.record({
       entityType: 'User',
       entityId: id,
       action: 'update',
-      summary: `Updated login ${user.email}${dto.isActive === false ? ' (deactivated)' : dto.isActive === true ? ' (activated)' : ''}`,
-      changedById: actorId,
-      oldValue: { role: before.role.name, isActive: before.isActive },
-      newValue: { role: user.role.name, isActive: user.isActive },
+      summary: `Updated login ${user.email}${roleAudit}${customAudit}${dto.isActive === false ? ' (deactivated)' : dto.isActive === true ? ' (activated)' : ''}`,
+      changedById: actor.id,
+      oldValue: {
+        role: before.role.name,
+        isActive: before.isActive,
+        customRoleId: before.customRoleId,
+      },
+      newValue: {
+        role: user.role.name,
+        isActive: user.isActive,
+        customRoleId: user.customRoleId,
+      },
     });
     return this.present(user);
   }
@@ -190,6 +268,7 @@ export class UsersController {
     isActive: boolean;
     createdAt: Date;
     role: { name: RoleName };
+    customRole?: { id: number; key: string; label: string } | null;
     employee: { id: number; firstName: string; lastName: string; employeeCode: string } | null;
   }) {
     return {
@@ -198,6 +277,7 @@ export class UsersController {
       fullName: u.fullName,
       isActive: u.isActive,
       role: u.role.name,
+      customRole: u.customRole ?? null,
       employee: u.employee,
       createdAt: u.createdAt,
     };

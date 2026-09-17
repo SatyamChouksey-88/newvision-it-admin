@@ -1,5 +1,14 @@
 import { RoleName } from '@prisma/client';
-import { IsBoolean, IsEmail, IsEnum, IsInt, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmail,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  MinLength,
+  ValidateIf,
+} from 'class-validator';
 import { MIN_PASSWORD_LENGTH } from '../common/password';
 
 export class CreateUserDto {
@@ -40,6 +49,12 @@ export class UpdateUserDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  /** Assign or clear a tenant custom role (null clears). */
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null && value !== undefined)
+  @IsInt()
+  customRoleId?: number | null;
 }
 
 export class AdminResetPasswordDto {

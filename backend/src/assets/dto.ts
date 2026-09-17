@@ -27,6 +27,8 @@ export class CreateAssetDto {
   @IsOptional() @IsEnum(AssetCondition) condition?: AssetCondition;
   @IsOptional() @IsString() vendor?: string;
   @IsOptional() @IsString() invoiceNo?: string;
+  @IsOptional() @Type(() => Number) @IsInt() depreciationYears?: number;
+  @IsOptional() @IsNumber() salvageValue?: number;
   /** Optional explicit code; otherwise auto-generated AST-{LOC}-{CAT}-{SEQ}. */
   @IsOptional() @IsString() assetCode?: string;
 }

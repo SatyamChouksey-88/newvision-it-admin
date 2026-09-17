@@ -11,7 +11,11 @@ import { AuthUser } from '../common/decorators/current-user.decorator';
 import { ListQuery, parseListQuery } from '../common/query';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantService } from '../tenancy/tenant.service';
-import { DEFAULT_ONBOARD_ITEMS, DEFAULT_PROBATION_DAYS } from './checklist-defaults';
+import {
+  DEFAULT_OFFBOARD_ITEMS,
+  DEFAULT_ONBOARD_ITEMS,
+  DEFAULT_PROBATION_DAYS,
+} from './checklist-defaults';
 import { CreateEmployeeDto, OffboardEmployeeDto, UpdateEmployeeDto } from './dto';
 import * as crypto from 'node:crypto';
 
@@ -608,6 +612,16 @@ export class EmployeesService {
       );
 
       return updated;
+    });
+
+    await this.prisma.employeeChecklist.create({
+      data: {
+        employeeId: id,
+        kind: 'offboard',
+        items: {
+          create: DEFAULT_OFFBOARD_ITEMS.map((label, i) => ({ label, sortOrder: i })),
+        },
+      },
     });
 
     return result;

@@ -35,7 +35,7 @@ describe('Prompt 23 — Vendor & Procurement (e2e)', () => {
 
   beforeAll(async () => {
     app = await createTestApp();
-    const ids = await seedCore(app.get(PrismaService));
+    const ids = await seedCore(app.get(PrismaService), app);
     locationId = ids.locationPune;
     admin = await login(app, 'itadmin@newvision.local');
     superTok = await login(app, 'superadmin@newvision.local');

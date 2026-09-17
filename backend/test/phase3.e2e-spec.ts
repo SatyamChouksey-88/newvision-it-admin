@@ -14,7 +14,7 @@ describe('Phase 3 — import jobs, saved views, bulk actions, reconciliation (e2
   beforeAll(async () => {
     app = await createTestApp();
     prisma = app.get(PrismaService);
-    ids = await seedCore(prisma);
+    ids = await seedCore(prisma, app);
     adminToken = await login(app, 'itadmin@newvision.local');
   });
 

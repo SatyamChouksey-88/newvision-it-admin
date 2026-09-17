@@ -74,10 +74,9 @@ const DEMO_USER_EMAILS = [
   'employee@newvision.local',
 ];
 
+/** Phase 1 hardening: opt-in only, mirrors src/common/demo-logins.ts's demoLoginsAllowed(). */
 function demoLoginsAllowedForSeed(): boolean {
-  if (process.env.ALLOW_DEMO_LOGINS === 'true') return true;
-  if (process.env.ALLOW_DEMO_LOGINS === 'false') return false;
-  return process.env.NODE_ENV !== 'production';
+  return process.env.ALLOW_DEMO_LOGINS === 'true';
 }
 
 /** Keeps seeded @newvision.local passwords on Password123! when full reseed is skipped. */
@@ -461,6 +460,11 @@ async function main() {
   await prisma.ticketTemplate.deleteMany();
   await prisma.ticketCategory.deleteMany();
   await prisma.ticketPriorityTarget.deleteMany();
+  await prisma.auditCycleFinding.deleteMany();
+  await prisma.auditCycle.deleteMany();
+  await prisma.employeeClientAssignment.deleteMany();
+  await prisma.vdiEnvironment.deleteMany();
+  await prisma.clientAccount.deleteMany();
   await prisma.assetMaintenance.deleteMany();
   await prisma.assetTransfer.deleteMany();
   await prisma.assetAssignment.deleteMany();

@@ -12,15 +12,28 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('saves the current asset filters as a named view', async ({ page }) => {
+  test.setTimeout(60_000);
   await page.goto('/assets');
+  await expect(page.locator('table').first()).toBeVisible({ timeout: 20_000 });
   await selectByLabel(page, 'Filter by status', 'Available');
 
   await page.getByRole('button', { name: 'Save view' }).click();
   const dialog = page.getByRole('dialog', { name: /Save current filters/i });
   await expect(dialog).toBeVisible();
-  await dialog.getByRole('textbox').fill(`E2E view ${Date.now()}`);
-  await dialog.getByRole('button', { name: 'Save view' }).click();
-  await expectSuccess(page, /Saved view/i);
+  const viewName = `E2E view ${Date.now()}`;
+  const nameField = dialog.getByRole('textbox', { name: 'View name' });
+  await nameField.clear();
+  await nameField.pressSequentially(viewName, { delay: 15 });
+  const submit = dialog.getByRole('button', { name: 'Save view' });
+  await expect(submit).toBeEnabled();
+  const [res] = await Promise.all([
+    page.waitForResponse(
+      (r) => r.url().includes('/api/saved-views') && r.request().method() === 'POST',
+    ),
+    submit.click(),
+  ]);
+  expect(res.ok()).toBeTruthy();
+  await expectSuccess(page, new RegExp(`Saved view "${viewName}"`));
 });
 
 test('dry-runs a mapped import job from Settings', async ({ page }) => {

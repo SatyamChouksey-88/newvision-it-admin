@@ -34,6 +34,7 @@ import { requireTenantId } from '../tenancy/context';
 import { ensureAccountPlaybook } from './account-playbook';
 import { canTransitionTicket, currentStatusImpliesWorkStarted } from './tickets.lifecycle';
 import { computeSla, DEFAULT_PRIORITY_TARGETS, type SlaDecor } from './ticket-sla';
+import { TicketChatNotifyService } from './ticket-chat-notify.service';
 
 const STAFF: RoleName[] = [RoleName.SUPER_ADMIN, RoleName.IT_ADMIN, RoleName.IT_SUPPORT];
 const OPEN_STATUSES: TicketStatus[] = [
@@ -88,6 +89,7 @@ export class TicketsService {
     private readonly mailer: MailerService,
     private readonly auth: AuthService,
     private readonly tenants: TenantService,
+    private readonly ticketChat: TicketChatNotifyService,
   ) {}
 
   private playbookEnsured = false;
@@ -265,6 +267,9 @@ export class TicketsService {
       autoAssign?: boolean;
       channel?: 'portal' | 'email';
       unmatchedSender?: string | null;
+      clientId?: number;
+      vdiEnvironmentId?: number;
+      waitingOnClient?: boolean;
     },
     actor: AuthUser,
   ) {
@@ -324,6 +329,9 @@ export class TicketsService {
           dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
           channel: dto.channel ?? 'portal',
           unmatchedSender: dto.unmatchedSender ?? null,
+          clientId: dto.clientId ?? null,
+          vdiEnvironmentId: dto.vdiEnvironmentId ?? null,
+          waitingOnClient: dto.waitingOnClient ?? false,
         },
       });
       const numbered = await tx.supportTicket.update({
@@ -359,6 +367,7 @@ export class TicketsService {
       const confirmEmail = ticketCreatedEmail({ ticketId: ticket.id, ticketNumber: ticket.ticketNumber, subject });
       await this.notifyUsers([requesterUserId], confirmEmail.subject, subject, ticket.id, false, confirmEmail.html);
     }
+    void this.ticketChat.notifyNewTicket(ticket.ticketNumber, subject, priority);
     return this.get(ticket.id, actor);
   }
 

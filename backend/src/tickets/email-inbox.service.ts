@@ -19,7 +19,10 @@ export type IngestResult =
   | { action: 'duplicate'; messageId: string }
   | { action: 'rate_limited'; from: string }
   | { action: 'ticket'; ticketId: number; ticketNumber: string; unmatchedSender?: string }
-  | { action: 'comment'; ticketId: number; ticketNumber: string; unmatchedSender?: string };
+  | { action: 'comment'; ticketId: number; ticketNumber: string; unmatchedSender?: string }
+  /** Phase 1 hardening: sender didn't match the requester/assignee/a watcher — recorded as an
+   * internal-only note for staff review instead of an authenticated public update. */
+  | { action: 'comment_unverified'; ticketId: number; ticketNumber: string; unmatchedSender: string };
 
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 const RATE_MAX = 15;
@@ -191,6 +194,33 @@ export class EmailInboxService {
     const body = stripQuotedReply(parsed.text) || parsed.text || parsed.subject;
 
     if (matched) {
+      const authorized = await this.isAuthorizedTicketSender(matched, employee, user);
+      if (!authorized) {
+        // Don't accept an unverified reply as an authenticated public update — the sender
+        // isn't the requester, the assignee, or a watcher on this ticket (they may just have
+        // guessed/observed the ticket number). Record it as an internal-only note instead.
+        await this.tickets.addPublicOrInternalComment({
+          ticket: matched,
+          body: `[Unverified email reply from ${parsed.fromAddress} — sender does not match the requester, assignee, or a watcher on this ticket]\n\n${body}`,
+          isInternal: true,
+          authorId: user?.id ?? null,
+          actorName: user?.fullName ?? parsed.from,
+          actorRole: user?.role.name,
+          actorEmployeeId: employee?.id ?? user?.employeeId ?? null,
+          unmatchedSender: parsed.fromAddress,
+        });
+        await this.storeInbound(matched.id, parsed, await this.systemActor());
+        await this.notifyAdminsUnmatched(
+          parsed.fromAddress,
+          `Unverified email reply on ${matched.ticketNumber} from ${parsed.fromAddress} — flagged for review, not posted publicly`,
+        );
+        return {
+          action: 'comment_unverified',
+          ticketId: matched.id,
+          ticketNumber: matched.ticketNumber,
+          unmatchedSender: parsed.fromAddress,
+        };
+      }
       await this.tickets.addPublicOrInternalComment({
         ticket: matched,
         body,
@@ -269,6 +299,28 @@ export class EmailInboxService {
       return this.prisma.supportTicket.findFirst({ where: { ticketNumber: number } });
     }
     return null;
+  }
+
+  /**
+   * Phase 1 hardening: a matched reply is only trusted as an authenticated update from the
+   * ticket's requester, its currently assigned staff member, or a watcher — not from anyone who
+   * merely got the ticket number into a subject/References header (e.g. by CC, forwarding, or
+   * guessing). Everyone else's reply still gets recorded, just as an internal-only note.
+   */
+  private async isAuthorizedTicketSender(
+    ticket: { id: number; raisedById: number; assignedToId: number | null },
+    employee: { id: number } | null,
+    user: { id: number } | null,
+  ): Promise<boolean> {
+    if (employee && employee.id === ticket.raisedById) return true;
+    if (user && ticket.assignedToId != null && user.id === ticket.assignedToId) return true;
+    if (employee) {
+      const watcher = await this.prisma.ticketWatcher.findUnique({
+        where: { ticketId_employeeId: { ticketId: ticket.id, employeeId: employee.id } },
+      });
+      if (watcher) return true;
+    }
+    return false;
   }
 
   private async storeInbound(ticketId: number, parsed: ParsedEmail, actor: AuthUser) {

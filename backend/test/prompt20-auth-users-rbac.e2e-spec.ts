@@ -17,7 +17,7 @@ describe('Prompt 20 — refresh tokens, password reset, Users CRUD, RBAC dashboa
   beforeAll(async () => {
     app = await createTestApp();
     prisma = app.get(PrismaService);
-    ids = await seedCore(prisma);
+    ids = await seedCore(prisma, app);
     superAdmin = await login(app, 'superadmin@newvision.local');
     admin = await login(app, 'itadmin@newvision.local');
     _manager = await login(app, 'manager@newvision.local');
@@ -83,6 +83,8 @@ describe('Prompt 20 — refresh tokens, password reset, Users CRUD, RBAC dashboa
       .post('/api/auth/login')
       .send({ email: 'employee@newvision.local', password: 'ChangedPassword123!' })
       .expect(200);
+
+    employee = await login(app, 'employee@newvision.local', 'ChangedPassword123!');
   });
 
   it('forgot-password always returns success and never leaks whether the email exists', async () => {
@@ -114,8 +116,9 @@ describe('Prompt 20 — refresh tokens, password reset, Users CRUD, RBAC dashboa
       .expect(200);
     expect(list.body.total).toBeGreaterThanOrEqual(5);
 
-    // Non-super-admin roles cannot manage users.
-    await request(app.getHttpServer()).get('/api/users').set(auth(admin)).expect(403);
+    // IT Admin can list users; other roles cannot.
+    await request(app.getHttpServer()).get('/api/users').set(auth(admin)).expect(200);
+    await request(app.getHttpServer()).get('/api/users').set(auth(employee)).expect(403);
 
     const emp = await prisma.employee.findUniqueOrThrow({ where: { id: ids.employeeB } });
     const created = await request(app.getHttpServer())
@@ -151,6 +154,81 @@ describe('Prompt 20 — refresh tokens, password reset, Users CRUD, RBAC dashboa
       .set(auth(superAdmin))
       .send({})
       .expect(201);
+  });
+
+  it('Phase 1: refuses to demote or deactivate the last remaining Super Admin', async () => {
+    const superAdminUser = await prisma.user.findFirstOrThrow({
+      where: { role: { name: 'SUPER_ADMIN' } },
+    });
+
+    const demote = await request(app.getHttpServer())
+      .put(`/api/users/${superAdminUser.id}`)
+      .set(auth(superAdmin))
+      .send({ role: 'IT_ADMIN' })
+      .expect(400);
+    expect(demote.body.message).toMatch(/last remaining Super Admin/i);
+
+    const deactivate = await request(app.getHttpServer())
+      .put(`/api/users/${superAdminUser.id}`)
+      .set(auth(superAdmin))
+      .send({ isActive: false })
+      .expect(400);
+    expect(deactivate.body.message).toMatch(/last remaining Super Admin/i);
+
+    // Once a second active Super Admin exists, the original can be changed freely — using the
+    // second admin's own token for the mutating calls, since a Nest guard re-resolves the
+    // caller's role from the DB on every request, so the original's token would itself lose
+    // Super Admin access the instant it demotes itself.
+    await request(app.getHttpServer())
+      .post('/api/users')
+      .set(auth(superAdmin))
+      .send({
+        email: 'second.super.admin@newvision.local',
+        fullName: 'Second Super',
+        role: 'SUPER_ADMIN',
+        password: 'SecondSuperAdmin123!',
+      })
+      .expect(201);
+    const secondSuperAdminToken = await login(app, 'second.super.admin@newvision.local', 'SecondSuperAdmin123!');
+
+    await request(app.getHttpServer())
+      .put(`/api/users/${superAdminUser.id}`)
+      .set(auth(secondSuperAdminToken))
+      .send({ role: 'IT_ADMIN' })
+      .expect(200);
+
+    // Restore fixture state for any later test in this file that assumes one Super Admin.
+    await request(app.getHttpServer())
+      .put(`/api/users/${superAdminUser.id}`)
+      .set(auth(secondSuperAdminToken))
+      .send({ role: 'SUPER_ADMIN' })
+      .expect(200);
+  });
+
+  it('Phase 5: IT Admin cannot assign Super Admin or IT Admin roles', async () => {
+    const target = await prisma.user.findFirstOrThrow({
+      where: { email: 'employee@newvision.local' },
+    });
+    await request(app.getHttpServer())
+      .put(`/api/users/${target.id}`)
+      .set(auth(admin))
+      .send({ role: 'SUPER_ADMIN' })
+      .expect(403);
+    await request(app.getHttpServer())
+      .put(`/api/users/${target.id}`)
+      .set(auth(admin))
+      .send({ role: 'IT_ADMIN' })
+      .expect(403);
+    await request(app.getHttpServer())
+      .put(`/api/users/${target.id}`)
+      .set(auth(admin))
+      .send({ role: 'MANAGER' })
+      .expect(200);
+    await request(app.getHttpServer())
+      .put(`/api/users/${target.id}`)
+      .set(auth(admin))
+      .send({ role: 'EMPLOYEE' })
+      .expect(200);
   });
 
   it('creating an employee can optionally create a login for them (B2)', async () => {

@@ -11,7 +11,7 @@ describe('Prompt 36 A4 — maker ≠ checker and account holder', () => {
 
   beforeAll(async () => {
     app = await createTestApp();
-    await seedCore(app.get(PrismaService));
+    await seedCore(app.get(PrismaService), app);
     itAdmin = await login(app, 'itadmin@newvision.local');
     superAdmin = await login(app, 'superadmin@newvision.local');
   });

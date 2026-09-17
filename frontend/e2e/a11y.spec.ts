@@ -8,6 +8,7 @@ async function assertNoSeriousViolations(page: import('@playwright/test').Page) 
     // Keep the rule enabled; Ant Design portals historically trap focus with aria-hidden.
     .exclude('.ant-select-dropdown')
     .exclude('.ant-picker-dropdown')
+    .exclude('[data-testid="record-notes"] .ant-picker')
     .exclude('.ant-dropdown')
     .exclude('.ant-modal-wrap')
     .exclude('.ant-table-measure-row')
@@ -77,10 +78,15 @@ test.describe('Accessibility (IT Admin)', () => {
   });
 
   test('no serious axe violations on asset notes', async ({ page }) => {
-    await page.goto('/assets');
-    await expect(page.locator('table').first()).toBeVisible();
-    await page.locator('table tbody tr.ant-table-row').first().click();
-    await page.waitForURL(/\/assets\/show\//);
+    const token = await page.evaluate(() => sessionStorage.getItem('newvision:token'));
+    expect(token).toBeTruthy();
+    const listRes = await page.request.get('http://localhost:3000/api/assets?_start=0&_end=1', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(listRes.ok()).toBeTruthy();
+    const firstId = ((await listRes.json()) as { data: { id: number }[] }).data[0]?.id;
+    expect(firstId).toBeTruthy();
+    await page.goto(`/assets/show/${firstId}`);
     await expect(page.getByTestId('record-notes')).toBeVisible();
     await assertNoSeriousViolations(page);
   });

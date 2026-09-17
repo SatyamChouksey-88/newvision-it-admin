@@ -1005,34 +1005,40 @@ function SaveViewModal({
   onClose: () => void;
   onSave: (name: string) => Promise<void>;
 }) {
-  const [name, setName] = useState('');
+  const [form] = Form.useForm<{ name: string }>();
   const [busy, setBusy] = useState(false);
   return (
     <Modal
       open={open}
       title="Save current filters as a view"
       okText="Save view"
-      okButtonProps={{ disabled: !name.trim(), loading: busy }}
+      okButtonProps={{ loading: busy }}
       onCancel={onClose}
-      afterClose={() => setName('')}
+      afterClose={() => form.resetFields()}
       onOk={async () => {
-        setBusy(true);
         try {
-          await onSave(name.trim());
-        } finally {
-          setBusy(false);
+          const { name } = await form.validateFields();
+          setBusy(true);
+          try {
+            await onSave(name.trim());
+          } finally {
+            setBusy(false);
+          }
+        } catch {
+          /* validation errors shown on fields */
         }
       }}
     >
-      <Form layout="vertical">
-        <Form.Item label="View name" required>
+      <Form form={form} layout="vertical">
+        <Form.Item
+          name="name"
+          label="View name"
+          rules={[{ required: true, whitespace: true, message: 'Enter a view name' }]}
+        >
           <Input
             autoFocus
-            value={name}
-            onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Mumbai laptops under repair"
             maxLength={60}
-            onPressEnter={() => name.trim() && void onSave(name.trim())}
           />
         </Form.Item>
         <Typography.Text type="secondary" style={{ fontSize: 12 }}>

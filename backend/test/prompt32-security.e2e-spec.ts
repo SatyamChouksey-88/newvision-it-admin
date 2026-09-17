@@ -14,7 +14,7 @@ describe('Prompt 32 — security & data boundaries', () => {
 
   beforeAll(async () => {
     app = await createTestApp();
-    ids = await seedCore(app.get(PrismaService));
+    ids = await seedCore(app.get(PrismaService), app);
     admin = await login(app, 'itadmin@newvision.local');
     manager = await login(app, 'manager@newvision.local');
     employee = await login(app, 'employee@newvision.local');
@@ -262,9 +262,12 @@ describe('Prompt 32 — security & data boundaries', () => {
   });
 
   it('writes login and failed-login rows to the auth audit trail', async () => {
+    // A wrong password for a REAL user — Phase 1 hardening resolves that user's own tenant for
+    // this write (see auth.service.ts login()), so it lands correctly scoped rather than being
+    // silently unscoped.
     await request(app.getHttpServer())
       .post('/api/auth/login')
-      .send({ email: 'nobody@newvision.local', password: 'wrong-password-12' })
+      .send({ email: 'itadmin@newvision.local', password: 'wrong-password-12' })
       .expect(401);
     await request(app.getHttpServer())
       .post('/api/auth/login')
@@ -279,6 +282,16 @@ describe('Prompt 32 — security & data boundaries', () => {
     });
     expect(failures).toBeGreaterThanOrEqual(1);
     expect(logins).toBeGreaterThanOrEqual(1);
+  });
+
+  it('Phase 1: a failed login for an email that matches no user anywhere still responds correctly, with no tenant to attribute the audit event to', async () => {
+    // There's no tenant to scope this write to, so the tenant-isolation extension now refuses
+    // it (Phase 1 hardening) instead of silently landing it in tenant 1 — recordAuth() swallows
+    // that by design. The important thing is the login flow itself still behaves correctly.
+    await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ email: 'nobody-anywhere@newvision.local', password: 'wrong-password-12' })
+      .expect(401);
   });
 
   it('challenges Super Admin with TOTP once enrolled', async () => {
@@ -308,6 +321,47 @@ describe('Prompt 32 — security & data boundaries', () => {
       where: { email: 'superadmin@newvision.local' },
       data: { totpEnabled: false, totpSecretEnc: null },
     });
+  });
+
+  it('Phase 1: rate-limits repeated wrong codes on /auth/mfa/verify', async () => {
+    const prev = process.env.FORCE_LOGIN_RATE_LIMIT;
+    process.env.FORCE_LOGIN_RATE_LIMIT = 'true';
+    try {
+      const { encryptString } = await import('../src/common/crypto-secret');
+      const { generateTotpSecret, totpCode } = await import('../src/auth/totp');
+      const prisma = app.get(PrismaService);
+      const secret = generateTotpSecret();
+      await prisma.user.update({
+        where: { email: 'superadmin@newvision.local' },
+        data: { totpEnabled: true, totpSecretEnc: encryptString(secret) },
+      });
+
+      const challenge = await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({ email: 'superadmin@newvision.local', password: DEMO_PASSWORD })
+        .expect(200);
+      const mfaToken = challenge.body.mfa_token;
+
+      for (let i = 0; i < 8; i++) {
+        await request(app.getHttpServer())
+          .post('/api/auth/mfa/verify')
+          .send({ mfa_token: mfaToken, code: '000000' })
+          .expect(401);
+      }
+      // Locked out now — even the correct code is refused until the window clears.
+      await request(app.getHttpServer())
+        .post('/api/auth/mfa/verify')
+        .send({ mfa_token: mfaToken, code: totpCode(secret) })
+        .expect(429);
+
+      await prisma.user.update({
+        where: { email: 'superadmin@newvision.local' },
+        data: { totpEnabled: false, totpSecretEnc: null },
+      });
+    } finally {
+      if (prev === undefined) delete process.env.FORCE_LOGIN_RATE_LIMIT;
+      else process.env.FORCE_LOGIN_RATE_LIMIT = prev;
+    }
   });
 
   it('lets IT Support read vendor names but not the vendor ledger', async () => {

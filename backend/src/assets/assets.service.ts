@@ -6,9 +6,11 @@ import {
 } from '@nestjs/common';
 import { Asset, AssetStatus, Prisma, RoleName } from '@prisma/client';
 import { AccessoriesService } from '../accessories/accessories.service';
+import { AuditCyclesService } from '../audit-cycles/audit-cycles.service';
 import { AuditService } from '../audit/audit.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { ListQuery, parseListQuery } from '../common/query';
+import { straightLineDepreciation } from '../common/depreciation';
 import { PrismaService } from '../prisma/prisma.service';
 import { QrService } from '../qr/qr.service';
 import { WebhooksService } from '../webhooks/webhooks.service';
@@ -68,6 +70,7 @@ export class AssetsService {
     private readonly webhooks: WebhooksService,
     private readonly accessories: AccessoriesService,
     private readonly tenants: TenantService,
+    private readonly auditCycles: AuditCyclesService,
   ) {}
 
   async qrPng(id: number, actor: AuthUser): Promise<Buffer> {
@@ -283,7 +286,18 @@ export class AssetsService {
     if (!asset) {
       throw new NotFoundException(`Asset ${id} not found`);
     }
-    return this.redactFinance(asset, actor);
+    const redacted = this.redactFinance(asset, actor);
+    const cost =
+      redacted.purchaseCost != null ? Number(redacted.purchaseCost) : null;
+    const salvage =
+      redacted.salvageValue != null ? Number(redacted.salvageValue) : null;
+    const depreciation = straightLineDepreciation({
+      purchaseCost: cost,
+      salvageValue: salvage,
+      depreciationYears: redacted.depreciationYears,
+      purchaseDate: redacted.purchaseDate,
+    });
+    return { ...redacted, depreciation } as Asset;
   }
 
   // -------------------------------------------------------------------------
@@ -348,6 +362,8 @@ export class AssetsService {
           condition: dto.condition ?? 'good',
           vendor: dto.vendor,
           invoiceNo: dto.invoiceNo,
+          depreciationYears: dto.depreciationYears ?? null,
+          salvageValue: dto.salvageValue ?? null,
           status: 'available',
         },
         include: assetInclude,
@@ -404,6 +420,8 @@ export class AssetsService {
           serialNumber: dto.serialNumber,
           purchaseDate: dto.purchaseDate ? new Date(dto.purchaseDate) : undefined,
           purchaseCost: dto.purchaseCost,
+          depreciationYears: dto.depreciationYears,
+          salvageValue: dto.salvageValue,
           warrantyStart: dto.warrantyStart ? new Date(dto.warrantyStart) : undefined,
           warrantyEnd: dto.warrantyEnd ? new Date(dto.warrantyEnd) : undefined,
           condition: dto.condition,
@@ -751,6 +769,20 @@ export class AssetsService {
       return next;
     });
     void this.tenants.recordScan(actor.tenantId);
+    void this.auditCycles.recordPhysicalScan(
+      actor,
+      {
+        id: asset.id,
+        assetCode: asset.assetCode,
+        locationId: asset.locationId,
+        condition: asset.condition,
+      },
+      {
+        locationId: dto.locationId,
+        condition: dto.condition,
+        notes: dto.notes,
+      },
+    );
     return this.redactFinance(updated, actor);
   }
 

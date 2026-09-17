@@ -161,7 +161,8 @@ export function FirstRunWelcome() {
           </Typography.Title>
           <Typography.Paragraph style={{ margin: '8px 0 0', fontSize: 13, color: COLOR_TEXT_SECONDARY }}>
             {remaining} of 5 still open. Import the Excel you already have — then assign, scan, and close a
-            ticket. Procurement and chat stay hidden until this is done.
+            ticket. Procurement and chat stay hidden until this is done.{' '}
+            <Link to="/help/getting-started">Getting started guide</Link>
           </Typography.Paragraph>
         </div>
         <Space wrap>

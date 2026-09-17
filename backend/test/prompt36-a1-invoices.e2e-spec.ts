@@ -13,7 +13,7 @@ describe('Prompt 36 A1 — unique vendor invoice numbers', () => {
 
   beforeAll(async () => {
     app = await createTestApp();
-    await seedCore(app.get(PrismaService));
+    await seedCore(app.get(PrismaService), app);
     admin = await login(app, 'itadmin@newvision.local');
     superTok = await login(app, 'superadmin@newvision.local');
     const vendor = await request(app.getHttpServer())

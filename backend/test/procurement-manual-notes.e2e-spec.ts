@@ -22,7 +22,7 @@ describe('Procurement manual correction & notes (e2e)', () => {
 
   beforeAll(async () => {
     app = await createTestApp();
-    await seedCore(app.get(PrismaService));
+    await seedCore(app.get(PrismaService), app);
     admin = await login(app, 'itadmin@newvision.local');
     superTok = await login(app, 'superadmin@newvision.local');
     manager = await login(app, 'manager@newvision.local');

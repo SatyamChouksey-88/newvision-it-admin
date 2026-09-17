@@ -13,7 +13,7 @@ describe('Prompt 22 #7 — contracts ending and incomplete checklists (e2e)', ()
   beforeAll(async () => {
     app = await createTestApp();
     prisma = app.get(PrismaService);
-    ids = await seedCore(prisma);
+    ids = await seedCore(prisma, app);
     admin = await login(app, 'itadmin@newvision.local');
 
     await prisma.employee.update({

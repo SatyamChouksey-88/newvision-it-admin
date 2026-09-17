@@ -13,6 +13,8 @@ export interface AuthUser {
   tenantId: number;
   tenantSlug?: string;
   tenant?: TenantRecord;
+  /** When set, {@link effectivePermissions} uses this custom role's permission checklist. */
+  customRoleId?: number | null;
 }
 
 export const CurrentUser = createParamDecorator(

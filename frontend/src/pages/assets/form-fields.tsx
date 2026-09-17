@@ -136,6 +136,16 @@ export function AssetFormFields() {
         </Form.Item>
       </Col>
       <Col span={12}>
+        <Form.Item label="Depreciation (years)" name="depreciationYears">
+          <InputNumber style={{ width: '100%' }} min={1} max={30} />
+        </Form.Item>
+      </Col>
+      <Col span={12}>
+        <Form.Item label="Salvage value (₹)" name="salvageValue">
+          <InputNumber style={{ width: '100%' }} min={0} />
+        </Form.Item>
+      </Col>
+      <Col span={12}>
         <Form.Item label="Purchase Date" name="purchaseDate" {...dateProps}>
           <DatePicker style={{ width: '100%' }} />
         </Form.Item>

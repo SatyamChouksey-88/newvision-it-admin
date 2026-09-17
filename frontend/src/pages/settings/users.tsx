@@ -10,7 +10,9 @@ import {
   Tag,
   Typography,
 } from 'antd';
-import { useCallback, useEffect, useState } from 'react';
+import { useGetIdentity } from '@refinedev/core';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { Identity } from '../../providers/authProvider';
 import { DataGrid } from '../../components/DataGrid/DataGrid';
 import { EmployeeSelect } from '../../components/EmployeeSelect';
 import { useConfirmAction } from '../../hooks/useConfirmAction';
@@ -21,10 +23,13 @@ interface UserRow {
   email: string;
   fullName: string;
   role: string;
+  customRole: { id: number; key: string; label: string } | null;
   isActive: boolean;
   employee: { id: number; firstName: string; lastName: string; employeeCode: string } | null;
   createdAt: string;
 }
+
+type CustomRoleOption = { id: number; label: string };
 
 const ROLE_OPTIONS = [
   { label: 'Super Admin', value: 'SUPER_ADMIN' },
@@ -42,9 +47,19 @@ const ROLE_COLOR: Record<string, string> = {
   EMPLOYEE: 'default',
 };
 
-/** Settings → Users (Super Admin only). Only Super Admin can create IT Admins and other roles. */
+const IT_ADMIN_ASSIGNABLE = new Set(['EMPLOYEE', 'IT_SUPPORT', 'MANAGER']);
+
+/** Settings → Users & roles (Super Admin + IT Admin, with role limits enforced on the API). */
 export function UsersPanel() {
+  const { data: identity } = useGetIdentity<Identity>();
   const { message } = AntdApp.useApp();
+  const roleOptions = useMemo(() => {
+    if (identity?.role === 'SUPER_ADMIN') return ROLE_OPTIONS;
+    if (identity?.role === 'IT_ADMIN') {
+      return ROLE_OPTIONS.filter((o) => IT_ADMIN_ASSIGNABLE.has(o.value));
+    }
+    return ROLE_OPTIONS;
+  }, [identity?.role]);
   const { confirmAction } = useConfirmAction();
   const [rows, setRows] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -54,6 +69,7 @@ export function UsersPanel() {
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState<string>('EMPLOYEE');
   const [employeeId, setEmployeeId] = useState<number | undefined>();
+  const [customRoles, setCustomRoles] = useState<CustomRoleOption[]>([]);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -69,6 +85,10 @@ export function UsersPanel() {
 
   useEffect(() => {
     void reload();
+    httpClient
+      .get<{ id: number; label: string }[]>('/custom-roles')
+      .then(({ data }) => setCustomRoles(data.map((r) => ({ id: r.id, label: r.label }))))
+      .catch(() => setCustomRoles([]));
   }, [reload]);
 
   const create = async () => {
@@ -109,6 +129,14 @@ export function UsersPanel() {
       },
     });
     if (!ok) return;
+  };
+
+  const changeCustomRole = async (row: UserRow, next: number | null) => {
+    const current = row.customRole?.id ?? null;
+    if (next === current) return;
+    await httpClient.put(`/users/${row.id}`, { customRoleId: next });
+    message.success('Custom role updated');
+    void reload();
   };
 
   const changeRole = async (row: UserRow, next: string) => {
@@ -172,10 +200,26 @@ export function UsersPanel() {
                 size="small"
                 value={r.role}
                 style={{ width: 130 }}
-                options={ROLE_OPTIONS}
+                options={roleOptions}
                 onChange={(v) => void changeRole(r, v)}
                 aria-label={`Role for ${r.email}`}
                 labelRender={() => <Tag color={ROLE_COLOR[r.role]}>{r.role.replaceAll('_', ' ')}</Tag>}
+              />
+            ),
+          },
+          {
+            title: 'Custom role',
+            gridKey: 'customRole',
+            render: (_, r) => (
+              <Select
+                size="small"
+                allowClear
+                placeholder="None"
+                style={{ width: 150 }}
+                value={r.customRole?.id ?? undefined}
+                options={customRoles.map((c) => ({ value: c.id, label: c.label }))}
+                onChange={(v) => void changeCustomRole(r, v ?? null)}
+                aria-label={`Custom role for ${r.email}`}
               />
             ),
           },
@@ -234,7 +278,7 @@ export function UsersPanel() {
           </div>
           <div>
             <Typography.Text strong style={{ fontSize: 12 }}>Role</Typography.Text>
-            <Select style={{ width: '100%', marginTop: 4 }} value={role} options={ROLE_OPTIONS} onChange={setRole} />
+            <Select style={{ width: '100%', marginTop: 4 }} value={role} options={roleOptions} onChange={setRole} />
           </div>
           <div>
             <Typography.Text strong style={{ fontSize: 12 }}>Link to employee (optional)</Typography.Text>

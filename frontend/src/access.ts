@@ -71,6 +71,29 @@ export const ROLE_PERMISSIONS: Record<RoleName, PermissionKey[]> = {
   EMPLOYEE: ['asset:read', 'issue:report', 'asset:request'],
 };
 
+export const ROLE = {
+  SUPER_ADMIN: 'SUPER_ADMIN',
+  IT_ADMIN: 'IT_ADMIN',
+  IT_SUPPORT: 'IT_SUPPORT',
+  MANAGER: 'MANAGER',
+  EMPLOYEE: 'EMPLOYEE',
+} as const satisfies Record<string, RoleName>;
+
+export const GOVERNANCE_ROLES: RoleName[] = [ROLE.SUPER_ADMIN, ROLE.IT_ADMIN];
+export const TICKET_STAFF_ROLES: RoleName[] = [
+  ROLE.SUPER_ADMIN,
+  ROLE.IT_ADMIN,
+  ROLE.IT_SUPPORT,
+];
+
+export function canGovern(role?: string | null): boolean {
+  return GOVERNANCE_ROLES.includes(role as RoleName);
+}
+
+export function isTicketStaff(role?: string | null): boolean {
+  return TICKET_STAFF_ROLES.includes(role as RoleName);
+}
+
 export function can(role: string | undefined, permission: PermissionKey): boolean {
   if (!role) return false;
   return ROLE_PERMISSIONS[role as RoleName]?.includes(permission) ?? false;
@@ -167,7 +190,8 @@ export function navForRole(
           label: 'Requisitions',
           resource: 'purchase-requisitions',
         },
-        { key: 'reports', href: '/reports', label: 'Reports', resource: 'reports' },
+        { key: 'clients', href: '/clients', label: 'Clients', resource: 'clients' },
+    { key: 'reports', href: '/reports', label: 'Reports', resource: 'reports' },
         { key: 'help', href: '/help', label: 'Help', resource: 'help' },
         {
           key: 'profile',

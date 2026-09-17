@@ -17,7 +17,7 @@ describe('Email-in pipeline (e2e)', () => {
     app = await createTestApp();
     prisma = app.get(PrismaService);
     mailer = app.get(MailerService);
-    await seedCore(prisma);
+    await seedCore(prisma, app);
     admin = await login(app, 'itadmin@newvision.local');
     employee = await login(app, 'employee@newvision.local');
   });

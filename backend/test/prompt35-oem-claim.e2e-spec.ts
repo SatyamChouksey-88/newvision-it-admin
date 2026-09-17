@@ -13,7 +13,7 @@ describe('Prompt 35 Item 4 — OEM/AMC claim on maintenance (e2e)', () => {
   beforeAll(async () => {
     app = await createTestApp();
     prisma = app.get(PrismaService);
-    ids = await seedCore(prisma);
+    ids = await seedCore(prisma, app);
     admin = await login(app, 'itadmin@newvision.local');
   });
 

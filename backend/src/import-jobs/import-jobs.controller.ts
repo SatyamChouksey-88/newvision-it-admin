@@ -17,6 +17,7 @@ import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorat
 import { Roles } from '../common/decorators/roles.decorator';
 import { ListQuery } from '../common/query';
 import { CommitImportDto, PreviewImportDto } from './dto';
+import { ImportRateLimitService } from './import-rate-limit.service';
 import { ImportJobsService } from './import-jobs.service';
 
 type Uploaded = { originalname: string; buffer: Buffer };
@@ -24,7 +25,10 @@ type Uploaded = { originalname: string; buffer: Buffer };
 @ApiTags('import-jobs')
 @Controller('import-jobs')
 export class ImportJobsController {
-  constructor(private readonly jobs: ImportJobsService) {}
+  constructor(
+    private readonly jobs: ImportJobsService,
+    private readonly importLimits: ImportRateLimitService,
+  ) {}
 
   @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
   @Get()
@@ -48,6 +52,7 @@ export class ImportJobsController {
   ) {
     const kind: ImportKind = kindRaw === 'employees' ? 'employees' : 'assets';
     if (!file) throw new BadRequestException('No file uploaded (field name must be "file")');
+    this.importLimits.assertUploadAllowed(user.id);
     return this.jobs.create(file, kind, user);
   }
 
@@ -64,7 +69,7 @@ export class ImportJobsController {
     @Body() dto: CommitImportDto,
     @CurrentUser() user: AuthUser,
   ) {
-    return this.jobs.commit(id, user, dto.mapping);
+    return this.jobs.commit(id, user, dto.mapping, dto.validateOnly);
   }
 
   @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)

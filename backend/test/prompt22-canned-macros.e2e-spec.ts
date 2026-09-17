@@ -12,7 +12,7 @@ describe('Prompt 22 #8 — canned macros set status with the reply (e2e)', () =>
 
   beforeAll(async () => {
     app = await createTestApp();
-    await seedCore(app.get(PrismaService));
+    await seedCore(app.get(PrismaService), app);
     admin = await login(app, 'itadmin@newvision.local');
     employee = await login(app, 'employee@newvision.local');
     const cats = await request(app.getHttpServer())

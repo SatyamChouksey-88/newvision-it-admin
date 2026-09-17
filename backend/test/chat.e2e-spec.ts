@@ -20,10 +20,10 @@ describe('Prompt 24 — Teams-style staff chat (e2e)', () => {
 
   beforeAll(async () => {
     app = await createTestApp();
+    prisma = app.get(PrismaService);
+    await seedCore(prisma, app);
     await app.listen(0);
     baseUrl = await app.getUrl();
-    prisma = app.get(PrismaService);
-    await seedCore(prisma);
     admin = await login(app, 'itadmin@newvision.local');
     support = await login(app, 'support@newvision.local');
     superTok = await login(app, 'superadmin@newvision.local');

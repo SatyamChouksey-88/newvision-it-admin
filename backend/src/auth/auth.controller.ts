@@ -4,6 +4,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  NotFoundException,
   Post,
   Req,
   Res,
@@ -15,10 +16,11 @@ import type { Request, Response } from 'express';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
-import { ROLE_PERMISSIONS } from '../common/rbac/permissions';
+import { effectivePermissions } from '../common/rbac/permissions';
 import { PrismaService } from '../prisma/prisma.service';
 import { TenantService } from '../tenancy/tenant.service';
 import { AuthService } from './auth.service';
+import { LoginRateLimitService } from './login-rate-limit';
 import {
   ChangePasswordDto,
   DisableMfaDto,
@@ -27,7 +29,6 @@ import {
   MfaVerifyDto,
   RefreshDto,
   ResetPasswordDto,
-  SignupDto,
 } from './dto/auth-extra.dto';
 import { LoginDto } from './dto/login.dto';
 import {
@@ -49,6 +50,7 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly prisma: PrismaService,
     private readonly tenants: TenantService,
+    private readonly rateLimit: LoginRateLimitService,
   ) {}
 
   @Public()
@@ -129,14 +131,28 @@ export class AuthController {
   @HttpCode(200)
   async verifyMfa(
     @Body() dto: MfaVerifyDto,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
     const token = mfaTokenOf(dto);
     if (!token) throw new BadRequestException('mfa_token is required');
-    const result = await this.authService.verifyMfa(token, dto.code);
-    setRefreshCookie(res, result.refresh_token, dto.remember !== false);
-    if (includeRefreshInBody()) return result;
-    return { access_token: result.access_token, user: result.user };
+    // Phase 1 hardening: a 6-digit TOTP code is brute-forceable in ~1e6 attempts if unthrottled.
+    // Keyed on IP + the short-lived mfa_token itself (each login attempt gets its own), reusing
+    // the same throttle used for /auth/login.
+    const ip = clientIp(req);
+    this.rateLimit.assertAllowed(ip, token);
+    try {
+      const result = await this.authService.verifyMfa(token, dto.code);
+      this.rateLimit.recordSuccess(ip, token);
+      setRefreshCookie(res, result.refresh_token, dto.remember !== false);
+      if (includeRefreshInBody()) return result;
+      return { access_token: result.access_token, user: result.user };
+    } catch (err) {
+      if (err instanceof UnauthorizedException) {
+        this.rateLimit.recordFailure(ip, token);
+      }
+      throw err;
+    }
   }
 
   @Get('mfa')
@@ -182,26 +198,23 @@ export class AuthController {
     return { ...status, totpEnabled: status.enabled };
   }
 
-  @Public()
-  @Post('signup')
-  @HttpCode(201)
-  async signup(@Body() dto: SignupDto, @Res({ passthrough: true }) res: Response) {
-    const result = await this.authService.signup(dto);
-    setRefreshCookie(res, result.refresh_token, true);
-    if (includeRefreshInBody()) return result;
-    return { access_token: result.access_token, user: result.user, tenant: result.tenant };
-  }
-
   @Get('me')
   async me(@CurrentUser() user: AuthUser) {
     const row = await this.prisma.user.findUnique({
       where: { id: user.id },
-      select: { emailNotifyPref: true, totpEnabled: true },
+      select: {
+        emailNotifyPref: true,
+        totpEnabled: true,
+        customRole: { select: { id: true, label: true, key: true } },
+      },
     });
     const tenant = await this.tenants.snapshot(user);
+    const customRole =
+      row?.customRole && user.customRoleId === row.customRole.id ? row.customRole : null;
     return {
       ...user,
-      permissions: ROLE_PERMISSIONS[user.role],
+      permissions: effectivePermissions(user.role, user.customRoleId),
+      customRole,
       emailNotifyPref: row?.emailNotifyPref ?? 'immediate',
       totpEnabled: Boolean(row?.totpEnabled),
       tenant,

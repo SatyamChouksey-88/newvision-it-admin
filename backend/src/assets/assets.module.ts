@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AccessoriesModule } from '../accessories/accessories.module';
+import { AuditCyclesModule } from '../audit-cycles/audit-cycles.module';
 import { QrModule } from '../qr/qr.module';
 import { WebhooksModule } from '../webhooks/webhooks.module';
 import { AssetsController } from './assets.controller';
@@ -8,7 +9,7 @@ import { IssueKitsController } from './issue-kits.controller';
 import { IssueKitsService } from './issue-kits.service';
 
 @Module({
-  imports: [QrModule, WebhooksModule, AccessoriesModule],
+  imports: [QrModule, WebhooksModule, AccessoriesModule, AuditCyclesModule],
   controllers: [AssetsController, IssueKitsController],
   providers: [AssetsService, IssueKitsService],
   exports: [AssetsService, IssueKitsService],

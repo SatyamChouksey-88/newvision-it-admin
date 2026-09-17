@@ -11,7 +11,7 @@ describe('Auth & RBAC (e2e)', () => {
   beforeAll(async () => {
     app = await createTestApp();
     prisma = app.get(PrismaService);
-    await seedCore(prisma);
+    await seedCore(prisma, app);
   });
 
   afterAll(async () => {

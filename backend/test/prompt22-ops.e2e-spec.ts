@@ -14,7 +14,7 @@ describe('Prompt 22 #9–#20 ops (e2e)', () => {
   beforeAll(async () => {
     app = await createTestApp();
     prisma = app.get(PrismaService);
-    ids = await seedCore(prisma);
+    ids = await seedCore(prisma, app);
     admin = await login(app, 'itadmin@newvision.local');
     support = await login(app, 'support@newvision.local');
   });

@@ -87,8 +87,17 @@ export function RecordNotes({
             <Form.Item name="body" rules={[{ required: true, message: 'Write a note' }]}>
               <Input.TextArea rows={2} placeholder="Add a note (append-only)" aria-label="Note text" />
             </Form.Item>
-            <Form.Item name="occurredAt" label="Occurred (leave blank for now)">
-              <DatePicker showTime style={{ width: '100%' }} />
+            <Form.Item
+              name="occurredAt"
+              label="Occurred (leave blank for now)"
+              htmlFor="record-note-occurred-at"
+            >
+              <DatePicker
+                id="record-note-occurred-at"
+                showTime
+                style={{ width: '100%' }}
+                aria-label="Note occurred at"
+              />
             </Form.Item>
             <Button htmlType="submit" type="primary" data-testid="add-note">
               Add note

@@ -14,11 +14,11 @@ import { ImportJobsPanel } from './settings/import-jobs';
 import { ReconciliationPanel } from './settings/reconciliation';
 import { ChecklistsPanel } from './settings/checklists';
 import { UsersPanel } from './settings/users';
+import { CustomRolesPanel } from './settings/custom-roles';
+import { AuditCyclesPanel } from './settings/audit-cycles';
 import { WebhooksPanel } from './settings/webhooks';
 import { IssueKitsPanel } from './settings/issue-kits';
-
-const GOVERNANCE_ROLES = ['SUPER_ADMIN', 'IT_ADMIN'];
-const TICKET_STAFF = ['SUPER_ADMIN', 'IT_ADMIN', 'IT_SUPPORT'];
+import { canGovern, isTicketStaff, ROLE } from '../access';
 
 export function SettingsPage() {
   const toast = useToast();
@@ -26,9 +26,9 @@ export function SettingsPage() {
   const [permissions, setPermissions] = useState<string[]>([]);
   const [params, setParams] = useSearchParams();
   const [pref, setPref] = useState<'immediate' | 'daily_digest'>('immediate');
-  const canGovern = GOVERNANCE_ROLES.includes(identity?.role ?? '');
-  const isTicketStaff = TICKET_STAFF.includes(identity?.role ?? '');
-  const isSuperAdmin = identity?.role === 'SUPER_ADMIN';
+  const govern = canGovern(identity?.role);
+  const ticketStaff = isTicketStaff(identity?.role);
+  const isSuperAdmin = identity?.role === ROLE.SUPER_ADMIN;
 
   useEffect(() => {
     httpClient
@@ -77,7 +77,7 @@ export function SettingsPage() {
                 )}
               </Space>
             </Card>
-            {isTicketStaff ? (
+            {ticketStaff ? (
               <Card size="small" title="Ticket email notifications">
                 <Typography.Paragraph type="secondary">
                   In-app notifications always arrive immediately. This only changes how often you get email.
@@ -97,21 +97,27 @@ export function SettingsPage() {
           </Space>
         ),
       },
-      ...(isTicketStaff ? [{ key: 'helpdesk', label: 'Helpdesk', children: <HelpdeskSettings /> }] : []),
-      ...(canGovern
+      ...(ticketStaff ? [{ key: 'helpdesk', label: 'Helpdesk', children: <HelpdeskSettings /> }] : []),
+      ...(govern
         ? [
             { key: 'categories', label: 'Categories', children: <CategoriesPanel /> },
             { key: 'departments', label: 'Departments', children: <DepartmentsPanel /> },
             { key: 'imports', label: 'Import jobs', children: <ImportJobsPanel /> },
             { key: 'reconcile', label: 'Reconciliation', children: <ReconciliationPanel /> },
+            { key: 'audit-cycles', label: 'Audit cycles', children: <AuditCyclesPanel /> },
             { key: 'webhooks', label: 'Webhooks', children: <WebhooksPanel /> },
             { key: 'checklists', label: 'Onboard / Offboard', children: <ChecklistsPanel /> },
             { key: 'kits', label: 'Issue kits', children: <IssueKitsPanel /> },
           ]
         : []),
-      ...(isSuperAdmin ? [{ key: 'users', label: 'Users', children: <UsersPanel /> }] : []),
+      ...(govern
+        ? [
+            { key: 'users', label: 'Users', children: <UsersPanel /> },
+            { key: 'custom-roles', label: 'Custom roles', children: <CustomRolesPanel /> },
+          ]
+        : []),
     ],
-    [canGovern, isTicketStaff, isSuperAdmin, identity, permissions, pref, savePref],
+    [govern, ticketStaff, isSuperAdmin, identity, permissions, pref, savePref],
   );
 
   const allowed = useMemo(() => new Set(items.map((i) => i.key)), [items]);

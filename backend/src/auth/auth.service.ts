@@ -11,8 +11,7 @@ import { assertPasswordStrong } from '../common/password';
 import { MailerService } from '../notifications/mailer.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { runUnscoped, runWithTenant } from '../tenancy/context';
-import { provisionTenant } from '../tenancy/provision';
-import type { SignupDto } from './dto/auth-extra.dto';
+import { entraSatisfiesMfa } from './entra/entra-config';
 import { toTenantRecord } from './jwt.strategy';
 import { LoginRateLimitService } from './login-rate-limit';
 import { generateTotpSecret, otpauthUrl, verifyTotp } from './totp';
@@ -71,10 +70,34 @@ export class AuthService {
     } catch (err) {
       if (err instanceof UnauthorizedException) {
         this.rateLimit.recordFailure(ip, email);
-        await this.recordAuth('auth_failure', email.toLowerCase(), email, null, { ip });
+        // Resolve the tenant for THIS email (even on a wrong-password failure) so the audit
+        // row lands in the right tenant instead of being silently unscoped. Genuinely unknown
+        // emails (no matching user anywhere) have no tenant to attribute the event to — see the
+        // comment on recordAuth() for what happens to those.
+        const tenantId = await runUnscoped(() =>
+          this.prisma.user.findUnique({
+            where: { email: email.toLowerCase() },
+            select: { tenantId: true },
+          }),
+        ).then((row) => row?.tenantId);
+        await this.recordAuth('auth_failure', email.toLowerCase(), email, null, { ip }, tenantId);
       }
       throw err;
     }
+  }
+
+  /**
+   * Phase 2 — the tail of login() (MFA gate + token issuance + audit) reused by Entra ID
+   * sign-in once the caller has already independently verified the user's identity (a
+   * validated Entra ID token) and confirmed the local account is active. Never call this
+   * without that verification having happened first — it does not check a password.
+   */
+  async loginWithVerifiedIdentity(user: AuthUser, via: 'entra') {
+    const skipLocalMfa = via === 'entra' && entraSatisfiesMfa();
+    const mfa = skipLocalMfa ? null : await this.mfaGate(user);
+    if (mfa) return mfa;
+    await this.recordAuth('login', user.id, user.email, user.id, { via }, user.tenantId);
+    return this.issueTokenPair(user);
   }
 
   /**
@@ -303,13 +326,16 @@ export class AuthService {
     return bcrypt.hash(plain, 10);
   }
 
-  /** Production Super Admin must enroll TOTP. Tests/dev skip unless REQUIRE_SUPERADMIN_MFA=true. */
+  /**
+   * Phase 1 hardening: enforced by default everywhere (including local dev), not just in
+   * production — the investigation flagged this hardcoded to `false` in prod with a "demo
+   * convenience" comment, which meant new Super Admin accounts had no MFA requirement at all.
+   * Set REQUIRE_SUPERADMIN_MFA=false explicitly to opt out (e.g. the e2e test suite does, via
+   * test/test-env.ts, since it doesn't exercise the TOTP enrollment UI).
+   */
   static requireSuperAdminMfa(): boolean {
-    // Temporarily off so demo Super Admin can sign in on live without TOTP.
-    return false;
-    // if (process.env.REQUIRE_SUPERADMIN_MFA === 'true') return true;
-    // if (process.env.REQUIRE_SUPERADMIN_MFA === 'false') return false;
-    // return process.env.NODE_ENV === 'production';
+    if (process.env.REQUIRE_SUPERADMIN_MFA === 'false') return false;
+    return true;
   }
 
   private async mfaGate(user: AuthUser) {
@@ -468,22 +494,6 @@ export class AuthService {
     };
   }
 
-  async signup(dto: SignupDto) {
-    const email = dto.email.trim().toLowerCase();
-    const existing = await runUnscoped(() => this.prisma.user.findUnique({ where: { email } }));
-    if (existing) throw new BadRequestException('That email already has a login');
-    const { tenant, user } = await provisionTenant(this.prisma, {
-      companyName: dto.companyName.trim(),
-      email,
-      fullName: dto.fullName.trim(),
-      passwordHash: await AuthService.hashPassword(dto.password),
-      loadSample: Boolean(dto.loadSample),
-    });
-    await this.recordAuth('login', user.id, user.email, user.id, { via: 'signup' }, tenant.id);
-    const pair = await this.issueTokenPair(this.toAuthUser(user));
-    return { ...pair, tenant: { id: tenant.id, slug: tenant.slug, name: tenant.name } };
-  }
-
   private async recordAuth(
     action: 'login' | 'logout' | 'auth_failure' | 'password_change' | 'mfa_enroll' | 'mfa_verify',
     entityId: string | number,
@@ -493,6 +503,10 @@ export class AuthService {
     tenantId?: number,
   ) {
     try {
+      // When tenantId is unknown (e.g. a failed login for an email that matches no tenant),
+      // this write runs unscoped and the tenant-isolation extension now refuses it rather than
+      // silently landing the row in tenant 1 (Phase 1 hardening). The catch below swallows that
+      // by design — audit logging must never break the auth flow itself.
       const write = () =>
         this.audit.record({
           entityType: 'Auth',

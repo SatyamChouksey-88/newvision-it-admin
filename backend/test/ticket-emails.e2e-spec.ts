@@ -25,7 +25,7 @@ describe('Support ticket lifecycle emails (e2e)', () => {
     app = await createTestApp();
     prisma = app.get(PrismaService);
     mailer = app.get(MailerService);
-    await seedCore(prisma);
+    await seedCore(prisma, app);
     admin = await login(app, 'itadmin@newvision.local');
     support = await login(app, 'support@newvision.local');
     employee = await login(app, 'employee@newvision.local');
@@ -149,6 +149,34 @@ describe('Support ticket lifecycle emails (e2e)', () => {
     expect(rating).toBeDefined();
     expect(rating?.to).toBe('employee@newvision.local');
     expect(rating?.html).toContain('How did we do?');
+  });
+
+  it('emails the requester when a resolved ticket is reopened', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/api/support-tickets')
+      .set(auth(employee))
+      .send({ subject: 'Reopen me', description: 'Test reopen mail.', categoryId, autoAssign: false })
+      .expect(201);
+    await request(app.getHttpServer())
+      .post(`/api/support-tickets/${created.body.id}/assign`)
+      .set(auth(admin))
+      .send({ userId: supportUserId })
+      .expect(201);
+    await request(app.getHttpServer())
+      .patch(`/api/support-tickets/${created.body.id}/transition`)
+      .set(auth(support))
+      .send({ status: 'resolved' })
+      .expect(200);
+    sendSpy.mockClear();
+    await request(app.getHttpServer())
+      .patch(`/api/support-tickets/${created.body.id}/transition`)
+      .set(auth(support))
+      .send({ status: 'reopened' })
+      .expect(200);
+    const calls = sendSpy.mock.calls.map(([msg]) => msg);
+    const reopened = calls.find((m) => m.subject.includes(`${created.body.ticketNumber} is now reopened`));
+    expect(reopened).toBeDefined();
+    expect(reopened?.to).toBe('employee@newvision.local');
   });
 
   it('sends a daily digest email with the branded template', async () => {

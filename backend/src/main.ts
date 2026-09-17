@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import './instrument';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
@@ -9,7 +10,8 @@ async function bootstrap() {
     throw new Error('JWT_SECRET is required in production');
   }
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  app.enableShutdownHooks();
   configureApp(app);
 
   if (swaggerEnabled()) {

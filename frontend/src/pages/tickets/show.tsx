@@ -75,7 +75,7 @@ export function TicketShow() {
   const reload = () => void query.refetch();
 
   useEffect(() => {
-    if (isStaff) {
+    if (isStaff && ticket?.id) {
       httpClient
         .get('/canned-responses')
         .then(({ data }) => setCanned(Array.isArray(data) ? data : []))
@@ -89,7 +89,7 @@ export function TicketShow() {
         .then(({ data }) => setStaff(Array.isArray(data) ? data : []))
         .catch(() => undefined);
     }
-  }, [isStaff]);
+  }, [isStaff, ticket?.id]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: refetch history when the ticket changes
   useEffect(() => {
@@ -470,6 +470,8 @@ export function TicketShow() {
                 </Form.Item>
                 <Select
                   allowClear
+                  showSearch
+                  optionFilterProp="label"
                   placeholder="Insert a canned response"
                   aria-label="Canned response"
                   options={canned.map((c) => ({

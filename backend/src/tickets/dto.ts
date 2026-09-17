@@ -37,6 +37,9 @@ export class CreateTicketDto {
   @IsInt({ each: true })
   watcherEmployeeIds?: number[];
   @IsOptional() @IsBoolean() autoAssign?: boolean;
+  @IsOptional() @Type(() => Number) @IsInt() clientId?: number;
+  @IsOptional() @Type(() => Number) @IsInt() vdiEnvironmentId?: number;
+  @IsOptional() @IsBoolean() waitingOnClient?: boolean;
 }
 
 export class UpdateTicketDto {

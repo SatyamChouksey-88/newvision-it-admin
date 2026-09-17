@@ -14,7 +14,7 @@ describe('Prompt 35 Item 3 — scan-to-audit with location confirm (e2e)', () =>
   beforeAll(async () => {
     app = await createTestApp();
     prisma = app.get(PrismaService);
-    ids = await seedCore(prisma);
+    ids = await seedCore(prisma, app);
     admin = await login(app, 'itadmin@newvision.local');
     employee = await login(app, 'employee@newvision.local');
   });

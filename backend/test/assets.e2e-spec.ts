@@ -13,7 +13,7 @@ describe('Assets lifecycle (e2e)', () => {
   beforeAll(async () => {
     app = await createTestApp();
     prisma = app.get(PrismaService);
-    ids = await seedCore(prisma);
+    ids = await seedCore(prisma, app);
     adminToken = await login(app, 'itadmin@newvision.local');
   });
 

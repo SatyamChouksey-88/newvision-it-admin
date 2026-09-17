@@ -10,7 +10,7 @@ describe('Prompt 36 A3 — GSTIN and PAN fields', () => {
 
   beforeAll(async () => {
     app = await createTestApp();
-    await seedCore(app.get(PrismaService));
+    await seedCore(app.get(PrismaService), app);
     admin = await login(app, 'itadmin@newvision.local');
   });
 

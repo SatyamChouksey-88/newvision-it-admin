@@ -1,8 +1,10 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication, Logger, ValidationPipe } from '@nestjs/common';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import cookieParser from 'cookie-parser';
-import type { Express } from 'express';
+import type { Express, NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
+
+const httpLog = new Logger('HTTP');
 
 export function configureApp(app: INestApplication): void {
   app.useWebSocketAdapter(new IoAdapter(app));
@@ -27,6 +29,18 @@ export function configureApp(app: INestApplication): void {
     }),
   );
   app.use(cookieParser());
+
+  if (process.env.HTTP_REQUEST_LOG !== 'false') {
+    expressApp.use((req: Request, res: Response, next: NextFunction) => {
+      const start = Date.now();
+      res.on('finish', () => {
+        const ms = Date.now() - start;
+        if (req.path.startsWith('/api/health')) return;
+        httpLog.log(`${req.method} ${req.originalUrl} ${res.statusCode} ${ms}ms`);
+      });
+      next();
+    });
+  }
 
   app.enableCors({
     origin: (process.env.CORS_ORIGIN ?? 'http://localhost:5173')
