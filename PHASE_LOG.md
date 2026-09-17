@@ -446,7 +446,8 @@ No full e2e, Playwright, or 2 h soak this pass.
 
 | Action | Result |
 |--------|--------|
-| Commits | _(SHAs after push)_ |
-| `git push origin main` | _(status after push)_ |
+| Close-out commits | `e1d4cb5` (audit statuses), `bdace5a` (README + go-live), `ad6fe1b` (this log) |
+| `git push origin main` | **OK** — `5d7eb59..ad6fe1b` → `https://github.com/SatyamChouksey-88/newvision-it-admin.git` |
+| `main` vs `origin/main` | In sync (`git status`: no ahead/behind) |
 
 **Needs review:** Outlook visual sign-off for requisition screen; whether to raise tabular upload cap above 10 MB; fix help article “approvers on form” vs approval matrix.
