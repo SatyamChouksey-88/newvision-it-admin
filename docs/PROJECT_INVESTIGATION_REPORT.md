@@ -1,7 +1,7 @@
 # NewVision — Project Investigation Report (updated)
 
-**Date:** 2026-09-18 (post gap-fix pass)  
-**Scope:** Local workspace after investigation remediation commits (not pushed to remote).
+**Date:** 2026-09-18 (post gap-fix pass; close-out audit appended)  
+**Scope:** Local workspace after investigation remediation commits.
 
 ---
 
@@ -31,6 +31,13 @@
 | H Phases 10–14 | 18 | 1 | 0 | 0 | 0 |
 | I Infra | 2 | 1 | 0 | 0 | 1 |
 
+### Close-out audit — two items wrongly marked Done in the 2026-09-18 summary
+
+| Item | Honest status | Evidence |
+|------|---------------|----------|
+| **Large Excel/CSV import** | **[~] Partial** — **10 MB** upload cap unchanged | `TABULAR_UPLOAD_MAX_FILE_BYTES = 10 * 1024 * 1024` in `backend/src/common/uploads.ts`; enforced by `assertTabularUpload`; unit tests `uploads.spec.ts` (“rejects over 10MB”, accepts exactly cap). Parse benchmark handles 100k rows in memory when under cap; no cap raise in gap-fix pass. |
+| **Requisition form vs internal approval email** | **[~] Partial** — field parity in app; **no Outlook visual sign-off** | Form (`frontend/src/pages/procurement/requisitions/form.tsx`): title, department, date, business requirement, make/model, category, line items (product, unit cost, qty, notes), tax/total, vendor, budget head, procurement type, locations, remote flag, expected dates, attachment — matches in-app help (`frontend/src/help/articles.ts` § procurement-requisition). **To/Cc** approvers with green/amber/red icons: `ApprovalChain` on list/show (`frontend/src/pages/procurement/status.tsx`), populated on submit from **approval matrix** (`rebuildApprovers` in `backend/src/procurement/requisitions.service.ts`), not a manual picker on the form (help text that says “chosen on the form” is stale). Side-by-side comparison to a real Outlook approval message was **not** done in this repo; Satyam should confirm layout/subject line. |
+
 ---
 
 ## Key fixes since 2026-09-17 report
@@ -48,8 +55,8 @@
 - Real Entra app registration + secrets + Conditional Access testing  
 - Real helpdesk mailbox (IMAP/SMTP/Graph)  
 - `INITIAL_SUPER_ADMIN_EMAILS`, `SENTRY_DSN`, depreciation policy sign-off  
-- **Render vs Hostinger VPS** decision + production env/TLS  
-- `git push` when ready  
+- **Hostinger VPS** production env/TLS (see `docs/GO_LIVE_REQUIREMENTS.md`)  
+- Requisition UI: **Outlook template visual sign-off** (fields implemented; pixel/layout not verified)  
 - Optional: **2h API soak** on your machine (`backend/scripts/api-soak.mjs`)
 
 ---
