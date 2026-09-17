@@ -57,7 +57,7 @@ Each **tenant** (company) manages employees, assets, tickets, and optional procu
 | Category | Choice | Source |
 |----------|--------|--------|
 | Language | TypeScript 7 | `package.json` both packages |
-| Runtime | Node 22 (CI) | `.github/workflows/ci.yml` |
+| Runtime | Node **24** (CI + `engines >=24.16.0`) | `.github/workflows/ci.yml`, `package.json` |
 | API framework | NestJS **11.2.x** (CJS) | `backend/package.json`, [`TECHNICAL_REFERENCE.md#architecture`](#architecture) |
 | ORM | Prisma **7.10.0** + `@prisma/adapter-pg` | `prisma.config.ts`, `prisma.service.ts` |
 | UI | React 19, Refine 5/6, Ant Design 5, Vite 7, React Router 7 | `frontend/package.json` |
@@ -100,7 +100,7 @@ See [`TECHNICAL_REFERENCE.md#project-map`](#project-map) (Phase 1 tree + respons
 
 ### Data model
 
-- Schema: [`backend/prisma/schema.prisma`](../backend/prisma/schema.prisma) — **58** models, **40+** enums.
+- Schema: [`backend/prisma/schema.prisma`](../backend/prisma/schema.prisma) — **75** models, **40+** enums.
 - Tenancy: `tenantId` on operational entities; `Tenant` is root.
 - Asset FSM: [`lifecycle.ts`](../backend/src/assets/lifecycle.ts).
 - Ticket FSM: [`tickets.lifecycle.ts`](../backend/src/tickets/tickets.lifecycle.ts).
@@ -189,7 +189,7 @@ See dependency diagram in [`TECHNICAL_REFERENCE.md#architecture`](#architecture)
 
 ### Local setup (Phase 11)
 
-[`TECHNICAL_REFERENCE.md#setup-and-deployment`](#setup-and-deployment) — **executed:** typecheck, unit tests (119), frontend build, health 200. **Not executed:** full Docker compose, API e2e, Playwright.
+[`TECHNICAL_REFERENCE.md#setup-and-deployment`](#setup-and-deployment) — **executed:** typecheck, unit tests (**153**), backend e2e (**206/206**), Playwright (**102/102**), frontend build, health 200.
 
 ---
 
@@ -1324,7 +1324,11 @@ Demo account emails are listed in README (password not repeated here).
 
 ### Local setup (without Docker)
 
-**Node 22+**, **PostgreSQL 16**, databases `newvision` and `newvision_test` (for API e2e).
+**Node 24.16+**, **PostgreSQL 16**, databases `newvision` and `newvision_test` (for API e2e).
+
+### Deployment target (undecided)
+
+Production hosting is **not finalized**. `render.yaml` is a **legacy / unconfirmed** Render blueprint — do not treat it as the chosen go-live path until Satyam decides between **Render** and **Hostinger VPS**. No deploy work should be assumed until that decision and a matching runbook exist (see Hostinger guide in `docs/` when using VPS).
 
 #### Backend
 
@@ -1415,6 +1419,8 @@ Each spec file calls `seedCore(prisma, app)` in `beforeAll`, which:
 
 ### Running tests
 
+**Before backend e2e:** stop any dev API on port **3000** (`node dist/main.js` or Docker). A live API plus Jest both hitting Postgres can cause deadlocks, `401`s, and flaky `seedCore` runs. Playwright is the opposite — it **needs** one API on `:3000` with seeded `newvision`.
+
 From `backend/`:
 
 ```bash
@@ -1442,11 +1448,11 @@ From `frontend/`:
 
 1. **One** API process on port **3000** with seeded `newvision` DB (`cd backend && npm run build && npm run seed && ALLOW_DEMO_LOGINS=true node dist/main.js`). If the port is already in use, do not start a second server — the background task will exit with code 1 even after “successfully started”.
 2. `npx playwright install chromium` (once per machine/CI image).
-3. `npm run test:e2e` (starts Vite on 5173 via `playwright.config.ts`).
+3. `npm run test:e2e` (starts Vite on 5173 via `playwright.config.ts`, or reuses an existing `npm run dev` on 5173). If the embedded Vite process dies mid-run (`ERR_CONNECTION_REFUSED` on 5173), start `cd frontend && npm run dev` in a separate terminal and re-run Playwright.
 
-After governance/a11y hardening, re-run locally when Docker Postgres + API are up. Prior run (352409): **98/102** passed; failures were `a11y` asset-notes and `governance` save-view.
+**Baseline (backend):** with Postgres up, **no** API on `:3000`, then `NODE_OPTIONS=--max-old-space-size=4096 npm run test:e2e` — **206/206** tests, **37/37** suites, exit **0**, ~**8.4 min** (502 s wall clock, Node **24.19.0**, 2026-09-17 evening). If Docker is offline, e2e cannot run (`P1001`).
 
-**Baseline (backend):** with Postgres up, `npx prisma migrate deploy` then `NODE_OPTIONS=--max-old-space-size=4096 npm run test:e2e` — expect **206/206** tests, **37** spec files (verified 2026-09-17). If Docker is offline, e2e cannot run (`P1001`).
+**Baseline (Playwright):** API `:3000` + DB seeded, `cd frontend && npm run test:e2e` — **102/102** passed, exit **0**, ~**8.8 min** (Node **24.19.0**, 2026-09-18 local).
 
 ### CI guidance
 
@@ -1547,9 +1553,9 @@ Detail: [`PHASE_LOG.md`](../PHASE_LOG.md). Legend: `[x]` verified · `[~]` parti
 - [x] README/DECISIONS touched this round.
 
 ### Phase 9 — validation (live)
-- [x] Unit **153/153** (`npm test`).
-- [x] Backend e2e **206/206**, **37/37** suites, single process ~12 min (`NODE_OPTIONS=--max-old-space-size=4096 npm run test:e2e`).
-- [x] Playwright **102/102** (~10 min) — API on :3000 + seeded DB; fixes: save-view `Form` submit, 390px header overflow + `EmployeeBottomNav` mount, a11y asset-show navigation.
+- [x] Unit **153/153** (`npm test`, ~20 s, 2026-09-17).
+- [x] Backend e2e **206/206**, **37/37** suites, exit **0**, ~**8.4 min** — run with **no** dev API on `:3000` (`NODE_OPTIONS=--max-old-space-size=4096 npm run test:e2e`, Node **24.19.0**).
+- [x] Playwright **102/102**, exit **0**, ~**8.8 min** — API on `:3000` + seeded DB (2026-09-18).
 - [x] Manual walkthrough notes — `TECHNICAL_REFERENCE.md#manual-walkthrough-local-sign-off` (2026-09-17 sign-off).
 
 ### Phase 10
@@ -1562,12 +1568,13 @@ Detail: [`PHASE_LOG.md`](../PHASE_LOG.md). Legend: `[x]` verified · `[~]` parti
 ### Phase 11
 - [x] Offboard checklist auto-create; SLA escalation cron; ticket → `#helpdesk` chat line.
 - [x] Warranty/contract reminder crons (existing services).
+- [x] **Scheduled reports** — `ScheduledReportsService` (weekly cron, in-app + email summary).
 - [~] **KB / license compliance engine descoped** — use in-app Help (`frontend` help site) + ticket/procurement flows; no separate KB microservice (see [Known issues](#known-technical-issues-and-tech-debt)).
 
 ### Phase 12
 - [x] `AuditCycle` + findings API; Settings UI; CSV export.
 - [x] **Scan ↔ cycle** — `stampAudit` / `audit-by-code` call `AuditCyclesService.recordPhysicalScan()` for open `in_progress` cycles.
-- [~] Scheduled cycle reminder emails not built.
+- [x] Scheduled cycle reminder emails — `AuditCycleReminderService` (daily cron for long-running `in_progress` cycles).
 
 ### Phase 13
 - [x] Pilot plan, feedback audit, bootstrap emails, first-run → Getting Started.
@@ -1579,11 +1586,12 @@ Detail: [`PHASE_LOG.md`](../PHASE_LOG.md). Legend: `[x]` verified · `[~]` parti
 
 ### What's left before real go-live `[!]`
 
-All items below are **outside this repo / require Satyam** — local codebase sign-off is complete.
+Local engineering gate (unit **153/153**, e2e **206/206**, Playwright **102/102** as of **2026-09-18** gap-fix pass) is green; items below still require Satyam / production environment.
 
 - [!] **Microsoft Entra** — app registration, redirect URIs, client secret/cert, tenant ID, Conditional Access; set `MS_*` / `ENTRA_*` per `TECHNICAL_REFERENCE.md#mfa-transition-local-totp-entra-conditional-access` and `TECHNICAL_REFERENCE.md#entra-jit-eligibility-microsoft-side-setup` (local mock IdP is not production).
 - [!] **Helpdesk mailbox** — real IMAP/SMTP or Graph inbox for `email-in`; SPF/DKIM/DMARC for outbound ticket mail.
-- [!] **Render (or host) env** — `DATABASE_URL`, `JWT_SECRET`, `INITIAL_SUPER_ADMIN_EMAILS`, `CORS_ORIGIN`, `PUBLIC_APP_URL`, file storage if moving off local disk; backup/restore drill (`TECHNICAL_REFERENCE.md#newvision-it-admin-pilot-rollout-plan`, `TECHNICAL_REFERENCE.md#render-deploy-rollback-phase-10`).
+- [!] **Hostinger VPS (target)** — production deploy is **not** Render for this project; `render.yaml` / Render rollback docs are **legacy reference** until a Hostinger runbook lands. Set `DATABASE_URL`, `JWT_SECRET`, `INITIAL_SUPER_ADMIN_EMAILS`, `CORS_ORIGIN`, `PUBLIC_APP_URL`, file storage, TLS, backup/restore (`TECHNICAL_REFERENCE.md#newvision-it-admin-pilot-rollout-plan`, `TECHNICAL_REFERENCE.md#render-deploy-rollback-phase-10` for pattern only).
+- [!] **Entra env** — `backend/.env` has **no** `MS_*` / `ENTRA_*` yet; mock IdP only until app registration + secrets are added.
 - [!] **CDN / TLS** — production SPA host + API TLS; CSP aligned with `TECHNICAL_REFERENCE.md#cors-and-csp-phase-10`.
 - [!] **Optional:** `SENTRY_DSN`; durable import queue (Redis/worker) if imports exceed single-process limits; audit-cycle reminder emails.
 
@@ -1597,7 +1605,7 @@ All items below are **outside this repo / require Satyam** — local codebase si
 
 | ID | Severity | Issue | Evidence |
 |----|----------|-------|----------|
-| K1 | **HIGH** | `/signup` and `/trust` not registered in `App.tsx` | `pages/signup.tsx`, `login.tsx` hrefs — **REFERENCED** |
+| K1 | **RESOLVED** | `/signup` and `/trust` removed | `signup.tsx` / `trust.tsx` deleted; no routes in `App.tsx` |
 | K2 | **MEDIUM** | Help articles vs login trial signup copy | `help/articles.ts` vs `login.tsx` |
 | K3 | **MEDIUM** | Duplicated RBAC (`permissions.ts` / `access.ts`) | Must update both for new keys |
 | K4 | **LOW** | Historical note mentioned Nest 12; repo uses Nest 11 CJS | `package.json` |
@@ -1609,7 +1617,7 @@ All items below are **outside this repo / require Satyam** — local codebase si
 
 `permissions.ts` and `access.ts` **IT_ADMIN** rows match (no `user:manage`, no `asset:delete`). No other key drift detected.
 
-Functional gaps: [`PRODUCT_GAPS_AND_ENHANCEMENTS.md`](../PRODUCT_GAPS_AND_ENHANCEMENTS.md).
+Functional gaps: see [Known issues](#known-technical-issues-and-tech-debt) and pilot checklist below (no separate gaps file).
 
 ---
 
@@ -1705,7 +1713,7 @@ Internal single-tenant pilot (NewVision Softcom). Not a multi-customer SaaS laun
 ### Week 1 — IT core
 
 - IT Admin + Support validate assets, employees, tickets, email ingest on a **copy** of real export data (dry-run import).
-- Run QA gate: backend e2e **196/196**, Playwright green on staging.
+- Run QA gate: backend e2e **206/206**, Playwright **102/102** on staging.
 
 ### Week 2 — managers & employees
 
