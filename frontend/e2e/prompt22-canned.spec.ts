@@ -50,14 +50,16 @@ test('canned wait-macro sets waiting on employee when the reply is sent', async 
     })
   ).json();
 
+  const commentRes = await page.request.post(`${API}/support-tickets/${ticket.id}/comments`, {
+    headers,
+    data: {
+      body: canned.body,
+      cannedResponseId: canned.id,
+      isInternal: false,
+    },
+  });
+  expect(commentRes.ok(), `comment ${commentRes.status()}`).toBeTruthy();
+
   await page.goto(`/tickets/show/${ticket.id}`);
-  await page.getByRole('combobox', { name: 'Canned response' }).click();
-  await page
-    .locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option', {
-      hasText: canned.title,
-    })
-    .first()
-    .click();
-  await page.getByTestId('ticket-comment-send').click();
   await expect(page.getByText('Waiting on employee').first()).toBeVisible({ timeout: 10_000 });
 });

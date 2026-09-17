@@ -26,6 +26,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
+      NODE_ENV: development
       DATABASE_URL: postgresql://newvision:newvision@postgres:5432/newvision?schema=public
       JWT_SECRET: change-me-in-production-super-secret
       JWT_REFRESH_SECRET: change-me-refresh-in-production
@@ -37,6 +38,13 @@ services:
       # skips when users already exist if SEED_IF_EMPTY=true (safe to restart).
       SEED_ON_START: "true"
       SEED_IF_EMPTY: "true"
+      # Phase 1 hardening made this opt-in everywhere (no more implicit dev-mode default) —
+      # explicitly opted in here so the documented demo accounts keep working out of the box
+      # for local Docker Compose dev.
+      ALLOW_DEMO_LOGINS: "true"
+      # Left unset deliberately (defaults to enforced) so local dev exercises the same
+      # Super Admin TOTP enrollment flow production will use.
+      # REQUIRE_SUPERADMIN_MFA: "true"
     ports:
       - "3000:3000"
 
@@ -49,6 +57,9 @@ services:
     environment:
       # The browser runs on the host, so it reaches the backend via the host port.
       VITE_API_URL: http://localhost:3000/api
+      # Opt-in (Phase 1 hardening) — explicitly on here so the local demo-account shortcuts
+      # keep showing on the login page for Docker Compose dev.
+      VITE_SHOW_DEMO: "true"
     ports:
       - "5173:5173"
 

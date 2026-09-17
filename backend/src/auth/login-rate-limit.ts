@@ -16,7 +16,8 @@ export class LoginRateLimitService {
 
   private skipThrottle(): boolean {
     if (process.env.FORCE_LOGIN_RATE_LIMIT === 'true') return false;
-    return process.env.NODE_ENV === 'test';
+    if (process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development') return true;
+    return false;
   }
 
   assertAllowed(ip: string, email?: string): void {
