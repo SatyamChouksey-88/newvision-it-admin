@@ -11,6 +11,7 @@ import {
   importRowError,
 } from './import-errors';
 import { parseTabular, Row } from './parse';
+import { assertTabularUpload } from '../common/uploads';
 
 export interface AssetExportFilters {
   status?: string;
@@ -203,8 +204,113 @@ export class ImportExportService {
   // ---------------------------------------------------------------- import
 
   async importAssets(buffer: Buffer, filename: string, actor: AuthUser): Promise<ImportResult> {
+    assertTabularUpload({ originalname: filename, size: buffer.length });
     const rows = await parseTabular(buffer, filename);
     return this.importAssetRows(rows, actor);
+  }
+
+  /** Parse and validate an asset export against tenant reference data — no database writes. */
+  async dryRunAssets(buffer: Buffer, filename: string): Promise<ImportResult> {
+    assertTabularUpload({ originalname: filename, size: buffer.length });
+    const rows = await parseTabular(buffer, filename);
+    const result: ImportResult = {
+      total: rows.length,
+      created: 0,
+      failed: 0,
+      errors: [],
+      createdIds: [],
+    };
+    const [locations, categories] = await Promise.all([
+      this.prisma.location.findMany(),
+      this.prisma.assetCategory.findMany(),
+    ]);
+    const locByCode = new Map(locations.map((l) => [l.code.toUpperCase(), l]));
+    const catByCode = new Map(categories.map((c) => [c.code.toUpperCase(), c]));
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const rowNum = i + 2;
+      try {
+        const locationCode = (row.location || row.locationCode || '').toUpperCase();
+        const categoryCode = (row.category || row.categoryCode || '').toUpperCase();
+        if (!locByCode.get(locationCode)) {
+          throw importRowError(
+            rowNum,
+            ImportErrorCode.UNKNOWN_LOCATION,
+            `Unknown location code "${row.location}"`,
+            row,
+          );
+        }
+        if (!catByCode.get(categoryCode)) {
+          throw importRowError(
+            rowNum,
+            ImportErrorCode.UNKNOWN_CATEGORY,
+            `Unknown category code "${row.category}"`,
+            row,
+          );
+        }
+        result.created += 1;
+      } catch (e) {
+        result.failed += 1;
+        if (e && typeof e === 'object' && 'code' in e) {
+          result.errors.push(e as ImportRowError);
+        } else {
+          const msg = (e as Error).message;
+          result.errors.push(importRowError(rowNum, classifyImportMessage(msg), msg, row));
+        }
+      }
+    }
+    return result;
+  }
+
+  /** Parse and validate an employee export — no database writes. */
+  async dryRunEmployees(buffer: Buffer, filename: string): Promise<ImportResult> {
+    assertTabularUpload({ originalname: filename, size: buffer.length });
+    const rows = await parseTabular(buffer, filename);
+    const result: ImportResult = {
+      total: rows.length,
+      created: 0,
+      failed: 0,
+      errors: [],
+      createdIds: [],
+    };
+    const locations = await this.prisma.location.findMany();
+    const locByCode = new Map(locations.map((l) => [l.code.toUpperCase(), l]));
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const rowNum = i + 2;
+      try {
+        const locationCode = (row.location || row.locationCode || '').toUpperCase();
+        if (!locByCode.get(locationCode)) {
+          throw importRowError(
+            rowNum,
+            ImportErrorCode.UNKNOWN_LOCATION,
+            `Unknown location code "${row.location}"`,
+            row,
+          );
+        }
+        if (!row.employeeCode) {
+          throw importRowError(
+            rowNum,
+            ImportErrorCode.MISSING_REQUIRED,
+            'Missing employeeCode',
+            row,
+          );
+        }
+        if (!row.email) {
+          throw importRowError(rowNum, ImportErrorCode.MISSING_REQUIRED, 'Missing email', row);
+        }
+        result.created += 1;
+      } catch (e) {
+        result.failed += 1;
+        if (e && typeof e === 'object' && 'code' in e) {
+          result.errors.push(e as ImportRowError);
+        } else {
+          const msg = (e as Error).message;
+          result.errors.push(importRowError(rowNum, classifyImportMessage(msg), msg, row));
+        }
+      }
+    }
+    return result;
   }
 
   /** Import already-parsed (and optionally remapped) asset rows. */
@@ -305,6 +411,7 @@ export class ImportExportService {
   }
 
   async importEmployees(buffer: Buffer, filename: string, actor: AuthUser): Promise<ImportResult> {
+    assertTabularUpload({ originalname: filename, size: buffer.length });
     const rows = await parseTabular(buffer, filename);
     return this.importEmployeeRows(rows, actor);
   }
