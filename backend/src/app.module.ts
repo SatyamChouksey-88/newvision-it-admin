@@ -1,20 +1,26 @@
 import { Module } from '@nestjs/common';
+import { SentryModule } from '@sentry/nestjs/setup';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AccessoriesModule } from './accessories/accessories.module';
+import { AuditCyclesModule } from './audit-cycles/audit-cycles.module';
 import { AssetRequestsModule } from './asset-requests/asset-requests.module';
 import { AssetsModule } from './assets/assets.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
+import { EntraModule } from './auth/entra/entra.module';
 import { CategoriesModule } from './categories/categories.module';
+import { ClientsModule } from './clients/clients.module';
 import { ChatModule } from './chat/chat.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
+import { CustomRolesModule } from './custom-roles/custom-roles.module';
 import { ConsumablesModule } from './consumables/consumables.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { DepartmentsModule } from './departments/departments.module';
 import { EmployeesModule } from './employees/employees.module';
+import { FeedbackModule } from './feedback/feedback.module';
 import { HealthModule } from './health/health.module';
 import { ImportExportModule } from './import-export/import-export.module';
 import { ImportJobsModule } from './import-jobs/import-jobs.module';
@@ -22,6 +28,7 @@ import { LocationsModule } from './locations/locations.module';
 import { MaintenanceModule } from './maintenance/maintenance.module';
 import { NotesModule } from './notes/notes.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { RbacModule } from './common/rbac/rbac.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProcurementModule } from './procurement/procurement.module';
 import { QrModule } from './qr/qr.module';
@@ -39,12 +46,15 @@ import { TenantInterceptor } from './tenancy/tenant.interceptor';
 
 @Module({
   imports: [
+    SentryModule.forRoot(),
     ConfigModule.forRoot({ isGlobal: true }),
-    ScheduleModule.forRoot(),
+    ...(process.env.NODE_ENV === 'test' ? [] : [ScheduleModule.forRoot()]),
     PrismaModule,
+    RbacModule,
     TenancyModule,
     AuditModule,
     AuthModule,
+    EntraModule,
     HealthModule,
     LocationsModule,
     DepartmentsModule,
@@ -60,6 +70,8 @@ import { TenantInterceptor } from './tenancy/tenant.interceptor';
     ImportJobsModule,
     SavedViewsModule,
     ReconciliationModule,
+    AuditCyclesModule,
+    ClientsModule,
     MaintenanceModule,
     NotificationsModule,
     ReportsModule,
@@ -69,6 +81,8 @@ import { TenantInterceptor } from './tenancy/tenant.interceptor';
     NotesModule,
     RecordsModule,
     UsersModule,
+    CustomRolesModule,
+    FeedbackModule,
     ChatModule,
     ProcurementModule,
   ],

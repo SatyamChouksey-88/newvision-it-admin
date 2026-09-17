@@ -42,12 +42,13 @@ export function requireTenantId(): number {
  * still sees the store. A sync `als.run(() => prisma.findUnique())` exits before
  * the extension hook runs, which made live login throw "Missing tenant context".
  */
-export function runWithTenant<T>(tenantId: number, fn: () => T): T {
-  return als.run({ tenantId }, async () => await fn()) as T;
+/** Async-only ALS wrapper — keeps tenant context across `await` (Node 18+). */
+export async function runWithTenant<T>(tenantId: number, fn: () => Promise<T> | T): Promise<T> {
+  return als.run({ tenantId }, () => Promise.resolve(fn()));
 }
 
-export function runUnscoped<T>(fn: () => T): T {
-  return als.run({ unscoped: true }, async () => await fn()) as T;
+export async function runUnscoped<T>(fn: () => Promise<T> | T): Promise<T> {
+  return als.run({ unscoped: true }, () => Promise.resolve(fn()));
 }
 
 /** Run a cron/job once per tenant so Prisma never executes without a tenant id. */
@@ -55,7 +56,9 @@ export async function forEachTenant(
   prisma: { tenant: { findMany: (args: { select: { id: true } }) => Promise<{ id: number }[]> } },
   fn: (tenantId: number) => Promise<void>,
 ): Promise<void> {
-  const tenants = await runUnscoped(() => prisma.tenant.findMany({ select: { id: true } }));
+  const tenants = await runUnscoped(() =>
+    prisma.tenant.findMany({ select: { id: true } }),
+  );
   for (const tenant of tenants) {
     await runWithTenant(tenant.id, () => fn(tenant.id));
   }

@@ -64,13 +64,13 @@ export class NotificationsService {
   }
 
   /** Same targeting as low-stock: Super Admin + IT Admin, never a broadcast row. */
-  async itAlertUserIds(): Promise<number[]> {
-    const users = await this.itAlertUsers();
+  async itAlertUserIds(db?: Prisma.TransactionClient): Promise<number[]> {
+    const users = await this.itAlertUsers(db);
     return users.map((u) => u.id);
   }
 
   async fanOutToIt(payload: NotificationFanOut, db?: Prisma.TransactionClient): Promise<number> {
-    const ids = await this.itAlertUserIds();
+    const ids = await this.itAlertUserIds(db);
     return this.fanOut(ids, payload, db);
   }
 
@@ -95,8 +95,9 @@ export class NotificationsService {
     return unique.length;
   }
 
-  private itAlertUsers() {
-    return this.prisma.user.findMany({
+  private itAlertUsers(db?: Prisma.TransactionClient) {
+    const client = db ?? this.prisma;
+    return client.user.findMany({
       where: {
         isActive: true,
         role: { name: { in: [RoleName.SUPER_ADMIN, RoleName.IT_ADMIN] } },

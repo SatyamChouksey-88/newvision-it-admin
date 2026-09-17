@@ -2,9 +2,11 @@ import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { RoleName } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { provisionTenant } from '../src/tenancy/provision';
 import { Client } from 'pg';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
+import { RbacService } from '../src/common/rbac/rbac.service';
 import { ROLE_PERMISSIONS } from '../src/common/rbac/permissions';
 import { configureApp } from '../src/configure-app';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -48,56 +50,97 @@ export async function createTestApp(): Promise<INestApplication> {
   return app;
 }
 
-export async function resetDatabase(_prisma: PrismaService): Promise<void> {
-  // Dedicated connection — sharing Prisma's Pool with TRUNCATE races pg clients
-  // ("query() when already executing") and can leave the fixture half-applied.
-  await withAdminClient((client) =>
-    client.query('TRUNCATE TABLE tenants, roles, permissions RESTART IDENTITY CASCADE'),
-  );
+const E2E_ADVISORY_LOCK_KEY = 0x4e56_5349; // "NVS" — one seed/reset at a time across all e2e apps
+
+/** Truncate every application table on a dedicated pg client (avoids Prisma pool overlap). */
+async function truncateAllTables(): Promise<void> {
+  await withAdminClient(async (client) => {
+    await client.query('SELECT pg_advisory_lock($1)', [E2E_ADVISORY_LOCK_KEY]);
+    try {
+      const tables = await client.query<{ tablename: string }>(
+        `SELECT tablename FROM pg_tables
+         WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'`,
+      );
+      if (tables.rows.length === 0) return;
+      const list = tables.rows.map((r) => `"${r.tablename}"`).join(', ');
+      await client.query(`TRUNCATE TABLE ${list} RESTART IDENTITY CASCADE`);
+    } finally {
+      await client.query('SELECT pg_advisory_unlock($1)', [E2E_ADVISORY_LOCK_KEY]);
+    }
+  });
 }
 
-/** Seed a small, deterministic fixture and the five role users. Returns key ids. */
-export async function seedCore(prisma: PrismaService): Promise<TestContext['ids']> {
-  await resetDatabase(prisma);
-  setTestTenant(1);
+export async function resetDatabase(_prisma?: PrismaService): Promise<void> {
+  await truncateAllTables();
+}
 
-  await runUnscoped(async () => {
-    await prisma.tenant.upsert({
-      where: { id: 1 },
-      create: {
-        id: 1,
-        slug: 'newvision',
-        name: 'NewVision Softcom',
-        plan: 'team',
-        status: 'active',
-        modules: { procurement: true, chat: true, maintenance: true },
-      },
-      update: {
-        slug: 'newvision',
-        name: 'NewVision Softcom',
-        plan: 'team',
-        status: 'active',
-        trialEndsAt: null,
-        modules: { procurement: true, chat: true, maintenance: true },
-      },
+let seedQueue: Promise<unknown> = Promise.resolve();
+
+function enqueueSeed<T>(fn: () => Promise<T>): Promise<T> {
+  const next = seedQueue.then(fn, fn);
+  seedQueue = next.then(
+    () => undefined,
+    () => undefined,
+  );
+  return next;
+}
+
+/**
+ * Seed a small, deterministic fixture and the five role users. Returns key ids.
+ * Pass `app` so {@link RbacService} reloads after TRUNCATE — otherwise the first
+ * `onModuleInit` snapshot (pre-seed) leaks across specs in one Jest process.
+ */
+export async function seedCore(
+  prisma: PrismaService,
+  app?: INestApplication,
+): Promise<TestContext['ids']> {
+  return enqueueSeed(async () => {
+    await resetDatabase(prisma);
+    setTestTenant(1);
+
+    await runUnscoped(async () => {
+      await prisma.tenant.create({
+        data: {
+          id: 1,
+          slug: 'newvision',
+          name: 'NewVision Softcom',
+          plan: 'team',
+          status: 'active',
+          modules: { procurement: true, chat: true, maintenance: true },
+        },
+      });
+      await withAdminClient((client) =>
+        client.query(
+          `SELECT setval(pg_get_serial_sequence('tenants', 'id'), GREATEST(1, (SELECT MAX(id) FROM tenants)))`,
+        ),
+      );
     });
-    await withAdminClient((client) =>
-      client.query(
-        `SELECT setval(pg_get_serial_sequence('tenants', 'id'), GREATEST(1, (SELECT MAX(id) FROM tenants)))`,
-      ),
-    );
-  });
 
-  return runWithTenant(1, async () => {
+    const ids = await runWithTenant(1, async () => {
     const permKeys = Array.from(new Set(Object.values(ROLE_PERMISSIONS).flat()));
     await prisma.permission.createMany({
       data: permKeys.map((key) => ({ key })),
       skipDuplicates: true,
     });
 
+    const permissions = await prisma.permission.findMany();
+    const permByKey = new Map(permissions.map((p) => [p.key, p.id]));
     const roleIds = new Map<RoleName, number>();
     for (const name of Object.keys(ROLE_PERMISSIONS) as RoleName[]) {
-      const role = await prisma.role.create({ data: { name } });
+      const role = await prisma.role.upsert({
+        where: { name },
+        create: {
+          name,
+          permissions: {
+            connect: ROLE_PERMISSIONS[name].map((k) => ({ id: permByKey.get(k)! })),
+          },
+        },
+        update: {
+          permissions: {
+            set: ROLE_PERMISSIONS[name].map((k) => ({ id: permByKey.get(k)! })),
+          },
+        },
+      });
       roleIds.set(name, role.id);
     }
 
@@ -206,6 +249,7 @@ export async function seedCore(prisma: PrismaService): Promise<TestContext['ids'
         { code: 'access_account', name: 'Access & Account', defaultPriority: 'high' },
         { code: 'hardware_other', name: 'Hardware-other', defaultPriority: 'medium' },
         { code: 'general', name: 'General', defaultPriority: 'low' },
+        { code: 'vdi', name: 'VDI / Client desktop', defaultPriority: 'medium' },
       ],
     });
 
@@ -225,7 +269,31 @@ export async function seedCore(prisma: PrismaService): Promise<TestContext['ids'
       employeeB: empB.id,
       managerEmployee: manager.id,
     };
+    });
+
+    if (app) {
+      await app.get(RbacService).refreshFromDatabase();
+    }
+
+    return ids;
   });
+}
+
+/** Provision an isolated trial tenant (replaces removed `POST /auth/signup` in e2e). */
+export async function provisionTrialTenant(
+  app: INestApplication,
+  company: string,
+  email: string,
+  password = 'TrialPassword1!',
+): Promise<string> {
+  const prisma = app.get(PrismaService);
+  await provisionTenant(prisma, {
+    companyName: company,
+    email: email.toLowerCase(),
+    fullName: 'Owner',
+    passwordHash: await bcrypt.hash(password, 10),
+  });
+  return login(app, email, password);
 }
 
 export async function login(
