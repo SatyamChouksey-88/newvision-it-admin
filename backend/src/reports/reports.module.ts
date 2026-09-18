@@ -8,6 +8,6 @@ import { ScheduledReportsService } from './scheduled-reports.service';
   imports: [NotificationsModule],
   controllers: [ReportsController],
   providers: [ReportsService, ScheduledReportsService],
-  exports: [ReportsService],
+  exports: [ReportsService, ScheduledReportsService],
 })
 export class ReportsModule {}

@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron } from '@nestjs/schedule';
 import { RoleName } from '@prisma/client';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { MailerService } from '../notifications/mailer.service';
@@ -22,8 +21,7 @@ export class ScheduledReportsService {
   ) {}
 
   /** Monday 08:00 — estate summary reports for IT admins (in-app + email). */
-  @Cron('0 8 * * 1', { name: 'scheduled-weekly-reports' })
-  async runWeekly(): Promise<void> {
+  async runWeeklyAllTenants(): Promise<{ tenantsProcessed: number }> {
     const tenants = await runUnscoped(() =>
       this.prisma.tenant.findMany({
         where: { status: { in: ['active', 'trial'] } },
@@ -33,6 +31,7 @@ export class ScheduledReportsService {
     for (const tenant of tenants) {
       await runWithTenant(tenant.id, () => this.runWeeklyForTenant(tenant.name));
     }
+    return { tenantsProcessed: tenants.length };
   }
 
   async runWeeklyForTenant(tenantName: string): Promise<void> {

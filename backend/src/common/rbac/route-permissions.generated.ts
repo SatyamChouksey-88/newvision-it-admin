@@ -220,7 +220,7 @@ export const ROUTE_PERMISSIONS: Record<string, PermissionKey[]> = {
     "ticket:manage"
   ],
   "ChatController.remove": [
-    "ticket:delete"
+    "ticket:manage"
   ],
   "ChatController.react": [
     "ticket:manage"
@@ -381,8 +381,8 @@ export const ROUTE_PERMISSIONS: Record<string, PermissionKey[]> = {
   "ImportJobsController.get": [
     "asset:read"
   ],
-  "ImportJobsController.create": [
-    "asset:create"
+  "ImportJobsController.FileInterceptor": [
+    "asset:read"
   ],
   "ImportJobsController.preview": [
     "asset:read"
@@ -576,7 +576,7 @@ export const ROUTE_PERMISSIONS: Record<string, PermissionKey[]> = {
   "ReconciliationController.get": [
     "audit:read"
   ],
-  "ReconciliationController.run": [
+  "ReconciliationController.FileInterceptor": [
     "audit:read"
   ],
   "RecordsController.manual": [
@@ -659,7 +659,7 @@ export const ROUTE_PERMISSIONS: Record<string, PermissionKey[]> = {
     "ticket:manage"
   ],
   "TicketsController.deleteCanned": [
-    "ticket:delete"
+    "ticket:manage"
   ],
   "TicketsController.createTemplate": [
     "ticket:manage"
@@ -668,7 +668,7 @@ export const ROUTE_PERMISSIONS: Record<string, PermissionKey[]> = {
     "ticket:manage"
   ],
   "TicketsController.deleteTemplate": [
-    "ticket:delete"
+    "ticket:manage"
   ],
   "TicketsController.bulkAssign": [
     "ticket:manage"

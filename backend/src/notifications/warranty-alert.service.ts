@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { runUnscoped, runWithTenant } from '../tenancy/context';
 import { daysRemaining, matchingThreshold, WARRANTY_THRESHOLDS } from '../common/warranty';
@@ -23,21 +22,29 @@ export class WarrantyAlertService {
     private readonly notifications: NotificationsService,
   ) {}
 
-  /** Runs daily; fires alerts the day an asset hits a 90/60/30-day warranty threshold. */
-  @Cron(CronExpression.EVERY_DAY_AT_8AM, { name: 'warranty-threshold-alerts' })
-  async scheduledCheck(): Promise<void> {
+  /** Daily 08:00 — fires alerts the day an asset hits a 90/60/30-day warranty threshold. */
+  async runThresholdAlertsAllTenants(): Promise<{
+    tenantsProcessed: number;
+    checked: number;
+    alertsCreated: number;
+    errors: string[];
+  }> {
     const tenants = await runUnscoped(() =>
       this.prisma.tenant.findMany({ where: { status: { not: 'cancelled' } }, select: { id: true } }),
     );
+    let checked = 0;
+    let alertsCreated = 0;
+    const errors: string[] = [];
     for (const t of tenants) {
-      const result = await runWithTenant(t.id, () => this.runCheck());
-      this.logger.log(
-        `Warranty check tenant ${t.id}: ${result.checked} scanned, ${result.created} alerts created ` +
-          `(90d=${result.byThreshold[90] ?? 0}, 60d=${result.byThreshold[60] ?? 0}, 30d=${
-            result.byThreshold[30] ?? 0
-          }).`,
-      );
+      try {
+        const result = await runWithTenant(t.id, () => this.runCheck());
+        checked += result.checked;
+        alertsCreated += result.created;
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e));
+      }
     }
+    return { tenantsProcessed: tenants.length, checked, alertsCreated, errors };
   }
 
   /**
@@ -109,15 +116,29 @@ export class WarrantyAlertService {
     return { checked: assets.length, created, byThreshold, emailedTo };
   }
 
-  /** Monday morning summary of warranties ending in the next 90 days. */
-  @Cron('0 8 * * 1', { name: 'warranty-weekly-digest' })
-  async scheduledWeeklyDigest(): Promise<void> {
+  /** Monday 08:00 — summary of warranties ending in the next 90 days. */
+  async runWeeklyDigestAllTenants(): Promise<{
+    tenantsProcessed: number;
+    rows: number;
+    emailedTo: number;
+    errors: string[];
+  }> {
     const tenants = await runUnscoped(() =>
       this.prisma.tenant.findMany({ where: { status: { not: 'cancelled' } }, select: { id: true } }),
     );
+    let rows = 0;
+    let emailedTo = 0;
+    const errors: string[] = [];
     for (const t of tenants) {
-      await runWithTenant(t.id, () => this.sendWeeklyDigest());
+      try {
+        const result = await runWithTenant(t.id, () => this.sendWeeklyDigest());
+        rows += result.rows;
+        emailedTo += result.emailedTo;
+      } catch (e) {
+        errors.push(e instanceof Error ? e.message : String(e));
+      }
     }
+    return { tenantsProcessed: tenants.length, rows, emailedTo, errors };
   }
 
   async sendWeeklyDigest(now: Date = new Date()): Promise<{ emailedTo: number; rows: number }> {

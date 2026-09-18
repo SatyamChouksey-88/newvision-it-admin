@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { SentryModule } from '@sentry/nestjs/setup';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
-import { ScheduleModule } from '@nestjs/schedule';
 import { AccessoriesModule } from './accessories/accessories.module';
 import { AuditCyclesModule } from './audit-cycles/audit-cycles.module';
 import { AssetRequestsModule } from './asset-requests/asset-requests.module';
@@ -22,6 +21,7 @@ import { DepartmentsModule } from './departments/departments.module';
 import { EmployeesModule } from './employees/employees.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { HealthModule } from './health/health.module';
+import { InternalCronModule } from './internal/internal-cron.module';
 import { ImportExportModule } from './import-export/import-export.module';
 import { ImportJobsModule } from './import-jobs/import-jobs.module';
 import { LocationsModule } from './locations/locations.module';
@@ -48,7 +48,6 @@ import { TenantInterceptor } from './tenancy/tenant.interceptor';
   imports: [
     SentryModule.forRoot(),
     ConfigModule.forRoot({ isGlobal: true }),
-    ...(process.env.NODE_ENV === 'test' ? [] : [ScheduleModule.forRoot()]),
     PrismaModule,
     RbacModule,
     TenancyModule,
@@ -56,6 +55,7 @@ import { TenantInterceptor } from './tenancy/tenant.interceptor';
     AuthModule,
     EntraModule,
     HealthModule,
+    InternalCronModule,
     LocationsModule,
     DepartmentsModule,
     CategoriesModule,

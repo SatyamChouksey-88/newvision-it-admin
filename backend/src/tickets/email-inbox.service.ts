@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
 import { RoleName } from '@prisma/client';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { MailerService } from '../notifications/mailer.service';
@@ -93,23 +92,59 @@ export class EmailInboxService {
     }
   }
 
-  @Cron(CronExpression.EVERY_MINUTE, { name: 'email-in-poll' })
-  async scheduledPoll(): Promise<void> {
-    if (!process.env.IMAP_HOST) return;
+  async runEmailPollCycle(): Promise<{
+    emailsProcessed: number;
+    ticketsCreated: number;
+    commentsAdded: number;
+    skipped: number;
+    errors: string[];
+  }> {
+    if (!process.env.IMAP_HOST) {
+      return {
+        emailsProcessed: 0,
+        ticketsCreated: 0,
+        commentsAdded: 0,
+        skipped: 1,
+        errors: [],
+      };
+    }
     try {
-      const n = await this.pollImap();
-      this.logger.log(`Email-in poll imported ${n} message(s)`);
+      const stats = await this.pollImapWithStats();
+      if (resolveTenantId() != null) {
+        await this.touchState({
+          lastMessageCount: stats.ticketsCreated + stats.commentsAdded,
+          lastError: stats.errors.length ? stats.errors.join('; ') : null,
+        });
+      }
+      return stats;
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      this.logger.warn(`Email-in poll failed: ${message}`);
       if (resolveTenantId() != null) await this.touchState({ lastError: message });
+      throw e;
     }
   }
 
   async pollImap(): Promise<number> {
+    const stats = await this.pollImapWithStats();
+    return stats.ticketsCreated + stats.commentsAdded;
+  }
+
+  private async pollImapWithStats(): Promise<{
+    emailsProcessed: number;
+    ticketsCreated: number;
+    commentsAdded: number;
+    skipped: number;
+    errors: string[];
+  }> {
     if (!process.env.IMAP_HOST) {
       this.logger.log('Email-in IMAP not configured — skipping poll');
-      return 0;
+      return {
+        emailsProcessed: 0,
+        ticketsCreated: 0,
+        commentsAdded: 0,
+        skipped: 1,
+        errors: [],
+      };
     }
     const { ImapFlow } = await import('imapflow');
     const client = new ImapFlow({
@@ -120,15 +155,26 @@ export class EmailInboxService {
       logger: false,
     });
     await client.connect();
-    let imported = 0;
+    let emailsProcessed = 0;
+    let ticketsCreated = 0;
+    let commentsAdded = 0;
+    const errors: string[] = [];
     try {
       const lock = await client.getMailboxLock(process.env.IMAP_MAILBOX || 'INBOX');
       try {
         for await (const msg of client.fetch({ seen: false }, { source: true, uid: true })) {
           const raw = msg.source?.toString('utf8') ?? '';
           if (!raw) continue;
-          const result = await this.processRaw(raw);
-          imported += result.action === 'ticket' || result.action === 'comment' ? 1 : 0;
+          emailsProcessed += 1;
+          try {
+            const result = await this.processRaw(raw);
+            if (result.action === 'ticket') ticketsCreated += 1;
+            if (result.action === 'comment' || result.action === 'comment_unverified') {
+              commentsAdded += 1;
+            }
+          } catch (e) {
+            errors.push(e instanceof Error ? e.message : String(e));
+          }
           await client.messageFlagsAdd(msg.uid, ['\\Seen'], { uid: true });
         }
       } finally {
@@ -138,9 +184,18 @@ export class EmailInboxService {
       await client.logout();
     }
     if (resolveTenantId() != null) {
-      await this.touchState({ lastMessageCount: imported, lastError: null });
+      await this.touchState({
+        lastMessageCount: ticketsCreated + commentsAdded,
+        lastError: errors.length ? errors.join('; ') : null,
+      });
     }
-    return imported;
+    return {
+      emailsProcessed,
+      ticketsCreated,
+      commentsAdded,
+      skipped: 0,
+      errors,
+    };
   }
 
   async processRaw(raw: string): Promise<IngestResult> {

@@ -19,6 +19,11 @@ import { TicketsService } from './tickets.service';
     TicketChatNotifyService,
     TicketSlaEscalationService,
   ],
-  exports: [TicketsService, EmailInboxService],
+  exports: [
+    TicketsService,
+    EmailInboxService,
+    TicketDigestService,
+    TicketSlaEscalationService,
+  ],
 })
 export class TicketsModule {}
