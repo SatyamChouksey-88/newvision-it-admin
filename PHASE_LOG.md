@@ -463,6 +463,6 @@ No full e2e, Playwright, or 2 h soak this pass.
 | **3 — 2 h API soak** | `SOAK_MS=7200000 node backend/scripts/api-soak.mjs` vs `http://localhost:3000/api/health` (API on `:3000`). **Not full 2 h** — agent session interrupted after **~82 min** (~**164** successful pings, **0** failures in `backend/soak-cleanup-pass.log`; no `soak_end` line). Earlier `soak-final-cleanup.log` had only one ping before interrupt. |
 | **4 — e2e** | `cd backend` + `NODE_OPTIONS=--max-old-space-size=4096 npm run test:e2e` → **206/206** tests, **37/37** suites, exit **0**, ~**1329 s** (~22 min); no listener on `:3000` during run. |
 | **5 — Unit (uploads)** | `npm test -- uploads.spec.ts` → **8/8**, exit 0. |
-| **6 — Git push** | Commits `8e641ed` (500 MB cap), `82fbceb` (help), `1379f0f` + `66fb095` (log). `git push origin main` **OK** — `a809c48..66fb095`; `main` = `origin/main` @ `66fb095`. |
+| **6 — Git push** | `8e641ed` (500 MB cap), `82fbceb` (help), log commits through `d8a1a50`. `git push origin main` **OK** — `a809c48..d8a1a50`; `main` synced with `origin/main`. |
 
 **Needs review:** Outlook visual sign-off (Satyam manual). Re-run full **2 h** soak locally if you want uninterrupted `soak_end` proof.
