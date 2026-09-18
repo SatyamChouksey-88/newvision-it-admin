@@ -451,3 +451,17 @@ No full e2e, Playwright, or 2 h soak this pass.
 | `main` vs `origin/main` | In sync (`git status`: no ahead/behind) |
 
 **Needs review:** Outlook visual sign-off for requisition screen; whether to raise tabular upload cap above 10 MB; fix help article “approvers on form” vs approval matrix.
+
+---
+
+## Final cleanup — 500 MB cap, help, soak, e2e, push (2026-09-18)
+
+| Step | Result |
+|------|--------|
+| **1 — Tabular upload 500 MB** | `TABULAR_UPLOAD_MAX_FILE_BYTES = 500 * 1024 * 1024`; multer limits on import-export, import-jobs, reconciliation use the same constant; `uploads.spec.ts` boundary tests updated (size stub, no giant file). `TECHNICAL_REFERENCE.md` + import help copy updated. **Needs review:** commit path still buffers full file in memory (`file.buffer` / duplicate scan) — effective limit is RAM, not just the cap. |
+| **2 — Procurement help** | `articles.ts`: requisition + approval-chain + workspace copy — approvers from **approval matrix** on submit (`rebuildApprovers`), not a form picker. |
+| **3 — 2 h API soak** | `SOAK_MS=7200000 node backend/scripts/api-soak.mjs` vs `http://localhost:3000/api/health` (API on `:3000`). **Not full 2 h** — agent session interrupted after **~82 min** (~**164** successful pings, **0** failures in `backend/soak-cleanup-pass.log`; no `soak_end` line). Earlier `soak-final-cleanup.log` had only one ping before interrupt. |
+| **4 — e2e** | `cd backend` + `NODE_OPTIONS=--max-old-space-size=4096 npm run test:e2e` → **206/206** tests, **37/37** suites, exit **0**, ~**1329 s** (~22 min); no listener on `:3000` during run. |
+| **5 — Unit (uploads)** | `npm test -- uploads.spec.ts` → **8/8**, exit 0. |
+
+**Needs review:** Outlook visual sign-off (Satyam manual). Re-run full **2 h** soak locally if you want uninterrupted `soak_end` proof.
