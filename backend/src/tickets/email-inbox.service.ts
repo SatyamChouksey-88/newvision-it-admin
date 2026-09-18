@@ -92,6 +92,7 @@ export class EmailInboxService {
     }
   }
 
+  /** One full IMAP poll cycle for external cron (Hostinger hPanel). */
   async runEmailPollCycle(): Promise<{
     emailsProcessed: number;
     ticketsCreated: number;

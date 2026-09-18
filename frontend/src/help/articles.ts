@@ -1065,7 +1065,7 @@ See [Who gets ticket emails](/help/tickets-emails) for the event-by-event table.
 4. You are not the requester, assignee, or a watcher.
 
 **Bell badge never clears.**
-Opening the panel marks rows read as you click them. Refresh if a WebSocket drop left a stale count — the next poll corrects it.`,
+Opening the panel marks rows read as you click them. Refresh if a brief connection glitch left a stale count — the next poll corrects it.`,
   },
   {
     id: 'audit',
@@ -1405,7 +1405,7 @@ Only Super Admin can, and only from Settings → Users.`,
 - **Edit / delete** — edit in the bubble (Save / Cancel). Delete and Leave ask for confirmation. **Super Admin and IT Admin** may delete anyone’s message; both actions are audited.
 - **Record cards** — drop \`TCK-…\`, \`AST-…\`, \`EMP-…\`, \`PO-…\`, or \`PR-…\` and Chat resolves it to a labelled card that opens the record. Unresolved codes fall back to search.
 - **Unread** — per-conversation badges and the header Chat badge (from the console). Opening a conversation marks it read for **you** only. **Mark all read** does the same across your memberships. Each membership has All / Mentions only / Muted.
-- **Presence & typing** — available (green circle), away (amber + clock), busy/DND (red + minus), offline (hollow). Colour is never the only signal. “X is typing…” while someone is composing. Updates go over a WebSocket, with HTTP as fallback if the socket drops (it reconnects and resyncs).
+- **Presence & typing** — available (green circle), away (amber + clock), busy/DND (red + minus), offline (hollow). Colour is never the only signal. “X is typing…” while someone is composing. Presence and typing update in real time; if live updates pause, the app resyncs over HTTP and catches up when the connection is back.
 - **Search & deep links** — **Find** in the rail searches messages (\`GET /chat/search\`). Notification links to a conversation and message scroll there and flash the row. If you are reading older history, new traffic shows a **Jump to latest** pill instead of stealing the scroll.
 
 ### Notifications
@@ -1446,7 +1446,7 @@ Only Super Admin, IT Admin, and IT Support. Managers and Employees are 403 at th
 If Explorer / Word included a real document in the clipboard, Chat prefers the document. A Snipping Tool image still becomes a screenshot. \`.html\`, \`.svg\`, \`.jar\`, and executables are blocked.
 
 **Presence stuck offline.**
-The socket reconnects automatically. A hard refresh resyncs. Free-tier hosts that sleep will drop the socket until the API wakes.`,
+Live updates reconnect automatically. A hard refresh resyncs. Free-tier hosts that sleep may pause real-time updates until the API wakes.`,
   },
   {
     id: 'tips-troubleshooting',
