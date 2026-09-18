@@ -20,10 +20,10 @@ describe('assertTabularUpload — Phase 1: import/export/reconciliation upload a
     expect(() => assertTabularUpload({ originalname: 'assets', size: 1024 })).toThrow();
   });
 
-  it('rejects a file over the default 10MB cap', () => {
+  it('rejects a file over the default 500MB cap', () => {
     expect(() =>
       assertTabularUpload({ originalname: 'assets.csv', size: TABULAR_UPLOAD_MAX_FILE_BYTES + 1 }),
-    ).toThrow(/exceeds 10 MB limit/);
+    ).toThrow(/exceeds 500 MB limit/);
   });
 
   it('accepts exactly the default cap', () => {

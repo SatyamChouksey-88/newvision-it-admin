@@ -18,6 +18,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { ListQuery } from '../common/query';
 import { CommitImportDto, PreviewImportDto } from './dto';
 import { ImportRateLimitService } from './import-rate-limit.service';
+import { TABULAR_UPLOAD_MAX_FILE_BYTES } from '../common/uploads';
 import { ImportJobsService } from './import-jobs.service';
 
 type Uploaded = { originalname: string; buffer: Buffer };
@@ -44,7 +45,9 @@ export class ImportJobsController {
 
   @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
   @Post()
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: TABULAR_UPLOAD_MAX_FILE_BYTES } }),
+  )
   create(
     @UploadedFile() file: Uploaded,
     @Query('kind') kindRaw: string,

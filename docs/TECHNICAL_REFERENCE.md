@@ -1497,7 +1497,7 @@ This pass used **real UI sessions** (browser-driven Playwright suite as the inte
 ### 5. Large Excel import
 
 - **UI:** Settings → Import jobs → upload CSV/XLSX → dry-run shows row counts and error buckets; commit progresses in-app (`governance.spec.ts` dry-run).
-- **Scale:** `node backend/scripts/benchmark-import.mjs` — **100,000 rows / ~178 ms** parse on dev hardware (not re-uploaded through the browser in this pass; 10 MB upload cap applies in UI).
+- **Scale:** `node backend/scripts/benchmark-import.mjs` — **100,000 rows / ~178 ms** parse on dev hardware (not re-uploaded through the browser in this pass; **500 MB** tabular upload cap applies in UI).
 
 ### 6. Audit cycle + QR scan exception
 
@@ -1544,7 +1544,7 @@ Detail: [`PHASE_LOG.md`](../PHASE_LOG.md). Legend: `[x]` verified · `[~]` parti
 - [x] Decision doc (`TECHNICAL_REFERENCE.md#large-import-export-phase-7`); in-process jobs acceptable.
 - [x] `parseCsvStreaming` + `forEachTabularRow` (CSV + XLSX row iteration); import create uses streaming sample/count; commit uses batched import (250-row chunks).
 - [x] Benchmark **100,000 rows / 178 ms parse** (`scripts/benchmark-import.mjs`, ~4.96 MB CSV) — live run 2026-09-17.
-- [~] Duplicate scan still materializes mapped rows once per job (bounded by 10 MB upload cap).
+- [~] Duplicate scan still materializes mapped rows once per job (upload cap **500 MB**; commit path still loads the full file into memory — practical limit is instance RAM, not the cap alone).
 
 ### Phase 8
 - [x] `POST /auth/signup` removed; `provisionTrialTenant()`; `signup.tsx` / `trust.tsx` removed.
@@ -1787,8 +1787,8 @@ Revisit a durable queue (SQS, BullMQ, etc.) if imports routinely exceed ~15 minu
 
 ### Current limits
 
-- Tabular uploads use `assertTabularUpload` (size + extension allowlist).
-- Full file is parsed into memory via `parseTabular` before commit — fine for tens of thousands of rows on a 2GB instance; not for multi‑hundred‑MB sheets.
+- Tabular uploads use `assertTabularUpload` and multer `limits.fileSize` — both **`TABULAR_UPLOAD_MAX_FILE_BYTES` (500 MB)** — plus extension allowlist (`.csv`/`.xls`/`.xlsx`). General attachments stay at 8 MB (`UPLOAD_MAX_FILE_BYTES`). No extra Nest/Express JSON body limit applies to multipart uploads; no in-repo reverse-proxy body cap (configure at host if needed).
+- Full file is buffered in memory (`file.buffer` / `parseTabular`) before commit — fine for tens of thousands of rows on a 2GB instance; a **500 MB** sheet can OOM before the cap is the binding constraint.
 
 ### Streaming (partial)
 

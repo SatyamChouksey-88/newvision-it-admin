@@ -15,6 +15,7 @@ import { ReconciliationKind, RoleName } from '@prisma/client';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { ListQuery } from '../common/query';
+import { TABULAR_UPLOAD_MAX_FILE_BYTES } from '../common/uploads';
 import { ReconciliationService } from './reconciliation.service';
 
 type Uploaded = { originalname: string; buffer: Buffer };
@@ -38,7 +39,9 @@ export class ReconciliationController {
 
   @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
   @Post()
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: TABULAR_UPLOAD_MAX_FILE_BYTES } }),
+  )
   run(
     @UploadedFile() file: Uploaded,
     @Query('kind') kindRaw: string,

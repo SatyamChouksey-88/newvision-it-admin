@@ -15,7 +15,11 @@ import type { Response } from 'express';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { ImportExportService } from './import-export.service';
-import { contentDisposition } from '../common/uploads';
+import { contentDisposition, TABULAR_UPLOAD_MAX_FILE_BYTES } from '../common/uploads';
+
+const tabularUploadInterceptor = FileInterceptor('file', {
+  limits: { fileSize: TABULAR_UPLOAD_MAX_FILE_BYTES },
+});
 
 type UploadedCsv = { originalname: string; buffer: Buffer };
 
@@ -75,7 +79,7 @@ export class ImportExportController {
 
   @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
   @Post('import/assets')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
+  @UseInterceptors(tabularUploadInterceptor)
   importAssets(@UploadedFile() file: UploadedCsv, @CurrentUser() user: AuthUser) {
     if (!file) throw new BadRequestException('No file uploaded (field name must be "file")');
     return this.svc.importAssets(file.buffer, file.originalname, user);
@@ -83,7 +87,7 @@ export class ImportExportController {
 
   @Roles(RoleName.SUPER_ADMIN, RoleName.IT_ADMIN)
   @Post('import/employees')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
+  @UseInterceptors(tabularUploadInterceptor)
   importEmployees(@UploadedFile() file: UploadedCsv, @CurrentUser() user: AuthUser) {
     if (!file) throw new BadRequestException('No file uploaded (field name must be "file")');
     return this.svc.importEmployees(file.buffer, file.originalname, user);

@@ -86,15 +86,15 @@ export function assertAllowedUpload(file: {
 }
 
 const TABULAR_EXTS = new Set(['.csv', '.xls', '.xlsx']);
-export const TABULAR_UPLOAD_MAX_FILE_BYTES = 10 * 1024 * 1024;
+export const TABULAR_UPLOAD_MAX_FILE_BYTES = 500 * 1024 * 1024;
 
 /**
  * Phase 1 hardening: the import/export and reconciliation endpoints previously relied only on
  * `parseTabular()` throwing on non-tabular content, with no explicit extension allowlist — so a
  * `.html`/`.svg`/`.exe` upload reached the parser before being rejected. These endpoints only
  * ever expect CSV/Excel, so this is a narrower, purpose-built check rather than reusing
- * `assertAllowedUpload` (which permits PDFs/images/docs and caps at 8MB, not the 10MB these
- * endpoints already document).
+ * `assertAllowedUpload` (which permits PDFs/images/docs and caps at 8MB, not the 500MB these
+ * endpoints document for CSV/Excel).
  */
 export function assertTabularUpload(
   file: { originalname: string; size: number },
