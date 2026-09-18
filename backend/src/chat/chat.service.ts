@@ -503,7 +503,7 @@ export class ChatService {
       changedById: actor.id,
       newValue: dto,
     });
-    this.realtime.toChannel(channelId, 'channel:updated', { id: channelId });
+    void this.realtime.toChannel(channelId, 'channel-updated', { id: channelId });
     return updated;
   }
 
@@ -559,7 +559,7 @@ export class ChatService {
         update: {},
       });
     }
-    this.realtime.toChannel(channelId, 'channel:updated', { id: channelId });
+    void this.realtime.toChannel(channelId, 'channel-updated', { id: channelId });
     return this.getChannel(actor, channelId);
   }
 
@@ -571,7 +571,7 @@ export class ChatService {
       throw new BadRequestException('Cannot remove someone from a DM');
     if (channel.type === ChatChannelType.channel) this.assertCanManage(actor, member.role);
     await this.prisma.chatChannelMember.deleteMany({ where: { channelId, userId } });
-    this.realtime.toChannel(channelId, 'channel:updated', { id: channelId });
+    void this.realtime.toChannel(channelId, 'channel-updated', { id: channelId });
     return { ok: true };
   }
 
@@ -707,13 +707,13 @@ export class ChatService {
     });
     const serialized = await this.serializeMessage(row, actor.id);
     await this.notifyNewMessage(channel, row, actor, parsed, parent);
-    this.realtime.toChannel(channelId, 'message:new', serialized);
+    void this.realtime.toChannel(channelId, 'new-message', serialized);
     const members = await this.prisma.chatChannelMember.findMany({
       where: { channelId, userId: { not: actor.id } },
       select: { userId: true },
     });
     for (const m of members) {
-      this.realtime.toUser(m.userId, 'unread:changed', { channelId });
+      void this.realtime.toUser(m.userId, 'unread-changed', { channelId });
     }
     await this.audit.record({
       entityType: 'ChatMessage',
@@ -772,7 +772,7 @@ export class ChatService {
       newValue: { body: text },
     });
     const serialized = await this.serializeMessage(updated, actor.id);
-    this.realtime.toChannel(row.channelId, 'message:updated', serialized);
+    void this.realtime.toChannel(row.channelId, 'message-updated', serialized);
     return serialized;
   }
 
@@ -798,7 +798,7 @@ export class ChatService {
       oldValue: { body: row.body, authorId: row.authorId },
     });
     const serialized = await this.serializeMessage(updated, actor.id);
-    this.realtime.toChannel(row.channelId, 'message:deleted', serialized);
+    void this.realtime.toChannel(row.channelId, 'message-deleted', serialized);
     return serialized;
   }
 
@@ -824,7 +824,7 @@ export class ChatService {
       include: messageInclude,
     });
     const serialized = await this.serializeMessage(fresh, actor.id);
-    this.realtime.toChannel(row.channelId, 'message:updated', serialized);
+    void this.realtime.toChannel(row.channelId, 'reaction-added', serialized);
     return serialized;
   }
 
@@ -840,7 +840,7 @@ export class ChatService {
       where: { channelId_userId: { channelId, userId: actor.id } },
       data: { lastReadAt: new Date(), lastReadMessageId: last?.id ?? null },
     });
-    this.realtime.toUser(actor.id, 'unread:changed', { channelId, unread: 0 });
+    void this.realtime.toUser(actor.id, 'unread-changed', { channelId, unread: 0 });
     return { ok: true };
   }
 
@@ -861,7 +861,7 @@ export class ChatService {
         data: { lastReadAt: new Date(), lastReadMessageId: last?.id ?? null },
       });
     }
-    this.realtime.toUser(actor.id, 'unread:changed', { unread: 0 });
+    void this.realtime.toUser(actor.id, 'unread-changed', { unread: 0 });
     return { ok: true };
   }
 
