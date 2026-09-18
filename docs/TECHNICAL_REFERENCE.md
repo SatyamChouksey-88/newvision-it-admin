@@ -63,7 +63,7 @@ Each **tenant** (company) manages employees, assets, tickets, and optional procu
 | UI | React 19, Refine 5/6, Ant Design 5, Vite 7, React Router 7 | `frontend/package.json` |
 | Auth | JWT + refresh cookie `nv_refresh` | `auth/`, `refresh-cookie.ts` |
 | Realtime | Socket.IO | `chat.gateway.ts` |
-| Jobs | `@nestjs/schedule` crons | See [`TECHNICAL_REFERENCE.md#architecture`](#architecture) |
+| Jobs | Hostinger HTTP cron → `/api/internal/cron/*` | See [Scheduled jobs](#scheduled-jobs-hostinger-http-cron) below |
 | Lint/format | Biome 2.5 | `npm run lint` |
 | Unit tests | Jest 30 + `@swc/jest` | `backend/jest` config |
 | API e2e | Jest + Supertest + Postgres `newvision_test` | `backend/test/` |
@@ -354,17 +354,22 @@ flowchart TB
 5. [`TenantInterceptor`](../backend/src/tenancy/tenant.interceptor.ts) — tenant context for queries.
 6. Service layer — business rules, Prisma transactions, audit.
 
-#### Scheduled jobs
+#### Scheduled jobs (Hostinger HTTP cron)
 
-| Cron | File | Name |
-|------|------|------|
-| Daily 08:00 | `notifications/warranty-alert.service.ts` | warranty-threshold-alerts |
-| Mon 08:00 | same | warranty-weekly-digest |
-| Daily 08:00 | `tickets/tickets.digest.ts` | ticket-daily-digest |
-| Hourly | same | ticket-overdue-mail |
-| Every minute | `tickets/email-inbox.service.ts` | email-in-poll (no-op if no `IMAP_HOST`) |
-| Daily 08:00 | `procurement/contracts.service.ts` | contract-renewal-alerts |
-| Daily 03:00 | `audit/audit.service.ts` | prune-auth-audit |
+All background work is triggered by **hPanel Cron Jobs** calling `POST /api/internal/cron/<job>` with header `X-Cron-Secret` matching env `CRON_SECRET`. There is **no** in-process `@nestjs/schedule` runner. See [`MIGRATION_NOTES.md`](../MIGRATION_NOTES.md) § Scheduled Jobs Migration for curl examples.
+
+| Recommended schedule | Endpoint | Former `@Cron` name |
+|---------------------|----------|---------------------|
+| Every 5 min | `poll-email-tickets` | email-in-poll |
+| Daily 08:00 | `warranty-alerts` | warranty-threshold-alerts |
+| Mon 08:00 | `warranty-weekly-digest` | warranty-weekly-digest |
+| Daily 08:00 | `ticket-daily-digest` | ticket-daily-digest |
+| Hourly | `ticket-overdue-mail` | ticket-overdue-mail |
+| Hourly | `ticket-sla-escalation` | ticket-sla-escalation |
+| Daily 08:00 | `contract-renewals` | contract-renewal-alerts |
+| Daily 03:00 | `audit-prune` | prune-auth-audit |
+| Daily 08:00 | `audit-cycle-reminders` | audit-cycle-reminders |
+| Mon 08:00 | `scheduled-weekly-reports` | scheduled-weekly-reports |
 
 #### WebSocket
 
