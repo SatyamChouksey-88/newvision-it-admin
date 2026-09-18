@@ -231,6 +231,9 @@ export const ROUTE_PERMISSIONS: Record<string, PermissionKey[]> = {
   "ChatController.attachment": [
     "ticket:manage"
   ],
+  "PusherAuthController.auth": [
+    "user:manage"
+  ],
   "ClientsController.list": [
     "asset:read"
   ],
