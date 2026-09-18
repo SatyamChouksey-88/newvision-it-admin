@@ -446,7 +446,7 @@ An export that matches zero rows returns an error instead of silently dumping th
 > [!NOTE]
 > An export with zero matching rows returns an error instead of a silent full-estate dump — this guards against accidentally exporting everyone's data when a filter typo matched nothing.
 
-Uploads are capped at **10 MB**. Structured error codes on failed rows tell you whether the location, category, or duplicate serial was the problem. Run history stays on the Import jobs tab.
+Uploads are capped at **500 MB**. Structured error codes on failed rows tell you whether the location, category, or duplicate serial was the problem. Run history stays on the Import jobs tab.
 
 ### Troubleshooting
 
@@ -472,7 +472,7 @@ Rollback deletes rows **this job created**. Updates to pre-existing rows are not
 
 1. Choose **Employees** or **Assets**.
 2. Choose the match field — employee code or email; asset code or serial.
-3. Upload a CSV (max 10 MB).
+3. Upload a CSV (max 500 MB).
 4. The run reports **matched**, **only in file**, and **only in system**.
 
 Use “only in file” as joiners to import. Use “only in system” as leavers / missing stickers to investigate. Nothing is auto-deleted.
@@ -598,7 +598,7 @@ It is waiting for re-approval, not discarded. Open the vendor — pending bank d
       { n: 2, label: 'Convert to PO' },
       { n: 3, label: 'Manual correction' },
     ],
-    body: `Each requisition has an **approval chain**. Approvers are chosen on the form — there is no global approval-matrix settings page.
+    body: `Each requisition has an **approval chain**. When you **Submit for approval**, NewVision rebuilds the chain from the tenant **approval matrix** (\`ApprovalMatrixRule\`: amount threshold, optional category, role, To vs Cc, parallel vs sequential). Your line manager is added as a **Cc** watcher when they are not already on the chain. You do not pick approvers on the requisition form.
 
 - **To** (required) — every required approver must **Approve** before **Convert to PO** lights up.
 - **Cc** (watcher) — notified, not blocking.
@@ -647,6 +647,8 @@ Someone made a material edit (total, vendor, qty, lines, category, procurement t
 6. **Budget Head**, **Procurement Type**, **Deployment Location** (multi + Remote Employees)
 7. **Expected procurement date** and **Expected deployment date**
 8. Attach the quote/PDF, **Save draft** or **Submit for approval**
+
+On **Submit for approval**, required **To** approvers and **Cc** watchers are resolved from the approval matrix (requisition total + category) and your manager — not chosen on this form. Material edits that bump revision run the same resolver again.
 
 ### Editing after submit
 
@@ -1291,13 +1293,13 @@ Mailbox address, IMAP connection check, **canned responses / macros**. A canned 
 
 - **Categories** — LAP, MON, DES, … Delete is blocked while assets still use the category.
 - **Departments** — org units used on employees and assets.
-- **Import jobs** — upload, map columns, dry-run, commit, rollback. Files are capped at **10 MB**.
+- **Import jobs** — upload, map columns, dry-run, commit, rollback. Files are capped at **500 MB**.
 - **Reconciliation** — upload an HR/inventory CSV and see set-diff vs live records (manual upload only; no live AD/HR sync).
 - **Webhooks** — \`asset.created\` / \`asset.status_changed\`, HMAC secret shown once.
 - **Onboard / Offboard** — checklist templates used on employee profiles.
 - **Issue kits** — named bundles (e.g. “New laptop kit”) of accessories to check out together when assigning.
 
-There is **no separate “approval matrix” settings page**. Required approvers (To) and watchers (Cc) are chosen on each requisition.
+Requisition **To/Cc** approvers are assigned on submit from the seeded **approval matrix** (amount/category rules), not from a picker on each PR form. Matrix rows are data (see API \`GET /api/vendor-contracts/approval-matrix\`); there is no dedicated matrix editor in Settings yet.
 
 ### Users (Super Admin only)
 
