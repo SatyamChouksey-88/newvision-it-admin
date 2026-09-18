@@ -1,6 +1,6 @@
 # Render Free sleeps the API after ~15 minutes idle. A ping every 10 minutes
 # keeps scheduled jobs (warranty, digest, IMAP, contract renewals) and
-# WebSocket chat from going dark overnight. Safe to delete if the API is on a
+# Pusher-backed chat from going dark overnight. Safe to delete if the API is on a
 # paid instance that never sleeps.
 name: Keep production API awake
 

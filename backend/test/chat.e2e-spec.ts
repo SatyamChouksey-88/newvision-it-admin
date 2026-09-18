@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import { INestApplication } from '@nestjs/common';
-import { io as ioClient, type Socket } from 'socket.io-client';
 import request from 'supertest';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { auth, createTestApp, login, seedCore } from './helpers';
@@ -219,7 +218,7 @@ describe('Prompt 24 — Teams-style staff chat (e2e)', () => {
     expect(Array.isArray(found.body)).toBe(true);
   });
 
-  it('delivers a message over the websocket to another staff session', async () => {
+  it('authorizes Pusher private channels only for channel members', async () => {
     const channels = await request(app.getHttpServer())
       .get('/api/chat/channels')
       .set(auth(admin))
@@ -229,38 +228,26 @@ describe('Prompt 24 — Teams-style staff chat (e2e)', () => {
     );
     expect(itOps).toBeTruthy();
 
-    const sock: Socket = ioClient(`${baseUrl}/chat`, {
-      auth: { token: support },
-      transports: ['websocket'],
-      reconnection: false,
-    });
-    await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('socket connect timeout')), 8000);
-      sock.on('connect', () => {
-        clearTimeout(timer);
-        resolve();
-      });
-      sock.on('connect_error', (err) => {
-        clearTimeout(timer);
-        reject(err);
-      });
-    });
-    const received = new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('timed out waiting for message:new')), 8000);
-      sock.on('message:new', (payload: { body?: string; channelId?: number }) => {
-        if (payload.channelId === itOps!.id && payload.body?.includes('socket-ping')) {
-          clearTimeout(timer);
-          resolve();
-        }
-      });
-    });
+    if (!process.env.PUSHER_APP_ID) {
+      await request(app.getHttpServer())
+        .post('/api/pusher/auth')
+        .set(auth(admin))
+        .send({ socket_id: '1.1', channel_name: `presence-channel-${itOps!.id}` })
+        .expect(503);
+      return;
+    }
+
     await request(app.getHttpServer())
-      .post(`/api/chat/channels/${itOps!.id}/messages`)
-      .set(auth(admin))
-      .send({ body: 'socket-ping from admin' })
-      .expect(201);
-    await received;
-    sock.close();
+      .post('/api/pusher/auth')
+      .set(auth(support))
+      .send({ socket_id: '1.1', channel_name: `presence-channel-${itOps!.id}` })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .post('/api/pusher/auth')
+      .set(auth(manager))
+      .send({ socket_id: '2.2', channel_name: `presence-channel-${itOps!.id}` })
+      .expect(403);
   });
 
   it('seeds channel starters and mark-all-read is per user', async () => {

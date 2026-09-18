@@ -62,7 +62,7 @@ Each **tenant** (company) manages employees, assets, tickets, and optional procu
 | ORM | Prisma **7.10.0** + `@prisma/adapter-pg` | `prisma.config.ts`, `prisma.service.ts` |
 | UI | React 19, Refine 5/6, Ant Design 5, Vite 7, React Router 7 | `frontend/package.json` |
 | Auth | JWT + refresh cookie `nv_refresh` | `auth/`, `refresh-cookie.ts` |
-| Realtime | Socket.IO | `chat.gateway.ts` |
+| Realtime | Pusher Channels | `chat.realtime.ts`, `pusher-auth.controller.ts` |
 | Jobs | `@nestjs/schedule` crons | See [`TECHNICAL_REFERENCE.md#architecture`](#architecture) |
 | Lint/format | Biome 2.5 | `npm run lint` |
 | Unit tests | Jest 30 + `@swc/jest` | `backend/jest` config |
@@ -298,7 +298,7 @@ curl http://localhost:3000/api/health
 
 ### Phase 3 — System architecture
 
-Layers: **Browser SPA** → **NestJS HTTP + WebSocket** → **Prisma/pg** → **PostgreSQL**; sidecars **email**, **IMAP**, **outbound webhooks**.
+Layers: **Browser SPA** → **NestJS HTTP** (+ **Pusher Channels** for chat) → **Prisma/pg** → **PostgreSQL**; sidecars **email**, **IMAP** (cron-triggered), **outbound webhooks**.
 
 ```mermaid
 flowchart TB
@@ -362,13 +362,13 @@ flowchart TB
 | Mon 08:00 | same | warranty-weekly-digest |
 | Daily 08:00 | `tickets/tickets.digest.ts` | ticket-daily-digest |
 | Hourly | same | ticket-overdue-mail |
-| Every minute | `tickets/email-inbox.service.ts` | email-in-poll (no-op if no `IMAP_HOST`) |
+| Every 5 min (Hostinger cron) | `internal/internal-cron.controller.ts` | `POST /api/internal/cron/poll-email-tickets` (`CRON_SECRET`, no-op if no `IMAP_HOST`) |
 | Daily 08:00 | `procurement/contracts.service.ts` | contract-renewal-alerts |
 | Daily 03:00 | `audit/audit.service.ts` | prune-auth-audit |
 
-#### WebSocket
+#### Real-time chat (Pusher)
 
-[`chat.gateway.ts`](../backend/src/chat/chat.gateway.ts) — staff chat channels, presence, typing.
+[`chat.realtime.ts`](../backend/src/chat/chat.realtime.ts) triggers Pusher events after REST writes; [`pusher-auth.controller.ts`](../backend/src/chat/pusher-auth.controller.ts) signs private/presence channels. Frontend: [`useChatSocket.ts`](../frontend/src/hooks/useChatSocket.ts) + `pusher-js`. Env: `PUSHER_*`, `VITE_PUSHER_*`. See [`MIGRATION_NOTES.md`](../MIGRATION_NOTES.md).
 
 ---
 
@@ -1218,9 +1218,9 @@ List endpoints use `_start`, `_end`, `_sort`, `_order`, `q` via [`common/query.t
 
 ---
 
-### WebSocket
+### Real-time chat (Pusher Channels)
 
-Chat: Socket.IO via [`chat.gateway.ts`](../backend/src/chat/chat.gateway.ts); CORS origins from `CORS_ORIGIN` (same as REST).
+Staff chat uses Pusher instead of a self-hosted WebSocket. Messages and reactions are persisted via REST, then fan-out with `pusher.trigger`. Typing uses Pusher client events on `presence-channel-<id>` (enable client messages in the Pusher dashboard). Inbound helpdesk IMAP polling is **not** a background loop: configure Hostinger cron to `POST /api/internal/cron/poll-email-tickets` with header `X-Cron-Secret` (see `MIGRATION_NOTES.md`).
 
 ---
 
@@ -1750,7 +1750,7 @@ Internal single-tenant pilot (NewVision Softcom). Not a multi-customer SaaS laun
 
 The API sets a minimal CSP for JSON responses (`default-src 'none'`). The **browser SPA** must set its own CSP on static hosting (Vite build). Recommended production headers on the frontend CDN:
 
-- `Content-Security-Policy`: restrict `script-src` to your bundle host; allow `connect-src` to the API origin and WebSocket host.
+- `Content-Security-Policy`: restrict `script-src` to your bundle host; allow `connect-src` to the API origin and Pusher (`*.pusher.com`, `sockjs.pusher.com`, etc.).
 - `X-Frame-Options: DENY` or `frame-ancestors 'none'`.
 
 ### Sentry
