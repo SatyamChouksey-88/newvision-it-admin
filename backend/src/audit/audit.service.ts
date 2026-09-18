@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
 import { AuditAction, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { runUnscoped } from '../tenancy/context';
@@ -38,15 +37,15 @@ export class AuditService {
   }
 
   /** CERT-In-style retention: drop auth events older than 180 days. Other audit rows stay. */
-  @Cron(CronExpression.EVERY_DAY_AT_3AM, { name: 'prune-auth-audit' })
-  async pruneAuthEvents(): Promise<void> {
+  async runPruneAuthEvents(): Promise<{ deleted: number }> {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 180);
-    await runUnscoped(() =>
+    const result = await runUnscoped(() =>
       this.prisma.auditLog.deleteMany({
         where: { entityType: 'Auth', createdAt: { lt: cutoff } },
       }),
     );
+    return { deleted: result.count };
   }
 }
 

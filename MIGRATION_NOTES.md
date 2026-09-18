@@ -1,10 +1,10 @@
 # Pusher + cron migration notes
 
-Migration branch: `migrate/pusher-realtime-and-cron-worker` · PR: https://github.com/SatyamChouksey-88/newvision-it-admin/pull/2
+Migration branch: `migrate/pusher-realtime-and-cron-worker` ÃÂ· PR: https://github.com/SatyamChouksey-88/newvision-it-admin/pull/2
 
 ---
 
-## Before you go live — manual / external dependencies
+## Before you go live Ã¢ÂÂ manual / external dependencies
 
 | Item | Who | Notes |
 |------|-----|--------|
@@ -13,8 +13,8 @@ Migration branch: `migrate/pusher-realtime-and-cron-worker` · PR: https://githu
 | **Pusher dashboard: Client events** | Satyam | Enable **client messages** so typing (`client-typing` on `presence-channel-*`) works. |
 | **`CRON_SECRET`** | Satyam | Long random string in backend env **and** in Hostinger cron (`X-Cron-Secret` header). |
 | **Hostinger cron job** | Satyam | `POST` every 5 min to `https://<domain>/api/internal/cron/poll-email-tickets` (see below). |
-| **IMAP mailbox** (if email-to-ticket) | Satyam | `IMAP_HOST`, `IMAP_USER`, `IMAP_PASS`, etc. — cron only polls when `IMAP_HOST` is set. |
-| **`gh` CLI** | — | **OK** on migration machine: logged in as `SatyamChouksey-88`, `repo` scope (PR #2 opened 2026-09-18). |
+| **IMAP mailbox** (if email-to-ticket) | Satyam | `IMAP_HOST`, `IMAP_USER`, `IMAP_PASS`, etc. Ã¢ÂÂ cron only polls when `IMAP_HOST` is set. |
+| **`gh` CLI** | Ã¢ÂÂ | **OK** on migration machine: logged in as `SatyamChouksey-88`, `repo` scope (PR #2 opened 2026-09-18). |
 
 Until Pusher env vars are set, chat REST works but live updates are no-ops (`getPusherServer()` returns null). Until `CRON_SECRET` + cron are set, use Super Admin `POST /api/email-in/poll` or webhook ingest.
 
@@ -29,12 +29,12 @@ Nothing blocks **merging or running the app in dev** except optional live featur
 | No Pusher app / keys | No real-time chat delivery; auth returns **503** if server Pusher env missing | REST + polling; e2e skips full auth when `PUSHER_APP_ID` unset |
 | No `CRON_SECRET` / hPanel cron | IMAP poll endpoint returns **503** | Manual `POST /api/email-in/poll` (Super Admin) or `EMAIL_INGEST_SECRET` webhook |
 | No IMAP credentials | Cron/manual poll imports **0** messages | Unchanged from pre-migration |
-| Stale help copy | `frontend/src/help/articles.ts` still says “WebSocket” for chat | Cosmetic; update when convenient |
+| Stale help copy | Fixed on `main` (2026-09-18) — help uses transport-neutral “real-time” wording |
 | CSP on production frontend | If a strict CSP is added, allow Pusher hosts in `connect-src` | See `docs/TECHNICAL_REFERENCE.md` |
 
 ---
 
-## Phase 0 — Dependency & compatibility check (2026-09-18)
+## Phase 0 Ã¢ÂÂ Dependency & compatibility check (2026-09-18)
 
 ### 0.1 Socket.io / WebSocket usage audit
 
@@ -44,8 +44,8 @@ Nothing blocks **merging or running the app in dev** except optional live featur
 |----------|--------|
 | `backend/package.json` | **Removed** `socket.io`, `@nestjs/platform-socket.io`, `@nestjs/websockets`, `socket.io-client` (dev) |
 | `frontend/package.json` | **Removed** `socket.io-client`; **added** `pusher-js` |
-| `npm ls socket.io` (backend) | **Empty** — not installed |
-| `backend/src/chat/chat.gateway.ts` | **Deleted** — was the only `@WebSocketGateway` |
+| `npm ls socket.io` (backend) | **Empty** Ã¢ÂÂ not installed |
+| `backend/src/chat/chat.gateway.ts` | **Deleted** Ã¢ÂÂ was the only `@WebSocketGateway` |
 | `backend/src/configure-app.ts` | **Removed** `IoAdapter` / `useWebSocketAdapter` |
 
 **Files that used Socket.io for chat (replaced)**
@@ -58,25 +58,25 @@ Nothing blocks **merging or running the app in dev** except optional live featur
 | `frontend/src/hooks/useChatSocket.ts` | `socket.io-client` subscriptions |
 | `frontend/src/pages/chat/ChatPage.tsx` | Socket handlers |
 | `frontend/src/components/StaffChat.tsx` | Unread via socket |
-| `backend/test/chat.e2e-spec.ts` | Socket.io delivery test → Pusher auth test |
+| `backend/test/chat.e2e-spec.ts` | Socket.io delivery test Ã¢ÂÂ Pusher auth test |
 
-**No hidden Socket.io consumers found** — nothing else imported `socket.io` or opened the `/chat` namespace:
+**No hidden Socket.io consumers found** Ã¢ÂÂ nothing else imported `socket.io` or opened the `/chat` namespace:
 
 | Area | Finding |
 |------|---------|
-| Notifications / mail | HTTP + `@nestjs/schedule` crons only |
-| Ticket “presence” (`POST /api/support-tickets/:id/presence`) | **Separate** in-memory HTTP heartbeats in `tickets.service.ts` — never used Socket.io |
+| Notifications / mail | HTTP + Hostinger cron endpoints |
+| Ticket Ã¢ÂÂpresenceÃ¢ÂÂ (`POST /api/support-tickets/:id/presence`) | **Separate** in-memory HTTP heartbeats in `tickets.service.ts` Ã¢ÂÂ never used Socket.io |
 | Dashboards / reports | No WebSocket usage |
 | Auth / sessions | JWT + cookies; `req.socket` in `refresh-cookie.ts` is Node HTTP socket, not Socket.io |
-| Staff unread badge | `StaffChat.tsx` → `useChatSocket` (now Pusher) + REST `/chat/unread` |
+| Staff unread badge | `StaffChat.tsx` Ã¢ÂÂ `useChatSocket` (now Pusher) + REST `/chat/unread` |
 | Playwright e2e | No socket.io-client in frontend e2e specs |
 
-**Residual “WebSocket” mentions (documentation only)**
+**Residual Ã¢ÂÂWebSocketÃ¢ÂÂ mentions (documentation only)**
 
-- `frontend/src/help/articles.ts` — chat help text (pre-Pusher wording)
-- `MIGRATION_NOTES.md` / `docs/TECHNICAL_REFERENCE.md` — describe Pusher vs old stack
+- `frontend/src/help/articles.ts` Ã¢ÂÂ chat help text (pre-Pusher wording)
+- `MIGRATION_NOTES.md` / `docs/TECHNICAL_REFERENCE.md` Ã¢ÂÂ describe Pusher vs old stack
 
-**Other scheduled jobs** — still use `@nestjs/schedule` in-process (Hostinger may still be limited for these; **out of scope** except email-in, which was moved to HTTP cron): warranty alerts, ticket digests, contract renewals, audit prune, etc.
+**Other scheduled jobs** Ã¢ÂÂ moved to HTTP cron in PR #3 (see [Scheduled Jobs Migration](#scheduled-jobs-migration-pr-3)); no in-process `@nestjs/schedule` remains.
 
 ### 0.2 Node.js vs Pusher SDKs
 
@@ -86,7 +86,7 @@ Nothing blocks **merging or running the app in dev** except optional live featur
 | `frontend/package.json` `engines` | `>=24.16.0` |
 | `.nvmrc` | **Not present** |
 | CI / dev machine checked | **v24.19.0** |
-| `pusher@5.3.4` (server) | **No `engines` field** in package.json; uses `node-fetch@2` — compatible with Node 24 |
+| `pusher@5.3.4` (server) | **No `engines` field** in package.json; uses `node-fetch@2` Ã¢ÂÂ compatible with Node 24 |
 | `pusher-js@8.6.0` (browser bundle) | Runs in browser; build tooling uses same Node 24 |
 
 **Verdict:** No mismatch; do **not** downgrade Node for Pusher.
@@ -97,9 +97,9 @@ Nothing blocks **merging or running the app in dev** except optional live featur
 |---------|------------|
 | `PUSHER_APP_ID` | **None** in repo |
 | `PUSHER_KEY` | **None** (distinct from `JWT_*`, `MS_CLIENT_ID`, etc.) |
-| `PUSHER_SECRET` | **None** — note `*_SECRET` pattern also used by `JWT_SECRET`, `JWT_REFRESH_SECRET`, `EMAIL_INGEST_SECRET`, `MS_CLIENT_SECRET`, `PLATFORM_ADMIN_SECRET` (commented) |
+| `PUSHER_SECRET` | **None** Ã¢ÂÂ note `*_SECRET` pattern also used by `JWT_SECRET`, `JWT_REFRESH_SECRET`, `EMAIL_INGEST_SECRET`, `MS_CLIENT_SECRET`, `PLATFORM_ADMIN_SECRET` (commented) |
 | `PUSHER_CLUSTER` | **None** |
-| `CRON_SECRET` | **None** — new name; not the same as `EMAIL_INGEST_SECRET` |
+| `CRON_SECRET` | **None** Ã¢ÂÂ new name; not the same as `EMAIL_INGEST_SECRET` |
 | `VITE_PUSHER_KEY` / `VITE_PUSHER_CLUSTER` | **None** among existing `VITE_*` (`VITE_API_URL`, `VITE_SHOW_DEMO`) |
 
 ### 0.4 Frontend build tool (Vite) and public env vars
@@ -113,7 +113,7 @@ Nothing blocks **merging or running the app in dev** except optional live featur
 ### 0.5 `gh` CLI (Phase 7)
 
 ```
-github.com — Logged in as SatyamChouksey-88 (keyring)
+github.com Ã¢ÂÂ Logged in as SatyamChouksey-88 (keyring)
 Token scopes: gist, read:org, repo, workflow
 ```
 
@@ -175,16 +175,41 @@ curl -sS -X POST \
 
 Requires `IMAP_*` variables and `CRON_SECRET`. The previous `@Cron` IMAP loop was removed; only this endpoint (or manual `POST /api/email-in/poll` as Super Admin) runs polling.
 
+## Scheduled Jobs Migration (PR #3)
+
+All former `@nestjs/schedule` jobs now share **`InternalCronController`** with `assertCronSecret` + `runCronJob`. **`poll-email-tickets` has a single route** Ã¢ÂÂ PR #3 replaced PR #2Ã¢ÂÂs inline logging in the controller with the shared `runCronJob` helper (same `runEmailPollCycle()` behavior).
+
+### Inventory
+
+| Endpoint | Former `@Cron` | Recommended hPanel schedule |
+|----------|----------------|----------------------------|
+| `poll-email-tickets` | `email-in-poll` (every minute) | Every **5 min** |
+| `warranty-alerts` | `warranty-threshold-alerts` | Daily 08:00 |
+| `warranty-weekly-digest` | `warranty-weekly-digest` | Mon 08:00 |
+| `ticket-daily-digest` | `ticket-daily-digest` | Daily 08:00 |
+| `ticket-overdue-mail` | `ticket-overdue-mail` | Hourly |
+| `ticket-sla-escalation` | `ticket-sla-escalation` | Hourly |
+| `contract-renewals` | `contract-renewal-alerts` | Daily 08:00 |
+| `audit-prune` | `prune-auth-audit` | Daily 03:00 |
+| `audit-cycle-reminders` | `audit-cycle-reminders` | Daily 08:00 |
+| `scheduled-weekly-reports` | `scheduled-weekly-reports` | Mon 08:00 |
+
+Use the same curl pattern as `poll-email-tickets` above, swapping the path segment (e.g. `/api/internal/cron/warranty-alerts`). `@nestjs/schedule` and `ScheduleModule` are **removed**.
+
+### PR #3 rebase onto main (2026-09-18)
+
+`migrate/cron-scheduled-jobs` was **rebased onto `origin/main`** with PR #2 commits replayed, then PR #3 cron commits. There is **one** `POST poll-email-tickets` handler in `InternalCronController` using `assertCronSecret` + `runCronJob` (PR #2âs inline handler removed). Rebase **skipped** commit `b97a033` (PR #2-only internal cron file) as superseded by PR #3âs full controller.
+
 ## Autonomous decisions
 
-1. **API prefix on cron URL** — Documented as `/api/internal/...` because `configureApp` sets `setGlobalPrefix('api')`.
-2. **Private groups** — Non-public channels use `private-channel-<id>` (not in the original bullet list but required for private team rooms).
-3. **Staff-wide presence** — Added `presence-staff` because the UI relied on global `presence` events previously broadcast via Socket.io to all connections.
-4. **User notify channel** — `private-user-<userId>` carries `unread-changed` (replacing Socket.io `user:<id>` rooms).
-5. **Server-side “online”** — Without socket connection tracking, `ChatPresenceService` treats users as connected for ~90s after heartbeat/ping (REST), matching the Pusher client ping interval.
-6. **Reactions** — `toggleReaction` emits `reaction-added` only (not `message-updated`); the client binds both to the same UI merge path.
-7. **E2E realtime** — Socket.io delivery test replaced with Pusher auth membership test; full delivery needs Pusher credentials in CI.
-8. **Phase 0 recorded after implementation** — Audit run on the migrated tree; findings appended here for deploy handoff.
+1. **API prefix on cron URL** Ã¢ÂÂ Documented as `/api/internal/...` because `configureApp` sets `setGlobalPrefix('api')`.
+2. **Private groups** Ã¢ÂÂ Non-public channels use `private-channel-<id>` (not in the original bullet list but required for private team rooms).
+3. **Staff-wide presence** Ã¢ÂÂ Added `presence-staff` because the UI relied on global `presence` events previously broadcast via Socket.io to all connections.
+4. **User notify channel** Ã¢ÂÂ `private-user-<userId>` carries `unread-changed` (replacing Socket.io `user:<id>` rooms).
+5. **Server-side Ã¢ÂÂonlineÃ¢ÂÂ** Ã¢ÂÂ Without socket connection tracking, `ChatPresenceService` treats users as connected for ~90s after heartbeat/ping (REST), matching the Pusher client ping interval.
+6. **Reactions** Ã¢ÂÂ `toggleReaction` emits `reaction-added` only (not `message-updated`); the client binds both to the same UI merge path.
+7. **E2E realtime** Ã¢ÂÂ Socket.io delivery test replaced with Pusher auth membership test; full delivery needs Pusher credentials in CI.
+8. **Phase 0 recorded after implementation** Ã¢ÂÂ Audit run on the migrated tree; findings appended here for deploy handoff.
 
 ## Local test
 

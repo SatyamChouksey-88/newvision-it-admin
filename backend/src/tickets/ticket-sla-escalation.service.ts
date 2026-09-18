@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
 import { NotificationType, RoleName } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { forEachTenant } from '../tenancy/context';
@@ -10,8 +9,9 @@ export class TicketSlaEscalationService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  @Cron(CronExpression.EVERY_HOUR, { name: 'ticket-sla-escalation' })
-  async escalateOverdue() {
+  /** Hourly — flag overdue tickets and notify IT admins. */
+  async runEscalationCycle(): Promise<{ escalated: number }> {
+    let escalated = 0;
     await forEachTenant(this.prisma, async () => {
       const now = new Date();
       const overdue = await this.prisma.supportTicket.findMany({
@@ -45,7 +45,9 @@ export class TicketSlaEscalationService {
           });
         }
       }
+      escalated += overdue.length;
       this.logger.log(`SLA escalated ${overdue.length} ticket(s) to IT Admin(s).`);
     });
+    return { escalated };
   }
 }

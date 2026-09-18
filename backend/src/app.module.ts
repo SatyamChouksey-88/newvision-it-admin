@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { SentryModule } from '@sentry/nestjs/setup';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
-import { ScheduleModule } from '@nestjs/schedule';
 import { AccessoriesModule } from './accessories/accessories.module';
 import { AuditCyclesModule } from './audit-cycles/audit-cycles.module';
 import { AssetRequestsModule } from './asset-requests/asset-requests.module';
@@ -49,7 +48,6 @@ import { TenantInterceptor } from './tenancy/tenant.interceptor';
   imports: [
     SentryModule.forRoot(),
     ConfigModule.forRoot({ isGlobal: true }),
-    ...(process.env.NODE_ENV === 'test' ? [] : [ScheduleModule.forRoot()]),
     PrismaModule,
     RbacModule,
     TenancyModule,

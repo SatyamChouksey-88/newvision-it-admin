@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { forEachTenant } from '../tenancy/context';
 import { TicketsService } from './tickets.service';
@@ -13,24 +12,35 @@ export class TicketDigestService {
     private readonly prisma: PrismaService,
   ) {}
 
-  @Cron(CronExpression.EVERY_DAY_AT_8AM, { name: 'ticket-daily-digest' })
-  async scheduled(): Promise<void> {
+  /** Daily 08:00 — staff digests + overdue requester nudges (original combined daily job). */
+  async runDailyDigestCycle(): Promise<{
+    digestSent: number;
+    overdueRequesterSent: number;
+  }> {
+    let digestSent = 0;
+    let overdueRequesterSent = 0;
     await forEachTenant(this.prisma, async () => {
       const result = await this.tickets.sendDailyDigests();
       const overdue = await this.tickets.sendOverdueRequesterMails();
-      this.logger.log(
-        `Ticket digest sent to ${result.sent} staff; overdue mail to ${overdue.sent} requester(s).`,
-      );
+      digestSent += result.sent;
+      overdueRequesterSent += overdue.sent;
     });
+    this.logger.log(
+      `Ticket daily digest: ${digestSent} staff digest(s); ${overdueRequesterSent} overdue requester mail(s).`,
+    );
+    return { digestSent, overdueRequesterSent };
   }
 
-  @Cron(CronExpression.EVERY_HOUR, { name: 'ticket-overdue-mail' })
-  async scheduledOverdue(): Promise<void> {
+  /** Hourly — mail IT about overdue tickets. */
+  async runOverdueTicketMailCycle(): Promise<{ sent: number }> {
+    let sent = 0;
     await forEachTenant(this.prisma, async () => {
       const result = await this.tickets.mailOverdueTickets();
-      if (result.sent > 0) {
-        this.logger.log(`Overdue ticket mail sent for ${result.sent} ticket(s).`);
-      }
+      sent += result.sent;
     });
+    if (sent > 0) {
+      this.logger.log(`Overdue ticket mail sent for ${sent} ticket(s).`);
+    }
+    return { sent };
   }
 }

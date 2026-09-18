@@ -100,20 +100,26 @@ export class EmailInboxService {
     skipped: number;
     errors: string[];
   }> {
-    const errors: string[] = [];
     if (!process.env.IMAP_HOST) {
-      return { emailsProcessed: 0, ticketsCreated: 0, commentsAdded: 0, skipped: 1, errors };
+      return {
+        emailsProcessed: 0,
+        ticketsCreated: 0,
+        commentsAdded: 0,
+        skipped: 1,
+        errors: [],
+      };
     }
     try {
       const stats = await this.pollImapWithStats();
-      await this.touchState({
-        lastMessageCount: stats.ticketsCreated + stats.commentsAdded,
-        lastError: stats.errors.length ? stats.errors.join('; ') : null,
-      });
+      if (resolveTenantId() != null) {
+        await this.touchState({
+          lastMessageCount: stats.ticketsCreated + stats.commentsAdded,
+          lastError: stats.errors.length ? stats.errors.join('; ') : null,
+        });
+      }
       return stats;
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      errors.push(message);
       if (resolveTenantId() != null) await this.touchState({ lastError: message });
       throw e;
     }
@@ -168,8 +174,7 @@ export class EmailInboxService {
               commentsAdded += 1;
             }
           } catch (e) {
-            const message = e instanceof Error ? e.message : String(e);
-            errors.push(message);
+            errors.push(e instanceof Error ? e.message : String(e));
           }
           await client.messageFlagsAdd(msg.uid, ['\\Seen'], { uid: true });
         }

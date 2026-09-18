@@ -8,6 +8,6 @@ import { AuditCyclesService } from './audit-cycles.service';
   imports: [NotificationsModule],
   controllers: [AuditCyclesController],
   providers: [AuditCyclesService, AuditCycleReminderService],
-  exports: [AuditCyclesService],
+  exports: [AuditCyclesService, AuditCycleReminderService],
 })
 export class AuditCyclesModule {}

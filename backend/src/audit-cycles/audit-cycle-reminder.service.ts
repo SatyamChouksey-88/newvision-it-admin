@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
 import { RoleName } from '@prisma/client';
 import { MailerService } from '../notifications/mailer.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -18,17 +17,19 @@ export class AuditCycleReminderService {
     private readonly notifications: NotificationsService,
   ) {}
 
-  @Cron(CronExpression.EVERY_DAY_AT_8AM, { name: 'audit-cycle-reminders' })
-  async remindOpenCycles(): Promise<void> {
+  /** Daily 08:00 — nudge admins about long-running audit cycles. */
+  async runRemindersAllTenants(): Promise<{ tenantsProcessed: number; cyclesReminded: number }> {
     const tenants = await runUnscoped(() =>
       this.prisma.tenant.findMany({
         where: { status: { in: ['active', 'trial'] } },
         select: { id: true },
       }),
     );
+    let cyclesReminded = 0;
     for (const t of tenants) {
-      await runWithTenant(t.id, () => this.remindInTenant());
+      cyclesReminded += await runWithTenant(t.id, () => this.remindInTenant());
     }
+    return { tenantsProcessed: tenants.length, cyclesReminded };
   }
 
   async remindInTenant(now = new Date()): Promise<number> {

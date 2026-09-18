@@ -1,5 +1,4 @@
 import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
 import { Prisma, RoleName, VendorContractType } from '@prisma/client';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { ListQuery, parseListQuery } from '../common/query';
@@ -184,13 +183,17 @@ export class ContractsService {
     return this.get(id, actor).then(() => this.log.list('contract', id));
   }
 
-  /** Daily 08:05 — 90/60/30/7-day contract renewal alerts, de-duplicated per contract+threshold. */
-  @Cron(CronExpression.EVERY_DAY_AT_8AM, { name: 'contract-renewal-alerts' })
-  async scheduledCheck(): Promise<void> {
+  /** Daily 08:00 — 90/60/30/7-day contract renewal alerts, de-duplicated per contract+threshold. */
+  async runRenewalCheckAllTenants(): Promise<{ alertsCreated: number; contractsChecked: number }> {
+    let alertsCreated = 0;
+    let contractsChecked = 0;
     await forEachTenant(this.prisma, async () => {
       const result = await this.runRenewalCheck();
+      alertsCreated += result.created;
+      contractsChecked += result.checked;
       this.logger.log(`Contract renewal check: ${result.created} alerts`);
     });
+    return { alertsCreated, contractsChecked };
   }
 
   async runRenewalCheck(now: Date = new Date()): Promise<{ created: number; checked: number }> {
