@@ -221,7 +221,9 @@ export function ChatPage() {
     setThread(data);
   }, []);
 
-  const socket = useChatSocket(true, {
+  const socket = useChatSocket(
+    true,
+    {
     onMessageNew: (raw) => {
       const msg = raw as ChatMessage;
       if (msg.channelId === activeId && !msg.parentId) {
@@ -274,7 +276,9 @@ export function ChatPage() {
       }
       void loadConversations();
     },
-  });
+    },
+    identity?.id,
+  );
 
   useEffect(() => {
     void loadConversations();
@@ -292,8 +296,18 @@ export function ChatPage() {
     prevLen.current = 0;
     setMessages((prev) => prev.filter((m) => m.channelId === activeId));
     void loadMessages(activeId);
-    socket.join(activeId);
-  }, [activeId, loadMessages, socket.join]);
+    const conv = conversations.find((c) => c.id === activeId);
+    socket.join(
+      conv
+        ? {
+            id: conv.id,
+            type: conv.type,
+            visibility: conv.visibility,
+            otherUserId: conv.otherUserId,
+          }
+        : null,
+    );
+  }, [activeId, conversations, loadMessages, socket.join]);
 
   useEffect(() => {
     if (activeId && threadId) {
@@ -554,6 +568,11 @@ export function ChatPage() {
       <a href="#nv-teams-transcript" className="nv-skip-link">
         Skip to messages
       </a>
+      {socket.connectionState === 'connecting' || socket.connectionState === 'disconnected' ? (
+        <div className="nv-chat-reconnect" role="status">
+          Reconnecting to chat…
+        </div>
+      ) : null}
       <header className="nv-teams-appbar" data-testid="chat-appbar">
         <Link to="/" className="nv-teams-brand" aria-label="NewVision home">
           <img src="/brand/favicon.png" alt="" className="nv-brand-img" width={22} height={22} />

@@ -25,10 +25,14 @@ export function StaffChatLauncher() {
       .catch(() => undefined);
   }, []);
 
-  useChatSocket(allowed, {
-    onUnread: () => refresh(),
-    onMessageNew: () => refresh(),
-  });
+  useChatSocket(
+    allowed,
+    {
+      onUnread: () => refresh(),
+      onMessageNew: () => refresh(),
+    },
+    identity?.id,
+  );
 
   useEffect(() => {
     if (!allowed) return;
