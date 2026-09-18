@@ -57,6 +57,8 @@ services:
     environment:
       # The browser runs on the host, so it reaches the backend via the host port.
       VITE_API_URL: http://localhost:3000/api
+      VITE_PUSHER_KEY: ""
+      VITE_PUSHER_CLUSTER: ""
       # Opt-in (Phase 1 hardening) — explicitly on here so the local demo-account shortcuts
       # keep showing on the login page for Docker Compose dev.
       VITE_SHOW_DEMO: "true"

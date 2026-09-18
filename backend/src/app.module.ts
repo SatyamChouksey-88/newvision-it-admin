@@ -22,6 +22,7 @@ import { DepartmentsModule } from './departments/departments.module';
 import { EmployeesModule } from './employees/employees.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { HealthModule } from './health/health.module';
+import { InternalCronModule } from './internal/internal-cron.module';
 import { ImportExportModule } from './import-export/import-export.module';
 import { ImportJobsModule } from './import-jobs/import-jobs.module';
 import { LocationsModule } from './locations/locations.module';
@@ -56,6 +57,7 @@ import { TenantInterceptor } from './tenancy/tenant.interceptor';
     AuthModule,
     EntraModule,
     HealthModule,
+    InternalCronModule,
     LocationsModule,
     DepartmentsModule,
     CategoriesModule,

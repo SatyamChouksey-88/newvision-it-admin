@@ -1,5 +1,4 @@
 import { INestApplication, Logger, ValidationPipe } from '@nestjs/common';
-import { IoAdapter } from '@nestjs/platform-socket.io';
 import cookieParser from 'cookie-parser';
 import type { Express, NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
@@ -7,7 +6,6 @@ import helmet from 'helmet';
 const httpLog = new Logger('HTTP');
 
 export function configureApp(app: INestApplication): void {
-  app.useWebSocketAdapter(new IoAdapter(app));
   app.setGlobalPrefix('api');
 
   const expressApp = app.getHttpAdapter().getInstance() as Express;
