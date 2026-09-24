@@ -1,8 +1,24 @@
 # NewVision Asset Manager
 
+[![CI](https://github.com/SatyamChouksey-88/newvision-it-admin/actions/workflows/ci.yml/badge.svg)](https://github.com/SatyamChouksey-88/newvision-it-admin/actions/workflows/ci.yml)
+
 NewVision Asset Manager is an internal IT operations web app for **NewVision Softcom** (and similar single-tenant deployments). It gives IT, managers, and employees one place to track hardware and software assets, run helpdesk tickets, handle procurement, and coordinate day-to-day IT work—with strict tenant isolation when multiple companies share one deployment.
 
 **Audience:** IT administrators and support staff (full modules), managers (team-scoped people, assets, tickets, requisitions), employees (self-service tickets, asset requests, My IT).
+
+## My QA role in this project
+
+I own test strategy for this full-stack app as the automation engineer on the team:
+
+| Area | What’s covered |
+|---|---|
+| **Strategy** | Risk-based E2E on critical employee / IT / manager flows; API/integration tests in the NestJS backend; accessibility gates with axe |
+| **Playwright E2E** | `frontend/e2e/` — **27** spec files, **104** `test()` cases (auth, assets, tickets, requests, reports, scan, search, responsive/join-kit, etc.) |
+| **Accessibility** | `frontend/e2e/a11y.spec.ts` — **14** axe checks (`@axe-core/playwright`) for login, dashboard, assets, tickets, help, chat, role homes |
+| **Backend** | Jest unit + Nest integration e2e (`npm test`, `npm run test:e2e`) against PostgreSQL |
+| **CI gates** | [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — Backend (lint · typecheck · unit · integration) and Frontend (lint · typecheck · build) must pass; Playwright e2e runs after those jobs succeed |
+
+> **CI status note (2026-09-24):** the latest `main` CI run is **red**. Failures are in frontend lint and backend `tsc` (Jest globals like `describe`/`it` not typed in some `*.spec.ts` files under the main tsconfig) — not a single flaky Playwright selector. Playwright e2e was skipped because upstream jobs failed. Fixing that typecheck/lint debt is tracked separately from this portfolio README pass.
 
 ## Tech stack
 
